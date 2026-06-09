@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Florería Duhau — Panel de Control</title>
+<title>Florería Duhau — Panel de Control v13</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300;1,9..40,400&family=Inter:wght@300;400;500;600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -846,12 +846,6 @@
         }
       });
 
-      fbListen('activityLog', val => {
-        if(!val) return;
-        window.activityLogData = val; // objeto plano key→entry
-        if(document.getElementById('page-actividad')?.classList.contains('active')) window.renderActividad();
-      });
-
       fbListen('proveedoresList', val => {
         if(!val) return;
         window.proveedoresList = Array.isArray(val) ? val : Object.values(val);
@@ -884,6 +878,34 @@
         const arr = Array.isArray(val) ? val : Object.values(val||{});
         window.recetasData = arr;
         if(document.getElementById('page-recetas-arreglos')?.classList.contains('active')) window.renderRecetas();
+      });
+
+      fbListen('ventasData', val => {
+        if(!val) return;
+        const arr = Array.isArray(val) ? val : Object.values(val||{});
+        if(window._setVentasData) window._setVentasData(arr);
+        if(document.getElementById('page-ventas-externas')?.classList.contains('active')) window.renderVentas();
+      });
+
+      fbListen('cajaData', val => {
+        if(!val) return;
+        const arr = Array.isArray(val) ? val : Object.values(val||{});
+        if(window._setCajaData) window._setCajaData(arr);
+        if(document.getElementById('page-caja')?.classList.contains('active')) window.renderCaja();
+      });
+
+      fbListen('glosarioData', val => {
+        if(!val) return;
+        const arr = Array.isArray(val) ? val : Object.values(val||{});
+        if(window._setGlosarioData) window._setGlosarioData(arr);
+        if(document.getElementById('page-glosario')?.classList.contains('active')) window.renderGlosario();
+      });
+
+      fbListen('listaPreciosData', val => {
+        if(!val) return;
+        const arr = Array.isArray(val) ? val : Object.values(val||{});
+        if(window._setListaPreciosData) window._setListaPreciosData(arr);
+        if(document.getElementById('page-lista-precios')?.classList.contains('active')) window.renderListaPrecios();
       });
 
     });
@@ -928,7 +950,6 @@
     <div class="nav-item" onclick="navigate('control',this)"><span class="nav-icon">🌿</span> Control Coordinador</div>
     <div class="nav-sub-item" onclick="navigate('control-jardineria',this)">Seguimiento Jardinería</div>
     <div class="nav-sub-item" onclick="navigate('control-habitaciones',this)">Habitaciones con Plantas</div>
-    <div class="nav-sub-item gerencia-only" onclick="navigate('actividad',this)">🔴 Actividad en vivo</div>
     <div class="nav-section-label">Compras</div>
     <div class="nav-item" onclick="navigate('compras',this)"><span class="nav-icon">🛒</span> Compras</div>
     <div class="nav-sub-item" onclick="navigate('compras-floreria',this)">Compras Florería</div>
@@ -1147,34 +1168,6 @@
     </div>
     <div id="kanban-eventos-alert" style="margin-bottom:16px"></div>
     <div class="kanban-board" id="kanban-board"></div>
-  </div>
-
-  <!-- ══════ ACTIVIDAD EN VIVO ══════ -->
-  <div id="page-actividad" class="content">
-    <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px">
-      <div>
-        <div class="page-title">Actividad en vivo</div>
-        <div class="page-subtitle">Registro en tiempo real de todas las acciones de los operarios</div>
-      </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <select id="act-filter-role" class="cl-select" onchange="renderActividad()" style="font-size:12px">
-          <option value="">Todos los roles</option>
-          <option value="operario">Operario</option>
-          <option value="gerencia">Gerencia</option>
-          <option value="jardinero">Jardinero</option>
-        </select>
-        <select id="act-filter-fecha" class="cl-select" onchange="renderActividad()" style="font-size:12px">
-          <option value="today">Hoy</option>
-          <option value="week">Últimos 7 días</option>
-          <option value="all">Todo</option>
-        </select>
-        <button class="btn-secondary" onclick="clearOldActivity()" style="font-size:12px">🗑 Limpiar antiguos</button>
-      </div>
-    </div>
-    <!-- KPIs en vivo -->
-    <div class="cards-grid cards-grid-4" id="act-kpis" style="margin-bottom:24px"></div>
-    <!-- Feed -->
-    <div id="act-feed" style="display:flex;flex-direction:column;gap:6px"></div>
   </div>
 
   <!-- ══════ COMPRAS LANDING ══════ -->
@@ -1983,27 +1976,6 @@ function fbSave(key, data){
 }
 
 // ════════════════════════════════════════
-// REGISTRO DE ACTIVIDAD
-// ════════════════════════════════════════
-function logActivity(accion, detalle, icon){
-  if(!window.fbSet) return;
-  const now = new Date();
-  const hora = now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
-  const entry = {
-    ts:     now.getTime(),
-    fecha:  TODAY_ISO,
-    hora,
-    role:   userRole || 'sistema',
-    accion,
-    detalle: detalle || '',
-    icon:   icon || '📌'
-  };
-  // Clave = timestamp + random para evitar colisiones
-  const key = 'activityLog/' + now.getTime() + '_' + Math.random().toString(36).slice(2,6);
-  window.fbSet(key, entry);
-}
-
-// ════════════════════════════════════════
 // DATE
 // ════════════════════════════════════════
 const DAYS_ES = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
@@ -2036,7 +2008,7 @@ function parseMoney(s){ return parseFloat(String(s||'').replace(/[^0-9.]/g,''))|
 // ════════════════════════════════════════
 // NAVIGATION
 // ════════════════════════════════════════
-const PAGE_LABELS = {control:'Control Coordinador','control-jardineria':'Control › Seguimiento Jardinería','control-habitaciones':'Control › Habitaciones con Plantas','actividad':'Control › Actividad en vivo',
+const PAGE_LABELS = {control:'Control Coordinador','control-jardineria':'Control › Seguimiento Jardinería','control-habitaciones':'Control › Habitaciones con Plantas',
   home:'Inicio', operaciones:'Operaciones',
   checklist:'Operaciones › Checklist', stock:'Operaciones › Stock',
   'eventos-maison':'Operaciones › Eventos / Maison',
@@ -2086,7 +2058,6 @@ function navigate(pageId, navEl){
   if(pageId==='jardineria-ops') renderJardOps();
   if(pageId==='hab-ops') renderHabOps();
   if(pageId==='control-habitaciones') renderCtrlHab();
-  if(pageId==='actividad') renderActividad();
 
   // En mobile, cerrar el sidebar automáticamente al navegar
   if(window.innerWidth <= 768) closeSidebar();
@@ -2480,7 +2451,6 @@ function toggleTask(i, el){
     const t  = CL_TASKS[i];
     const now = new Date();
     const resp = clState.responsable[i] || '—';
-    logActivity('Checklist ✓', t.zona+' · '+( clState.actividad[i]||t.actividad)+' — '+resp, '✅');
     checklistHistory.push({
       date: TODAY_ISO,
       week: getWeekLabel(now),
@@ -3103,7 +3073,6 @@ function addCompra(type){
     const el=document.getElementById(p+'-'+id);
     if(el) el.value='';
   });
-  logActivity('Compra nueva', prod+' ('+type+')', '🛒');
   renderCompras(type);
   if(document.getElementById('page-stock').classList.contains('active')) renderStock();
   updateKpiCompras();
@@ -3842,6 +3811,7 @@ let ventasData=[
   {prod:'Ramo Premium Primavera',desc:'Liliums, peonías rosadas, follaje variado',fecha:'2026-05-15',cliente:'Sra. Romero',dedicatoria:'Con todo mi amor',precio:'$35.000',formaPago:'Transferencia',estado:'confirmado',dir:'Posadas 1086, piso 3'},
   {prod:'Arreglo de Mesa Pequeño',desc:'Margaritas, conejitos y solidago',fecha:'2026-05-16',cliente:'Room Service VIP',dedicatoria:'',precio:'$12.000',formaPago:'',estado:'pendiente',dir:'Entregar en recepción'},
 ];
+window._setVentasData = (arr) => { ventasData.splice(0, ventasData.length, ...arr); };
 
 const VENTA_ESTADOS=['pendiente','confirmado','entregado'];
 const VENTA_ESTADO_LABEL={'pendiente':'⏳ Pendiente','confirmado':'✅ Confirmado','entregado':'🚚 Entregado'};
@@ -3885,7 +3855,7 @@ function renderVentas(){
   </tr>`).join('');
 }
 
-function updV(i,field,val){ ventasData[i][field]=val; }
+function updV(i,field,val){ ventasData[i][field]=val; fbSave('ventasData',ventasData); }
 function openSaleModal(){
   document.getElementById('sale-fecha').value=TODAY_ISO;
   ['sale-prod','sale-desc','sale-cliente','sale-dedicatoria','sale-precio','sale-dir'].forEach(id=>document.getElementById(id).value='');
@@ -3907,12 +3877,11 @@ function addSale(){
     estado:document.getElementById('sale-estado').value,
     dir:document.getElementById('sale-dir').value||'',
   });
-  const cliente = document.getElementById('sale-cliente').value||'—';
-  logActivity('Venta nueva', prod+' — '+cliente, '💐');
+  fbSave('ventasData', ventasData);
   closeModal('sale-modal');
   renderVentas();
 }
-function delVenta(i){ if(!confirm('¿Eliminar esta venta?')) return; logActivity('Venta eliminada', ventasData[i].prod, '🗑️'); ventasData.splice(i,1); renderVentas(); }
+function delVenta(i){ if(!confirm('¿Eliminar esta venta?')) return; ventasData.splice(i,1); fbSave('ventasData',ventasData); renderVentas(); }
 
 // ════════════════════════════════════════
 // DATA — CAJA
@@ -3924,6 +3893,7 @@ let cajaData=[
   {fecha:'2026-05-15',desc:'Compra Rosas importadas — Mercado Central',ticket:'',tipo:'egreso',monto:45000},
   {fecha:'2026-05-16',desc:'Venta arreglo mesa — Room Service VIP',ticket:'0045',tipo:'ingreso',monto:12000},
 ];
+window._setCajaData = (arr) => { cajaData.splice(0, cajaData.length, ...arr); };
 
 function renderCaja(){
   let totalIn=0,totalEg=0;
@@ -3959,9 +3929,9 @@ function renderCaja(){
     <div class="card"><div class="card-label">🔴 Total Egresos</div><div class="card-value red" style="font-size:28px">$${totalEg.toLocaleString('es-AR')}</div></div>
     <div class="card"><div class="card-label">💰 Saldo Actual</div><div class="card-value ${saldoFinal>=0?'green':'red'}" style="font-size:28px">$${saldoFinal.toLocaleString('es-AR')}</div></div>`;
 }
-function updCaja(i,field,val){ cajaData[i][field]=val; renderCaja(); }
-function updCajaTipo(i,val){ cajaData[i].tipo=val; renderCaja(); }
-function updCajaMonto(i,val){ cajaData[i].monto=isNaN(val)||val<0?0:val; renderCaja(); }
+function updCaja(i,field,val){ cajaData[i][field]=val; fbSave('cajaData',cajaData); renderCaja(); }
+function updCajaTipo(i,val){ cajaData[i].tipo=val; fbSave('cajaData',cajaData); renderCaja(); }
+function updCajaMonto(i,val){ cajaData[i].monto=isNaN(val)||val<0?0:val; fbSave('cajaData',cajaData); renderCaja(); }
 
 function openCajaModal(){
   document.getElementById('cj-fecha-caja').value=TODAY_ISO;
@@ -3978,10 +3948,11 @@ function addCajaMovimiento(){
     desc, ticket:document.getElementById('cj-ticket').value,
     tipo:document.getElementById('cj-tipo').value, monto
   });
+  fbSave('cajaData', cajaData);
   closeModal('caja-modal');
   renderCaja();
 }
-function delCaja(i){ if(!confirm('¿Eliminar este movimiento?')) return; cajaData.splice(i,1); renderCaja(); }
+function delCaja(i){ if(!confirm('¿Eliminar este movimiento?')) return; cajaData.splice(i,1); fbSave('cajaData',cajaData); renderCaja(); }
 
 // ════════════════════════════════════════
 // DATA — GLOSARIO
@@ -3994,6 +3965,7 @@ let glosarioData=[
   {nombre:'Arreglo Spa',desc:'Composición pequeña y aromática con lavanda, azarero y flores blancas.',precio:'$8.000–14.000',emoji:'🌺',photos:[]},
   {nombre:'Arreglo Maison',desc:'Ramo variado con flores de temporada. Se renueva semanalmente.',precio:'Servicio',emoji:'🌻',photos:[]},
 ];
+window._setGlosarioData = (arr) => { glosarioData.splice(0, glosarioData.length, ...arr); };
 
 function renderGlosario(){
   document.getElementById('glosario-grid').innerHTML=glosarioData.map((g,i)=>{
@@ -4051,10 +4023,11 @@ function addGlosario(){
   const nombre=document.getElementById('gl-nombre').value.trim();
   if(!nombre) return;
   glosarioData.push({nombre,desc:document.getElementById('gl-desc').value,precio:document.getElementById('gl-precio').value||'—',emoji:document.getElementById('gl-emoji').value||'🌸',photos:[]});
+  fbSave('glosarioData', glosarioData);
   closeModal('glosario-modal'); renderGlosario();
 }
-function delGlosario(i){ if(!confirm('¿Eliminar este arreglo?')) return; glosarioData.splice(i,1); renderGlosario(); }
-function updGlosario(i,field,val){ glosarioData[i][field]=val; }
+function delGlosario(i){ if(!confirm('¿Eliminar este arreglo?')) return; glosarioData.splice(i,1); fbSave('glosarioData',glosarioData); renderGlosario(); }
+function updGlosario(i,field,val){ glosarioData[i][field]=val; fbSave('glosarioData',glosarioData); }
 
 function addPhotos(i, input){
   const files = Array.from(input.files);
@@ -4066,7 +4039,7 @@ function addPhotos(i, input){
     reader.onload = e=>{
       glosarioData[i].photos.push(e.target.result);
       loaded++;
-      if(loaded===files.length) renderGlosario();
+      if(loaded===files.length){ fbSave('glosarioData',glosarioData); renderGlosario(); }
     };
     reader.readAsDataURL(file);
   });
@@ -4074,6 +4047,7 @@ function addPhotos(i, input){
 
 function removePhoto(i,pi){
   glosarioData[i].photos.splice(pi,1);
+  fbSave('glosarioData',glosarioData);
   renderGlosario();
 }
 
@@ -4281,8 +4255,6 @@ function zonaSetHora(idx, campo){
   const hora = now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
   zonaHorasData[key][campo] = hora;
   zonaHorasData[key].fecha = TODAY_ISO;
-  const label = campo==='horaInicio'?'Inicio':'Fin';
-  logActivity('Zona '+label, z.group+' ('+z.section+') — '+hora, campo==='horaInicio'?'▶️':'⏹️');
   fbSave('zonaHorasData', zonaHorasData);
   renderJardOps();
 }
@@ -4634,7 +4606,6 @@ function markJardDone(i, quien){
   if(!jardineriaData[i].monthlyVisits) jardineriaData[i].monthlyVisits={};
   jardineriaData[i].monthlyVisits[CURR_MONTH] = (jardineriaData[i].monthlyVisits[CURR_MONTH]||0)+1;
   jardineriaData[i].canUndo = true;
-  logActivity('Jardinería ✓', jardineriaData[i].group+' · '+jardineriaData[i].task+(quien?' — '+quien:''), '🌿');
   fbSave('jardineriaData', jardineriaData);
   renderCtrlJard();
 }
@@ -4645,7 +4616,6 @@ function undoJardDone(i){
   if(jardineriaData[i].monthlyVisits)
     jardineriaData[i].monthlyVisits[CURR_MONTH] = Math.max(0,(jardineriaData[i].monthlyVisits[CURR_MONTH]||1)-1);
   jardineriaData[i].canUndo=false;
-  logActivity('Jardinería ↩', jardineriaData[i].group+' · '+jardineriaData[i].task, '↩️');
   fbSave('jardineriaData', jardineriaData);
   renderCtrlJard();
   if(document.getElementById('page-jardineria-ops')?.classList.contains('active')) renderJardOps();
@@ -4897,7 +4867,6 @@ function markHabDone(i, quien){
   if(!habitacionesData[i].monthlyVisits) habitacionesData[i].monthlyVisits={};
   habitacionesData[i].monthlyVisits[CURR_MONTH] = (habitacionesData[i].monthlyVisits[CURR_MONTH]||0)+1;
   habitacionesData[i].canUndo = true;
-  logActivity('Habitación ✓', 'Hab. '+habitacionesData[i].hab+(quien?' — '+quien:''), '🛏️');
   fbSave('habitacionesData', habitacionesData);
   renderCtrlHab();
 }
@@ -4908,7 +4877,6 @@ function undoHabDone(i){
   if(habitacionesData[i].monthlyVisits)
     habitacionesData[i].monthlyVisits[CURR_MONTH] = Math.max(0,(habitacionesData[i].monthlyVisits[CURR_MONTH]||1)-1);
   habitacionesData[i].canUndo=false;
-  logActivity('Habitación ↩', 'Hab. '+habitacionesData[i].hab, '↩️');
   fbSave('habitacionesData', habitacionesData);
   renderCtrlHab();
   if(document.getElementById('page-hab-ops')?.classList.contains('active')) renderHabOps();
@@ -5128,6 +5096,7 @@ let listaPreciosData = [
     { nombre: 'Cilindro (No Claudia Adorno)',     desc: 'Ø17 × H40 cm',          precio: 'A consultar', photos: [] },
   ]},
 ];
+window._setListaPreciosData = (arr) => { listaPreciosData.splice(0, listaPreciosData.length, ...arr); };
 
 // ── CSS para lista de precios ─────────────────────────────────────────────────
 (function injectLpCss(){
@@ -5286,17 +5255,19 @@ function renderListaPrecios(){
   </div>`;
 }
 
-function lpUpdItem(ci,ii,field,val){ listaPreciosData[ci].items[ii][field]=val; }
+function lpUpdItem(ci,ii,field,val){ listaPreciosData[ci].items[ii][field]=val; fbSave('listaPreciosData',listaPreciosData); }
 
 function lpDelItem(ci,ii){
   if(!confirm('¿Eliminar este ítem?')) return;
   listaPreciosData[ci].items.splice(ii,1);
+  fbSave('listaPreciosData',listaPreciosData);
   renderListaPrecios();
 }
 
 function lpDelCat(ci){
   if(!confirm('¿Eliminar la categoría "'+listaPreciosData[ci].cat+'" y todos sus ítems?')) return;
   listaPreciosData.splice(ci,1);
+  fbSave('listaPreciosData',listaPreciosData);
   renderListaPrecios();
 }
 
@@ -5335,6 +5306,7 @@ function saveLpItem(){
   };
   if(ii===-1) listaPreciosData[ci].items.push(item);
   else listaPreciosData[ci].items[ii]=item;
+  fbSave('listaPreciosData',listaPreciosData);
   closeModal('lp-modal');
   renderListaPrecios();
 }
@@ -5345,6 +5317,7 @@ function addLpCat(){
   const nombre = document.getElementById('lp-cat-nombre').value.trim();
   if(!nombre) return;
   listaPreciosData.push({ cat: nombre, emoji: '🌿', items: [] });
+  fbSave('listaPreciosData',listaPreciosData);
   closeModal('lp-cat-modal');
   document.getElementById('lp-cat-nombre').value='';
   renderListaPrecios();
@@ -5360,7 +5333,7 @@ function lpAddPhotos(ci,ii,input){
     reader.onload=e=>{
       listaPreciosData[ci].items[ii].photos.push(e.target.result);
       loaded++;
-      if(loaded===files.length) renderListaPrecios();
+      if(loaded===files.length){ fbSave('listaPreciosData',listaPreciosData); renderListaPrecios(); }
     };
     reader.readAsDataURL(file);
   });
@@ -5368,6 +5341,7 @@ function lpAddPhotos(ci,ii,input){
 
 function lpRemovePhoto(ci,ii,pi){
   listaPreciosData[ci].items[ii].photos.splice(pi,1);
+  fbSave('listaPreciosData',listaPreciosData);
   renderListaPrecios();
 }
 
@@ -5399,95 +5373,8 @@ function lpOpenViewer(ci,ii,pi){
 
 
 // ════════════════════════════════════════
-// ACTIVIDAD EN VIVO
-// ════════════════════════════════════════
-let activityLogData = {};
+// MOBILE SIDEBAR
 
-const ROLE_LABEL = {gerencia:'Gerencia', operario:'Operario', jardinero:'Jardinero', sistema:'Sistema'};
-const ROLE_COLOR = {gerencia:'#2C4A3E', operario:'#2C5A80', jardinero:'#5A6A2C', sistema:'#7A7A72'};
-const ROLE_BG    = {gerencia:'#E8F5E9', operario:'#E8F0F8', jardinero:'#F0F5E8', sistema:'#F0F0F0'};
-
-function renderActividad(){
-  const filterRole  = document.getElementById('act-filter-role')?.value  || '';
-  const filterFecha = document.getElementById('act-filter-fecha')?.value || 'today';
-
-  // Convertir objeto Firebase a array ordenado por ts desc
-  const entries = Object.values(activityLogData || {})
-    .sort((a,b) => b.ts - a.ts);
-
-  // Filtrar por fecha
-  const hoy = TODAY_ISO;
-  const hace7 = new Date(Date.now() - 7*86400000).toISOString().slice(0,10);
-  const filtered = entries.filter(e => {
-    if(filterRole && e.role !== filterRole) return false;
-    if(filterFecha === 'today' && e.fecha !== hoy) return false;
-    if(filterFecha === 'week'  && e.fecha < hace7) return false;
-    return true;
-  });
-
-  // KPIs
-  const totalHoy  = entries.filter(e => e.fecha === hoy).length;
-  const logins    = entries.filter(e => e.fecha === hoy && e.accion === 'Inicio de sesión').length;
-  const tareas    = entries.filter(e => e.fecha === hoy && (e.accion.includes('✓'))).length;
-  const roles     = [...new Set(entries.filter(e=>e.fecha===hoy).map(e=>e.role))];
-  const kpisEl = document.getElementById('act-kpis');
-  if(kpisEl) kpisEl.innerHTML = `
-    <div class="card"><div class="card-label">Acciones hoy</div><div class="card-value" style="font-size:32px;color:var(--charcoal)">${totalHoy}</div><div class="card-sub">total del día</div></div>
-    <div class="card"><div class="card-label">Tareas completadas</div><div class="card-value green" style="font-size:32px">${tareas}</div><div class="card-sub">marcadas hoy</div></div>
-    <div class="card"><div class="card-label">Inicios de sesión</div><div class="card-value" style="font-size:32px;color:var(--amber)">${logins}</div><div class="card-sub">accesos hoy</div></div>
-    <div class="card"><div class="card-label">Operarios activos</div><div class="card-value" style="font-size:32px;color:#2C5A80">${roles.length}</div><div class="card-sub">${roles.map(r=>ROLE_LABEL[r]||r).join(', ')||'ninguno'}</div></div>`;
-
-  // Feed
-  const feed = document.getElementById('act-feed');
-  if(!feed) return;
-
-  if(filtered.length === 0){
-    feed.innerHTML = `<div style="padding:48px;text-align:center;color:var(--mid-gray);font-size:14px;background:var(--warm-white);border:1px solid var(--light-gray);border-radius:8px">
-      Sin actividad registrada para el filtro seleccionado.
-    </div>`;
-    return;
-  }
-
-  // Agrupar por fecha
-  const byDate = {};
-  filtered.forEach(e => {
-    if(!byDate[e.fecha]) byDate[e.fecha] = [];
-    byDate[e.fecha].push(e);
-  });
-
-  feed.innerHTML = Object.keys(byDate).sort().reverse().map(fecha => {
-    const items = byDate[fecha];
-    const label = fecha === hoy ? '📅 Hoy — '+fecha : '📅 '+fecha;
-    return `
-      <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);padding:12px 0 6px">${label} <span style="font-weight:400">(${items.length} acciones)</span></div>
-      <div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:8px;overflow:hidden">
-        ${items.map((e,idx) => `
-          <div style="display:flex;align-items:flex-start;gap:12px;padding:10px 16px;${idx>0?'border-top:1px solid var(--light-gray)':''}">
-            <span style="font-size:18px;flex-shrink:0;line-height:1.4">${e.icon||'📌'}</span>
-            <div style="flex:1;min-width:0">
-              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                <span style="font-size:12px;font-weight:600;color:var(--charcoal)">${esc(e.accion)}</span>
-                <span style="background:${ROLE_BG[e.role]||'#eee'};color:${ROLE_COLOR[e.role]||'#666'};padding:1px 7px;border-radius:10px;font-size:10px;font-weight:600">${ROLE_LABEL[e.role]||e.role}</span>
-              </div>
-              ${e.detalle?`<div style="font-size:11px;color:var(--mid-gray);margin-top:2px">${esc(e.detalle)}</div>`:''}
-            </div>
-            <span style="font-size:11px;color:var(--mid-gray);flex-shrink:0;font-family:'Cormorant Garamond',serif;font-size:14px">${e.hora}</span>
-          </div>`).join('')}
-      </div>`;
-  }).join('');
-}
-
-function clearOldActivity(){
-  if(userRole !== 'gerencia') return;
-  if(!confirm('¿Eliminar entradas de más de 30 días?')) return;
-  const limite = new Date(Date.now() - 30*86400000).toISOString().slice(0,10);
-  const toDelete = Object.entries(activityLogData||{}).filter(([,e])=>e.fecha < limite);
-  if(toDelete.length === 0){ alert('No hay entradas antiguas.'); return; }
-  toDelete.forEach(([key])=>{
-    if(window.fbSet) window.fbSet('activityLog/'+key, null);
-  });
-  showToast('🗑 '+toDelete.length+' entradas eliminadas');
-}
 
 // ════════════════════════════
 // MOBILE SIDEBAR
@@ -5568,7 +5455,6 @@ function applyRole(role){
   // Marcar el body con la clase del rol — el CSS oculta .gerencia-only automáticamente
   document.body.classList.remove('role-gerencia','role-operario','role-jardinero');
   document.body.classList.add('role-' + role);
-  logActivity('Inicio de sesión', 'Rol: ' + role, '🔐');
 
   // Ocultar botones productividad para no-gerencia
   const prodBtn = document.getElementById('prod-toggle-btn');
