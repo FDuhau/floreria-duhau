@@ -2310,7 +2310,7 @@ function getOrCreateDayState(day){
   if(saved) clStateByDay = saved;
 })();
 
-let checklistHistory = JSON.parse(localStorage.getItem('cl_history')||'[]');
+let checklistHistory = [];
 let currentDay = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'].includes(TODAY_DAY) ? TODAY_DAY : 'Lunes';
 let historyWeekFilter = null;
 
@@ -2687,43 +2687,7 @@ function renderHistoryPanel(){
 // ════════════════════════════════════════
 // DATA — STOCK
 // ════════════════════════════════════════
-let stockData = [
-  {prod:'Monsteras',area:'Lobby Alvear',min:2,max:8,actual:4},
-  {prod:'Nispero',area:'Lobby Alvear',min:0.5,max:2,actual:0},
-  {prod:'Magnolia',area:'Lobby Alvear',min:0.5,max:2,actual:0.5},
-  {prod:'Eucaliptus',area:'Lobby Alvear',min:0.5,max:2,actual:1},
-  {prod:'Azarero',area:'Lobby Alvear',min:0.5,max:2,actual:1},
-  {prod:'Laurentino',area:'Lobby Alvear',min:1.5,max:6,actual:3},
-  {prod:'Solidago',area:'Lobby Alvear',min:0.5,max:2,actual:1},
-  {prod:'Molucela',area:'Lobby Alvear',min:0.5,max:2,actual:1},
-  {prod:'Limonium',area:'Lobby Posadas',min:4,max:16,actual:8},
-  {prod:'Azarero',area:'Lobby Posadas',min:1,max:4,actual:2},
-  {prod:'Laurentino',area:'Salón privado + biblioteca',min:0.5,max:2,actual:1},
-  {prod:'Azarero Disciplinado',area:'Salón privado + biblioteca',min:0.5,max:2,actual:1},
-  {prod:'Buxus',area:'Salón privado + biblioteca',min:0.5,max:2,actual:1},
-  {prod:'Ligustro (frutos)',area:'Salón privado + biblioteca',min:0.5,max:2,actual:1},
-  {prod:'Rosas Nacionales',area:'Mesada Piano + Recep. Alvear',min:0.5,max:2,actual:1},
-  {prod:'Conejitos',area:'Mesada Piano + Recep. Alvear',min:1,max:4,actual:2},
-  {prod:'Margaritas',area:'Mesada Piano + Recep. Alvear',min:1,max:4,actual:2},
-  {prod:'San Vicentes',area:'Habitaciones',min:2.5,max:10,actual:5},
-  {prod:'Azarero',area:'Habitaciones',min:1.5,max:6,actual:3},
-  {prod:'Monsteras',area:'Copón Duhau',min:1.5,max:6,actual:3},
-  {prod:'Azarero Nana',area:'Centros de mesa Gioia',min:2,max:8,actual:4},
-  {prod:'Crisantemo Otome',area:'Bertone',min:0.5,max:2,actual:1},
-  {prod:'Liliums (rosados)',area:'Bertone',min:1,max:4,actual:2},
-  {prod:'Conejitos',area:'Bertone',min:1,max:4,actual:2},
-  {prod:'Margaritas',area:'Bertone',min:1,max:4,actual:2},
-  {prod:'Trachelium',area:'Bertone',min:1,max:4,actual:2},
-  {prod:'Rosas Importadas',area:'Bertone',min:0.5,max:2,actual:1},
-  {prod:'Alstroemerias',area:'Bertone',min:1,max:4,actual:2},
-  {prod:'Liliums (blancos)',area:'Florería',min:1,max:4,actual:2},
-  {prod:'Alstroemerias (rebeca)',area:'Florería',min:1,max:4,actual:2},
-  {prod:'Rosas Nacionales',area:'Florería',min:0.5,max:2,actual:1},
-  {prod:'Margaritas',area:'Florería',min:1.5,max:6,actual:3},
-  {prod:'Conejitos (rosados)',area:'Florería',min:1.5,max:6,actual:3},
-  {prod:'Solidago',area:'Florería',min:1,max:4,actual:2},
-  {prod:'Botoncito',area:'Florería',min:1.5,max:6,actual:3},
-];
+let stockData = [];
 
 function getAlerta(item, comprometido){
   const comp = comprometido !== undefined ? comprometido : 0;
@@ -2941,22 +2905,7 @@ function renderStockAdmin(){
 // DATA — KANBAN
 // Includes cards AND events from comercial
 // ════════════════════════════════════════
-let kanbanData = [
-  {title:'📋 Pedidos Pendientes',color:'#E8E4DC',cards:[
-    {title:'Preparar arreglos Casamiento García',desc:'Rosas blancas, centerpieces altos',tags:['tag-evento','tag-urgente'],date:'2026-05-22',isEvento:false},
-    {title:'Reposición semanal Maison Bertone',desc:'',tags:['tag-maison'],date:'2026-05-19',isEvento:false},
-    {title:'Coordinar pedido flores Meeting Rooms',desc:'',tags:['tag-floreria'],date:'2026-05-20',isEvento:false},
-  ]},
-  {title:'🔄 En Proceso',color:'#EBF0E8',cards:[
-    {title:'Nuevos centros de mesa Gioia — rediseño',desc:'',tags:['tag-floreria'],date:'2026-05-16',isEvento:false},
-    {title:'Instalación jardinería pisos 2-4',desc:'',tags:['tag-garden'],date:'2026-05-15',isEvento:false},
-  ]},
-  {title:'📦 Pendiente de Colocacion',color:'#FDF0E8',cards:[]},
-  {title:'✅ Pedidos Finalizados',color:'#EBF5E8',cards:[
-    {title:'Reemplazo Lobby Alvear — semana 12/5',desc:'',tags:['tag-floreria'],date:'2026-05-12',isEvento:false},
-    {title:'Pedido rosas importadas Miércoles',desc:'',tags:['tag-floreria'],date:'2026-05-07',isEvento:false},
-  ]},
-];
+let kanbanData = [];
 const TAG_LABELS={'tag-floreria':'Florería','tag-maison':'Maison','tag-evento':'Evento','tag-urgente':'🔴 Urgente','tag-garden':'Jardinería'};
 const ESTADO_COL = {'Pedidos Pendientes':0,'En Proceso':1,'Pendiente de Colocacion':2,'Confirmado':1,'Pedidos Finalizados':3};
 let dragSrcCol=null,dragSrcIdx=null,editingTask=null;
@@ -3152,19 +3101,8 @@ function getProvOpts(selected=''){
 
 // DATA — COMPRAS (with period filter & history)
 // ════════════════════════════════════════
-let comprasFlore = [
-  {fecha:'2026-05-15',pedidopor:'Encargada',prod:'Rosas Importadas Pink Mondial',desc:'',qty:10,costo:'$45.000',prov:'Mercado Central',sector:'Florería',estado:'urgente'},
-  {fecha:'2026-05-16',pedidopor:'Florista Sr 1',prod:'Nispero (ramas)',desc:'Ramas largas',qty:5,costo:'$8.000',prov:'Vivero Norte',sector:'Lobby Alvear',estado:'pendiente'},
-  {fecha:'2026-04-30',pedidopor:'Encargada',prod:'Liliums blancos',desc:'x tallo',qty:20,costo:'$22.000',prov:'Cooperativa Flores',sector:'Bertone',estado:'comprado'},
-  {fecha:'2026-04-23',pedidopor:'Florista Sr 1',prod:'Rosas Nacionales',desc:'Rojas y blancas',qty:30,costo:'$18.000',prov:'Mercado Central',sector:'Florería',estado:'comprado'},
-  {fecha:'2026-03-19',pedidopor:'Encargada',prod:'Alstroemerias',desc:'Mix colores',qty:15,costo:'$12.000',prov:'Cooperativa Flores',sector:'Bertone',estado:'comprado'},
-];
-let comprasJard = [
-  {fecha:'2026-05-17',pedidopor:'Jardinero',prod:'Monsteras medianas',desc:'',qty:8,costo:'$48.000',prov:'Vivero Palermo',sector:'Lobby Alvear',estado:'pendiente'},
-  {fecha:'2026-05-10',pedidopor:'Encargada',prod:'Sustrato enriquecido',desc:'Bolsas 20L',qty:3,costo:'$6.000',prov:'Agro Insumos',sector:'General',estado:'comprado'},
-  {fecha:'2026-05-15',pedidopor:'Jardinero',prod:'Azarero (plantas)',desc:'',qty:6,costo:'$18.000',prov:'Vivero Palermo',sector:'Pisos 2-4',estado:'urgente'},
-  {fecha:'2026-04-12',pedidopor:'Jardinero',prod:'Macetas de barro',desc:'30cm diámetro',qty:10,costo:'$25.000',prov:'Agro Insumos',sector:'Terraza',estado:'comprado'},
-];
+let comprasFlore = [];
+let comprasJard = [];
 
 // Filters
 let compraFilter = { floreria: null, jardineria: null }; // null = all, {from, to} = range
@@ -3437,12 +3375,7 @@ function updateKpiCompras(){
 // ════════════════════════════════════════
 // DATA — EVENTOS COMERCIAL (bidirectional with Kanban)
 // ════════════════════════════════════════
-let eventosData = [
-  {nombre:'Casamiento García',tipo:'Social',fecha:'2026-05-22',hora:'19:00',salon:'Salón Duhau',pax:120,notas:'Rosas blancas, centerpieces altos',precio:'$180.000',estado:'Confirmado'},
-  {nombre:'Cena Corporativa ABInBev',tipo:'Corporativo',fecha:'2026-06-03',hora:'21:00',salon:'P. Nobile',pax:60,notas:'Arreglos minimalistas, blancos y verdes',precio:'$95.000',estado:'En Proceso'},
-  {nombre:'Cocktail de Lanzamiento',tipo:'Social',fecha:'2026-05-30',hora:'18:30',salon:'Foyer Spa',pax:40,notas:'Mix de flores silvestres',precio:'$60.000',estado:'Pedidos Pendientes'},
-  {nombre:'Maison Bertone — Regular',tipo:'Recurrente',fecha:'2026-05-19',hora:'09:00',salon:'Bertone',pax:0,notas:'1 ramo de cada uno + cámara',precio:'Servicio',estado:'En Proceso'},
-];
+let eventosData = [];
 
 const ESTADO_COLORS={
   'Pedidos Pendientes':'background:#E8E4DC;color:#4A4A4A',
@@ -3924,11 +3857,7 @@ function renderHome(){
 // ════════════════════════════════════════
 // DATA — VENTAS (fully editable inline + new columns)
 // ════════════════════════════════════════
-let ventasData=[
-  {prod:'Ramo Clásico Blanco',desc:'Rosas blancas, eucalipto y gypsophila',fecha:'2026-05-14',cliente:'Hotel Guest 312',dedicatoria:'',precio:'$18.500',formaPago:'Efectivo',estado:'entregado',dir:'Retira en florería'},
-  {prod:'Ramo Premium Primavera',desc:'Liliums, peonías rosadas, follaje variado',fecha:'2026-05-15',cliente:'Sra. Romero',dedicatoria:'Con todo mi amor',precio:'$35.000',formaPago:'Transferencia',estado:'confirmado',dir:'Posadas 1086, piso 3'},
-  {prod:'Arreglo de Mesa Pequeño',desc:'Margaritas, conejitos y solidago',fecha:'2026-05-16',cliente:'Room Service VIP',dedicatoria:'',precio:'$12.000',formaPago:'',estado:'pendiente',dir:'Entregar en recepción'},
-];
+let ventasData=[];
 window._setVentasData = (arr) => { ventasData.splice(0, ventasData.length, ...arr); };
 
 const VENTA_ESTADOS=['pendiente','confirmado','entregado'];
@@ -4004,13 +3933,7 @@ function delVenta(i){ if(!confirm('¿Eliminar esta venta?')) return; ventasData.
 // ════════════════════════════════════════
 // DATA — CAJA
 // ════════════════════════════════════════
-let cajaData=[
-  {fecha:'2026-05-10',desc:'Venta ramo clásico — Room 312',ticket:'0043',tipo:'ingreso',monto:18500},
-  {fecha:'2026-05-12',desc:'Compra Liliums blancos — Cooperativa',ticket:'',tipo:'egreso',monto:22000},
-  {fecha:'2026-05-14',desc:'Venta ramo premium — Sra. Romero',ticket:'0044',tipo:'ingreso',monto:35000},
-  {fecha:'2026-05-15',desc:'Compra Rosas importadas — Mercado Central',ticket:'',tipo:'egreso',monto:45000},
-  {fecha:'2026-05-16',desc:'Venta arreglo mesa — Room Service VIP',ticket:'0045',tipo:'ingreso',monto:12000},
-];
+let cajaData=[];
 window._setCajaData = (arr) => { cajaData.splice(0, cajaData.length, ...arr); };
 
 function renderCaja(){
@@ -4075,14 +3998,7 @@ function delCaja(i){ if(!confirm('¿Eliminar este movimiento?')) return; cajaDat
 // ════════════════════════════════════════
 // DATA — GLOSARIO
 // ════════════════════════════════════════
-let glosarioData=[
-  {nombre:'Ramo Clásico',desc:'Composición de rosas nacionales, gypsophila y eucalipto. Tamaño mediano. Colores: blanco y verde.',precio:'$15.000–22.000',emoji:'🌹',photos:[]},
-  {nombre:'Centro de Mesa Duhau',desc:'Arreglo bajo con flores de temporada, follaje variado y estructura ramificada. Ideal para eventos 8-10 pax.',precio:'$28.000–45.000',emoji:'🌸',photos:[]},
-  {nombre:'Copón Alto Lobby',desc:'Arreglo vertical de gran porte con monsteras, ramas de nispero y flores de color. Para espacios de entrada.',precio:'$80.000+',emoji:'🌿',photos:[]},
-  {nombre:'Ramo Premium',desc:'Liliums importados, peonías o rosas premium. Para regalo o V.I.P.',precio:'$35.000–55.000',emoji:'💐',photos:[]},
-  {nombre:'Arreglo Spa',desc:'Composición pequeña y aromática con lavanda, azarero y flores blancas.',precio:'$8.000–14.000',emoji:'🌺',photos:[]},
-  {nombre:'Arreglo Maison',desc:'Ramo variado con flores de temporada. Se renueva semanalmente.',precio:'Servicio',emoji:'🌻',photos:[]},
-];
+let glosarioData=[];
 window._setGlosarioData = (arr) => { glosarioData.splice(0, glosarioData.length, ...arr); };
 
 function renderGlosario(){
@@ -5406,86 +5322,7 @@ function renderHabLog(){
 // ════════════════════════════════════════
 // DATA — LISTA DE PRECIOS
 // ════════════════════════════════════════
-let listaPreciosData = [
-  { cat: 'Ramos', emoji: '💐', items: [
-    { nombre: 'Standard',    desc: 'Mix: 15 varas de estación',                   precio: '$150.000', photos: [] },
-    { nombre: 'Deluxe',      desc: 'Mix: 25 varas de estación + 1 premium',       precio: '$250.000', photos: [] },
-    { nombre: 'Premium',     desc: 'Mix: 12 varas de estación + 8 premium',       precio: '$320.000', photos: [] },
-    { nombre: 'Premium VIP', desc: 'Mix: 18 varas de estación + 12 premium',      precio: '$400.000', photos: [] },
-    { nombre: 'Luxury',      desc: 'Mix: 22 varas de estación + 18 premium',      precio: '$750.000', photos: [] },
-  ]},
-  { cat: 'Flower Box (Arreglos en cubos)', emoji: '🌸', items: [
-    { nombre: 'Small — Con flores de estación',  desc: '', precio: '$380.000', photos: [] },
-    { nombre: 'Large — Con flores de estación',  desc: '', precio: '$500.000', photos: [] },
-  ]},
-  { cat: 'Orquídeas', emoji: '🌺', items: [
-    { nombre: 'Simple vara',  desc: '', precio: '$200.000', photos: [] },
-    { nombre: 'Doble vara',   desc: '', precio: '$320.000', photos: [] },
-    { nombre: 'Triple vara',  desc: '', precio: '$350.000', photos: [] },
-  ]},
-  { cat: 'Tulipanes', emoji: '🌷', items: [
-    { nombre: 'Ramo de 6',   desc: '', precio: '$180.000', photos: [] },
-    { nombre: 'Ramo de 12',  desc: '', precio: '$300.000', photos: [] },
-  ]},
-  { cat: 'Rosas', emoji: '🌹', items: [
-    { nombre: 'Bouquet 12 rosas nacionales',   desc: '', precio: '$120.000',   photos: [] },
-    { nombre: 'Bouquet 12 rosas importadas',   desc: '', precio: '$220.000',   photos: [] },
-    { nombre: 'Bouquet 24 rosas importadas',   desc: '', precio: '$440.000',   photos: [] },
-    { nombre: 'Bouquet 50 rosas nacionales',   desc: '', precio: '$350.000',   photos: [] },
-    { nombre: 'Bouquet 50 rosas importadas',   desc: '', precio: '$800.000',   photos: [] },
-    { nombre: 'Bouquet 100 rosas nacionales',  desc: '', precio: '$650.000',   photos: [] },
-    { nombre: 'Bouquet 100 rosas importadas',  desc: '', precio: '$1.750.000', photos: [] },
-  ]},
-  { cat: 'Flores por vara', emoji: '✂️', items: [
-    { nombre: 'Estación',          desc: 'Conejitos, Dianthus, Astromelia, Fresias, San Vicente, Margaritas', precio: '$10.000',  photos: [] },
-    { nombre: 'Premium',           desc: 'Iris, Marimonia, Anémona, Tulipanes, Girasoles, Peonías',           precio: '$25.000',  photos: [] },
-    { nombre: 'Liliums',           desc: '',                                                                   precio: '$15.000',  photos: [] },
-    { nombre: 'Liliums perfumados',desc: '',                                                                   precio: '$20.000',  photos: [] },
-    { nombre: 'Rosas nacionales',  desc: '',                                                                   precio: '$10.000',  photos: [] },
-    { nombre: 'Rosas importadas',  desc: '',                                                                   precio: '$20.000',  photos: [] },
-    { nombre: 'Hortensias chicas', desc: '',                                                                   precio: '$10.000',  photos: [] },
-    { nombre: 'Hortensias grandes',desc: '',                                                                   precio: '$25.000',  photos: [] },
-    { nombre: 'Tulipanes',         desc: '',                                                                   precio: '$25.000',  photos: [] },
-    { nombre: 'Girasoles',         desc: '',                                                                   precio: '$25.000',  photos: [] },
-    { nombre: 'Peonías',           desc: '',                                                                   precio: '$25.000',  photos: [] },
-  ]},
-  { cat: 'Terrarios', emoji: '🪴', items: [
-    { nombre: 'Grande', desc: '', precio: '$450.000', photos: [] },
-    { nombre: 'Chico',  desc: '', precio: '$350.000', photos: [] },
-  ]},
-  { cat: 'Bochitas para venta', emoji: '🫙', items: [
-    { nombre: 'Mix flores de estación + florero', desc: '',                                 precio: '$170.000', photos: [] },
-    { nombre: 'Mix flores premium + florero',     desc: '',                                 precio: '$250.000', photos: [] },
-    { nombre: 'Pecera upgrade',                   desc: 'Mix: 10 varas estación + 1 premium', precio: 'A consultar', photos: [] },
-  ]},
-  { cat: 'Floreros', emoji: '🏺', items: [
-    { nombre: 'Cónico / Cardiff — Único',        desc: 'Ø15 × H28 cm',          precio: '$60.000',  photos: [] },
-    { nombre: 'Línea Cristal Acrílico — Único',  desc: 'Ø5 × H20 cm / 4 mm',   precio: '$50.000',  photos: [] },
-    { nombre: 'Clásico / Colonial — Small',      desc: 'Ø14 × H20 cm / 6 mm',  precio: '$75.000',  photos: [] },
-    { nombre: 'Clásico / Colonial — Large',      desc: 'Ø14 × H25 cm / 6 mm',  precio: '$100.000', photos: [] },
-    { nombre: 'Bombe — Small',                   desc: 'Ø11.5/13 × H30 cm / 5 mm', precio: '$60.000', photos: [] },
-    { nombre: 'Bombe — Medium',                  desc: 'Ø13/15 × H35 cm / 5 mm',   precio: '$85.000', photos: [] },
-    { nombre: 'Bombe — Large',                   desc: 'Ø12/15 × H50 cm / 8 mm',   precio: '$100.000',photos: [] },
-    { nombre: 'Cilindro / Chicago — Small',      desc: 'Ø10 × H45 cm / 8 mm',  precio: '$50.000',  photos: [] },
-    { nombre: 'Cilindro / Chicago — Medium',     desc: 'Ø10 × H25 cm / 5 mm',  precio: '$65.000',  photos: [] },
-    { nombre: 'Cilindro / Chicago — Large',      desc: 'Ø10 × H45 cm / 8 mm',  precio: '$85.000',  photos: [] },
-    { nombre: 'Trapecio / Toronto — Small',      desc: 'Ø11 × H12 cm / 5 mm',  precio: '$55.000',  photos: [] },
-    { nombre: 'Trapecio / Toronto — Large',      desc: 'Ø12.5 × H18 cm / 5 mm',precio: '$85.000',  photos: [] },
-    { nombre: 'Huso / Honolulu — Small',         desc: 'Ø11 × H18.5 cm / 5 mm',precio: '$55.000',  photos: [] },
-    { nombre: 'Huso / Honolulu — Medium',        desc: 'Ø12 × H26 cm / 5 mm',  precio: '$75.000',  photos: [] },
-    { nombre: 'Huso / Honolulu — Large',         desc: 'Ø14 × H32 cm / 8 mm',  precio: '$100.000', photos: [] },
-    { nombre: 'Tulipas Clásico / Casablanca — Small', desc: 'Ø15 × H30 cm',    precio: '$55.000',  photos: [] },
-    { nombre: 'Tulipas Clásico / Casablanca — Large', desc: 'Ø15 × H40 cm',    precio: '$95.000',  photos: [] },
-    { nombre: 'Good — Único',                    desc: 'Ø16 × H25 cm / 5 mm',  precio: '$60.000',  photos: [] },
-    { nombre: 'Pecera — Único',                  desc: 'Ø20 × H17.5 cm / 6 mm',precio: '$60.000',  photos: [] },
-    { nombre: 'Cubo de vidrio — Small',          desc: '10 × 10 cm',            precio: '$70.000',  photos: [] },
-    { nombre: 'Cubo de vidrio — Large',          desc: '12 × 12 cm',            precio: '$85.000',  photos: [] },
-    { nombre: 'Bochita de vidrio Nro 2',         desc: '',                       precio: '$40.000',  photos: [] },
-    { nombre: 'Bochita de vidrio Nro 5',         desc: '',                       precio: '$55.000',  photos: [] },
-    { nombre: 'Bochita de vidrio Nro 8',         desc: '',                       precio: '$75.000',  photos: [] },
-    { nombre: 'Cilindro (No Claudia Adorno)',     desc: 'Ø17 × H40 cm',          precio: 'A consultar', photos: [] },
-  ]},
-];
+let listaPreciosData = [];
 window._setListaPreciosData = (arr) => { listaPreciosData.splice(0, listaPreciosData.length, ...arr); };
 
 // ── CSS para lista de precios ─────────────────────────────────────────────────
@@ -6202,35 +6039,7 @@ function agregarPedidoRapido(){
 // ════════════════════════════════════════
 const ARREGLOS_BASE = ['Bochita','Cuenco','Pecera','Paila','Buffet'];
 
-let recetasData = [
-  { nombre:'Bochita', ings:[
-    {prod:'Rosas Nacionales', qty:3},
-    {prod:'Conejitos', qty:2},
-    {prod:'Eucaliptus', qty:1},
-  ]},
-  { nombre:'Cuenco', ings:[
-    {prod:'Liliums', qty:2},
-    {prod:'Solidago', qty:1},
-    {prod:'Laurentino', qty:1},
-  ]},
-  { nombre:'Pecera', ings:[
-    {prod:'Monsteras', qty:1},
-    {prod:'Alstroemerias', qty:3},
-    {prod:'Azarero', qty:2},
-  ]},
-  { nombre:'Paila', ings:[
-    {prod:'Rosas Nacionales', qty:5},
-    {prod:'Margaritas', qty:3},
-    {prod:'Botoncito', qty:2},
-    {prod:'Laurentino', qty:1},
-  ]},
-  { nombre:'Buffet', ings:[
-    {prod:'Liliums', qty:3},
-    {prod:'Monsteras', qty:2},
-    {prod:'Azarero', qty:2},
-    {prod:'Solidago', qty:2},
-  ]},
-];
+let recetasData = [];
 
 // ── renderRecetas ─────────────────────────────────────────────────────────────
 function renderRecetas(){
