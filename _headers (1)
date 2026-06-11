@@ -1,0 +1,5 @@
+# Cloudflare Workers — el HTML nunca se queda pegado en versión vieja
+/
+  Cache-Control: no-store
+/index.html
+  Cache-Control: no-store
