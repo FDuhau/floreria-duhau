@@ -7,13 +7,6 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (id.includes('firebase')) return 'firebase';
-        },
-      },
-    },
   },
   server: { open: true },
 });
