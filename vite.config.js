@@ -7,11 +7,10 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
-    sourcemap: true,
     rollupOptions: {
       output: {
-        manualChunks: {
-          firebase: ['firebase/app', 'firebase/database'],
+        manualChunks(id) {
+          if (id.includes('firebase')) return 'firebase';
         },
       },
     },
