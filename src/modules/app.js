@@ -555,7 +555,8 @@ function renderChecklistTable(){
 
   // ── Eventos asignados al florista para hoy ──
   const eventosHoy = eventosData.filter(ev =>
-    ev.asignado && ev.fecha === TODAY_ISO &&
+    ev.asignado &&
+    (!ev.fecha || ev.fecha === TODAY_ISO) &&
     ev.estado !== 'Pedidos Finalizados' &&
     (!isFlorista || ev.asignado === floristaNombre)
   );
@@ -597,7 +598,7 @@ function renderChecklistTable(){
 
   // ── Ventas pendientes asignadas al florista ──
   const ventasHoy = (ventasData||[]).filter(v =>
-    v.asignado && v.estado === 'pendiente' &&
+    v.asignado && v.estado === 'pendiente' && !v.fin && !v.fin &&
     (!isFlorista || v.asignado === floristaNombre)
   );
   if(ventasHoy.length > 0){
@@ -3611,13 +3612,16 @@ let habitacionesData = HABITACIONES_BASE.map(r=>({...r,liveVisits:0,monthlyVisit
 let jardineriaLog = [];
 let habitacionesLog = [];
 window._setJardineriaData = (arr) => {
-  // Solo actualiza campos persistentes — NUNCA toca quien/obs/horaInicio/horaFin
   arr.forEach((r, i) => {
     if(i >= jardineriaData.length) return;
     jardineriaData[i].last         = r.last;
     jardineriaData[i].liveVisits   = r.liveVisits   || 0;
     jardineriaData[i].monthlyVisits= r.monthlyVisits|| {};
     jardineriaData[i].canUndo      = false;
+    if(r.obs       !== undefined) jardineriaData[i].obs       = r.obs;
+    if(r.quien     !== undefined) jardineriaData[i].quien     = r.quien;
+    if(r.horaInicio!== undefined) jardineriaData[i].horaInicio= r.horaInicio;
+    if(r.horaFin   !== undefined) jardineriaData[i].horaFin   = r.horaFin;
   });
 };
 window._setHabitacionesData = (arr) => {
@@ -3627,6 +3631,11 @@ window._setHabitacionesData = (arr) => {
     habitacionesData[i].liveVisits   = r.liveVisits   || 0;
     habitacionesData[i].monthlyVisits= r.monthlyVisits|| {};
     habitacionesData[i].canUndo      = false;
+    if(r.obs       !== undefined) habitacionesData[i].obs       = r.obs;
+    if(r.notas     !== undefined) habitacionesData[i].notas     = r.notas;
+    if(r.quien     !== undefined) habitacionesData[i].quien     = r.quien;
+    if(r.horaInicio!== undefined) habitacionesData[i].horaInicio= r.horaInicio;
+    if(r.horaFin   !== undefined) habitacionesData[i].horaFin   = r.horaFin;
   });
 };
 window._setJardineriaLog = (arr) => { jardineriaLog.splice(0, jardineriaLog.length, ...arr); };
@@ -6127,6 +6136,9 @@ function registrarHoraEvento(evIdx, campo){
   const hh = String(now.getHours()).padStart(2,'0');
   const mm = String(now.getMinutes()).padStart(2,'0');
   eventosData[evIdx][campo] = hh+':'+mm;
+  if(campo === 'fin'){
+    eventosData[evIdx].estado = 'Pedidos Finalizados';
+  }
   fbSave('eventosData', eventosData);
   renderChecklistTable();
   showToast(`${campo==='inicio'?'▶':'⏹'} ${campo} registrado para "${eventosData[evIdx].nombre}": ${hh}:${mm}`);
@@ -6149,6 +6161,9 @@ function registrarHoraVenta(vIdx, campo){
   const hh = String(now.getHours()).padStart(2,'0');
   const mm = String(now.getMinutes()).padStart(2,'0');
   ventasData[vIdx][campo] = hh+':'+mm;
+  if(campo === 'fin'){
+    ventasData[vIdx].estado = 'entregado';
+  }
   fbSave('ventasData', ventasData);
   renderChecklistTable();
   showToast(`${campo==='inicio'?'▶':'⏹'} ${campo} registrado para "${ventasData[vIdx].prod}": ${hh}:${mm}`);
