@@ -556,7 +556,6 @@ function renderChecklistTable(){
   // ── Eventos asignados al florista para hoy ──
   const eventosHoy = eventosData.filter(ev =>
     ev.asignado &&
-    (!ev.fecha || ev.fecha === TODAY_ISO) &&
     ev.estado !== 'Pedidos Finalizados' &&
     (!isFlorista || ev.asignado === floristaNombre)
   );
