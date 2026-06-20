@@ -64,7 +64,7 @@
   .nav-chevron { margin-left:auto; font-size:12px; opacity:0.35; transition:transform .2s ease, opacity .2s; display:inline-block; padding-right:2px; }
   .nav-group-hdr { user-select:none; }
   .nav-group-hdr.nav-group-open .nav-chevron { transform:rotate(90deg); opacity:0.65; }
-  .nav-sub-item[data-group] { display:none; } /* collapsed by default — JS opens them */
+  /* sub-items colapsados por JS en finalizeNavGroups() */
   .sidebar-footer { padding:18px 22px; border-top:1px solid rgba(255,255,255,.05); font-size:10px; color:rgba(247,245,242,.25); letter-spacing:.5px; }
 
   /* ── MAIN ── */

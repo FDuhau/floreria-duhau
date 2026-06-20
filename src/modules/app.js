@@ -112,7 +112,7 @@ const navOpenGroups = new Set();
 function navExpandGroup(groupId) {
   navOpenGroups.add(groupId);
   document.querySelectorAll(`.nav-sub-item[data-group="${groupId}"]`).forEach(item => {
-    if(item.dataset.roleVisible !== '0') item.style.display = '';
+    if(item.dataset.roleVisible !== '0') item.style.setProperty('display', 'block', 'important');
   });
   const hdr = document.querySelector(`[data-group-id="${groupId}"]`);
   if(hdr) hdr.classList.add('nav-group-open');
@@ -121,7 +121,7 @@ function navExpandGroup(groupId) {
 function navCollapseGroup(groupId) {
   navOpenGroups.delete(groupId);
   document.querySelectorAll(`.nav-sub-item[data-group="${groupId}"]`).forEach(item => {
-    item.style.display = 'none';
+    item.style.setProperty('display', 'none', 'important');
   });
   const hdr = document.querySelector(`[data-group-id="${groupId}"]`);
   if(hdr) hdr.classList.remove('nav-group-open');
@@ -135,8 +135,9 @@ function navToggleGroup(groupId) {
 function finalizeNavGroups() {
   // Snapshot visibility set by role code, then collapse all groups
   document.querySelectorAll('.nav-sub-item[data-group]').forEach(item => {
+    // role code sets style.display='none' for hidden items; anything else = visible
     item.dataset.roleVisible = item.style.display === 'none' ? '0' : '1';
-    item.style.display = 'none';
+    item.style.setProperty('display', 'none', 'important');
   });
   // Reset all group headers
   document.querySelectorAll('.nav-group-hdr').forEach(hdr => hdr.classList.remove('nav-group-open'));
