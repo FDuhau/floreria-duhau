@@ -1199,9 +1199,13 @@ function syncEventosToKanban(){
       asignado: ev.asignado || '',
     });
   });
-  // Ordenar cards por fecha (más urgente primero — mañana antes que la semana que viene)
-  kanbanData.forEach(col => {
-    col.cards.sort((a,b) => (a.date||'9999').localeCompare(b.date||'9999'));
+  // Ordenar cards por fecha: columnas activas ascendente (más urgente primero), Finalizados descendente (más reciente primero)
+  kanbanData.forEach((col, colIdx) => {
+    if(colIdx === 3){
+      col.cards.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+    } else {
+      col.cards.sort((a,b) => (a.date||'9999').localeCompare(b.date||'9999'));
+    }
   });
 }
 
