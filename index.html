@@ -45,38 +45,38 @@
     <div class="nav-section-label">Principal</div>
     <div class="nav-item active" onclick="navigate('home',this)"><span class="nav-icon">🏠</span> Inicio</div>
     <div class="nav-section-label">Operaciones</div>
-    <div class="nav-item" onclick="navigate('operaciones',this)"><span class="nav-icon">⚙️</span> Operaciones</div>
-    <div class="nav-sub-item" onclick="navigate('checklist',this)">Checklist Diaria</div>
-    <div class="nav-sub-item" onclick="navigate('stock',this)">Stock Florería</div>
-    <div class="nav-sub-item" onclick="navigate('eventos-maison',this)">Eventos / Maison</div>
-    <div class="nav-sub-item" onclick="navigate('cotizador-ops',this)">Cotizador</div>
-    <div class="nav-sub-item" onclick="navigate('jardineria-ops',this)">Tareas Jardinería</div>
-    <div class="nav-sub-item" onclick="navigate('hab-ops',this)">Habitaciones con Plantas</div>
-    <div class="nav-sub-item" onclick="navigate('recepcion-pedidos',this)">📦 Recepción de Pedidos</div>
+    <div class="nav-item nav-group-hdr" data-group-id="grp-ops" onclick="navToggleGroup('grp-ops');navigate('operaciones',this)"><span class="nav-icon">⚙️</span> Operaciones<span class="nav-chevron">›</span></div>
+    <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('checklist',this)">Checklist Diaria</div>
+    <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('stock',this)">Stock Florería</div>
+    <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('eventos-maison',this)">Eventos / Maison</div>
+    <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('cotizador-ops',this)">Cotizador</div>
+    <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('jardineria-ops',this)">Tareas Jardinería</div>
+    <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('hab-ops',this)">Habitaciones con Plantas</div>
+    <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('recepcion-pedidos',this)">📦 Recepción de Pedidos</div>
     <div class="nav-section-label">Control</div>
-    <div class="nav-item" onclick="navigate('control',this)"><span class="nav-icon">🌿</span> Control Coordinador</div>
-    <div class="nav-sub-item" onclick="navigate('control-jardineria',this)">Seguimiento Jardinería</div>
-    <div class="nav-sub-item" onclick="navigate('control-horarios',this)">Horarios y Productividad</div>
-    <div class="nav-sub-item" onclick="navigate('control-habitaciones',this)">Habitaciones con Plantas</div>
+    <div class="nav-item nav-group-hdr" data-group-id="grp-ctrl" onclick="navToggleGroup('grp-ctrl');navigate('control',this)"><span class="nav-icon">🌿</span> Control Coordinador<span class="nav-chevron">›</span></div>
+    <div class="nav-sub-item" data-group="grp-ctrl" onclick="navigate('control-jardineria',this)">Seguimiento Jardinería</div>
+    <div class="nav-sub-item" data-group="grp-ctrl" onclick="navigate('control-horarios',this)">Horarios y Productividad</div>
+    <div class="nav-sub-item" data-group="grp-ctrl" onclick="navigate('control-habitaciones',this)">Habitaciones con Plantas</div>
     <div class="nav-section-label">Compras</div>
-    <div class="nav-item" onclick="navigate('compras',this)"><span class="nav-icon">🛒</span> Compras</div>
-    <div class="nav-sub-item" onclick="navigate('compras-floreria',this)">Compras Florería</div>
-    <div class="nav-sub-item" onclick="navigate('compras-jardineria',this)">Compras Jardinería</div>
-    <div class="nav-sub-item" onclick="navigate('stock-admin',this)">Gestión de Stock</div>
+    <div class="nav-item nav-group-hdr" data-group-id="grp-compras" onclick="navToggleGroup('grp-compras');navigate('compras',this)"><span class="nav-icon">🛒</span> Compras<span class="nav-chevron">›</span></div>
+    <div class="nav-sub-item" data-group="grp-compras" onclick="navigate('compras-floreria',this)">Compras Florería</div>
+    <div class="nav-sub-item" data-group="grp-compras" onclick="navigate('compras-jardineria',this)">Compras Jardinería</div>
+    <div class="nav-sub-item" data-group="grp-compras" onclick="navigate('stock-admin',this)">Gestión de Stock</div>
     <div class="nav-section-label">Comercial</div>
-    <div class="nav-item" onclick="navigate('comercial',this)"><span class="nav-icon">💼</span> Área Comercial</div>
-    <div class="nav-sub-item" onclick="navigate('eventos-comercial',this)">Eventos</div>
-    <div class="nav-sub-item" onclick="navigate('historial-eventos',this)">Historial de Eventos</div>
-    <div class="nav-sub-item" onclick="navigate('cotizador',this)">Cotizador</div>
-    <div class="nav-sub-item nav-floreria-only" style="display:none" onclick="navigate('cotizador-ops',this)">Cotizador</div>
-    <div class="nav-sub-item nav-ventas-only" style="display:none" onclick="navigate('cotizador-eventos-hyatt',this)">Cotizador de Eventos</div>
-    <div class="nav-sub-item" onclick="navigate('ventas-externas',this)">Ventas Externas</div>
-    <div class="nav-sub-item" onclick="navigate('caja',this)">Control de Caja</div>
-    <div class="nav-sub-item" onclick="navigate('glosario',this)">Glosario & Muestrario</div>
-    <div class="nav-sub-item" onclick="navigate('lista-precios',this)">Lista de Precios</div>
-    <div class="nav-sub-item" onclick="navigate('ramos-disponibles',this)">Ramos Disponibles</div>
-    <div class="nav-sub-item" onclick="navigate('pedidos-habitacion',this)">Pedidos de Habitación</div>
-    <div class="nav-sub-item" onclick="navigate('recetas-arreglos',this)">Composiciones</div>
+    <div class="nav-item nav-group-hdr" data-group-id="grp-com" onclick="navToggleGroup('grp-com');navigate('comercial',this)"><span class="nav-icon">💼</span> Área Comercial<span class="nav-chevron">›</span></div>
+    <div class="nav-sub-item" data-group="grp-com" onclick="navigate('eventos-comercial',this)">Eventos</div>
+    <div class="nav-sub-item" data-group="grp-com" onclick="navigate('historial-eventos',this)">Historial de Eventos</div>
+    <div class="nav-sub-item" data-group="grp-com" onclick="navigate('cotizador',this)">Cotizador</div>
+    <div class="nav-sub-item nav-floreria-only" data-group="grp-com" style="display:none" onclick="navigate('cotizador-ops',this)">Cotizador</div>
+    <div class="nav-sub-item nav-ventas-only" data-group="grp-com" style="display:none" onclick="navigate('cotizador-eventos-hyatt',this)">Cotizador de Eventos</div>
+    <div class="nav-sub-item" data-group="grp-com" onclick="navigate('ventas-externas',this)">Ventas Externas</div>
+    <div class="nav-sub-item" data-group="grp-com" onclick="navigate('caja',this)">Control de Caja</div>
+    <div class="nav-sub-item" data-group="grp-com" onclick="navigate('glosario',this)">Glosario & Muestrario</div>
+    <div class="nav-sub-item" data-group="grp-com" onclick="navigate('lista-precios',this)">Lista de Precios</div>
+    <div class="nav-sub-item" data-group="grp-com" onclick="navigate('ramos-disponibles',this)">Ramos Disponibles</div>
+    <div class="nav-sub-item" data-group="grp-com" onclick="navigate('pedidos-habitacion',this)">Pedidos de Habitación</div>
+    <div class="nav-sub-item" data-group="grp-com" onclick="navigate('recetas-arreglos',this)">Composiciones</div>
   </div>
   <div style="padding:12px 24px;border-top:1px solid rgba(255,255,255,.07)">
     <button onclick="cambiarContrasena()" style="width:100%;padding:8px 12px;font-size:11px;letter-spacing:.5px;background:rgba(255,255,255,.06);color:rgba(247,245,242,.6);border:1px solid rgba(255,255,255,.1);border-radius:6px;cursor:pointer;font-family:inherit;margin-bottom:6px">🔑 Cambiar contraseña</button>

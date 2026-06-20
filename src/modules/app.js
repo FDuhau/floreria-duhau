@@ -106,6 +106,47 @@ const COMPRAS_PAGES=['compras','compras-floreria','compras-jardineria','stock-ad
 const CONTROL_PAGES=['control','control-jardineria','control-habitaciones'];
 const COMERCIAL_PAGES = ['comercial','eventos-comercial','historial-eventos','ventas-externas','caja','glosario','lista-precios','ramos-disponibles','pedidos-habitacion','recetas-arreglos'];
 
+// ── ACORDEÓN DE NAVEGACIÓN ──────────────────────────────────────────────────
+const navOpenGroups = new Set();
+
+function navExpandGroup(groupId) {
+  navOpenGroups.add(groupId);
+  document.querySelectorAll(`.nav-sub-item[data-group="${groupId}"]`).forEach(item => {
+    if(item.dataset.roleVisible !== '0') item.style.display = '';
+  });
+  const hdr = document.querySelector(`[data-group-id="${groupId}"]`);
+  if(hdr) hdr.classList.add('nav-group-open');
+}
+
+function navCollapseGroup(groupId) {
+  navOpenGroups.delete(groupId);
+  document.querySelectorAll(`.nav-sub-item[data-group="${groupId}"]`).forEach(item => {
+    item.style.display = 'none';
+  });
+  const hdr = document.querySelector(`[data-group-id="${groupId}"]`);
+  if(hdr) hdr.classList.remove('nav-group-open');
+}
+
+function navToggleGroup(groupId) {
+  if(navOpenGroups.has(groupId)) navCollapseGroup(groupId);
+  else navExpandGroup(groupId);
+}
+
+function finalizeNavGroups() {
+  // Snapshot visibility set by role code, then collapse all groups
+  document.querySelectorAll('.nav-sub-item[data-group]').forEach(item => {
+    item.dataset.roleVisible = item.style.display === 'none' ? '0' : '1';
+    item.style.display = 'none';
+  });
+  // Reset all group headers
+  document.querySelectorAll('.nav-group-hdr').forEach(hdr => hdr.classList.remove('nav-group-open'));
+  navOpenGroups.clear();
+  // Expand active group if any
+  const active = document.querySelector('.nav-sub-item.active');
+  if(active?.dataset.group) navExpandGroup(active.dataset.group);
+}
+// ────────────────────────────────────────────────────────────────────────────
+
 function navigate(pageId, navEl){
   // Redirigir home según rol
   if(pageId === 'home' && userRole === 'ventas') pageId = 'home-hyatt';
@@ -115,6 +156,8 @@ function navigate(pageId, navEl){
   document.getElementById('breadcrumb').innerHTML = '🌸 <span>'+(PAGE_LABELS[pageId]||pageId)+'</span>';
   document.querySelectorAll('.nav-item,.nav-sub-item').forEach(n=>n.classList.remove('active'));
   if(navEl) navEl.classList.add('active');
+  // Auto-expandir el grupo del sub-item navegado programáticamente
+  if(navEl?.dataset?.group) navExpandGroup(navEl.dataset.group);
 
   if(pageId==='home')               renderHome();
   if(pageId==='checklist')          initChecklist();
@@ -5497,6 +5540,11 @@ function applyRole(role){
   const jopsProdBtn = document.getElementById('jops-prod-btn');
   if(jopsProdBtn) jopsProdBtn.style.display = role === 'gerencia' ? '' : 'none';
 
+  // Para gerencia: todos los sub-items son visibles antes de colapsar
+  if(role === 'gerencia'){
+    document.querySelectorAll('.nav-sub-item[data-group]').forEach(el => el.style.display = '');
+  }
+
   if(role === 'operario'){
     // Ocultar TODO el sidebar
     document.querySelectorAll('.nav-section-label, .nav-item, .nav-sub-item').forEach(el => {
@@ -5728,6 +5776,9 @@ function applyRole(role){
     // Navegar directo a tareas jardinería
     setTimeout(()=> navigate('jardineria-ops'), 100);
   }
+
+  // Aplicar estado colapsado del acordeón según visibilidad de rol
+  finalizeNavGroups();
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
