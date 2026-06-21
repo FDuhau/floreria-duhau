@@ -136,7 +136,9 @@ const PAGE_LABELS = {control:'Control','control-jardineria':'Control › Seguimi
   'reportes-ventas':'Reportes › Ventas & Comercial', 'reportes-stock':'Reportes › Stock & Compras',
   'reportes-margen':'Reportes › Dashboard de Margen',
   auditoria:'Auditoría de Cambios',
-  'crm-clientes':'CRM · Clientes'
+  'crm-clientes':'CRM · Clientes',
+  sucursales:'Administración de Sucursales',
+  'dashboard-consolidado':'Dashboard Consolidado'
 };
 const COMPRAS_PAGES=['compras','compras-floreria','compras-jardineria','stock-admin'];
 const CONTROL_PAGES=['control','control-jardineria','control-habitaciones','control-horarios','recordatorios-jardineria'];
@@ -259,6 +261,8 @@ function navigate(pageId, navEl){
   if(pageId==='reportes-margen') renderDashboardMargen();
   if(pageId==='auditoria') renderAuditoria();
   if(pageId==='crm-clientes') renderClientes();
+  if(pageId==='sucursales') renderSucursales();
+  if(pageId==='dashboard-consolidado') renderDashboardConsolidado();
 
   // En mobile, cerrar el sidebar automáticamente al navegar
   if(window.innerWidth <= 768) closeSidebar();
@@ -1587,7 +1591,8 @@ function addCompra(type){
     costo:document.getElementById(p+'-costo').value||'',
     prov:document.getElementById(p+'-proveedor').value||'',
     sector:document.getElementById(p+'-sector').value||'',
-    estado:'pedido'
+    estado:'pedido',
+    sucursal: getSucursalId()
   });
   ['fecha','pedidopor','producto','cantidad','desc','costo','proveedor','sector'].forEach(id=>{
     const el=document.getElementById(p+'-'+id);
@@ -3321,6 +3326,7 @@ function addSale(){
     estado,
     dir:document.getElementById('sale-dir').value||'',
     asignado,
+    sucursal: getSucursalId(),
   };
 
   if(editIdx >= 0){
@@ -3423,7 +3429,8 @@ function addCajaMovimiento(){
   cajaData.push({
     fecha:document.getElementById('cj-fecha-caja').value||TODAY_ISO,
     desc, ticket:document.getElementById('cj-ticket').value,
-    tipo:document.getElementById('cj-tipo').value, monto
+    tipo:document.getElementById('cj-tipo').value, monto,
+    sucursal: getSucursalId()
   });
   fbSave('cajaData', cajaData);
   closeModal('caja-modal');
@@ -6844,6 +6851,18 @@ document.querySelectorAll('.nav-item, .nav-sub-item').forEach(el => {
 let userRole = null;
 let floristaNombre = null;
 let jardineroNombre = null;
+let currentSucursal = 'duhau'; // id de la sucursal del usuario logueado
+let sucursalesConfig = [{id:'duhau',nombre:'Florería Duhau',direccion:'Park Hyatt Buenos Aires',activa:true}];
+let _sucursalFiltroGerencia = ''; // '' = todas
+
+function getSucursalId(){ return currentSucursal || 'duhau'; }
+function getSucursalNombre(id){ const s = sucursalesConfig.find(x=>x.id===(id||'duhau')); return s?.nombre || (id||'duhau'); }
+function filterBySucursal(arr, campo='sucursal'){
+  if(!arr) return [];
+  if(userRole === 'gerencia' && !_sucursalFiltroGerencia) return arr;
+  const target = userRole === 'gerencia' ? _sucursalFiltroGerencia : getSucursalId();
+  return arr.filter(r => (r[campo] || 'duhau') === target);
+}
 const FLORISTAS_LOGIN = {
   'caro':'Caro','clo':'Clo','cris':'Cris','gabi':'Gabi',
   'ivan':'Ivan','pao':'Pao','nora':'Nora'
@@ -7619,7 +7638,9 @@ function doLogin(){
     if(entry.floristaNombre) floristaNombre = entry.floristaNombre;
     if(entry.jardineroNombre){ jardineroNombre = entry.jardineroNombre; jardCurrentJardinero = jardineroNombre; try{ localStorage.setItem('jardCurrentJardinero', jardineroNombre); }catch(e){} }
     window.currentUserLabel = entry.label || key;
+    currentSucursal = entry.sucursal || 'duhau';
     applyRole(entry.role);
+    renderSucursalIndicador();
     const screen = document.getElementById('login-screen');
     screen.classList.add('hide');
     setTimeout(()=>screen.remove(), 520);
@@ -8742,6 +8763,129 @@ function renderProductividad(){
 // changeEventoEstado extended with stock discount
 
 
+// ── MULTI-SUCURSAL ────────────────────────────────────────────
+function renderSucursalIndicador(){
+  let el = document.getElementById('sucursal-badge');
+  if(!el){
+    el = document.createElement('span');
+    el.id = 'sucursal-badge';
+    el.style.cssText = 'font-size:10px;background:var(--light-gray);color:var(--mid-gray);padding:3px 9px;border-radius:10px;letter-spacing:.5px;cursor:default';
+    document.querySelector('.topbar-right')?.insertBefore(el, document.querySelector('.theme-toggle-btn'));
+  }
+  const nombre = getSucursalNombre(currentSucursal);
+  el.textContent = '📍 '+nombre;
+  el.title = 'Sucursal actual: '+nombre;
+}
+
+function renderSucursales(){
+  const el = document.getElementById('sucursales-lista');
+  if(!el) return;
+  el.innerHTML = sucursalesConfig.map((s,i)=>`
+    <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--warm-white);border:1px solid var(--light-gray);border-radius:10px;margin-bottom:10px">
+      <div style="width:10px;height:10px;border-radius:50%;background:${s.activa?'var(--green-ok)':'var(--mid-gray)'};flex-shrink:0"></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:600;color:var(--charcoal)">${esc(s.nombre)}</div>
+        <div style="font-size:12px;color:var(--mid-gray)">${esc(s.id)} · ${esc(s.direccion||'—')}</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <label style="font-size:12px;color:var(--mid-gray);display:flex;align-items:center;gap:4px;cursor:pointer">
+          <input type="checkbox" ${s.activa?'checked':''} onchange="toggleSucursalActiva(${i},this.checked)"> Activa
+        </label>
+        <button class="btn-icon" onclick="openEditSucursal(${i})" title="Editar">✏️</button>
+        ${sucursalesConfig.length>1?`<button class="btn-icon" style="color:var(--red-alert)" onclick="eliminarSucursal(${i})" title="Eliminar">✕</button>`:''}
+      </div>
+    </div>`).join('');
+}
+
+function openNuevaSucursalModal(idx=-1){
+  const s = idx>=0 ? sucursalesConfig[idx] : {};
+  document.getElementById('suc-idx').value = idx;
+  document.getElementById('suc-nombre').value = s.nombre||'';
+  document.getElementById('suc-id').value = s.id||'';
+  document.getElementById('suc-direccion').value = s.direccion||'';
+  document.getElementById('suc-modal').classList.add('open');
+}
+function openEditSucursal(idx){ openNuevaSucursalModal(idx); }
+
+function guardarSucursal(){
+  const nombre = document.getElementById('suc-nombre')?.value?.trim();
+  const id = document.getElementById('suc-id')?.value?.trim().toLowerCase().replace(/\s+/g,'-');
+  const direccion = document.getElementById('suc-direccion')?.value?.trim();
+  if(!nombre||!id){ showToast('⚠️ Nombre e ID son obligatorios'); return; }
+  const idx = +document.getElementById('suc-idx').value;
+  const entry = { id, nombre, direccion, activa: true };
+  if(idx>=0) sucursalesConfig[idx] = {...sucursalesConfig[idx],...entry};
+  else sucursalesConfig.push(entry);
+  fbSave('sucursalesConfig', sucursalesConfig);
+  closeModal('suc-modal');
+  renderSucursales();
+  renderSucursalSelector();
+  showToast('✅ Sucursal guardada');
+}
+
+function toggleSucursalActiva(idx,val){
+  sucursalesConfig[idx].activa = val;
+  fbSave('sucursalesConfig', sucursalesConfig);
+  renderSucursales();
+  renderSucursalSelector();
+}
+
+function eliminarSucursal(idx){
+  if(!confirm('¿Eliminar esta sucursal? Los datos históricos no se borran.')) return;
+  sucursalesConfig.splice(idx,1);
+  fbSave('sucursalesConfig', sucursalesConfig);
+  renderSucursales();
+}
+
+function renderSucursalSelector(){
+  // Selector en el dashboard consolidado
+  ['suc-filtro-cons'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el) return;
+    el.innerHTML='<option value="">— Todas las sucursales —</option>'+
+      sucursalesConfig.map(s=>`<option value="${esc(s.id)}">${esc(s.nombre)}</option>`).join('');
+  });
+}
+
+function renderDashboardConsolidado(){
+  renderSucursalSelector();
+  const sucFiltro = document.getElementById('suc-filtro-cons')?.value || '';
+  const mesISO = document.getElementById('cons-mes')?.value || TODAY_ISO.slice(0,7);
+  _repMeses('cons-mes');
+
+  const parseMon = v => { if(!v) return 0; const n=parseFloat(String(v).replace(/[^0-9.-]/g,'')); return isNaN(n)?0:n; };
+
+  const sucursalesAMostrar = sucFiltro
+    ? sucursalesConfig.filter(s=>s.id===sucFiltro)
+    : sucursalesConfig.filter(s=>s.activa);
+
+  const el = document.getElementById('cons-cards');
+  if(!el) return;
+  el.innerHTML = sucursalesAMostrar.map(suc=>{
+    const ventas = (window.ventasData||[]).filter(v=>(v.sucursal||'duhau')===suc.id && (v.fecha||'').startsWith(mesISO));
+    const caja = (window.cajaData||[]).filter(r=>(r.sucursal||'duhau')===suc.id && (r.fecha||'').startsWith(mesISO));
+    const compras = [...(window.comprasFlore||[]),...(window.comprasJard||[])].filter(c=>(c.sucursal||'duhau')===suc.id && (c.fecha||'').startsWith(mesISO));
+    const totalVentas = ventas.reduce((s,v)=>s+parseMon(v.precio||v.monto||v.total),0);
+    const totalIngresos = caja.filter(r=>r.tipo==='ingreso').reduce((s,r)=>s+parseMon(r.monto),0);
+    const totalEgresos = caja.filter(r=>r.tipo==='egreso').reduce((s,r)=>s+parseMon(r.monto),0);
+    const totalCompras = compras.reduce((s,c)=>s+parseMon(c.costo),0);
+    const margen = totalVentas>0?((totalVentas-totalCompras)/totalVentas*100).toFixed(1):0;
+    return `<div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:14px;padding:20px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <div style="width:10px;height:10px;border-radius:50%;background:${suc.activa?'var(--green-ok)':'var(--mid-gray)'}"></div>
+        <div style="font-size:16px;font-weight:600;color:var(--charcoal)">${esc(suc.nombre)}</div>
+        <div style="font-size:11px;color:var(--mid-gray);margin-left:4px">${esc(suc.direccion||'')}</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px">
+        ${_kpiCard('Ventas Externas','$'+totalVentas.toLocaleString('es-AR'),ventas.length+' transacciones','var(--green-ok)')}
+        ${_kpiCard('Ingresos Caja','$'+totalIngresos.toLocaleString('es-AR'),'vs $'+totalEgresos.toLocaleString('es-AR')+' egresos','var(--charcoal)')}
+        ${_kpiCard('Compras','$'+totalCompras.toLocaleString('es-AR'),compras.length+' registros','var(--amber)')}
+        ${_kpiCard('Margen Bruto',margen+'%',margen>=0?'Rentable ✓':'Déficit ⚠',+margen>=0?'var(--green-ok)':'var(--red-alert)')}
+      </div>
+    </div>`;
+  }).join('') || '<div style="color:var(--mid-gray);font-size:13px;padding:24px">Sin sucursales activas.</div>';
+}
+
 // ── CRM CLIENTES ──────────────────────────────────────────────
 let clientesData = [];
 window._setClientesData = (arr) => { clientesData = arr && typeof arr === 'object' ? (Array.isArray(arr) ? arr : Object.values(arr)) : []; };
@@ -9241,6 +9385,8 @@ Object.assign(window, {
   toggleHistory, toggleInsumosGrid, toggleJordProd, togglePlantilla, toggleProductividad,
   toggleDarkMode, initDarkMode, openGlobalSearch, closeGlobalSearch, handleSearchKey, runGlobalSearch, _gsearchGo, exportPDF,
   renderAuditoria, cerrarCajaDia, renderCierreCajaHistorial, toggleCierreDetalle, renderDashboardMargen,
+  renderSucursales, openNuevaSucursalModal, openEditSucursal, guardarSucursal, toggleSucursalActiva, eliminarSucursal,
+  renderDashboardConsolidado, renderSucursalSelector, renderSucursalIndicador, getSucursalId, getSucursalNombre, filterBySucursal,
   renderClientes, abrirFichaCliente, openNuevoClienteModal, editarCliente, guardarCliente, eliminarCliente,
   generarPresupuestoPDF, checkOnboarding, nextOnboardingStep, finishOnboarding,
   toggleProvManager, toggleSidebar, toggleTask, updC, updCL, updCaja, updCajaMonto, updCajaTipo,

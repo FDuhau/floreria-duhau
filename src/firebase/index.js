@@ -347,6 +347,15 @@
         if(document.getElementById('plantilla-wrap')?.style.display !== 'none') window.renderPlantilla?.();
       });
 
+      fbListen('sucursalesConfig', val => {
+        if(val && typeof val === 'object'){
+          const arr = Array.isArray(val) ? val : Object.values(val);
+          if(arr.length) window.sucursalesConfig = arr;
+        }
+        if(document.getElementById('page-sucursales')?.classList.contains('active')) window.renderSucursales?.();
+        if(document.getElementById('page-dashboard-consolidado')?.classList.contains('active')) window.renderDashboardConsolidado?.();
+      });
+
       fbListen('clientesData', val => {
         const arr = !val ? [] : (Array.isArray(val) ? val : Object.values(val||{}));
         if(window._setClientesData) window._setClientesData(arr);

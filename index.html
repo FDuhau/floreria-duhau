@@ -83,6 +83,10 @@
     <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('auditoria',this)">🔍 Auditoría de Cambios</div>
     <div class="nav-section-label nav-gerencia-only" style="display:none">Clientes</div>
     <div class="nav-item nav-gerencia-only" style="display:none" onclick="navigate('crm-clientes',this)"><span class="nav-icon">👥</span> CRM Clientes</div>
+    <div class="nav-section-label nav-gerencia-only" style="display:none">Multi-Sucursal</div>
+    <div class="nav-item nav-group-hdr nav-gerencia-only" data-group-id="grp-suc" style="display:none" onclick="navToggleGroup('grp-suc');navigate('dashboard-consolidado',this)"><span class="nav-icon">🏢</span> Sucursales<span class="nav-chevron">›</span></div>
+    <div class="nav-sub-item nav-gerencia-only" data-group="grp-suc" style="display:none" onclick="navigate('dashboard-consolidado',this)">📊 Dashboard Consolidado</div>
+    <div class="nav-sub-item nav-gerencia-only" data-group="grp-suc" style="display:none" onclick="navigate('sucursales',this)">⚙️ Administrar Sucursales</div>
     <div class="nav-section-label">Control</div>
     <div class="nav-item nav-group-hdr" data-group-id="grp-ctrl" onclick="navToggleGroup('grp-ctrl');navigate('control',this)"><span class="nav-icon">🌿</span> Control<span class="nav-chevron">›</span></div>
     <div class="nav-sub-item" data-group="grp-ctrl" onclick="navigate('control-jardineria',this)">Seguimiento Jardinería</div>
@@ -1903,6 +1907,49 @@
           <tr><td colspan="4" style="text-align:center;padding:24px;color:var(--mid-gray);font-size:13px">Cargando...</td></tr>
         </tbody>
       </table>
+    </div>
+  </div>
+
+  <!-- ══════ DASHBOARD CONSOLIDADO ══════ -->
+  <div id="page-dashboard-consolidado" class="content">
+    <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px">
+      <div><div class="page-title">Dashboard Consolidado</div><div class="page-subtitle">KPIs de todas las sucursales activas en tiempo real</div></div>
+      <button class="btn-print" onclick="exportPDF('Dashboard Consolidado')">🖨 Imprimir</button>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:24px;align-items:center">
+      <select class="form-input" id="cons-mes" onchange="renderDashboardConsolidado()" style="width:160px;padding:6px 10px;font-size:13px"></select>
+      <select class="form-input" id="suc-filtro-cons" onchange="renderDashboardConsolidado()" style="width:220px;padding:6px 10px;font-size:13px">
+        <option value="">— Todas las sucursales —</option>
+      </select>
+    </div>
+    <div id="cons-cards"></div>
+  </div>
+
+  <!-- ══════ ADMINISTRAR SUCURSALES ══════ -->
+  <div id="page-sucursales" class="content">
+    <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px">
+      <div><div class="page-title">Administrar Sucursales</div><div class="page-subtitle">Alta, baja y modificación de sucursales</div></div>
+      <button class="btn-add" onclick="openNuevaSucursalModal()">+ Nueva Sucursal</button>
+    </div>
+    <div id="sucursales-lista"></div>
+
+    <!-- Modal sucursal -->
+    <div class="modal-overlay" id="suc-modal">
+      <div class="modal" style="max-width:440px">
+        <button class="modal-close" onclick="closeModal('suc-modal')">✕</button>
+        <div class="modal-title">Sucursal</div>
+        <input type="hidden" id="suc-idx" value="-1">
+        <label class="form-label">Nombre *</label>
+        <input class="form-input-modal" id="suc-nombre" placeholder="ej. Florería Duhau">
+        <label class="form-label">ID único *</label>
+        <input class="form-input-modal" id="suc-id" placeholder="ej. duhau (sin espacios, minúsculas)">
+        <label class="form-label">Dirección</label>
+        <input class="form-input-modal" id="suc-direccion" placeholder="ej. Park Hyatt Buenos Aires">
+        <div class="modal-actions">
+          <button class="btn-secondary" onclick="closeModal('suc-modal')">Cancelar</button>
+          <button class="btn-add" onclick="guardarSucursal()">Guardar</button>
+        </div>
+      </div>
     </div>
   </div>
 
