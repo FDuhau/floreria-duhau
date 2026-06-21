@@ -3037,6 +3037,7 @@ function renderHome(){
   const recAlerts = jardRecordatorios.filter(r=>recEstado(r)==='vencido'||recEstado(r)==='proximo');
 
   // ── KPIs ──
+  const isFlorHome = userRole === 'florista';
   document.getElementById('home-kpis').innerHTML = `
     <div class="cards-grid cards-grid-4" style="margin-bottom:24px">
       <div class="card card-clickable" onclick="navigate('eventos-maison')">
@@ -3049,17 +3050,17 @@ function renderHome(){
         <div class="card-value">${activos.length}</div>
         <div class="card-sub">sin finalizar</div>
       </div>
-      <div class="card card-clickable" onclick="navigate('ventas-externas')">
+      ${!isFlorHome ? `<div class="card card-clickable" onclick="navigate('ventas-externas')">
         <div class="card-label">💰 Ventas del Mes</div>
         <div class="card-value" style="font-size:22px">${fmtARS(totalMes)}</div>
         <div class="card-sub">${ventasMes.length} transacciones</div>
-      </div>
+      </div>` : ''}
       <div class="card card-clickable" onclick="navigate('checklist')">
         <div class="card-label">✅ Checklist Hoy</div>
         <div class="card-value${pct===100?' green':''}">${hechas}<span style="font-size:16px;font-weight:400;color:var(--mid-gray)">/${totalTareas}</span></div>
         <div class="card-sub">${pct}% completado</div>
       </div>
-      ${recAlerts.length ? `<div class="card card-clickable" onclick="navigate('recordatorios-jardineria')" style="border-left:3px solid var(--red-alert)">
+      ${recAlerts.length && !isFlorHome ? `<div class="card card-clickable" onclick="navigate('recordatorios-jardineria')" style="border-left:3px solid var(--red-alert)">
         <div class="card-label">🌿 Recordatorios Jardín</div>
         <div class="card-value red">${recAlerts.length}</div>
         <div class="card-sub">${recAlerts.filter(r=>recEstado(r)==='vencido').length} vencido${recAlerts.filter(r=>recEstado(r)==='vencido').length!==1?'s':''} · ${recAlerts.filter(r=>recEstado(r)==='proximo').length} próximo${recAlerts.filter(r=>recEstado(r)==='proximo').length!==1?'s':''}</div>
@@ -3087,7 +3088,9 @@ function renderHome(){
       }).join('') : '<div class="home-empty">No hay eventos activos</div>'}
     </div>`;
 
-  // ── Columna Ventas ──
+  // ── Columna Ventas (oculta para floristas) ──
+  const ventasColEl = document.getElementById('home-ventas-col');
+  if(ventasColEl) ventasColEl.style.display = isFlorHome ? 'none' : '';
   document.getElementById('home-ventas-col').innerHTML = `
     <div class="home-dash-card" style="margin-bottom:16px">
       <div class="home-dash-card-hdr">
