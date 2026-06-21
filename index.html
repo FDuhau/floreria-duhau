@@ -107,17 +107,14 @@
       <div class="home-hero-sub">Panel de control · Operativa general</div>
       <div class="home-hero-date" id="hero-date"></div>
     </div>
-    <div class="cards-grid cards-grid-3" style="margin-bottom:28px">
-      <div class="card"><div class="card-label">🔴 Alertas Stock</div><div class="card-value red" id="kpi-comprar">—</div><div class="card-sub">Ítems para comprar</div></div>
-      <div class="card"><div class="card-label">🟡 Atención Stock</div><div class="card-value amber" id="kpi-atencion">—</div><div class="card-sub">Nivel bajo</div></div>
-      <div class="card"><div class="card-label">Tareas Hoy</div><div class="card-value" id="home-tasks-count">—</div><div class="card-sub">Actividades programadas</div></div>
+    <div id="home-kpis"></div>
+    <div class="home-dash-grid">
+      <div id="home-eventos-col"></div>
+      <div class="home-side-col">
+        <div id="home-ventas-col"></div>
+        <div id="home-checklist-col"></div>
+      </div>
     </div>
-    <div class="quick-links" style="grid-template-columns:repeat(2,1fr)">
-      <div class="quick-link" onclick="navigate('checklist')"><span class="quick-link-icon">✅</span><div class="quick-link-title">Checklist Diaria</div><div class="quick-link-sub">Tareas de hoy</div></div>
-      <div class="quick-link" onclick="navigate('stock')"><span class="quick-link-icon">📦</span><div class="quick-link-title">Stock Florería</div><div class="quick-link-sub">Inventario en tiempo real</div></div>
-    </div>
-    <div class="section-title">Próximos Eventos</div>
-    <div class="events-grid" id="home-events-grid"></div>
   </div>
 
   <!-- ══════ OPERACIONES LANDING ══════ -->

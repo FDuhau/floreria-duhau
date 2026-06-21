@@ -2822,26 +2822,115 @@ function changeEventoEstado(i,val){
 function deleteEvento(i){ if(!confirm('¿Eliminar este evento?')) return; eventosData.splice(i,1); renderEventos(); renderHome(); }
 
 function renderHome(){
-  const grid=document.getElementById('home-events-grid');
-  if(!grid) return;
-  const next=eventosData.filter(e=>e.estado!=='Pedidos Finalizados').slice(0,4);
-  grid.innerHTML=next.map((ev,i)=>{
-    const stStyle=ESTADO_COLORS[ev.estado]||'';
-    const fromOpsTag = ev.fromKanban ? '<span style="font-size:10px;background:#E8F0F8;color:#2C5A80;padding:2px 7px;border-radius:4px;font-weight:600;letter-spacing:.5px">DESDE OPERACIONES</span>' : '';
-    return `<div class="event-card"${ev.fromKanban?' style="border-left:3px solid #2C5A80"':''}>
-      <div class="event-card-header"><div class="event-name">${esc(ev.nombre)}</div><span class="event-type">${esc(ev.tipo)}</span></div>
-      <div class="event-details">
-        <strong>Fecha:</strong> ${fmtDate(ev.fecha)}${ev.hora?' · <strong>Hora:</strong> '+esc(ev.hora):''}
-        <br><strong>Salón:</strong> ${esc(evZonasLabel(ev))}<br><strong>Notas:</strong> ${esc(ev.notas)}
+  if(!document.getElementById('home-kpis')) return;
+
+  const hoy = TODAY_ISO;
+  const mesActual = hoy.slice(0, 7);
+
+  // ── Datos de eventos ──
+  const activos = eventosData.filter(e => e.estado !== 'Pedidos Finalizados');
+  const eventosHoy = activos.filter(e => e.fecha === hoy);
+  const proximos = [...activos].sort((a,b) => (a.fecha||'').localeCompare(b.fecha||'')).slice(0, 8);
+
+  // ── Datos de ventas del mes ──
+  const ventasMes = ventasData.filter(v => (v.fecha||'').startsWith(mesActual));
+  const totalMes = ventasMes.reduce((s,v) => s + parseMoney(v.precio), 0);
+  const confirmadas = ventasMes.filter(v => v.estado === 'confirmado' || v.estado === 'entregado');
+  const pendientes = ventasMes.filter(v => v.estado === 'pendiente');
+  const recientes = [...ventasMes].sort((a,b) => (b.fecha||'').localeCompare(a.fecha||'')).slice(0, 5);
+
+  // ── Datos de checklist ──
+  const checked = Array.isArray(clState?.checked) ? clState.checked : [];
+  const totalTareas = CL_TASKS.length;
+  const hechas = checked.filter(Boolean).length;
+  const pct = totalTareas > 0 ? Math.round(hechas / totalTareas * 100) : 0;
+  const pendientesCL = CL_TASKS.filter((_,i) => !checked[i]).slice(0, 5);
+
+  const fmtARS = n => '$' + Math.round(n).toLocaleString('es-AR');
+
+  // ── KPIs ──
+  document.getElementById('home-kpis').innerHTML = `
+    <div class="cards-grid cards-grid-4" style="margin-bottom:24px">
+      <div class="card card-clickable" onclick="navigate('eventos-maison')">
+        <div class="card-label">📅 Eventos Hoy</div>
+        <div class="card-value${eventosHoy.length ? '' : ' neutral'}">${eventosHoy.length}</div>
+        <div class="card-sub">${eventosHoy.length === 1 ? '1 evento programado' : eventosHoy.length + ' eventos programados'}</div>
       </div>
-      <div class="event-footer">
-        <div class="event-price">${esc(ev.precio)}</div>
-        <select class="event-status-sel" style="${stStyle}" onchange="changeEventoEstado(${eventosData.indexOf(ev)},this.value)">
-          ${['Pedidos Pendientes','En Proceso','Pendiente de Colocacion','Confirmado','Pedidos Finalizados'].map(o=>`<option value="${o}"${ev.estado===o?' selected':''}>${o}</option>`).join('')}
-        </select>
+      <div class="card card-clickable" onclick="navigate('eventos-maison')">
+        <div class="card-label">🗂 Eventos Activos</div>
+        <div class="card-value">${activos.length}</div>
+        <div class="card-sub">sin finalizar</div>
+      </div>
+      <div class="card card-clickable" onclick="navigate('ventas-externas')">
+        <div class="card-label">💰 Ventas del Mes</div>
+        <div class="card-value" style="font-size:22px">${fmtARS(totalMes)}</div>
+        <div class="card-sub">${ventasMes.length} transacciones</div>
+      </div>
+      <div class="card card-clickable" onclick="navigate('checklist')">
+        <div class="card-label">✅ Checklist Hoy</div>
+        <div class="card-value${pct===100?' green':''}">${hechas}<span style="font-size:16px;font-weight:400;color:var(--mid-gray)">/${totalTareas}</span></div>
+        <div class="card-sub">${pct}% completado</div>
       </div>
     </div>`;
-  }).join('');
+
+  // ── Columna Eventos ──
+  document.getElementById('home-eventos-col').innerHTML = `
+    <div class="home-dash-card">
+      <div class="home-dash-card-hdr">
+        <div class="home-dash-title">Próximos Eventos</div>
+        <button class="btn-secondary" style="padding:5px 12px;font-size:11px" onclick="navigate('eventos-maison')">Ver kanban →</button>
+      </div>
+      ${proximos.length ? proximos.map(ev => {
+        const esHoy = ev.fecha === hoy;
+        const st = ev.estado || '';
+        const stStyle = ESTADO_COLORS[st] || '';
+        return `<div class="home-ev-row" onclick="navigate('eventos-maison')" style="cursor:pointer">
+          <div class="home-ev-info">
+            <div class="home-ev-nombre">${esc(ev.nombre)}${esHoy ? ' <span class="badge-hoy">HOY</span>' : ''}</div>
+            <div class="home-ev-meta">${fmtDate(ev.fecha)}${ev.hora?' · '+esc(ev.hora):''}${ev.tipo?' · '+esc(ev.tipo):''}</div>
+          </div>
+          <span class="home-ev-estado" style="${stStyle}">${st.replace('Pedidos ','')}</span>
+        </div>`;
+      }).join('') : '<div class="home-empty">No hay eventos activos</div>'}
+    </div>`;
+
+  // ── Columna Ventas ──
+  document.getElementById('home-ventas-col').innerHTML = `
+    <div class="home-dash-card" style="margin-bottom:16px">
+      <div class="home-dash-card-hdr">
+        <div class="home-dash-title">Ventas · ${mesActual.split('-').reverse().join('/')}</div>
+        <button class="btn-secondary" style="padding:5px 12px;font-size:11px" onclick="navigate('ventas-externas')">Ver →</button>
+      </div>
+      <div class="home-ventas-stats">
+        <div class="home-ventas-stat"><span class="home-ventas-stat-label">Confirmadas</span><span class="home-ventas-stat-val green">${fmtARS(confirmadas.reduce((s,v)=>s+parseMoney(v.precio),0))}</span></div>
+        <div class="home-ventas-stat"><span class="home-ventas-stat-label">Pendientes</span><span class="home-ventas-stat-val amber">${fmtARS(pendientes.reduce((s,v)=>s+parseMoney(v.precio),0))}</span></div>
+      </div>
+      <div class="home-ventas-list">
+        ${recientes.map(v => `<div class="home-venta-row">
+          <span class="home-venta-prod">${esc(v.prod||'—')}</span>
+          <span class="home-venta-precio">${esc(v.precio)}</span>
+        </div>`).join('') || '<div class="home-empty">Sin ventas este mes</div>'}
+      </div>
+    </div>`;
+
+  // ── Columna Checklist ──
+  document.getElementById('home-checklist-col').innerHTML = `
+    <div class="home-dash-card">
+      <div class="home-dash-card-hdr">
+        <div class="home-dash-title">Checklist de Hoy</div>
+        <button class="btn-secondary" style="padding:5px 12px;font-size:11px" onclick="navigate('checklist')">Ver →</button>
+      </div>
+      <div class="home-cl-bar-wrap">
+        <div class="home-cl-bar"><div class="home-cl-fill" style="width:${pct}%"></div></div>
+        <span class="home-cl-pct">${pct}%</span>
+      </div>
+      <div class="home-cl-tasks">
+        ${pct === 100
+          ? '<div style="color:var(--sage-dark);font-weight:600;font-size:13px;padding:8px 0">🎉 ¡Todas las tareas completadas!</div>'
+          : pendientesCL.map(t => `<div class="home-cl-task">· ${esc(t.zona)} — ${esc(t.actividad||'')}</div>`).join('')
+        }
+      </div>
+    </div>`;
 }
 
 // ════════════════════════════════════════
