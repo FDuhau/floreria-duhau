@@ -335,6 +335,13 @@
         if(document.getElementById('page-checklist')?.classList.contains('active')) window.renderProductividadCL?.();
       });
 
+      fbListen('florTurnos', val => {
+        window.florTurnos = val && typeof val === 'object' ? val : {};
+        if(document.getElementById('page-checklist')?.classList.contains('active')) window.renderFlorTurnoCard?.();
+        if(document.getElementById('page-home')?.classList.contains('active')) window.renderProductividadHome?.();
+        if(document.getElementById('page-control-horarios')?.classList.contains('active')) window.renderHorarios?.();
+      });
+
       fbListen('horariosPlantilla', val => {
         window.horariosPlantilla = val && typeof val === 'object' ? val : {};
         if(document.getElementById('plantilla-wrap')?.style.display !== 'none') window.renderPlantilla?.();

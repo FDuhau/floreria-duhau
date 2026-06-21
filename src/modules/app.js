@@ -111,7 +111,7 @@ const COMERCIAL_PAGES = ['comercial','eventos-comercial','historial-eventos','ve
 // ── NAVEGACIÓN INFERIOR MOBILE ──────────────────────────────────────────────
 const BOTTOM_NAV_ITEMS = {
   gerencia:  [{icon:'🏠',label:'Inicio',page:'home'},{icon:'📋',label:'Checklist',page:'checklist'},{icon:'🎉',label:'Eventos',page:'eventos-maison'},{icon:'💰',label:'Caja',page:'caja'}],
-  florista:  [{icon:'📋',label:'Checklist',page:'checklist'},{icon:'📦',label:'Stock',page:'stock'},{icon:'🎉',label:'Eventos',page:'eventos-maison'},{icon:'🌺',label:'Ramos',page:'ramos-disponibles'},{icon:'💲',label:'Precios',page:'lista-precios'}],
+  florista:  [{icon:'🏠',label:'Inicio',page:'home'},{icon:'📋',label:'Checklist',page:'checklist'},{icon:'📦',label:'Stock',page:'stock'},{icon:'🎉',label:'Eventos',page:'eventos-maison'},{icon:'💲',label:'Precios',page:'lista-precios'}],
   operario:  [{icon:'🏠',label:'Inicio',page:'home'},{icon:'🎉',label:'Eventos',page:'eventos-maison'},{icon:'📦',label:'Stock',page:'stock'},{icon:'💲',label:'Precios',page:'lista-precios'}],
   jardinero: [{icon:'🌿',label:'Jardín',page:'jardineria-ops'},{icon:'🏡',label:'Habitac.',page:'hab-ops'},{icon:'🔔',label:'Avisos',page:'recordatorios-jardineria'}],
   compras:   [{icon:'🛒',label:'Compras',page:'compras-floreria'},{icon:'📦',label:'Stock',page:'stock-admin'},{icon:'📬',label:'Recepción',page:'recepcion-pedidos'}],
@@ -437,6 +437,7 @@ function initChecklist(){
   clState = getOrCreateDayState(currentDay);
   renderChecklistTable();
   renderHistoryPanel();
+  renderFlorTurnoCard();
   const _htc = document.getElementById('home-tasks-count'); if(_htc) _htc.textContent = CL_TASKS.length;
 }
 
@@ -675,10 +676,9 @@ function renderChecklistTable(){
     });
   }
 
-  // ── Ventas pendientes asignadas al florista ──
-  const ventasHoy = (ventasData||[]).filter(v =>
-    v.asignado && v.estado === 'pendiente' && !v.fin && !v.fin &&
-    (!isFlorista || v.asignado === floristaNombre)
+  // ── Ventas pendientes (solo visible para gerencia/operario, no florista) ──
+  const ventasHoy = isFlorista ? [] : (ventasData||[]).filter(v =>
+    v.asignado && v.estado === 'pendiente' && !v.fin
   );
   if(ventasHoy.length > 0){
     const vtHeader = document.createElement('tr');
@@ -2867,9 +2867,29 @@ function getProdEmpleado(nombre){
     myDone=logHoy.filter(e=>e.horaFin).length;
     taskPct=myTotal>0 ? Math.round(myDone/myTotal*100) : 0;
   } else {
-    // Florista: turno planificado en horariosData
+    // Florista: turno real (check-in/out del florista), fallback a planificado
+    const fTurno=(window.florTurnos||{})[nombre]?.[TODAY_ISO];
     const horario=(window.horariosData||{})[nombre]?.[TODAY_ISO];
-    if(horario?.desde && horario?.hasta){
+    if(fTurno?.inicio){
+      // Turno real registrado por el florista
+      const [h1,m1]=fTurno.inicio.split(':').map(Number);
+      if(fTurno.fin){
+        const [h2,m2]=fTurno.fin.split(':').map(Number);
+        totalMin=(h2*60+m2)-(h1*60+m1);
+        finished=true; started=true;
+        elapsed=totalMin; remaining=0;
+        timePct=100;
+      } else {
+        const now=new Date(), nowMin=now.getHours()*60+now.getMinutes();
+        started=true; finished=false;
+        elapsed=Math.max(0,nowMin-(h1*60+m1));
+        remaining=horario?.hasta ? Math.max(0,horario.hasta.split(':').reduce((a,v,i)=>i?a+Number(v):Number(v)*60,0)-nowMin) : 0;
+        totalMin=horario?.desde&&horario?.hasta ? (horario.hasta.split(':').reduce((a,v,i)=>i?a+Number(v):Number(v)*60,0))-(h1*60+m1) : elapsed;
+        timePct=totalMin>0 ? Math.round(elapsed/totalMin*100) : 0;
+      }
+      desde=fTurno.inicio; hasta=fTurno.fin||null;
+    } else if(horario?.desde && horario?.hasta){
+      // Solo horario planificado (todavía no fichó)
       const [h1,m1]=horario.desde.split(':').map(Number);
       const [h2,m2]=horario.hasta.split(':').map(Number);
       totalMin=(h2*60+m2)-(h1*60+m1);
@@ -2957,7 +2977,7 @@ function renderProductividadHome(){
     const total=nombres.length;
     const conTurno=nombres.filter(n=>{
       if(isJardinero(n)) return !!(window.jardHorarios||{})[n]?.[TODAY_ISO]?.inicio;
-      return !!(window.horariosData||{})[n]?.[TODAY_ISO]?.desde;
+      return !!(window.florTurnos||{})[n]?.[TODAY_ISO]?.inicio || !!(window.horariosData||{})[n]?.[TODAY_ISO]?.desde;
     }).length;
     const cards=nombres.map(n=>_prodCardHTML(n,getProdEmpleado(n),false)).join('');
     el.innerHTML=`<div class="home-dash-card" style="margin-bottom:20px">
@@ -3953,6 +3973,7 @@ let habitacionesData = HABITACIONES_BASE.map(r=>({...r,liveVisits:0,monthlyVisit
 let jardineriaLog = [];
 let habitacionesLog = [];
 window.jardHorarios = {};
+window.florTurnos = {};
 let jardCurrentJardinero = (()=>{ try{ return localStorage.getItem('jardCurrentJardinero')||''; }catch(e){ return ''; } })();
 const JARDINEROS_LIST = ['Sole','Berni','Ivan'];
 window._setJardineriaData = (arr) => {
@@ -4550,6 +4571,79 @@ function renderJardTurnoCard(){
       ${fin
         ? `<span onclick="jardResetHoraTurno('fin')" title="Tocar para borrar" style="font-size:13px;font-weight:700;color:#8B3A3A;background:#FDF0F0;padding:4px 12px;border-radius:8px;cursor:pointer">⏹ ${fin}</span>`
         : inicio ? `<button class="btn-hora-fin" onclick="jardRegistrarHoraTurno('fin')">⏹&nbsp;Fin de jornada</button>` : ''}
+    </div>
+  </div>`;
+}
+
+// ── Turno Florista ────────────────────────────────────────────────────────────
+// Almacena check-in/checkout real de cada florista (separado del horario planificado)
+// Firebase path: florTurnos/{nombre}/{YYYY-MM-DD}/{inicio, fin}
+
+function florRegistrarTurno(campo){
+  if(!floristaNombre){ showToast('⚠️ Error de sesión'); return; }
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2,'0');
+  const mm = String(now.getMinutes()).padStart(2,'0');
+  fbSetPath('florTurnos/'+floristaNombre+'/'+TODAY_ISO+'/'+campo, hh+':'+mm);
+  if(!window.florTurnos) window.florTurnos = {};
+  if(!window.florTurnos[floristaNombre]) window.florTurnos[floristaNombre] = {};
+  if(!window.florTurnos[floristaNombre][TODAY_ISO]) window.florTurnos[floristaNombre][TODAY_ISO] = {};
+  window.florTurnos[floristaNombre][TODAY_ISO][campo] = hh+':'+mm;
+  renderFlorTurnoCard();
+  showToast(campo==='inicio' ? '▶ Jornada iniciada: '+hh+':'+mm : '⏹ Jornada finalizada: '+hh+':'+mm);
+}
+
+function florResetTurno(campo){
+  if(!floristaNombre || !window.florTurnos?.[floristaNombre]?.[TODAY_ISO]) return;
+  window.florTurnos[floristaNombre][TODAY_ISO][campo] = '';
+  fbSetPath('florTurnos/'+floristaNombre+'/'+TODAY_ISO+'/'+campo, '');
+  renderFlorTurnoCard();
+}
+
+function renderFlorTurnoCard(){
+  const el = document.getElementById('fl-turno-card');
+  if(!el) return;
+  if(userRole !== 'florista' || !floristaNombre){ el.innerHTML=''; return; }
+
+  const turno = window.florTurnos?.[floristaNombre]?.[TODAY_ISO] || {};
+  const inicio = turno.inicio||'', fin = turno.fin||'';
+  const nowStr = new Date().getHours().toString().padStart(2,'0')+':'+new Date().getMinutes().toString().padStart(2,'0');
+  const dur = inicio&&fin ? calcDuracion(inicio,fin) : (inicio ? calcDuracion(inicio,nowStr) : 0);
+
+  // Progreso de tareas
+  const day = window.currentDay;
+  const dayState = (window.clStateByDay||{})[day]||window.clState||{};
+  const resp = dayState.responsable||[], checked = dayState.checked||[];
+  const myIdxs = resp.reduce((a,r,i)=>{ if(r===floristaNombre) a.push(i); return a; },[]);
+  const myDone = myIdxs.filter(i=>checked[i]).length;
+  const myTotal = myIdxs.length;
+  const taskPct = myTotal>0 ? Math.round(myDone/myTotal*100) : 0;
+  const taskColor = taskPct>=100?'var(--green-ok)':taskPct>=60?'#D4A820':'var(--mid-gray)';
+
+  el.innerHTML = `<div class="prod-card prod-card-personal" style="display:flex;flex-direction:column;gap:12px">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <span style="font-size:20px">🌸</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:11px;color:var(--mid-gray);margin-bottom:2px">Mi jornada de hoy</div>
+        <div style="font-size:17px;font-weight:700;color:var(--charcoal)">${esc(floristaNombre)}</div>
+      </div>
+      ${myTotal > 0 ? `<div style="text-align:center;min-width:60px">
+        <div style="font-size:10px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">Tareas</div>
+        <div style="font-size:26px;font-weight:700;color:${taskColor}">${myDone}/${myTotal}</div>
+      </div>` : ''}
+      ${dur > 0 ? `<div style="text-align:center;min-width:70px">
+        <div style="font-size:10px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">${fin?'Horas':'Transcurrido'}</div>
+        <div style="font-size:22px;font-weight:700;color:${fin?'var(--charcoal)':'#2C6B3A'}">${fmtDur(dur)}</div>
+      </div>` : ''}
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding-top:10px;border-top:1px solid var(--light-gray)">
+      <span style="font-size:11px;color:var(--mid-gray);font-weight:600">⏱ Jornada:</span>
+      ${inicio
+        ? `<span onclick="florResetTurno('inicio')" title="Tocar para borrar" style="font-size:13px;font-weight:700;color:#2C4A3E;background:#EBF5E8;padding:4px 12px;border-radius:8px;cursor:pointer">▶ ${inicio}</span>`
+        : `<button class="btn-hora-inicio" onclick="florRegistrarTurno('inicio')">▶&nbsp;Inicio de jornada</button>`}
+      ${fin
+        ? `<span onclick="florResetTurno('fin')" title="Tocar para borrar" style="font-size:13px;font-weight:700;color:#8B3A3A;background:#FDF0F0;padding:4px 12px;border-radius:8px;cursor:pointer">⏹ ${fin}</span>`
+        : inicio ? `<button class="btn-hora-fin" onclick="florRegistrarTurno('fin')">⏹&nbsp;Fin de jornada</button>` : ''}
     </div>
   </div>`;
 }
@@ -5769,7 +5863,11 @@ function renderReportesEquipo(){
       } else {
         const h = (window.horariosData||{})[nombre]?.[iso];
         if(h?.desde && h?.hasta){ hsProg += calcHorasDia(h.desde,h.hasta); dias++; }
-        // Horas trabajadas: sumar de checklist
+        // Horas reales: florTurnos check-in/out
+        const ft=(window.florTurnos||{})[nombre]?.[iso];
+        if(ft?.inicio && ft?.fin) hsTrab += calcHorasDia(ft.inicio,ft.fin);
+        else {
+        // Fallback: tareas con inicio/fin en checklist
         const dayName = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'][new Date(anio,mes-1,d).getDay()];
         const dayState = (window.clStateByDay||{})[dayName];
         if(dayState) CL_TASKS.forEach((_,i)=>{
@@ -5777,6 +5875,7 @@ function renderReportesEquipo(){
           const ini=dayState.inicio?.[i], fin=dayState.fin?.[i];
           if(ini&&fin){ const [h1,m1]=ini.split(':').map(Number);const [h2,m2]=fin.split(':').map(Number);const dd=(h2*60+m2)-(h1*60+m1);if(dd>0)hsTrab+=dd/60; }
         });
+        } // end else (no florTurnos)
       }
     }
     totalHsProg+=hsProg; totalHsTrab+=hsTrab; diasConTurno+=dias;
@@ -6597,13 +6696,17 @@ function applyRole(role){
   }
 
   if(role === 'florista'){
-    // Ocultar TODO el sidebar
-    document.querySelectorAll('.nav-section-label, .nav-item, .nav-sub-item').forEach(el => {
-      el.style.display = 'none';
-    });
-    // Operaciones: Checklist, Stock, Eventos/Maison, Recepción de Pedidos
+    document.querySelectorAll('.nav-section-label, .nav-item, .nav-sub-item').forEach(el => { el.style.display = 'none'; });
     const OPS_ALLOW = ['Checklist Diaria','Stock Florería','Eventos / Maison','Cotizador','📦 Recepción de Pedidos'];
     document.querySelectorAll('.nav-section-label').forEach(label => {
+      if(label.textContent.trim() === 'Principal'){
+        label.style.display = '';
+        let sib = label.nextElementSibling;
+        while(sib && !sib.classList.contains('nav-section-label')){
+          if(sib.textContent.trim() === 'Inicio') sib.style.display = '';
+          sib = sib.nextElementSibling;
+        }
+      }
       if(label.textContent.trim() === 'Operaciones'){
         label.style.display = '';
         let sib = label.nextElementSibling;
@@ -6612,7 +6715,6 @@ function applyRole(role){
           sib = sib.nextElementSibling;
         }
       }
-      // Comercial: Ramos Disponibles, Lista de Precios
       if(label.textContent.trim() === 'Comercial'){
         label.style.display = '';
         let sib = label.nextElementSibling;
@@ -6623,11 +6725,9 @@ function applyRole(role){
         }
       }
     });
-    // Mostrar headers de acordeón y expandirlos
     document.querySelector('[data-group-id="grp-ops"]').style.display = '';
     document.querySelector('[data-group-id="grp-com"]').style.display = '';
     setTimeout(() => { navExpandGroup('grp-ops'); navExpandGroup('grp-com'); }, 50);
-    // Mostrar solo quick-links relevantes para florista
     const FL_QL = ['Checklist','Stock','Eventos','Cotizador','Recepción','Ramos','Lista de Precios'];
     document.querySelectorAll('.quick-link').forEach(ql => {
       const title = ql.querySelector('.quick-link-title')?.textContent || '';
@@ -7112,6 +7212,9 @@ function renderProductividadHorarios(empleados){
     } else {
       const hor = horariosData[nombre]?.[TODAY_ISO] || {};
       hsProgramadas = calcHorasDia(hor.desde, hor.hasta);
+      // Turno real del florista (check-in/checkout)
+      const ft=(window.florTurnos||{})[nombre]?.[TODAY_ISO];
+      if(ft?.inicio && ft?.fin){ minsTrabjados = calcHorasDia(ft.inicio,ft.fin)*60; }
       if(dayState){
         CL_TASKS.forEach((t,i) => {
           const resp = dayState.responsable?.[i] || '';
@@ -8446,7 +8549,9 @@ Object.assign(window, {
   renderHabReporte, renderHistorialCompras, renderHistorialEventos, renderHistoryPanel, renderHome,
   renderHomeHyatt, renderHoraCell, renderHorarios, renderInsumosGrid, renderJardLog, renderJardOps,
   renderJardProdEquipo, renderJardTurnoCard, renderJardReporte, renderJordProd, renderKanban,
-  jardSetJardinero, jardRegistrarHoraTurno, jardResetHoraTurno, jardProdDiaClick, renderLPenCotizador, renderListaPrecios,
+  jardSetJardinero, jardRegistrarHoraTurno, jardResetHoraTurno, jardProdDiaClick,
+  florRegistrarTurno, florResetTurno, renderFlorTurnoCard,
+  renderLPenCotizador, renderListaPrecios,
   renderPedidosHab, renderPeriodTabs, renderPlantilla, renderPreciosList, renderProductividad,
   renderProductividadHome, renderProductividadCL, renderProductividadHorarios, renderProvTags, renderRamosDisp, renderRecepcionPedidos,
   renderRecetas, renderReportesEquipo, renderReportesVentas, renderReportesStock,
