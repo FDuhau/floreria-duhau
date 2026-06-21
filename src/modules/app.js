@@ -6038,14 +6038,19 @@ function applyRole(role){
           sib = sib.nextElementSibling;
         }
       }
-      // Mostrar Control solo con Recordatorios para jardinero
+      // Mostrar Control con Recordatorios para jardinero
       if(text === 'Control'){
         label.style.display = '';
         let sib = label.nextElementSibling;
         while(sib && !sib.classList.contains('nav-section-label')){
-          if(sib.textContent.trim() === 'Recordatorios Jardín') sib.style.display = '';
+          // Mostrar el header del grupo grp-ctrl y el ítem Recordatorios Jardín
+          if(sib.dataset?.groupId === 'grp-ctrl' || sib.textContent.trim() === 'Recordatorios Jardín'){
+            sib.style.display = '';
+          }
           sib = sib.nextElementSibling;
         }
+        // Expandir el grupo ctrl para que se vean los sub-items
+        setTimeout(() => navExpandGroup('grp-ctrl'), 50);
       }
     });
     // Quick links: solo mostrar Tareas Jardinería y Habitaciones con Plantas
