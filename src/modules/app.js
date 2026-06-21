@@ -6186,6 +6186,10 @@ function applyRole(role){
       if(!el.classList.contains('nav-floreria-only') && !el.classList.contains('nav-ventas-only') && !el.classList.contains('nav-jard-only'))
         el.style.display = '';
     });
+    const GER_OPS_HIDE = ['Stock Florería','Cotizador','Recordatorios'];
+    document.querySelectorAll('.nav-sub-item[data-group="grp-ops"]').forEach(el => {
+      if(GER_OPS_HIDE.some(t => el.textContent.trim().includes(t))) el.style.display = 'none';
+    });
   }
 
   if(role === 'operario'){
