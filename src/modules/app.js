@@ -2944,6 +2944,7 @@ function renderHome(){
 // DATA — VENTAS (fully editable inline + new columns)
 // ════════════════════════════════════════
 let ventasData=[];
+let jardRecordatorios=[];
 window._setVentasData = (arr) => { ventasData.splice(0, ventasData.length, ...arr); };
 
 const VENTA_ESTADOS=['pendiente','confirmado','entregado'];
@@ -3815,7 +3816,6 @@ window._setJardineriaLog = (arr) => { jardineriaLog.splice(0, jardineriaLog.leng
 window._setHabitacionesLog = (arr) => { habitacionesLog.splice(0, habitacionesLog.length, ...arr); };
 
 // ── RECORDATORIOS JARDINERÍA ─────────────────────────────────────────────────
-let jardRecordatorios = [];
 window._setJardRecordatorios = (arr) => { jardRecordatorios.splice(0, jardRecordatorios.length, ...arr); };
 
 const JARD_TIPOS = ['Riego','Fertilización','Desmalezado','Poda'];
