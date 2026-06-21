@@ -6881,7 +6881,7 @@ function applyRole(role){
 // ══════════════════════════════════════════════════════════════════════════════
 // HORARIOS Y PRODUCTIVIDAD
 // ══════════════════════════════════════════════════════════════════════════════
-let horariosData = {}; // { 'Caro': { '2026-06-15': {desde:'08:00',hasta:'13:00'}, ... } }
+window.horariosData = {}; // { 'Caro': { '2026-06-15': {desde:'08:00',hasta:'13:00'}, ... } }
 let horariosPlantilla = {}; // { 'Caro': { Lunes:{desde:'08:00',hasta:'13:00'}, ... } }
 let horMes = new Date().getMonth();
 let horAnio = new Date().getFullYear();
@@ -6988,17 +6988,17 @@ function aplicarPlantillaAlMes(){
     floristas.forEach(nombre => {
       const plantilla = horariosPlantilla[nombre]?.[dayName];
       if(plantilla && plantilla.desde && plantilla.hasta){
-        if(!horariosData[nombre]) horariosData[nombre] = {};
+        if(!window.horariosData[nombre]) window.horariosData[nombre] = {};
         // Solo aplicar si el día NO tiene horario cargado ya (no pisar excepciones)
-        if(!horariosData[nombre][iso] || (!horariosData[nombre][iso].desde && !horariosData[nombre][iso].hasta)){
-          horariosData[nombre][iso] = {desde: plantilla.desde, hasta: plantilla.hasta};
+        if(!window.horariosData[nombre][iso] || (!window.horariosData[nombre][iso].desde && !window.horariosData[nombre][iso].hasta)){
+          window.horariosData[nombre][iso] = {desde: plantilla.desde, hasta: plantilla.hasta};
           count++;
         }
       }
     });
   }
 
-  fbSave('horariosData', horariosData);
+  fbSave('horariosData', window.horariosData);
   renderHorarios();
   showToast(`✅ Plantilla aplicada a ${meses[horMes]} · ${count} horarios cargados`);
 }
@@ -7016,16 +7016,16 @@ function aplicarPlantillaForce(){
     const iso = `${horAnio}-${String(horMes+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     floristas.forEach(nombre => {
       const plantilla = horariosPlantilla[nombre]?.[dayName];
-      if(!horariosData[nombre]) horariosData[nombre] = {};
+      if(!window.horariosData[nombre]) window.horariosData[nombre] = {};
       if(plantilla && plantilla.desde && plantilla.hasta){
-        horariosData[nombre][iso] = {desde: plantilla.desde, hasta: plantilla.hasta};
+        window.horariosData[nombre][iso] = {desde: plantilla.desde, hasta: plantilla.hasta};
         count++;
       } else {
-        delete horariosData[nombre][iso];
+        delete window.horariosData[nombre][iso];
       }
     });
   }
-  fbSave('horariosData', horariosData);
+  fbSave('horariosData', window.horariosData);
   renderHorarios();
   showToast(`✅ Mes completo recargado con plantilla · ${count} horarios`);
 }
@@ -7084,11 +7084,11 @@ function renderHorarios(){
         const jt=(window.jardHorarios||{})[n]?.[iso];
         if(jt?.inicio && jt?.fin){ totalHs += calcHorasDia(jt.inicio,jt.fin); asignados++; }
         else {
-          const hp=horariosData[n]?.[iso];
+          const hp=window.horariosData[n]?.[iso];
           if(hp?.desde && hp?.hasta){ totalHs += calcHorasDia(hp.desde,hp.hasta); asignados++; }
         }
       } else {
-        const h = horariosData[n]?.[iso];
+        const h = window.horariosData[n]?.[iso];
         if(h && h.desde && h.hasta){ totalHs += calcHorasDia(h.desde, h.hasta); asignados++; }
       }
     });
@@ -7127,8 +7127,8 @@ function openDiaHorario(iso){
     <div style="font-size:12px;color:var(--mid-gray);margin-bottom:14px">Cargá las horas de cada empleado para este día.</div>
     <div style="display:flex;flex-direction:column;gap:10px">
       ${lista.map(nombre => {
-        if(!horariosData[nombre]) horariosData[nombre] = {};
-        const h = horariosData[nombre][iso] || {desde:'',hasta:''};
+        if(!window.horariosData[nombre]) window.horariosData[nombre] = {};
+        const h = window.horariosData[nombre][iso] || {desde:'',hasta:''};
         const hs = calcHorasDia(h.desde, h.hasta);
         return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--light-gray)">
           <strong style="flex:1;font-size:13px;color:#1A1A1A;min-width:80px">${esc(nombre)}</strong>
@@ -7154,16 +7154,16 @@ function guardarDiaHorario(iso){
   const lista = filtro ? [filtro] : getEmpleadosActivos();
 
   lista.forEach(nombre => {
-    if(!horariosData[nombre]) horariosData[nombre] = {};
+    if(!window.horariosData[nombre]) window.horariosData[nombre] = {};
     const desde = document.getElementById('hor_'+nombre+'_'+iso+'_desde')?.value || '';
     const hasta = document.getElementById('hor_'+nombre+'_'+iso+'_hasta')?.value || '';
     if(desde && hasta){
-      horariosData[nombre][iso] = {desde, hasta};
+      window.horariosData[nombre][iso] = {desde, hasta};
     } else {
-      delete horariosData[nombre][iso];
+      delete window.horariosData[nombre][iso];
     }
   });
-  fbSave('horariosData', horariosData);
+  fbSave('horariosData', window.horariosData);
   document.getElementById('dia-horario-modal')?.classList.remove('open');
   renderHorarios();
   showToast('✅ Horarios guardados para ' + fmtDate(iso));
@@ -7171,9 +7171,9 @@ function guardarDiaHorario(iso){
 
 function limpiarDiaHorario(iso){
   getEmpleadosActivos().forEach(nombre => {
-    if(horariosData[nombre]) delete horariosData[nombre][iso];
+    if(window.horariosData[nombre]) delete window.horariosData[nombre][iso];
   });
-  fbSave('horariosData', horariosData);
+  fbSave('horariosData', window.horariosData);
   document.getElementById('dia-horario-modal')?.classList.remove('open');
   renderHorarios();
   showToast('🗑 Horarios del día limpiados');
@@ -7191,8 +7191,8 @@ function renderProductividadHorarios(empleados){
     let hsProgramadas = 0, minsTrabjados = 0, tareasHechas = 0, tareasAsignadas = 0;
 
     if(isJardinero(nombre)){
-      // Horario planificado (desde horariosData si gerencia lo cargó)
-      const hp = horariosData[nombre]?.[TODAY_ISO] || {};
+      // Horario planificado (desde window.horariosData si gerencia lo cargó)
+      const hp = window.horariosData[nombre]?.[TODAY_ISO] || {};
       hsProgramadas = calcHorasDia(hp.desde, hp.hasta);
       // Turno real: jardHorarios check-in/out
       const jt=(window.jardHorarios||{})[nombre]?.[TODAY_ISO];
@@ -7213,7 +7213,7 @@ function renderProductividadHorarios(empleados){
         });
       }
     } else {
-      const hor = horariosData[nombre]?.[TODAY_ISO] || {};
+      const hor = window.horariosData[nombre]?.[TODAY_ISO] || {};
       hsProgramadas = calcHorasDia(hor.desde, hor.hasta);
       // Turno real del florista (check-in/checkout)
       const ft=(window.florTurnos||{})[nombre]?.[TODAY_ISO];
