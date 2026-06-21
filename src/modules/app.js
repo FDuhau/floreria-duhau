@@ -4756,7 +4756,6 @@ function renderCtrlJard(){
     tbody.innerHTML='<tr><td colspan="8" style="padding:20px;text-align:center;color:var(--mid-gray)">Sin resultados para este filtro.</td></tr>';
   }
   renderJardReporte();
-  renderJardLog();
 }
 
 function markJardDone(i, quien){
