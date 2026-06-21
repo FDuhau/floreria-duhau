@@ -59,6 +59,24 @@ document.getElementById('topbar-date').textContent = DATE_STR;
 document.getElementById('topbar-day').textContent = TODAY_DAY;
 document.getElementById('hero-date').textContent = '📅 ' + DATE_STR;
 
+// Tema guardado
+(()=>{
+  const saved = localStorage.getItem('fd-theme') || 'light';
+  document.documentElement.setAttribute('data-theme', saved);
+  const btn = document.getElementById('theme-toggle-btn');
+  if(btn) btn.textContent = saved === 'dark' ? '☀️' : '🌙';
+})();
+
+// Atajos de teclado globales
+document.addEventListener('keydown', e => {
+  if((e.ctrlKey || e.metaKey) && e.key === 'k'){
+    e.preventDefault();
+    if(document.getElementById('global-search-overlay').classList.contains('open')) closeGlobalSearch();
+    else openGlobalSearch();
+  }
+  if(e.altKey && e.key.toLowerCase() === 'd') toggleDarkMode();
+});
+
 function fmtDate(iso){ if(!iso) return '—'; const p=iso.split('-'); return `${p[2]}/${p[1]}/${p[0]}`; }
 function fmtDateTime(iso, hora){ return fmtDate(iso) + (hora?' · '+hora:''); }
 function fmtMonth(ym){ const [y,m]=ym.split('-'); const n=MONTHS_ES[+m-1]; return n.charAt(0).toUpperCase()+n.slice(1)+' '+y; }
@@ -8509,7 +8527,160 @@ function renderProductividad(){
 // changeEventoEstado extended with stock discount
 
 
-// Renombrar función duplicada
+// ── MODO OSCURO ──────────────────────────────────────────────
+function toggleDarkMode(){
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const next = isDark ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('fd-theme', next);
+  const btn = document.getElementById('theme-toggle-btn');
+  if(btn) btn.textContent = next === 'dark' ? '☀️' : '🌙';
+}
+
+function initDarkMode(){
+  const saved = localStorage.getItem('fd-theme') || 'light';
+  document.documentElement.setAttribute('data-theme', saved);
+  const btn = document.getElementById('theme-toggle-btn');
+  if(btn) btn.textContent = saved === 'dark' ? '☀️' : '🌙';
+}
+
+// ── BÚSQUEDA GLOBAL ──────────────────────────────────────────
+let _gsearchIdx = -1;
+
+function openGlobalSearch(){
+  document.getElementById('global-search-overlay').classList.add('open');
+  const inp = document.getElementById('global-search-input');
+  inp.value = '';
+  inp.focus();
+  document.getElementById('global-search-results').innerHTML = '<div class="gsearch-empty">Escribí para buscar en stock, ventas, eventos, glosario y más...</div>';
+  _gsearchIdx = -1;
+}
+
+function closeGlobalSearch(){
+  document.getElementById('global-search-overlay').classList.remove('open');
+  _gsearchIdx = -1;
+}
+
+function handleSearchKey(e){
+  const items = document.querySelectorAll('.gsearch-item');
+  if(e.key === 'Escape'){ closeGlobalSearch(); return; }
+  if(e.key === 'ArrowDown'){ e.preventDefault(); _gsearchIdx = Math.min(_gsearchIdx+1, items.length-1); _gsHighlight(items); return; }
+  if(e.key === 'ArrowUp'){ e.preventDefault(); _gsearchIdx = Math.max(_gsearchIdx-1, 0); _gsHighlight(items); return; }
+  if(e.key === 'Enter'){
+    const active = document.querySelector('.gsearch-item.active');
+    if(active) active.click();
+    return;
+  }
+}
+
+function _gsHighlight(items){
+  items.forEach((it,i) => it.classList.toggle('active', i === _gsearchIdx));
+  const active = items[_gsearchIdx];
+  if(active) active.scrollIntoView({block:'nearest'});
+}
+
+function runGlobalSearch(q){
+  q = (q||'').trim().toLowerCase();
+  const el = document.getElementById('global-search-results');
+  if(!q){ el.innerHTML = '<div class="gsearch-empty">Escribí para buscar...</div>'; _gsearchIdx=-1; return; }
+
+  const results = [];
+
+  // Stock
+  (window.stockData||[]).forEach(it => {
+    if(!it) return;
+    const name = (it.nombre||it.name||'').toLowerCase();
+    const cat = (it.categoria||it.cat||'').toLowerCase();
+    if(name.includes(q) || cat.includes(q))
+      results.push({icon:'🌸', label: it.nombre||it.name, sub: `Stock: ${it.cantidad??it.qty??'—'} · ${it.categoria||''}`, badge:'Stock', action:()=>{ closeGlobalSearch(); navigate('stock'); }});
+  });
+
+  // Eventos
+  (window.eventosData||[]).forEach(ev => {
+    if(!ev) return;
+    const titulo = (ev.titulo||ev.nombre||'').toLowerCase();
+    const zona = (ev.zona||'').toLowerCase();
+    if(titulo.includes(q) || zona.includes(q))
+      results.push({icon:'📅', label: ev.titulo||ev.nombre, sub: `${ev.fecha||''} · ${ev.zona||''}`, badge:'Eventos', action:()=>{ closeGlobalSearch(); navigate('eventos-maison'); }});
+  });
+
+  // Ventas
+  (window.ventasData||[]).forEach(v => {
+    if(!v) return;
+    const desc = (v.descripcion||v.desc||'').toLowerCase();
+    const tipo = (v.tipo||'').toLowerCase();
+    if(desc.includes(q) || tipo.includes(q))
+      results.push({icon:'💰', label: v.descripcion||v.desc||'Venta', sub: `$${v.monto||v.total||0} · ${v.fecha||''}`, badge:'Ventas', action:()=>{ closeGlobalSearch(); navigate('ventas'); }});
+  });
+
+  // Glosario
+  Object.entries(window.glosarioData||{}).forEach(([k,v]) => {
+    if(!v) return;
+    const term = (v.termino||k||'').toLowerCase();
+    const def = (v.definicion||v.def||'').toLowerCase();
+    if(term.includes(q) || def.includes(q))
+      results.push({icon:'📖', label: v.termino||k, sub: (v.definicion||v.def||'').slice(0,60), badge:'Glosario', action:()=>{ closeGlobalSearch(); navigate('glosario'); }});
+  });
+
+  // Ramos / Catálogo
+  (window.ramosDispData||[]).forEach(r => {
+    if(!r) return;
+    const name = (r.nombre||'').toLowerCase();
+    if(name.includes(q))
+      results.push({icon:'💐', label: r.nombre, sub: `$${r.precio||0}`, badge:'Ramos', action:()=>{ closeGlobalSearch(); navigate('ramos-disponibles'); }});
+  });
+
+  // Checklist tasks
+  if(typeof CL_TASKS !== 'undefined'){
+    CL_TASKS.forEach(s => {
+      (s.tasks||[]).forEach(t => {
+        if((t||'').toLowerCase().includes(q))
+          results.push({icon:'✅', label: t, sub: s.section||'', badge:'Checklist', action:()=>{ closeGlobalSearch(); navigate('checklist'); }});
+      });
+    });
+  }
+
+  // Páginas
+  const pages = [
+    {label:'Inicio', icon:'🏠', page:'home'}, {label:'Checklist Diaria', icon:'📋', page:'checklist'},
+    {label:'Stock Florería', icon:'🌸', page:'stock'}, {label:'Ventas', icon:'💰', page:'ventas'},
+    {label:'Eventos / Maison', icon:'📅', page:'eventos-maison'}, {label:'Glosario', icon:'📖', page:'glosario'},
+    {label:'Reportes Equipo', icon:'📊', page:'reportes-equipo'}, {label:'Jardinería', icon:'🌿', page:'jardineria-ops'},
+    {label:'Control Horarios', icon:'🕐', page:'control-horarios'}, {label:'Habilitaciones', icon:'🏨', page:'hab-ops'},
+  ];
+  pages.forEach(p => {
+    if(p.label.toLowerCase().includes(q))
+      results.push({icon:p.icon, label:p.label, sub:'Ir a esta sección', badge:'Página', action:()=>{ closeGlobalSearch(); navigate(p.page); }});
+  });
+
+  if(!results.length){ el.innerHTML = '<div class="gsearch-empty">Sin resultados para "'+q+'"</div>'; _gsearchIdx=-1; return; }
+
+  const shown = results.slice(0,15);
+  el.innerHTML = shown.map((r,i) => `
+    <div class="gsearch-item" onclick="_gsearchGo(${i})">
+      <span class="gsearch-icon">${r.icon}</span>
+      <div style="min-width:0">
+        <div class="gsearch-label">${r.label||''}</div>
+        ${r.sub ? `<div class="gsearch-sub">${r.sub}</div>` : ''}
+      </div>
+      <span class="gsearch-badge">${r.badge}</span>
+    </div>`).join('');
+  window._gsearchActions = shown.map(r => r.action);
+  _gsearchIdx = -1;
+}
+
+function _gsearchGo(i){
+  const fn = (window._gsearchActions||[])[i];
+  if(fn) fn();
+}
+
+// ── EXPORTAR PDF ──────────────────────────────────────────────
+function exportPDF(title){
+  const orig = document.title;
+  document.title = title || 'Florería Duhau — Exportar';
+  window.print();
+  setTimeout(() => { document.title = orig; }, 1000);
+}
 
 Object.assign(window, {
   _downloadCSV, addCajaMovimiento, addCompra, addEvArregloRow, addEvArregloRowWithData,
@@ -8567,6 +8738,7 @@ Object.assign(window, {
   setPlantilla, setStock, setStockMax, setStockMin, setUrgenciaPreset, showAlertaHorario,
   showToast, syncEventosToKanban, toggleCtrlSection, toggleEvZona, toggleHistorialCompras,
   toggleHistory, toggleInsumosGrid, toggleJordProd, togglePlantilla, toggleProductividad,
+  toggleDarkMode, initDarkMode, openGlobalSearch, closeGlobalSearch, handleSearchKey, runGlobalSearch, _gsearchGo, exportPDF,
   toggleProvManager, toggleSidebar, toggleTask, updC, updCL, updCaja, updCajaMonto, updCajaTipo,
   updGlosario, updPedidoHabEstado, updTipoEvento, updV, updateInsumoCount, updateInsumoRow,
   updateKpiCompras, urgenciaPanelHTML, vdAutoPrice, zonaHoraBtn, zonaResetHora, zonaSetHora,

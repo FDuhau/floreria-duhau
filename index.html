@@ -123,7 +123,21 @@
     <div class="topbar-right">
       <span id="topbar-date"></span>
       <span class="date-badge" id="topbar-day"></span>
+      <button class="theme-toggle-btn" id="theme-toggle-btn" onclick="toggleDarkMode()" title="Modo oscuro (Alt+D)">🌙</button>
+      <button class="theme-toggle-btn" onclick="openGlobalSearch()" title="Búsqueda global (Ctrl+K)" style="font-size:13px">🔍</button>
       <span style="font-size:9px;color:#aaa;margin-left:8px">v9jun</span>
+    </div>
+  </div>
+
+  <!-- ══════ BÚSQUEDA GLOBAL ══════ -->
+  <div id="global-search-overlay" onclick="if(event.target===this)closeGlobalSearch()">
+    <div id="global-search-box">
+      <input id="global-search-input" type="text" placeholder="Buscar en toda la app... (Esc para cerrar)"
+        oninput="runGlobalSearch(this.value)" onkeydown="handleSearchKey(event)" autocomplete="off" />
+      <div id="global-search-results"></div>
+      <div class="gsearch-shortcut">
+        <kbd>↑</kbd><kbd>↓</kbd> navegar &nbsp;·&nbsp; <kbd>Enter</kbd> ir &nbsp;·&nbsp; <kbd>Esc</kbd> cerrar &nbsp;·&nbsp; <kbd>Ctrl+K</kbd> abrir
+      </div>
     </div>
   </div>
 
@@ -1652,6 +1666,7 @@
         <option value="">— Todos —</option>
       </select>
       <button class="btn-secondary" onclick="exportReporteEquipo()" style="font-size:12px;padding:6px 14px">⬇ Exportar CSV</button>
+      <button class="btn-print" onclick="exportPDF('Reportes · Equipo')">🖨 Imprimir / PDF</button>
     </div>
     <div id="rep-eq-kpis" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:24px"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px" id="rep-eq-charts-wrap">
@@ -1676,6 +1691,7 @@
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;align-items:center">
       <select class="form-input" id="rep-vt-mes" onchange="renderReportesVentas()" style="width:160px;padding:6px 10px;font-size:13px"></select>
       <button class="btn-secondary" onclick="exportReporteVentas()" style="font-size:12px;padding:6px 14px">⬇ Exportar CSV</button>
+      <button class="btn-print" onclick="exportPDF('Reportes · Ventas')">🖨 Imprimir / PDF</button>
     </div>
     <div id="rep-vt-kpis" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:24px"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
@@ -1700,6 +1716,7 @@
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;align-items:center">
       <select class="form-input" id="rep-st-mes" onchange="renderReportesStock()" style="width:160px;padding:6px 10px;font-size:13px"></select>
       <button class="btn-secondary" onclick="exportReporteStock()" style="font-size:12px;padding:6px 14px">⬇ Exportar CSV</button>
+      <button class="btn-print" onclick="exportPDF('Reportes · Stock')">🖨 Imprimir / PDF</button>
     </div>
     <div id="rep-st-kpis" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:24px"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">

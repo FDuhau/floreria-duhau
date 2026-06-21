@@ -751,3 +751,114 @@
     .page-title { font-size: 22px; }
     .home-hero-title { font-size: 22px; }
   }
+
+  /* ── DARK MODE ── */
+  [data-theme="dark"] {
+    --cream: #1E1E1C;
+    --warm-white: #252523;
+    --light-gray: #2E2E2B;
+    --charcoal: #F0EDE8;
+    --mid-gray: #A0A098;
+    --sage: #9A9A8A;
+    --sage-light: #5A5A52;
+    --blush-light: #2A2A28;
+    --gold-light: #2E2D2A;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,.3), 0 1px 2px rgba(0,0,0,.2);
+    --shadow-md: 0 4px 16px rgba(0,0,0,.4), 0 2px 6px rgba(0,0,0,.3);
+    --shadow-lg: 0 12px 40px rgba(0,0,0,.5), 0 4px 12px rgba(0,0,0,.3);
+    --sec-a: #2A2820; --sec-b: #1E2530; --sec-c: #2A1E22; --sec-d: #252520;
+  }
+  [data-theme="dark"] body { background: #181816; color: #F0EDE8; }
+  [data-theme="dark"] .topbar { background: rgba(30,30,28,.97); border-bottom-color: rgba(255,255,255,.08); }
+  [data-theme="dark"] .lock-box { background: #252523; }
+  [data-theme="dark"] .lock-input { background: #1E1E1C; border-color: #3A3A38; color: #F0EDE8; }
+  [data-theme="dark"] .lock-input:focus { background: #252523; }
+  [data-theme="dark"] .card, [data-theme="dark"] .kpi-card, [data-theme="dark"] .rep-card,
+  [data-theme="dark"] .modal, [data-theme="dark"] .modal-box { background: #252523 !important; color: #F0EDE8; }
+  [data-theme="dark"] .home-hero { background: linear-gradient(135deg,#1E1E1C 0%,#252523 100%); }
+  [data-theme="dark"] table th { background: #2E2E2B !important; color: #A0A098; }
+  [data-theme="dark"] table td { border-color: #2E2E2B !important; }
+  [data-theme="dark"] table tr:hover { background: rgba(255,255,255,.03) !important; }
+  [data-theme="dark"] input, [data-theme="dark"] select, [data-theme="dark"] textarea {
+    background: #1E1E1C !important; border-color: #3A3A38 !important; color: #F0EDE8 !important;
+  }
+  [data-theme="dark"] .date-badge { background: #F0EDE8; color: #1A1A1A; }
+  [data-theme="dark"] .nav-item-section { background: #1E1E1C; }
+  [data-theme="dark"] .checklist-section { background: var(--sec-a); }
+  [data-theme="dark"] .quick-link { background: #252523 !important; color: #F0EDE8 !important; }
+  [data-theme="dark"] .ctrl-summary-card { background: #252523 !important; }
+  [data-theme="dark"] .rep-kpi { background: #252523 !important; }
+  [data-theme="dark"] .prod-row { border-color: #2E2E2B !important; }
+  [data-theme="dark"] .turno-card { background: #252523 !important; }
+
+  .theme-toggle-btn {
+    background: none; border: 1px solid rgba(0,0,0,.12); border-radius: var(--radius-sm);
+    padding: 4px 8px; cursor: pointer; font-size: 14px; color: var(--mid-gray);
+    transition: var(--transition); line-height: 1;
+  }
+  .theme-toggle-btn:hover { background: var(--light-gray); }
+  [data-theme="dark"] .theme-toggle-btn { border-color: rgba(255,255,255,.15); }
+  [data-theme="dark"] .theme-toggle-btn:hover { background: #2E2E2B; }
+
+  /* ── BÚSQUEDA GLOBAL ── */
+  #global-search-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 900;
+    display: none; align-items: flex-start; justify-content: center; padding-top: 80px;
+    backdrop-filter: blur(4px);
+  }
+  #global-search-overlay.open { display: flex; }
+  #global-search-box {
+    background: var(--warm-white); border-radius: var(--radius-lg); width: 600px; max-width: 95vw;
+    box-shadow: var(--shadow-lg); overflow: hidden; animation: slideUp .2s ease;
+  }
+  #global-search-input {
+    width: 100%; border: none; outline: none; padding: 18px 20px; font-size: 16px;
+    font-family: 'DM Sans', sans-serif; background: transparent; color: var(--charcoal);
+    border-bottom: 1px solid var(--light-gray);
+  }
+  #global-search-input::placeholder { color: var(--mid-gray); }
+  #global-search-results { max-height: 400px; overflow-y: auto; }
+  .gsearch-item {
+    padding: 12px 20px; cursor: pointer; border-bottom: 1px solid var(--light-gray);
+    display: flex; align-items: center; gap: 12px; transition: var(--transition);
+  }
+  .gsearch-item:hover, .gsearch-item.active { background: var(--cream); }
+  .gsearch-item:last-child { border-bottom: none; }
+  .gsearch-icon { font-size: 18px; flex-shrink: 0; }
+  .gsearch-label { font-size: 13px; font-weight: 500; color: var(--charcoal); }
+  .gsearch-sub { font-size: 11px; color: var(--mid-gray); margin-top: 2px; }
+  .gsearch-badge { margin-left: auto; font-size: 9px; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--mid-gray); background: var(--light-gray); padding: 2px 7px; border-radius: 10px; flex-shrink: 0; }
+  .gsearch-empty { padding: 32px 20px; text-align: center; color: var(--mid-gray); font-size: 13px; }
+  .gsearch-shortcut { padding: 10px 20px; font-size: 10px; color: var(--mid-gray);
+    border-top: 1px solid var(--light-gray); display: flex; align-items: center; gap: 8px; }
+  .gsearch-shortcut kbd { background: var(--light-gray); border-radius: 3px; padding: 2px 5px; font-size: 9px; }
+  [data-theme="dark"] #global-search-box { background: #252523; }
+  [data-theme="dark"] #global-search-input { background: #252523; color: #F0EDE8; border-color: #3A3A38; }
+  [data-theme="dark"] .gsearch-item:hover, [data-theme="dark"] .gsearch-item.active { background: #2E2E2B; }
+  [data-theme="dark"] .gsearch-badge { background: #2E2E2B; }
+
+  /* ── IMPRESIÓN / PDF ── */
+  .btn-print { background: var(--charcoal); color: var(--warm-white); border: none; border-radius: var(--radius-sm);
+    padding: 8px 16px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+    transition: var(--transition); font-family: 'DM Sans', sans-serif; }
+  .btn-print:hover { opacity: .85; }
+  [data-theme="dark"] .btn-print { background: #F0EDE8; color: #1A1A1A; }
+
+  @media print {
+    .sidebar, .topbar, .bottom-nav, #global-search-overlay,
+    .btn-print, .hamburger, .theme-toggle-btn, .lock-screen,
+    .modal-overlay, button:not(.print-include) { display: none !important; }
+    .main { margin-left: 0 !important; }
+    body { background: white !important; color: black !important; font-size: 11pt; }
+    .content { display: block !important; padding: 0 !important; animation: none !important; }
+    .content:not(.active) { display: none !important; }
+    .card, .kpi-card, .rep-card, .ctrl-summary-card {
+      box-shadow: none !important; border: 1px solid #ddd !important; break-inside: avoid;
+    }
+    table { border-collapse: collapse; width: 100%; font-size: 10pt; }
+    th, td { border: 1px solid #ccc !important; padding: 6px 8px !important; }
+    .page-title { font-size: 18pt; margin-bottom: 12pt; }
+    h2, h3 { break-after: avoid; }
+    @page { margin: 15mm; }
+  }
