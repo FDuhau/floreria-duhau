@@ -5893,7 +5893,7 @@ function applyRole(role){
       el.style.display = 'none';
     });
     // Operaciones: Checklist, Stock, Eventos/Maison, Recepción de Pedidos
-    const OPS_ALLOW = ['Checklist Diaria','Stock Florería','Eventos / Maison','📦 Recepción de Pedidos'];
+    const OPS_ALLOW = ['Checklist Diaria','Stock Florería','Eventos / Maison','Cotizador','📦 Recepción de Pedidos'];
     document.querySelectorAll('.nav-section-label').forEach(label => {
       if(label.textContent.trim() === 'Operaciones'){
         label.style.display = '';
