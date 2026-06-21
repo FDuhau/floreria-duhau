@@ -431,7 +431,7 @@ function initChecklist(){
   clState = getOrCreateDayState(currentDay);
   renderChecklistTable();
   renderHistoryPanel();
-  document.getElementById('home-tasks-count').textContent = CL_TASKS.length;
+  const _htc = document.getElementById('home-tasks-count'); if(_htc) _htc.textContent = CL_TASKS.length;
 }
 
 function resetWeekState(){
@@ -1101,8 +1101,8 @@ function renderStock(){
   document.getElementById('sk-ok').textContent=ok;
   document.getElementById('sk-at').textContent=at;
   document.getElementById('sk-co').textContent=co;
-  document.getElementById('kpi-comprar').textContent=co;
-  document.getElementById('kpi-atencion').textContent=at;
+  const _kc2=document.getElementById('kpi-comprar'); if(_kc2) _kc2.textContent=co;
+  const _ka2=document.getElementById('kpi-atencion'); if(_ka2) _ka2.textContent=at;
 
   const alertEl = document.getElementById('stock-alert-area');
   alertEl.innerHTML='';
@@ -3644,9 +3644,9 @@ function recepConfirmar(globalIdx){
   updateKpiCompras();
   let co=0,at=0;
   stockData.forEach(s=>{const comp=getStockComprometido(s);const a=getAlerta(s,comp);if(a==='comprar')co++;else if(a==='atencion')at++;});
-  document.getElementById('kpi-comprar').textContent=co;
-  document.getElementById('kpi-atencion').textContent=at;
-  document.getElementById('home-tasks-count').textContent=CL_TASKS.length;
+  const _kc=document.getElementById('kpi-comprar'); if(_kc) _kc.textContent=co;
+  const _ka=document.getElementById('kpi-atencion'); if(_ka) _ka.textContent=at;
+  const _htc=document.getElementById('home-tasks-count'); if(_htc) _htc.textContent=CL_TASKS.length;
 })();
 
 // ═══════════════════════════════════════
