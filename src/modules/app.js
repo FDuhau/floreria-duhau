@@ -3142,8 +3142,13 @@ function renderHome(){
 
   // ── Columna Ventas (oculta para floristas) ──
   const ventasColEl = document.getElementById('home-ventas-col');
-  if(ventasColEl) ventasColEl.style.display = isFlorHome ? 'none' : '';
-  document.getElementById('home-ventas-col').innerHTML = `
+  if(ventasColEl){
+    if(isFlorHome){
+      ventasColEl.style.display = 'none';
+      ventasColEl.innerHTML = '';
+    } else {
+      ventasColEl.style.display = '';
+      ventasColEl.innerHTML = `
     <div class="home-dash-card" style="margin-bottom:16px">
       <div class="home-dash-card-hdr">
         <div class="home-dash-title">Ventas · ${mesActual.split('-').reverse().join('/')}</div>
@@ -3160,6 +3165,8 @@ function renderHome(){
         </div>`).join('') || '<div class="home-empty">Sin ventas este mes</div>'}
       </div>
     </div>`;
+    }
+  }
 
   // ── Columna Checklist ──
   document.getElementById('home-checklist-col').innerHTML = `
