@@ -347,4 +347,14 @@
         if(document.getElementById('plantilla-wrap')?.style.display !== 'none') window.renderPlantilla?.();
       });
 
+      fbListen('auditLog', val => {
+        if(window._setAuditLog) window._setAuditLog(val||{});
+        if(document.getElementById('page-auditoria')?.classList.contains('active')) window.renderAuditoria?.();
+      });
+
+      fbListen('cierresCaja', val => {
+        const arr = !val ? [] : (Array.isArray(val) ? val : Object.values(val||{}));
+        if(window._setCierresCaja) window._setCierresCaja(arr);
+      });
+
     });

@@ -79,6 +79,8 @@
     <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('reportes-equipo',this)">Equipo & Horarios</div>
     <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('reportes-ventas',this)">Ventas & Comercial</div>
     <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('reportes-stock',this)">Stock & Compras</div>
+    <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('reportes-margen',this)">💹 Dashboard de Margen</div>
+    <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('auditoria',this)">🔍 Auditoría de Cambios</div>
     <div class="nav-section-label">Control</div>
     <div class="nav-item nav-group-hdr" data-group-id="grp-ctrl" onclick="navToggleGroup('grp-ctrl');navigate('control',this)"><span class="nav-icon">🌿</span> Control<span class="nav-chevron">›</span></div>
     <div class="nav-sub-item" data-group="grp-ctrl" onclick="navigate('control-jardineria',this)">Seguimiento Jardinería</div>
@@ -1073,6 +1075,19 @@
         <tbody id="caja-body"></tbody>
       </table>
     </div>
+
+    <!-- ── CIERRE DE CAJA ── -->
+    <div style="margin-top:32px;background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;padding:20px" class="gerencia-only">
+      <div style="font-size:13px;font-weight:600;letter-spacing:.5px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+        <span>🔒 Cierre de Caja Diario</span>
+        <div style="display:flex;gap:10px;align-items:center">
+          <input type="date" id="cierre-fecha" class="form-input" style="padding:6px 10px;font-size:13px;width:160px">
+          <button class="btn-add" onclick="cerrarCajaDia()" style="font-size:12px;padding:8px 16px">Cerrar Caja del Día</button>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--mid-gray);margin-bottom:14px;letter-spacing:.3px">Historial de cierres — hacé clic en una fila para ver el detalle</div>
+      <div id="cierre-caja-historial"></div>
+    </div>
     <div class="modal-overlay" id="caja-modal">
       <div class="modal">
         <button class="modal-close" onclick="closeModal('caja-modal')">✕</button>
@@ -1716,7 +1731,7 @@
   <!-- ══════ REPORTES — EQUIPO & HORARIOS ══════ -->
   <!-- ══════ REPORTES HUB ══════ -->
   <div id="page-reportes" class="content">
-    <div class="page-header"><div class="page-title">Reportes</div><div class="page-subtitle">Análisis de equipo, ventas y stock</div></div>
+    <div class="page-header"><div class="page-title">Reportes</div><div class="page-subtitle">Análisis de equipo, ventas, stock y rentabilidad</div></div>
     <div class="quick-links" style="grid-template-columns:repeat(3,1fr)">
       <div class="quick-link" onclick="navigate('reportes-equipo',this)">
         <span class="quick-link-icon">👥</span>
@@ -1732,6 +1747,16 @@
         <span class="quick-link-icon">📦</span>
         <div class="quick-link-title">Stock & Compras</div>
         <div class="quick-link-sub">Rotación y alertas</div>
+      </div>
+      <div class="quick-link" onclick="navigate('reportes-margen',this)">
+        <span class="quick-link-icon">💹</span>
+        <div class="quick-link-title">Dashboard de Margen</div>
+        <div class="quick-link-sub">Rentabilidad mes a mes</div>
+      </div>
+      <div class="quick-link" onclick="navigate('auditoria',this)">
+        <span class="quick-link-icon">🔍</span>
+        <div class="quick-link-title">Auditoría de Cambios</div>
+        <div class="quick-link-sub">Quién modificó qué y cuándo</div>
       </div>
     </div>
   </div>
@@ -1811,6 +1836,62 @@
       </div>
     </div>
     <div id="rep-st-tabla"></div>
+  </div>
+
+  <!-- ══════ DASHBOARD DE MARGEN ══════ -->
+  <div id="page-reportes-margen" class="content">
+    <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px">
+      <div>
+        <div class="page-title">Dashboard de Margen</div>
+        <div class="page-subtitle">Margen bruto: ingresos vs costos de compras por mes</div>
+      </div>
+      <button class="btn-print" onclick="exportPDF('Dashboard de Margen')">🖨 Imprimir / PDF</button>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;align-items:center">
+      <select class="form-input" id="margen-mes" onchange="renderDashboardMargen()" style="width:160px;padding:6px 10px;font-size:13px"></select>
+    </div>
+    <div id="margen-kpis" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:24px"></div>
+    <div id="margen-tabla"></div>
+  </div>
+
+  <!-- ══════ AUDITORÍA DE CAMBIOS ══════ -->
+  <div id="page-auditoria" class="content">
+    <div class="page-header">
+      <div class="page-title">Auditoría de Cambios</div>
+      <div class="page-subtitle">Registro de quién modificó qué y cuándo — últimas 100 acciones</div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;align-items:center">
+      <input class="form-input" id="audit-filtro-user" placeholder="Filtrar por usuario..." oninput="renderAuditoria()" style="width:180px;padding:6px 10px;font-size:13px">
+      <input class="form-input" id="audit-filtro-fecha" type="date" onchange="renderAuditoria()" style="width:160px;padding:6px 10px;font-size:13px">
+      <select class="form-input" id="audit-filtro-seccion" onchange="renderAuditoria()" style="width:190px;padding:6px 10px;font-size:13px">
+        <option value="">— Todas las secciones —</option>
+        <option value="cajaData">Caja</option>
+        <option value="ventasData">Ventas</option>
+        <option value="stockData">Stock</option>
+        <option value="eventosData">Eventos</option>
+        <option value="comprasFlore">Compras Florería</option>
+        <option value="comprasJard">Compras Jardinería</option>
+        <option value="checklist">Checklist</option>
+        <option value="cierresCaja">Cierre de Caja</option>
+        <option value="glosarioData">Glosario</option>
+        <option value="recetasData">Composiciones</option>
+      </select>
+    </div>
+    <div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;overflow:hidden">
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr style="background:var(--cream)">
+            <th style="padding:10px 12px;text-align:left;font-size:10px;letter-spacing:1.5px;color:var(--mid-gray);text-transform:uppercase;font-weight:500">Fecha / Hora</th>
+            <th style="padding:10px 12px;text-align:left;font-size:10px;letter-spacing:1.5px;color:var(--mid-gray);text-transform:uppercase;font-weight:500">Usuario</th>
+            <th style="padding:10px 12px;text-align:left;font-size:10px;letter-spacing:1.5px;color:var(--mid-gray);text-transform:uppercase;font-weight:500">Sección</th>
+            <th style="padding:10px 12px;text-align:left;font-size:10px;letter-spacing:1.5px;color:var(--mid-gray);text-transform:uppercase;font-weight:500">Clave</th>
+          </tr>
+        </thead>
+        <tbody id="auditoria-body">
+          <tr><td colspan="4" style="text-align:center;padding:24px;color:var(--mid-gray);font-size:13px">Cargando...</td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 
 </div><!-- end .main -->

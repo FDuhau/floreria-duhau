@@ -31,7 +31,20 @@ const APP_VERSION = '2026-06-15-a';
 // FIREBASE SYNC HELPERS (called after fbReady)
 // ════════════════════════════════════════
 function fbSave(key, data){
-  if(window.fbSet) window.fbSet(key, JSON.parse(JSON.stringify(data)));
+  if(window.fbSet){
+    window.fbSet(key, JSON.parse(JSON.stringify(data)));
+    // Auditoría automática (excluir los propios logs y datos de sesión)
+    const AUDIT_SKIP = ['auditLog','pushTokens','pushBroadcast','loginPasswords'];
+    if(!AUDIT_SKIP.includes(key) && window.currentUserLabel){
+      const entry = {
+        ts: Date.now(),
+        iso: new Date().toISOString(),
+        user: window.currentUserLabel,
+        key
+      };
+      window.fbSet('auditLog/' + entry.ts, entry);
+    }
+  }
 }
 
 // ¿El usuario está escribiendo/editando un campo dentro de esta página?
@@ -120,7 +133,9 @@ const PAGE_LABELS = {control:'Control','control-jardineria':'Control › Seguimi
   'control-horarios':'Control › Horarios y Productividad',
   'recetas-arreglos':'Comercial › Composiciones',
   reportes:'Reportes', 'reportes-equipo':'Reportes › Equipo & Horarios',
-  'reportes-ventas':'Reportes › Ventas & Comercial', 'reportes-stock':'Reportes › Stock & Compras'
+  'reportes-ventas':'Reportes › Ventas & Comercial', 'reportes-stock':'Reportes › Stock & Compras',
+  'reportes-margen':'Reportes › Dashboard de Margen',
+  auditoria:'Auditoría de Cambios'
 };
 const COMPRAS_PAGES=['compras','compras-floreria','compras-jardineria','stock-admin'];
 const CONTROL_PAGES=['control','control-jardineria','control-habitaciones','control-horarios','recordatorios-jardineria'];
@@ -240,6 +255,8 @@ function navigate(pageId, navEl){
   if(pageId==='reportes-equipo') renderReportesEquipo();
   if(pageId==='reportes-ventas') renderReportesVentas();
   if(pageId==='reportes-stock') renderReportesStock();
+  if(pageId==='reportes-margen') renderDashboardMargen();
+  if(pageId==='auditoria') renderAuditoria();
 
   // En mobile, cerrar el sidebar automáticamente al navegar
   if(window.innerWidth <= 768) closeSidebar();
@@ -3351,6 +3368,9 @@ let cajaData=[];
 window._setCajaData = (arr) => { cajaData.splice(0, cajaData.length, ...arr); };
 
 function renderCaja(){
+  const cierreFechaEl = document.getElementById('cierre-fecha');
+  if(cierreFechaEl && !cierreFechaEl.value) cierreFechaEl.value = TODAY_ISO;
+  renderCierreCajaHistorial();
   let totalIn=0,totalEg=0;
   cajaData.forEach(r=>{ if(r.tipo==='ingreso')totalIn+=r.monto;else totalEg+=r.monto; });
   const tbody=document.getElementById('caja-body');
@@ -3408,6 +3428,78 @@ function addCajaMovimiento(){
   renderCaja();
 }
 function delCaja(i){ if(!confirm('¿Eliminar este movimiento?')) return; cajaData.splice(i,1); fbSave('cajaData',cajaData); renderCaja(); }
+
+// ── CIERRE DE CAJA DIARIO ─────────────────────────────────────────────────────
+let cierresCajaData = [];
+window._setCierresCaja = (arr) => { cierresCajaData = arr && typeof arr === 'object' ? (Array.isArray(arr) ? arr : Object.values(arr)) : []; renderCierreCajaHistorial(); };
+
+function cierresCajaDelDia(fecha){
+  return cajaData.filter(r => (r.fecha||'') === fecha);
+}
+
+function cerrarCajaDia(){
+  const fecha = document.getElementById('cierre-fecha')?.value || TODAY_ISO;
+  const movsDia = cierresCajaDelDia(fecha);
+  if(!movsDia.length){ showToast('⚠️ No hay movimientos para esa fecha'); return; }
+  if(!confirm(`¿Cerrar caja del ${fmtDate(fecha)}? Se archivará el resumen del día.`)) return;
+
+  let totalIn = 0, totalEg = 0;
+  movsDia.forEach(r => { if(r.tipo==='ingreso') totalIn+=r.monto; else totalEg+=r.monto; });
+
+  const cierre = {
+    fecha,
+    totalIngresos: totalIn,
+    totalEgresos: totalEg,
+    saldo: totalIn - totalEg,
+    movimientos: movsDia,
+    cerradoPor: window.currentUserLabel || '—',
+    ts: Date.now()
+  };
+
+  // Archivar en cierresCaja
+  if(!Array.isArray(cierresCajaData)) cierresCajaData = [];
+  // Reemplazar si ya existe cierre del mismo día
+  const idx = cierresCajaData.findIndex(c => c.fecha === fecha);
+  if(idx >= 0) cierresCajaData[idx] = cierre;
+  else cierresCajaData.push(cierre);
+  fbSave('cierresCaja', cierresCajaData);
+
+  showToast(`✅ Caja del ${fmtDate(fecha)} cerrada — Saldo: $${cierre.saldo.toLocaleString('es-AR')}`);
+  renderCierreCajaHistorial();
+}
+
+function renderCierreCajaHistorial(){
+  const el = document.getElementById('cierre-caja-historial');
+  if(!el) return;
+  const sorted = [...cierresCajaData].sort((a,b) => b.fecha?.localeCompare(a.fecha||''));
+  if(!sorted.length){ el.innerHTML = '<div style="color:var(--mid-gray);font-size:13px;padding:16px">Sin cierres registrados aún.</div>'; return; }
+  el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead><tr style="background:var(--cream)">
+      <th style="padding:8px 12px;text-align:left;font-size:10px;letter-spacing:1px;color:var(--mid-gray);text-transform:uppercase">Fecha</th>
+      <th style="padding:8px 12px;text-align:right;font-size:10px;letter-spacing:1px;color:var(--mid-gray);text-transform:uppercase">Ingresos</th>
+      <th style="padding:8px 12px;text-align:right;font-size:10px;letter-spacing:1px;color:var(--mid-gray);text-transform:uppercase">Egresos</th>
+      <th style="padding:8px 12px;text-align:right;font-size:10px;letter-spacing:1px;color:var(--mid-gray);text-transform:uppercase">Saldo</th>
+      <th style="padding:8px 12px;text-align:left;font-size:10px;letter-spacing:1px;color:var(--mid-gray);text-transform:uppercase">Cerrado por</th>
+    </tr></thead>
+    <tbody>
+    ${sorted.map(c => `<tr style="border-top:1px solid var(--light-gray)" onclick="toggleCierreDetalle(${c.ts})" style="cursor:pointer">
+      <td style="padding:9px 12px;font-weight:500">${fmtDate(c.fecha)}</td>
+      <td style="padding:9px 12px;text-align:right;color:var(--green-ok);font-weight:600">$${(c.totalIngresos||0).toLocaleString('es-AR')}</td>
+      <td style="padding:9px 12px;text-align:right;color:var(--red-alert);font-weight:600">$${(c.totalEgresos||0).toLocaleString('es-AR')}</td>
+      <td style="padding:9px 12px;text-align:right;font-weight:700;color:${(c.saldo||0)>=0?'var(--green-ok)':'var(--red-alert)'}">$${(c.saldo||0).toLocaleString('es-AR')}</td>
+      <td style="padding:9px 12px;color:var(--mid-gray);font-size:12px">${c.cerradoPor||'—'}</td>
+    </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+function toggleCierreDetalle(ts){
+  // Mostrar detalle de movimientos en un toast/alert simple
+  const cierre = cierresCajaData.find(c => c.ts === ts);
+  if(!cierre) return;
+  const lines = (cierre.movimientos||[]).map(m => `  ${m.tipo==='ingreso'?'💚':'🔴'} ${m.desc}: $${m.monto.toLocaleString('es-AR')}`).join('\n');
+  alert(`Cierre ${fmtDate(cierre.fecha)}\n\n${lines}\n\nSaldo: $${cierre.saldo.toLocaleString('es-AR')}`);
+}
 
 // ════════════════════════════════════════
 // DATA — GLOSARIO
@@ -5854,6 +5946,48 @@ function _kpiCard(label, value, sub='', color='var(--sage-dark)'){
 }
 
 // ── Reportes Equipo ───────────────────────────────────────────────────────────
+// ── AUDITORÍA DE CAMBIOS ──────────────────────────────────────────────────────
+let auditLogData = {};
+window._setAuditLog = (val) => { auditLogData = val && typeof val === 'object' ? val : {}; };
+
+const AUDIT_LABELS = {
+  cajaData:'Caja', ventasData:'Ventas', stockData:'Stock', eventosData:'Eventos',
+  glosarioData:'Glosario', comprasFlore:'Compras Florería', comprasJard:'Compras Jardinería',
+  horariosPlantilla:'Plantilla Horarios', checklist:'Checklist', recetasData:'Composiciones',
+  jardineriaData:'Jardinería', habitacionesData:'Habitaciones', listaPreciosData:'Lista de Precios',
+  ramosDispData:'Ramos Disponibles', cierresCaja:'Cierre de Caja'
+};
+
+function renderAuditoria(){
+  const el = document.getElementById('auditoria-body');
+  if(!el) return;
+
+  const filtroUser = document.getElementById('audit-filtro-user')?.value || '';
+  const filtroKey = document.getElementById('audit-filtro-seccion')?.value || '';
+  const filtroFecha = document.getElementById('audit-filtro-fecha')?.value || '';
+
+  let entries = Object.values(auditLogData);
+  if(filtroUser) entries = entries.filter(e => (e.user||'').toLowerCase().includes(filtroUser.toLowerCase()));
+  if(filtroKey) entries = entries.filter(e => e.key === filtroKey);
+  if(filtroFecha) entries = entries.filter(e => (e.iso||'').startsWith(filtroFecha));
+
+  entries.sort((a,b) => (b.ts||0) - (a.ts||0));
+  const shown = entries.slice(0,100);
+
+  if(!shown.length){ el.innerHTML='<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--mid-gray);font-size:13px">Sin registros</td></tr>'; return; }
+  el.innerHTML = shown.map(e => {
+    const d = new Date(e.ts||0);
+    const hora = d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+    const fecha = d.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
+    return `<tr style="border-top:1px solid var(--light-gray)">
+      <td style="padding:8px 12px;font-size:12px;color:var(--mid-gray)">${fecha} ${hora}</td>
+      <td style="padding:8px 12px;font-size:13px;font-weight:500">${esc(e.user||'—')}</td>
+      <td style="padding:8px 12px;font-size:13px">${AUDIT_LABELS[e.key]||esc(e.key||'—')}</td>
+      <td style="padding:8px 12px"><span style="font-size:10px;background:var(--light-gray);padding:2px 8px;border-radius:10px;letter-spacing:.5px">${esc(e.key||'')}</span></td>
+    </tr>`;
+  }).join('');
+}
+
 function renderReportesEquipo(){
   _repMeses('rep-eq-mes');
   const mesISO = document.getElementById('rep-eq-mes')?.value || TODAY_ISO.slice(0,7);
@@ -6098,6 +6232,80 @@ function exportReporteStock(){
   _downloadCSV(rows,'reporte-stock.csv');
 }
 
+
+// ── DASHBOARD DE MARGEN ───────────────────────────────────────────────────────
+function renderDashboardMargen(){
+  const mesISO = document.getElementById('margen-mes')?.value || TODAY_ISO.slice(0,7);
+  _repMeses('margen-mes');
+
+  const ventas = (window.ventasData||[]).filter(v => (v.fecha||'').slice(0,7) === mesISO);
+  const compras = [
+    ...(window.comprasFlore||[]),
+    ...(window.comprasJard||[])
+  ].filter(c => (c.fecha||'').slice(0,7) === mesISO);
+
+  const parseMon = v => { if(!v) return 0; const n = parseFloat(String(v).replace(/[^0-9.-]/g,'')); return isNaN(n)?0:n; };
+
+  const totalVentas = ventas.reduce((s,v) => s + parseMon(v.monto||v.total), 0);
+  const totalCompras = compras.reduce((s,c) => s + parseMon(c.costo), 0);
+  const margenBruto = totalVentas - totalCompras;
+  const pct = totalVentas > 0 ? ((margenBruto / totalVentas) * 100).toFixed(1) : 0;
+
+  // KPIs
+  const kpiEl = document.getElementById('margen-kpis');
+  if(kpiEl) kpiEl.innerHTML = [
+    _kpiCard('Ventas del mes', '$'+totalVentas.toLocaleString('es-AR'), ventas.length+' transacciones', 'var(--green-ok)'),
+    _kpiCard('Compras / Costos', '$'+totalCompras.toLocaleString('es-AR'), compras.length+' registros', 'var(--red-alert)'),
+    _kpiCard('Margen Bruto', '$'+margenBruto.toLocaleString('es-AR'), pct+'% del total vendido', margenBruto>=0?'var(--green-ok)':'var(--red-alert)'),
+    _kpiCard('% Margen', pct+'%', margenBruto>=0?'Rentable ✓':'Déficit ⚠', margenBruto>=0?'var(--green-ok)':'var(--amber)'),
+  ].join('');
+
+  // Desglose ventas por tipo
+  const porTipo = {};
+  ventas.forEach(v => {
+    const t = v.tipo||v.categoria||'Otros';
+    if(!porTipo[t]) porTipo[t] = 0;
+    porTipo[t] += parseMon(v.monto||v.total);
+  });
+
+  // Desglose compras por sector
+  const porSector = {};
+  compras.forEach(c => {
+    const s = c.sector||c.tipo||'General';
+    if(!porSector[s]) porSector[s] = 0;
+    porSector[s] += parseMon(c.costo);
+  });
+
+  const tablaEl = document.getElementById('margen-tabla');
+  if(tablaEl) tablaEl.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px">
+      <div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;padding:16px">
+        <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:12px;font-weight:500">Ventas por tipo</div>
+        ${Object.keys(porTipo).length ? Object.entries(porTipo).sort((a,b)=>b[1]-a[1]).map(([t,v])=>`
+          <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--light-gray);font-size:13px">
+            <span>${esc(t)}</span><span style="font-weight:600;color:var(--green-ok)">$${v.toLocaleString('es-AR')}</span>
+          </div>`).join('') : '<div style="color:var(--mid-gray);font-size:13px">Sin ventas registradas</div>'}
+      </div>
+      <div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;padding:16px">
+        <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:12px;font-weight:500">Compras por sector</div>
+        ${Object.keys(porSector).length ? Object.entries(porSector).sort((a,b)=>b[1]-a[1]).map(([s,v])=>`
+          <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--light-gray);font-size:13px">
+            <span>${esc(s)}</span><span style="font-weight:600;color:var(--red-alert)">$${v.toLocaleString('es-AR')}</span>
+          </div>`).join('') : '<div style="color:var(--mid-gray);font-size:13px">Sin compras registradas</div>'}
+      </div>
+    </div>
+    <div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;padding:16px;margin-top:16px">
+      <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:12px;font-weight:500">Barra de margen</div>
+      <div style="background:var(--light-gray);border-radius:8px;height:24px;overflow:hidden;position:relative">
+        <div style="background:var(--green-ok);height:100%;width:${Math.min(100,Math.max(0,+pct))}%;transition:width .5s ease;border-radius:8px;display:flex;align-items:center;justify-content:flex-end;padding-right:8px">
+          <span style="font-size:11px;font-weight:700;color:white">${pct}%</span>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--mid-gray);margin-top:6px">
+        <span>0%</span><span style="color:var(--amber)">Punto de equilibrio</span><span>100%</span>
+      </div>
+    </div>`;
+}
 
 // ── Push Notifications UI ─────────────────────────────────────────────────────
 function openPushNotifModal(){
@@ -8743,6 +8951,7 @@ Object.assign(window, {
   showToast, syncEventosToKanban, toggleCtrlSection, toggleEvZona, toggleHistorialCompras,
   toggleHistory, toggleInsumosGrid, toggleJordProd, togglePlantilla, toggleProductividad,
   toggleDarkMode, initDarkMode, openGlobalSearch, closeGlobalSearch, handleSearchKey, runGlobalSearch, _gsearchGo, exportPDF,
+  renderAuditoria, cerrarCajaDia, renderCierreCajaHistorial, toggleCierreDetalle, renderDashboardMargen,
   toggleProvManager, toggleSidebar, toggleTask, updC, updCL, updCaja, updCajaMonto, updCajaTipo,
   updGlosario, updPedidoHabEstado, updTipoEvento, updV, updateInsumoCount, updateInsumoRow,
   updateKpiCompras, urgenciaPanelHTML, vdAutoPrice, zonaHoraBtn, zonaResetHora, zonaSetHora,
