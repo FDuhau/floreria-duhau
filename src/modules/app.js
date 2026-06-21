@@ -78,7 +78,7 @@ function parseMoney(s){ return parseFloat(String(s||'').replace(/[^0-9.]/g,''))|
 // ════════════════════════════════════════
 // NAVIGATION
 // ════════════════════════════════════════
-const PAGE_LABELS = {control:'Control Coordinador','control-jardineria':'Control › Seguimiento Jardinería','control-habitaciones':'Control › Habitaciones con Plantas',
+const PAGE_LABELS = {control:'Control','control-jardineria':'Control › Seguimiento Jardinería','control-habitaciones':'Control › Habitaciones con Plantas',
   home:'Inicio', operaciones:'Operaciones',
   checklist:'Operaciones › Checklist', stock:'Operaciones › Stock',
   'eventos-maison':'Operaciones › Eventos / Maison',
@@ -6183,7 +6183,7 @@ function applyRole(role){
   // Para gerencia: sub-items visibles excepto los exclusivos de otros roles
   if(role === 'gerencia'){
     document.querySelectorAll('.nav-sub-item[data-group]').forEach(el => {
-      if(!el.classList.contains('nav-floreria-only') && !el.classList.contains('nav-ventas-only'))
+      if(!el.classList.contains('nav-floreria-only') && !el.classList.contains('nav-ventas-only') && !el.classList.contains('nav-jard-only'))
         el.style.display = '';
     });
   }
@@ -6389,43 +6389,25 @@ function applyRole(role){
   }
 
   if(role === 'jardinero'){
-    // Ocultar TODO el sidebar excepto el ítem Tareas Jardinería
     document.querySelectorAll('.nav-section-label, .nav-item, .nav-sub-item').forEach(el => {
       el.style.display = 'none';
     });
-    // Mostrar solo Operaciones > Tareas Jardinería + Control > Habitaciones con Plantas
+    // Operaciones: Tareas Jardinería, Habitaciones con Plantas, Recordatorios Jardín (nav-jard-only)
     document.querySelectorAll('.nav-section-label').forEach(label => {
-      const text = label.textContent.trim();
-      if(text === 'Operaciones'){
+      if(label.textContent.trim() === 'Operaciones'){
         label.style.display = '';
         let sib = label.nextElementSibling;
         while(sib && !sib.classList.contains('nav-section-label')){
           const t = sib.textContent.trim();
-          if(t === 'Tareas Jardinería' || t === 'Habitaciones con Plantas') sib.style.display = '';
-          sib = sib.nextElementSibling;
-        }
-      }
-      // Mostrar Control con Recordatorios para jardinero
-      if(text === 'Control'){
-        label.style.display = '';
-        let sib = label.nextElementSibling;
-        while(sib && !sib.classList.contains('nav-section-label')){
-          // Mostrar el header del grupo grp-ctrl y el ítem Recordatorios Jardín
-          if(sib.dataset?.groupId === 'grp-ctrl' || sib.textContent.trim() === 'Recordatorios Jardín'){
+          if(t === 'Tareas Jardinería' || t === 'Habitaciones con Plantas' || sib.classList.contains('nav-jard-only'))
             sib.style.display = '';
-          }
           sib = sib.nextElementSibling;
         }
-        // Expandir el grupo ctrl para que se vean los sub-items
-        setTimeout(() => navExpandGroup('grp-ctrl'), 50);
       }
     });
-    // Quick links: solo mostrar Tareas Jardinería y Habitaciones con Plantas
-    document.querySelectorAll('.quick-link').forEach(ql => {
-      const title = ql.querySelector('.quick-link-title')?.textContent || '';
-      if(!title.includes('Tareas Jardinería') && !title.includes('Habitaciones con Plantas')) ql.style.display = 'none';
-    });
-    // Navegar directo a tareas jardinería
+    document.querySelector('[data-group-id="grp-ops"]').style.display = '';
+    setTimeout(() => navExpandGroup('grp-ops'), 50);
+    document.querySelectorAll('.quick-link').forEach(ql => ql.style.display = 'none');
     setTimeout(()=>{ navigate('jardineria-ops'); if(jardineroNombre) showToast('👋 Hola '+jardineroNombre+'!'); }, 100);
   }
 
