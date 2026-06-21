@@ -65,6 +65,12 @@
   .nav-group-hdr { user-select:none; }
   .nav-group-hdr.nav-group-open .nav-chevron { transform:rotate(90deg); opacity:0.65; }
   /* sub-items colapsados por JS en finalizeNavGroups() */
+  /* Lista de precios de solo lectura para no-gerencia */
+  body:not(.role-gerencia) .lp-card-name,
+  body:not(.role-gerencia) .lp-card-desc,
+  body:not(.role-gerencia) .lp-price-input { pointer-events:none; background:transparent; border-color:transparent; resize:none; }
+  body:not(.role-gerencia) .lp-card-actions,
+  body:not(.role-gerencia) .lp-add-photo { display:none !important; }
   .sidebar-footer { padding:18px 22px; border-top:1px solid rgba(255,255,255,.05); font-size:10px; color:rgba(247,245,242,.25); letter-spacing:.5px; }
 
   /* ── MAIN ── */

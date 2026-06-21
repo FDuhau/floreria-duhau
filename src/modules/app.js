@@ -5541,9 +5541,12 @@ function applyRole(role){
   const jopsProdBtn = document.getElementById('jops-prod-btn');
   if(jopsProdBtn) jopsProdBtn.style.display = role === 'gerencia' ? '' : 'none';
 
-  // Para gerencia: todos los sub-items son visibles antes de colapsar
+  // Para gerencia: sub-items visibles excepto los exclusivos de otros roles
   if(role === 'gerencia'){
-    document.querySelectorAll('.nav-sub-item[data-group]').forEach(el => el.style.display = '');
+    document.querySelectorAll('.nav-sub-item[data-group]').forEach(el => {
+      if(!el.classList.contains('nav-floreria-only') && !el.classList.contains('nav-ventas-only'))
+        el.style.display = '';
+    });
   }
 
   if(role === 'operario'){
@@ -5597,10 +5600,10 @@ function applyRole(role){
   }
 
   if(role === 'florista'){
-    // Similar a operario pero personalizado para cada florista
+    // Ocultar secciones Control y Compras por completo
     document.querySelectorAll('.nav-section-label').forEach(label => {
       const text = label.textContent.trim();
-      if(text.includes('Control') || text.includes('Compras') || text.includes('Comercial')){
+      if(text.includes('Control') || text.includes('Compras')){
         label.style.display = 'none';
         let sib = label.nextElementSibling;
         while(sib && !sib.classList.contains('nav-section-label')){
@@ -5609,34 +5612,23 @@ function applyRole(role){
         }
       }
     });
-    // Ocultar quick-links restringidos
-    document.querySelectorAll('.quick-link').forEach(ql => {
-      const title = ql.querySelector('.quick-link-title')?.textContent || '';
-      if(['Compras','Área Comercial','Lista de Precios','Tareas Jardinería','Habitaciones con Plantas'].some(t => title.includes(t))){
-        ql.style.display = 'none';
-      }
-    });
-    // Ocultar nav sub-items de jardinería y habitaciones
-    document.querySelectorAll('.nav-sub-item').forEach(el => {
+    // En Operaciones: ocultar Tareas Jardinería y Habitaciones con Plantas
+    document.querySelectorAll('.nav-sub-item[data-group="grp-ops"]').forEach(el => {
       const t = el.textContent.trim();
       if(t === 'Tareas Jardinería' || t === 'Habitaciones con Plantas') el.style.display = 'none';
     });
-    // Ocultar cotizador de Operaciones (lo mostramos en Comercial)
-    document.querySelectorAll('.nav-sub-item').forEach(el => {
-      if(el.getAttribute('onclick')?.includes("'cotizador-ops'") && !el.classList.contains('nav-floreria-only')) el.style.display = 'none';
+    // En Comercial: mostrar solo Lista de Precios y Ramos Disponibles
+    document.querySelectorAll('.nav-sub-item[data-group="grp-com"]').forEach(el => {
+      const t = el.textContent.trim();
+      el.style.display = (t === 'Lista de Precios' || t === 'Ramos Disponibles') ? '' : 'none';
     });
-    // Mostrar Cotizador y Ramos Disponibles bajo Comercial
-    document.querySelectorAll('.nav-section-label').forEach(label => {
-      if(label.textContent.trim() === 'Comercial'){
-        label.style.display = '';
-        let sib = label.nextElementSibling;
-        while(sib && !sib.classList.contains('nav-section-label')){
-          if(sib.textContent.trim() === 'Ramos Disponibles' || sib.classList.contains('nav-floreria-only')) sib.style.display = '';
-          sib = sib.nextElementSibling;
-        }
+    // Ocultar quick-links restringidos
+    document.querySelectorAll('.quick-link').forEach(ql => {
+      const title = ql.querySelector('.quick-link-title')?.textContent || '';
+      if(['Compras','Área Comercial','Tareas Jardinería','Habitaciones con Plantas'].some(t => title.includes(t))){
+        ql.style.display = 'none';
       }
     });
-    // Título personalizado
     showToast('👋 Hola '+floristaNombre+'!');
   }
 
