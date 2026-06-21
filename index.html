@@ -109,7 +109,7 @@
     <div class="nav-sub-item nav-ventas-only" data-group="grp-com" style="display:none" onclick="navigate('cotizador-eventos-hyatt',this)">Cotizador de Eventos</div>
     <div class="nav-sub-item" data-group="grp-com" onclick="navigate('ventas-externas',this)">Ventas Externas</div>
     <div class="nav-sub-item" data-group="grp-com" onclick="navigate('caja',this)">Control de Caja</div>
-    <div class="nav-sub-item" data-group="grp-com" onclick="navigate('glosario',this)">Glosario & Muestrario</div>
+    <div class="nav-sub-item" data-group="grp-com" onclick="navigate('galeria',this)">Galería de Trabajos</div>
     <div class="nav-sub-item" data-group="grp-com" onclick="navigate('lista-precios',this)">Lista de Precios</div>
     <div class="nav-sub-item" data-group="grp-com" onclick="navigate('ramos-disponibles',this)">Ramos Disponibles</div>
     <div class="nav-sub-item" data-group="grp-com" onclick="navigate('pedidos-habitacion',this)">Pedidos de Habitación</div>
@@ -629,10 +629,10 @@
         <div class="quick-link-title">Control de Caja</div>
         <div class="quick-link-sub">Ingresos y egresos</div>
       </div>
-      <div class="quick-link" onclick="navigate('glosario',this)">
-        <span class="quick-link-icon">📖</span>
-        <div class="quick-link-title">Glosario</div>
-        <div class="quick-link-sub">Muestrario floral</div>
+      <div class="quick-link" onclick="navigate('galeria',this)">
+        <span class="quick-link-icon">🖼</span>
+        <div class="quick-link-title">Galería</div>
+        <div class="quick-link-sub">Portfolio de trabajos</div>
       </div>
       <div class="quick-link" onclick="navigate('lista-precios',this)">
         <span class="quick-link-icon">💲</span>
@@ -1174,45 +1174,52 @@
     </div>
   </div>
 
-  <!-- ══════ GLOSARIO ══════ -->
-  <div id="page-glosario" class="content">
+  <!-- ══════ GALERÍA DE TRABAJOS ══════ -->
+  <div id="page-galeria" class="content">
     <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px">
-      <div><div class="page-title">Glosario & Muestrario</div><div class="page-subtitle">Catálogo fotográfico de ramos y arreglos</div></div>
-      <button class="btn-add" onclick="openGlosarioModal()">+ Agregar Arreglo</button>
+      <div><div class="page-title">Galería de Trabajos</div><div class="page-subtitle">Portfolio de arreglos florales realizados</div></div>
+      <button class="btn-add" onclick="openGaleriaModal()">+ Nuevo Trabajo</button>
     </div>
-    <div class="glosario-grid" id="glosario-grid"></div>
-    <div class="modal-overlay" id="glosario-modal">
-      <div class="modal">
-        <button class="modal-close" onclick="closeModal('glosario-modal')">✕</button>
-        <div class="modal-title">Nuevo Arreglo</div>
-        <label class="form-label">Nombre del arreglo</label>
-        <input class="form-input-modal" id="gl-nombre" placeholder="ej. Bochita primaveral">
-        <label class="form-label">Descripción (qué lleva)</label>
-        <textarea class="form-input-modal" id="gl-desc" placeholder="Flores, follaje, estilo, materiales..." style="min-height:60px"></textarea>
+    <div id="galeria-grid" style="columns:3 280px;gap:16px;margin-top:16px"></div>
+    <!-- Lightbox -->
+    <div id="galeria-lightbox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:3000;align-items:center;justify-content:center;flex-direction:column;gap:12px">
+      <button onclick="document.getElementById('galeria-lightbox').style.display='none'" style="position:absolute;top:20px;right:28px;background:none;border:none;color:white;font-size:28px;cursor:pointer">✕</button>
+      <div id="galeria-lb-title" style="font-family:'Cormorant Garamond',serif;font-size:20px;color:rgba(255,255,255,.8)"></div>
+      <img id="galeria-lb-img" src="" style="max-width:88vw;max-height:75vh;border-radius:8px;object-fit:contain;box-shadow:0 8px 40px rgba(0,0,0,.5)">
+      <div style="display:flex;gap:16px">
+        <button id="galeria-lb-prev" onclick="abrirLightbox(_galeriaLightboxIdx-1)" style="background:rgba(255,255,255,.15);border:none;color:white;padding:8px 20px;border-radius:8px;cursor:pointer;font-size:14px">← Anterior</button>
+        <button id="galeria-lb-next" onclick="abrirLightbox(_galeriaLightboxIdx+1)" style="background:rgba(255,255,255,.15);border:none;color:white;padding:8px 20px;border-radius:8px;cursor:pointer;font-size:14px">Siguiente →</button>
+      </div>
+    </div>
+    <!-- Modal nuevo/editar trabajo -->
+    <div class="modal-overlay" id="galeria-modal">
+      <div class="modal" style="max-width:520px">
+        <button class="modal-close" onclick="closeModal('galeria-modal')">✕</button>
+        <div class="modal-title" id="galeria-modal-title">Nuevo Trabajo</div>
+        <input type="hidden" id="gal-edit-idx" value="-1">
+        <label class="form-label">Nombre / Título</label>
+        <input class="form-input-modal" id="gal-nombre" placeholder="ej. Centro mesa Hyatt — Boda Pérez">
+        <label class="form-label">Descripción</label>
+        <textarea class="form-input-modal" id="gal-desc" placeholder="Qué flores, estilo, ocasión..." style="min-height:60px"></textarea>
         <div class="modal-row">
           <div>
-            <label class="form-label">Dimensión / Tamaño</label>
-            <input class="form-input-modal" id="gl-dimension" placeholder="ej. 25cm diámetro × 30cm alto">
+            <label class="form-label">Categoría / Evento</label>
+            <input class="form-input-modal" id="gal-cat" placeholder="ej. Boda, Corporativo, Hyatt">
           </div>
           <div>
-            <label class="form-label">Precio referencia</label>
-            <input class="form-input-modal" id="gl-precio" placeholder="$ (opcional)">
+            <label class="form-label">Fecha realizado</label>
+            <input class="form-input-modal" id="gal-fecha" type="date">
           </div>
         </div>
-        <label class="form-label">Foto ilustrativa</label>
-        <div style="margin-bottom:10px">
-          <input type="file" id="gl-foto-file" accept="image/*" style="display:none" onchange="previewGlFoto(this)">
-          <div id="gl-foto-preview" style="display:none;margin-bottom:8px">
-            <img id="gl-foto-img" src="" style="width:120px;height:120px;object-fit:cover;border-radius:8px;border:1px solid var(--light-gray)">
-            <button type="button" onclick="document.getElementById('gl-foto-preview').style.display='none';document.getElementById('gl-foto-data').value=''" style="margin-left:8px;background:none;border:none;color:var(--red-alert);cursor:pointer;font-size:13px">✕ Quitar</button>
-          </div>
-          <button type="button" class="btn-secondary" style="font-size:12px" onclick="document.getElementById('gl-foto-file').click()">📷 Subir foto</button>
-          <input type="hidden" id="gl-foto-data" value="">
+        <label class="form-label">Fotos</label>
+        <div id="gal-fotos-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+          <label class="btn-secondary" style="font-size:12px;cursor:pointer">📷 Subir fotos<input type="file" accept="image/*" multiple style="display:none" onchange="galeriaAddFotos(this)"></label>
+          <button type="button" class="btn-secondary" style="font-size:12px" onclick="galeriaAddUrl()">🔗 URL de foto</button>
         </div>
-        <input class="form-input-modal" id="gl-emoji" placeholder="Emoji representativo (ej: 🌸)" style="width:200px">
         <div class="modal-actions">
-          <button class="btn-secondary" onclick="closeModal('glosario-modal')">Cancelar</button>
-          <button class="btn-add" onclick="addGlosario()">Agregar</button>
+          <button class="btn-secondary" onclick="closeModal('galeria-modal')">Cancelar</button>
+          <button class="btn-add" onclick="guardarGaleria()">Guardar</button>
         </div>
       </div>
     </div>
@@ -1968,7 +1975,7 @@
         <option value="comprasJard">Compras Jardinería</option>
         <option value="checklist">Checklist</option>
         <option value="cierresCaja">Cierre de Caja</option>
-        <option value="glosarioData">Glosario</option>
+        <option value="galeriaData">Galería de Trabajos</option>
         <option value="recetasData">Composiciones</option>
       </select>
     </div>

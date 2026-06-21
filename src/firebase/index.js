@@ -313,11 +313,11 @@
         if(document.getElementById('page-caja')?.classList.contains('active') && !window.estaEditando('page-caja')) window.renderCaja();
       });
 
-      fbListen('glosarioData', val => {
+      fbListen('galeriaData', val => {
         if(!val) return;
         const arr = Array.isArray(val) ? val : Object.values(val||{});
-        if(window._setGlosarioData) window._setGlosarioData(arr);
-        if(document.getElementById('page-glosario')?.classList.contains('active') && !window.estaEditando('page-glosario')) window.renderGlosario();
+        if(window._setGaleriaData) window._setGaleriaData(arr);
+        if(document.getElementById('page-galeria')?.classList.contains('active') && !window.estaEditando('page-galeria')) window.renderGaleria();
       });
 
       fbListen('listaPreciosData', val => {

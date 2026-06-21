@@ -128,7 +128,7 @@ const PAGE_LABELS = {control:'Control','control-jardineria':'Control › Seguimi
   cotizador:'Comercial › Cotizador',
   'cotizador-ops':'Cotizador',
   'ventas-externas':'Comercial › Ventas', caja:'Comercial › Caja',
-  glosario:'Comercial › Glosario',
+  galeria:'Comercial › Galería de Trabajos',
   'lista-precios':'Comercial › Lista de Precios',
   'ramos-disponibles':'Comercial › Ramos Disponibles',
   'pedidos-habitacion':'Comercial › Pedidos de Habitación',
@@ -149,7 +149,7 @@ const PAGE_LABELS = {control:'Control','control-jardineria':'Control › Seguimi
 };
 const COMPRAS_PAGES=['compras','compras-floreria','compras-jardineria','stock-admin'];
 const CONTROL_PAGES=['control','control-jardineria','control-habitaciones','control-horarios','recordatorios-jardineria'];
-const COMERCIAL_PAGES = ['comercial','eventos-comercial','historial-eventos','cotizador-ops','ventas-externas','caja','glosario','lista-precios','ramos-disponibles','pedidos-habitacion','recetas-arreglos','recepcion-pedidos'];
+const COMERCIAL_PAGES = ['comercial','eventos-comercial','historial-eventos','cotizador-ops','ventas-externas','caja','galeria','lista-precios','ramos-disponibles','pedidos-habitacion','recetas-arreglos','recepcion-pedidos'];
 
 // ── NAVEGACIÓN INFERIOR MOBILE ──────────────────────────────────────────────
 const BOTTOM_NAV_ITEMS = {
@@ -158,7 +158,7 @@ const BOTTOM_NAV_ITEMS = {
   operario:  [{icon:'🏠',label:'Inicio',page:'home'},{icon:'🎉',label:'Eventos',page:'eventos-maison'},{icon:'📦',label:'Stock',page:'stock'},{icon:'💲',label:'Precios',page:'lista-precios'}],
   jardinero: [{icon:'🌿',label:'Jardín',page:'jardineria-ops'},{icon:'🏡',label:'Habitac.',page:'hab-ops'},{icon:'🔔',label:'Avisos',page:'recordatorios-jardineria'}],
   compras:   [{icon:'🛒',label:'Compras',page:'compras-floreria'},{icon:'📦',label:'Stock',page:'stock-admin'},{icon:'📬',label:'Recepción',page:'recepcion-pedidos'}],
-  comercial: [{icon:'🎉',label:'Eventos',page:'eventos-comercial'},{icon:'💰',label:'Ventas',page:'ventas-externas'},{icon:'📖',label:'Glosario',page:'glosario'},{icon:'💲',label:'Precios',page:'lista-precios'}],
+  comercial: [{icon:'🎉',label:'Eventos',page:'eventos-comercial'},{icon:'💰',label:'Ventas',page:'ventas-externas'},{icon:'🖼',label:'Galería',page:'galeria'},{icon:'💲',label:'Precios',page:'lista-precios'}],
   ventas:    [{icon:'🌺',label:'Ramos',page:'ramos-disponibles'},{icon:'🏨',label:'Pedidos',page:'pedidos-habitacion'},{icon:'💲',label:'Precios',page:'lista-precios'}],
 };
 
@@ -246,7 +246,7 @@ function navigate(pageId, navEl){
   if(pageId==='historial-eventos')   renderHistorialEventos();
   if(pageId==='ventas-externas')    renderVentas();
   if(pageId==='caja')               renderCaja();
-  if(pageId==='glosario')           renderGlosario();
+  if(pageId==='galeria')            renderGaleria();
   if(pageId==='lista-precios')      renderListaPrecios();
   if(pageId==='ramos-disponibles')  renderRamosDisp();
   if(pageId==='pedidos-habitacion') renderPedidosHab();
@@ -3528,153 +3528,245 @@ function toggleCierreDetalle(ts){
 }
 
 // ════════════════════════════════════════
-// DATA — GLOSARIO
+// DATA — GALERÍA DE TRABAJOS
 // ════════════════════════════════════════
-let glosarioData=[];
-window._setGlosarioData = (arr) => { glosarioData.splice(0, glosarioData.length, ...arr); };
+let galeriaData=[];
+window._setGaleriaData = (arr) => { galeriaData.splice(0, galeriaData.length, ...arr); };
 
-function renderGlosario(){
-  document.getElementById('glosario-grid').innerHTML=glosarioData.map((g,i)=>{
-    const photos = g.photos||[];
-    // Photo strip — muestra hasta 4 thumbs
-    const photoStrip = photos.length
-      ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
-          ${photos.map((p,pi)=>`
-            <div style="position:relative;width:72px;height:72px;border-radius:6px;overflow:hidden;border:1px solid var(--light-gray)">
-              <img src="${p}" style="width:100%;height:100%;object-fit:cover;cursor:pointer" onclick="openPhotoViewer(${i},${pi})">
-              <button onclick="removePhoto(${i},${pi})" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.55);color:white;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center">✕</button>
-            </div>`).join('')}
-          <label style="width:72px;height:72px;border-radius:6px;border:2px dashed var(--light-gray);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;font-size:11px;color:var(--mid-gray);gap:4px" title="Agregar foto">
-            <span style="font-size:22px">📷</span>+
-            <input type="file" accept="image/*" multiple style="display:none" onchange="addPhotos(${i},this)">
-          </label>
-        </div>`
-      : `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--mid-gray);margin-bottom:10px;padding:8px;border:2px dashed var(--light-gray);border-radius:8px">
-          <span style="font-size:20px">📷</span> Agregar fotos de referencia
-          <input type="file" accept="image/*" multiple style="display:none" onchange="addPhotos(${i},this)">
-        </label>`;
+let _galeriaLightboxIdx = 0;
 
-    return `<div class="glosario-item">
-      <div class="glosario-body" style="padding:16px">
-        ${photoStrip}
-        <div style="margin-bottom:8px">
-          <input value="${esc(g.nombre)}" onchange="updGlosario(${i},'nombre',this.value)"
-            style="width:100%;font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:500;color:var(--charcoal);border:none;border-bottom:1px solid transparent;background:transparent;outline:none;padding:2px 0;transition:border-color .2s"
-            onfocus="this.style.borderBottomColor='var(--sage)'" onblur="this.style.borderBottomColor='transparent'">
-        </div>
-        <div style="margin-bottom:8px">
-          <textarea onchange="updGlosario(${i},'desc',this.value)"
-            style="width:100%;font-size:12px;color:var(--mid-gray);border:none;background:transparent;outline:none;resize:none;line-height:1.6;min-height:54px;padding:2px 0;border-bottom:1px solid transparent;transition:border-color .2s;font-family:'DM Sans',sans-serif"
-            onfocus="this.style.borderBottomColor='var(--sage)'" onblur="this.style.borderBottomColor='transparent'">${esc(g.desc)}</textarea>
-        </div>
-        <div style="margin-bottom:8px">
-          <input value="${esc(g.dimension||'')}" onchange="updGlosario(${i},'dimension',this.value)" placeholder="Dimensión / Tamaño"
-            style="width:100%;font-size:12px;color:var(--charcoal);border:none;background:transparent;outline:none;padding:2px 0;border-bottom:1px solid transparent;transition:border-color .2s;font-family:'DM Sans',sans-serif;font-style:italic"
-            onfocus="this.style.borderBottomColor='var(--sage)'" onblur="this.style.borderBottomColor='transparent'">
-        </div>
-        <div class="glosario-price">
-          <div style="display:flex;align-items:center;gap:6px">
-            <span style="font-size:11px;color:var(--mid-gray)">$</span>
-            <input value="${esc(g.precio)}" onchange="updGlosario(${i},'precio',this.value)"
-              style="font-family:'Cormorant Garamond',serif;font-size:16px;color:var(--sage-dark);border:none;background:transparent;outline:none;width:120px;border-bottom:1px solid transparent;transition:border-color .2s"
-              onfocus="this.style.borderBottomColor='var(--sage)'" onblur="this.style.borderBottomColor='transparent'">
+function renderGaleria(){
+  const search  = (document.getElementById('gal-search')?.value||'').toLowerCase();
+  const tipoFil = document.getElementById('gal-tipo')?.value||'';
+  const tempFil = document.getElementById('gal-temp')?.value||'';
+
+  // Poblar filtro de tipos dinámicamente
+  const tipoSel = document.getElementById('gal-tipo');
+  if(tipoSel){
+    const cur = tipoSel.value;
+    const tipos = [...new Set(galeriaData.map(g=>g.tipoEvento).filter(Boolean))].sort();
+    tipoSel.innerHTML = '<option value="">Todos los eventos</option>' + tipos.map(t=>`<option${t===cur?' selected':''}>${esc(t)}</option>`).join('');
+    tipoSel.value = cur;
+  }
+
+  const filtered = galeriaData.filter(g=>{
+    const ms = !search || g.titulo?.toLowerCase().includes(search) || (g.flores||[]).join(' ').toLowerCase().includes(search);
+    const mt = !tipoFil || g.tipoEvento === tipoFil;
+    const mtp = !tempFil || g.temporada === tempFil;
+    return ms && mt && mtp;
+  });
+
+  const el = document.getElementById('galeria-grid');
+  if(!el) return;
+
+  if(!filtered.length){
+    el.innerHTML = `<div style="text-align:center;padding:60px 20px;color:var(--mid-gray)">
+      <div style="font-size:48px;margin-bottom:16px">🌸</div>
+      <div style="font-size:14px">No hay trabajos en la galería todavía.<br>Agregá el primero con el botón de arriba.</div>
+    </div>`;
+    return;
+  }
+
+  const TEMP_ICON = {Primavera:'🌸',Verano:'☀️',Otoño:'🍂',Invierno:'❄️'};
+  el.innerHTML = `<div style="columns:3;column-gap:16px;orphans:1;widows:1">
+    ${filtered.map((g,fi)=>{
+      const realIdx = galeriaData.indexOf(g);
+      const foto = (g.fotos&&g.fotos[0]) || g.foto || '';
+      const flores = Array.isArray(g.flores) ? g.flores : (g.flores?g.flores.split(',').map(f=>f.trim()):[]);
+      return `<div style="break-inside:avoid;margin-bottom:16px;border-radius:var(--radius-md);overflow:hidden;background:var(--warm-white);border:1px solid var(--light-gray);box-shadow:var(--shadow-sm);cursor:pointer;transition:var(--transition)" onclick="abrirLightbox(${realIdx})" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='var(--shadow-md)'" onmouseout="this.style.transform='';this.style.boxShadow='var(--shadow-sm)'">
+        ${foto
+          ? `<img src="${foto}" style="width:100%;display:block;object-fit:cover;max-height:380px" loading="lazy">`
+          : `<div style="width:100%;height:200px;background:linear-gradient(135deg,var(--blush-light),var(--sage-light));display:flex;align-items:center;justify-content:center;font-size:52px">🌸</div>`
+        }
+        <div style="padding:14px 16px">
+          <div style="font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:500;color:var(--charcoal);margin-bottom:6px">${esc(g.titulo||'Sin título')}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px">
+            ${g.tipoEvento?`<span style="background:var(--blush-light);color:#7A3A2A;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500">${esc(g.tipoEvento)}</span>`:''}
+            ${g.temporada?`<span style="background:var(--cream);color:var(--mid-gray);padding:2px 8px;border-radius:20px;font-size:10px">${TEMP_ICON[g.temporada]||''} ${esc(g.temporada)}</span>`:''}
+            ${flores.slice(0,3).map(f=>`<span style="background:var(--light-gray);color:var(--charcoal);padding:2px 8px;border-radius:20px;font-size:10px">${esc(f)}</span>`).join('')}
           </div>
-          <div style="display:flex;align-items:center;gap:6px">
-            <input value="${esc(g.emoji)}" onchange="updGlosario(${i},'emoji',this.value)"
-              style="width:36px;text-align:center;font-size:18px;border:1px solid var(--light-gray);border-radius:6px;padding:2px 4px;outline:none" title="Emoji">
-            <button class="btn-icon" style="color:var(--red-alert)" onclick="delGlosario(${i})">✕</button>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:11px;color:var(--mid-gray)">${g.fecha?fmtDate(g.fecha):''}${g.precio?' · $'+esc(g.precio):''}</span>
+            <div style="display:flex;gap:4px" onclick="event.stopPropagation()">
+              ${(g.fotos&&g.fotos.length>1)?`<span style="font-size:10px;color:var(--mid-gray);padding:2px 6px">📷 ${g.fotos.length}</span>`:''}
+              <button class="btn-icon" onclick="editarGaleria(${realIdx})" title="Editar">✏️</button>
+              <button class="btn-icon" style="color:var(--red-alert)" onclick="eliminarGaleria(${realIdx})" title="Eliminar">🗑</button>
+            </div>
           </div>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+function abrirLightbox(idx){
+  _galeriaLightboxIdx = idx;
+  const g = galeriaData[idx];
+  const fotos = g.fotos?.length ? g.fotos : (g.foto ? [g.foto] : []);
+  let fotoIdx = 0;
+  let ov = document.getElementById('galeria-lightbox');
+  if(!ov){
+    ov = document.createElement('div');
+    ov.id = 'galeria-lightbox';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:2000;display:flex;align-items:center;justify-content:center;flex-direction:column';
+    ov.addEventListener('click', e=>{ if(e.target===ov) ov.remove(); });
+    document.body.appendChild(ov);
+  }
+  const flores = Array.isArray(g.flores) ? g.flores : (g.flores?g.flores.split(',').map(f=>f.trim()):[]);
+  function showFoto(){
+    const src = fotos[fotoIdx];
+    ov.innerHTML = `
+      <button onclick="document.getElementById('galeria-lightbox').remove()" style="position:absolute;top:20px;right:28px;background:none;border:none;color:white;font-size:32px;cursor:pointer;line-height:1">✕</button>
+      ${fotos.length>1?`<button onclick="event.stopPropagation();fotoIdx=(fotoIdx-1+fotos.length)%fotos.length;showFoto()" style="position:absolute;left:20px;background:rgba(255,255,255,.15);border:none;color:white;font-size:28px;padding:12px 16px;border-radius:8px;cursor:pointer">‹</button>
+      <button onclick="event.stopPropagation();fotoIdx=(fotoIdx+1)%fotos.length;showFoto()" style="position:absolute;right:20px;background:rgba(255,255,255,.15);border:none;color:white;font-size:28px;padding:12px 16px;border-radius:8px;cursor:pointer">›</button>`:''}
+      ${src?`<img src="${src}" style="max-width:85vw;max-height:72vh;border-radius:8px;object-fit:contain;box-shadow:0 8px 40px rgba(0,0,0,.6)">`
+           :`<div style="font-size:80px">🌸</div>`}
+      <div style="margin-top:16px;text-align:center;max-width:600px;padding:0 20px">
+        <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:white;margin-bottom:6px">${esc(g.titulo||'Sin título')}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:8px">
+          ${g.tipoEvento?`<span style="background:rgba(196,147,122,.3);color:#EDE8E2;padding:3px 10px;border-radius:20px;font-size:11px">${esc(g.tipoEvento)}</span>`:''}
+          ${flores.map(f=>`<span style="background:rgba(255,255,255,.12);color:rgba(255,255,255,.8);padding:3px 10px;border-radius:20px;font-size:11px">${esc(f)}</span>`).join('')}
+        </div>
+        ${g.notas?`<div style="font-size:12px;color:rgba(255,255,255,.5);line-height:1.6">${esc(g.notas)}</div>`:''}
+        ${fotos.length>1?`<div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:6px">${fotoIdx+1} / ${fotos.length}</div>`:''}
+      </div>`;
+  }
+  showFoto();
+}
+
+function openGaleriaModal(idx){
+  const g = idx!=null ? galeriaData[idx] : {};
+  const flores = Array.isArray(g.flores) ? g.flores.join(', ') : (g.flores||'');
+  let ov = document.getElementById('galeria-modal');
+  if(!ov){ ov=document.createElement('div'); ov.id='galeria-modal'; ov.className='modal-overlay'; document.body.appendChild(ov); }
+  ov.innerHTML = `<div class="modal" style="max-width:620px">
+    <button class="modal-close" onclick="closeModal('galeria-modal')">✕</button>
+    <div class="modal-title">${idx!=null?'Editar':'Nuevo'} Trabajo</div>
+    <div class="form-group"><label class="form-label">Título del trabajo *</label>
+      <input class="form-input-modal" id="gal-titulo" value="${esc(g.titulo||'')}" placeholder="ej. Centro de mesa boda García"></div>
+    <div class="modal-row">
+      <div class="form-group"><label class="form-label">Tipo de evento</label>
+        <input class="form-input-modal" id="gal-tipo-ev" value="${esc(g.tipoEvento||'')}" list="gal-tipos-list" placeholder="Boda, Cumpleaños, VIP...">
+        <datalist id="gal-tipos-list">${[...new Set(galeriaData.map(g=>g.tipoEvento).filter(Boolean))].map(t=>`<option>${esc(t)}</option>`).join('')}</datalist></div>
+      <div class="form-group"><label class="form-label">Temporada</label>
+        <select class="form-input-modal" id="gal-temporada">
+          <option value="">—</option>
+          ${['Primavera','Verano','Otoño','Invierno'].map(t=>`<option${t===(g.temporada||'')?' selected':''}>${t}</option>`).join('')}
+        </select></div>
+    </div>
+    <div class="form-group"><label class="form-label">Flores y materiales (separados por coma)</label>
+      <input class="form-input-modal" id="gal-flores" value="${esc(flores)}" placeholder="Rosas, Peonías, Eucalipto..."></div>
+    <div class="modal-row">
+      <div class="form-group"><label class="form-label">Fecha del trabajo</label>
+        <input class="form-input-modal" type="date" id="gal-fecha" value="${esc(g.fecha||TODAY_ISO)}"></div>
+      <div class="form-group"><label class="form-label">Precio ($, opcional)</label>
+        <input class="form-input-modal" type="number" id="gal-precio" value="${esc(g.precio||'')}" placeholder="0"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Notas</label>
+      <textarea class="form-input-modal" id="gal-notas" rows="2" placeholder="Detalles, observaciones, cliente...">${esc(g.notas||'')}</textarea></div>
+    <div class="form-group"><label class="form-label">Fotos</label>
+      <div id="gal-fotos-preview" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+        ${(g.fotos||[]).map((f,fi)=>`<div style="position:relative;width:80px;height:80px;border-radius:6px;overflow:hidden;border:1px solid var(--light-gray)">
+          <img src="${f}" style="width:100%;height:100%;object-fit:cover">
+          <button onclick="galeriaQuitarFoto(${idx!=null?idx:'null'},${fi})" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:white;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;cursor:pointer;line-height:1">✕</button>
+        </div>`).join('')}
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <label class="btn-secondary" style="cursor:pointer;font-size:12px">
+          📷 Subir fotos <input type="file" accept="image/*" multiple style="display:none" onchange="galeriaAddFotos(${idx!=null?idx:'null'},this)">
+        </label>
+        <span style="color:var(--mid-gray);font-size:12px">o</span>
+        <div style="display:flex;gap:6px;flex:1;min-width:180px">
+          <input class="form-input-modal" id="gal-url-input" placeholder="Pegar URL de foto" style="margin-bottom:0;flex:1">
+          <button class="btn-secondary" style="font-size:12px;white-space:nowrap" onclick="galeriaAddUrl(${idx!=null?idx:'null'})">+ URL</button>
         </div>
       </div>
-    </div>`;
-  }).join('');
-}
-function openGlosarioModal(){
-  ['gl-nombre','gl-desc','gl-dimension','gl-precio','gl-emoji'].forEach(id => {
-    const el = document.getElementById(id);
-    if(el) el.value = '';
-  });
-  document.getElementById('gl-foto-data').value = '';
-  document.getElementById('gl-foto-preview').style.display = 'none';
-  document.getElementById('glosario-modal').classList.add('open');
+    </div>
+    <input type="hidden" id="gal-fotos-data" value="${esc(JSON.stringify(g.fotos||[]))}">
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal('galeria-modal')">Cancelar</button>
+      <button class="btn-add" onclick="guardarGaleria(${idx!=null?idx:'null'})">Guardar</button>
+    </div>
+  </div>`;
+  ov.classList.add('open');
 }
 
-function previewGlFoto(input){
-  if(!input.files[0]) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    document.getElementById('gl-foto-data').value = e.target.result;
-    document.getElementById('gl-foto-img').src = e.target.result;
-    document.getElementById('gl-foto-preview').style.display = '';
-  };
-  reader.readAsDataURL(input.files[0]);
-}
-
-function addGlosario(){
-  const nombre=document.getElementById('gl-nombre').value.trim();
-  if(!nombre) return;
-  const foto = document.getElementById('gl-foto-data').value;
-  const photos = foto ? [foto] : [];
-  glosarioData.push({
-    nombre,
-    desc: document.getElementById('gl-desc').value,
-    dimension: document.getElementById('gl-dimension').value || '',
-    precio: document.getElementById('gl-precio').value || '—',
-    emoji: document.getElementById('gl-emoji').value || '🌸',
-    photos
-  });
-  fbSave('glosarioData', glosarioData);
-  closeModal('glosario-modal'); renderGlosario();
-}
-function delGlosario(i){ if(!confirm('¿Eliminar este arreglo?')) return; glosarioData.splice(i,1); fbSave('glosarioData',glosarioData); renderGlosario(); }
-function updGlosario(i,field,val){ glosarioData[i][field]=val; fbSave('glosarioData',glosarioData); }
-
-function addPhotos(i, input){
+function galeriaAddFotos(idx, input){
   const files = Array.from(input.files);
   if(!files.length) return;
-  if(!glosarioData[i].photos) glosarioData[i].photos=[];
+  const fotosData = JSON.parse(document.getElementById('gal-fotos-data')?.value||'[]');
   let loaded=0;
   files.forEach(file=>{
-    const reader = new FileReader();
-    reader.onload = e=>{
-      glosarioData[i].photos.push(e.target.result);
+    const reader=new FileReader();
+    reader.onload=e=>{
+      fotosData.push(e.target.result);
       loaded++;
-      if(loaded===files.length){ fbSave('glosarioData',glosarioData); renderGlosario(); }
+      if(loaded===files.length){
+        document.getElementById('gal-fotos-data').value = JSON.stringify(fotosData);
+        _refreshGalModalFotos(fotosData, idx);
+      }
     };
     reader.readAsDataURL(file);
   });
 }
 
-function removePhoto(i,pi){
-  glosarioData[i].photos.splice(pi,1);
-  fbSave('glosarioData',glosarioData);
-  renderGlosario();
+function galeriaAddUrl(idx){
+  const url = document.getElementById('gal-url-input')?.value?.trim();
+  if(!url){ showToast('Ingresá una URL válida'); return; }
+  const fotosData = JSON.parse(document.getElementById('gal-fotos-data')?.value||'[]');
+  fotosData.push(url);
+  document.getElementById('gal-fotos-data').value = JSON.stringify(fotosData);
+  document.getElementById('gal-url-input').value = '';
+  _refreshGalModalFotos(fotosData, idx);
 }
 
-function openPhotoViewer(i,pi){
-  const photos = glosarioData[i].photos;
-  let current = pi;
-  let overlay = document.getElementById('photo-viewer-overlay');
-  if(!overlay){
-    overlay = document.createElement('div');
-    overlay.id = 'photo-viewer-overlay';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:2000;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px';
-    overlay.onclick = e=>{ if(e.target===overlay) overlay.remove(); };
-    document.body.appendChild(overlay);
-  }
-  function renderViewer(){
-    overlay.innerHTML = `
-      <button onclick="document.getElementById('photo-viewer-overlay').remove()" style="position:absolute;top:20px;right:28px;background:none;border:none;color:white;font-size:28px;cursor:pointer">✕</button>
-      <div style="font-family:'Cormorant Garamond',serif;font-size:18px;color:rgba(255,255,255,.7);margin-bottom:4px">${esc(glosarioData[i].nombre)} · ${current+1}/${photos.length}</div>
-      <img src="${photos[current]}" style="max-width:88vw;max-height:75vh;border-radius:8px;object-fit:contain;box-shadow:0 8px 40px rgba(0,0,0,.5)">
-      <div style="display:flex;gap:16px;margin-top:8px">
-        ${current>0?`<button onclick="event.stopPropagation();current=${current-1};renderViewer()" style="background:rgba(255,255,255,.15);border:none;color:white;padding:8px 20px;border-radius:8px;cursor:pointer;font-size:14px">← Anterior</button>`:''}
-        ${current<photos.length-1?`<button onclick="event.stopPropagation();current=${current+1};renderViewer()" style="background:rgba(255,255,255,.15);border:none;color:white;padding:8px 20px;border-radius:8px;cursor:pointer;font-size:14px">Siguiente →</button>`:''}
-      </div>`;
-  }
-  renderViewer();
+function galeriaQuitarFoto(idx, fi){
+  const fotosData = JSON.parse(document.getElementById('gal-fotos-data')?.value||'[]');
+  fotosData.splice(fi,1);
+  document.getElementById('gal-fotos-data').value = JSON.stringify(fotosData);
+  _refreshGalModalFotos(fotosData, idx);
 }
 
+function _refreshGalModalFotos(fotosData, idx){
+  const preview = document.getElementById('gal-fotos-preview');
+  if(!preview) return;
+  preview.innerHTML = fotosData.map((f,fi)=>`<div style="position:relative;width:80px;height:80px;border-radius:6px;overflow:hidden;border:1px solid var(--light-gray)">
+    <img src="${f}" style="width:100%;height:100%;object-fit:cover">
+    <button onclick="galeriaQuitarFoto(${idx!=null?idx:'null'},${fi})" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:white;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;cursor:pointer;line-height:1">✕</button>
+  </div>`).join('');
+}
+
+function guardarGaleria(idx){
+  const titulo = document.getElementById('gal-titulo')?.value?.trim();
+  if(!titulo){ showToast('Ingresá un título'); return; }
+  const flores = (document.getElementById('gal-flores')?.value||'').split(',').map(f=>f.trim()).filter(Boolean);
+  const fotos = JSON.parse(document.getElementById('gal-fotos-data')?.value||'[]');
+  const trabajo = {
+    titulo,
+    tipoEvento: document.getElementById('gal-tipo-ev')?.value?.trim()||'',
+    temporada: document.getElementById('gal-temporada')?.value||'',
+    flores,
+    fecha: document.getElementById('gal-fecha')?.value||'',
+    precio: document.getElementById('gal-precio')?.value||'',
+    notas: document.getElementById('gal-notas')?.value?.trim()||'',
+    fotos
+  };
+  if(idx!=null) galeriaData[idx]=trabajo; else galeriaData.push(trabajo);
+  fbSave('galeriaData', galeriaData);
+  closeModal('galeria-modal');
+  renderGaleria();
+  showToast('✅ Trabajo guardado en la galería');
+}
+
+function editarGaleria(idx){ openGaleriaModal(idx); }
+
+function eliminarGaleria(idx){
+  if(!confirm('¿Eliminar este trabajo de la galería?')) return;
+  galeriaData.splice(idx,1);
+  fbSave('galeriaData', galeriaData);
+  renderGaleria();
+  showToast('Trabajo eliminado');
+}
 
 // ════════════════════════════════════════
 // RECEPCIÓN DE PEDIDOS
@@ -5978,7 +6070,7 @@ window._setAuditLog = (val) => { auditLogData = val && typeof val === 'object' ?
 
 const AUDIT_LABELS = {
   cajaData:'Caja', ventasData:'Ventas', stockData:'Stock', eventosData:'Eventos',
-  glosarioData:'Glosario', comprasFlore:'Compras Florería', comprasJard:'Compras Jardinería',
+  galeriaData:'Galería de Trabajos', comprasFlore:'Compras Florería', comprasJard:'Compras Jardinería',
   horariosPlantilla:'Plantilla Horarios', checklist:'Checklist', recetasData:'Composiciones',
   jardineriaData:'Jardinería', habitacionesData:'Habitaciones', listaPreciosData:'Lista de Precios',
   ramosDispData:'Ramos Disponibles', cierresCaja:'Cierre de Caja'
@@ -9287,13 +9379,14 @@ function runGlobalSearch(q){
       results.push({icon:'💰', label: v.descripcion||v.desc||'Venta', sub: `$${v.monto||v.total||0} · ${v.fecha||''}`, badge:'Ventas', action:()=>{ closeGlobalSearch(); navigate('ventas'); }});
   });
 
-  // Glosario
-  Object.entries(window.glosarioData||{}).forEach(([k,v]) => {
-    if(!v) return;
-    const term = (v.termino||k||'').toLowerCase();
-    const def = (v.definicion||v.def||'').toLowerCase();
-    if(term.includes(q) || def.includes(q))
-      results.push({icon:'📖', label: v.termino||k, sub: (v.definicion||v.def||'').slice(0,60), badge:'Glosario', action:()=>{ closeGlobalSearch(); navigate('glosario'); }});
+  // Galería de Trabajos
+  (window.galeriaData||[]).forEach(g => {
+    if(!g) return;
+    const nombre = (g.nombre||'').toLowerCase();
+    const desc = (g.desc||'').toLowerCase();
+    const cat = (g.cat||'').toLowerCase();
+    if(nombre.includes(q) || desc.includes(q) || cat.includes(q))
+      results.push({icon:'🖼', label: g.nombre||'', sub: (g.desc||'').slice(0,60), badge:'Galería', action:()=>{ closeGlobalSearch(); navigate('galeria'); }});
   });
 
   // Ramos / Catálogo
@@ -9613,7 +9706,7 @@ function alertasAutomaticas(){
 
 Object.assign(window, {
   _downloadCSV, addCajaMovimiento, addCompra, addEvArregloRow, addEvArregloRowWithData,
-  addGlosario, addInsumoToBase, addLpCat, addPhotos, addProveedor, addRecetaIngRow,
+  addInsumoToBase, addLpCat, addProveedor, addRecetaIngRow,
   addReglaTipo, addSale, addTipoEvento, adjustStock, agregarNuevoInsumo, agregarPedidoRapido,
   agregarUsuarioFlorista, aplicarPlantillaAlMes, aplicarPlantillaForce, applyCompraFilter,
   applyRole, arregloEmoji, calcCostoComposicion, calcDuracion, calcHorasDia, calcStockImpact,
@@ -9622,7 +9715,7 @@ Object.assign(window, {
   confirmVentaRamo, copiarBloquePedido, copiarCotEvento, copiarCotizacion, copiarCotizacionEvento,
   copiarCotizacionOps, copiarUltimoPedido, cotAgregar, cotAgregarComposicionOps, cotAgregarLP,
   cotAgregarOpsStock, cotGuardarMargen, cotGuardarPrecio, cotRemove, cotRemoveOps, cotUpdateQty,
-  cotUpdateQtyOps, ctrlHabFilter, ctrlJardFilter, daysSince, delC, delCaja, delGlosario,
+  cotUpdateQtyOps, ctrlHabFilter, ctrlJardFilter, daysSince, delC, delCaja,
   delPedidoHab, delProveedor, delRamo, delReceta, delReglaTipo, delStock, delTipoEvento,
   delVenta, deleteEvento, descontarStockEvento, deselectAllInsumos, doLogin, durBadge,
   eliminarUsuario, ensureKanbanCols, enviarCotizacionEvento, enviarPedidoHab, esc,
@@ -9638,17 +9731,18 @@ Object.assign(window, {
   limpiarCarritoOps, limpiarDiaHorario, loadWeekState, lpAddPhotos, lpDelCat, lpDelItem,
   lpOpenViewer, lpRemovePhoto, lpUpdItem, markHabDone, markJardDone, marcarRecordatorioHecho, navToggleGroup, navExpandGroup, navCollapseGroup, finalizeNavGroups, navigate, openRecordatorioModal, renderBottomNav, renderRecordatoriosJard, saveRecordatorio, deleteRecordatorio, updateBottomNav, openCajaModal,
   openDiaHorario, openEditSaleModal, openEventModal, openEventoDetail, openGestionPasswords,
-  openGlosarioModal, openLpCatModal, openLpModal, openPhotoViewer, openRamoModal, openRamoPhoto,
+  openGaleriaModal, openLpCatModal, openLpModal, openRamoModal, openRamoPhoto,
   openRecetaModal, openSaleModal, openSidebar, openTaskModal, openVentaRamo, parseMoney,
   populateFloreriaFormHelpers, populatePHSubSelector, populateProvSelects, populateSaleSelects,
-  previewEventImg, previewGlFoto, previewRecetaImg, previewStockImpact, ramoOnCatChange,
+  previewEventImg, previewRecetaImg, previewStockImpact, ramoOnCatChange,
   ramoOnProdChange, recalcTotalEvento, recepCheckAll, recepConfirmar, recepConfirmarTodo,
   recepToggle, recepUncheckAll, recepUpdPaq, recepUpdVaras, recepUpdateGlobal, recetaIngRowHTML,
   registrarHora, registrarHoraEvento, registrarHoraVenta, registrarVentaDirecta, removeKanbanCard,
-  removePhoto, renderCaja, renderCarrito, renderCarritoOps, renderChecklistTable,
+  renderCaja, renderCarrito, renderCarritoOps, renderChecklistTable,
   renderComposicionesCot, renderCompraAlert, renderCompraSummary, renderCompras, renderCotEventos,
   renderCotizador, renderCotizadorOps, renderCtrlHab, renderCtrlJard, renderEvCarrito,
-  renderEvHoraCell, renderEvTipos, renderEventos, renderGlosario, renderHabLog, renderHabOps,
+  renderGaleria, abrirLightbox, openGaleriaModal, galeriaAddFotos, galeriaAddUrl, galeriaQuitarFoto, guardarGaleria, editarGaleria, eliminarGaleria,
+  renderEvHoraCell, renderEvTipos, renderEventos, renderHabLog, renderHabOps,
   renderHabReporte, renderHistorialCompras, renderHistorialEventos, renderHistoryPanel, renderHome,
   renderHomeHyatt, renderHoraCell, renderHorarios, renderInsumosGrid, renderJardLog, renderJardOps,
   renderJardProdEquipo, renderJardTurnoCard, renderJardReporte, renderJordProd, renderKanban,
@@ -9677,6 +9771,6 @@ Object.assign(window, {
   renderClientes, abrirFichaCliente, openNuevoClienteModal, editarCliente, guardarCliente, eliminarCliente,
   generarPresupuestoPDF, checkOnboarding, nextOnboardingStep, finishOnboarding,
   toggleProvManager, toggleSidebar, toggleTask, updC, updCL, updCaja, updCajaMonto, updCajaTipo,
-  updGlosario, updPedidoHabEstado, updTipoEvento, updV, updateInsumoCount, updateInsumoRow,
+  updPedidoHabEstado, updTipoEvento, updV, updateInsumoCount, updateInsumoRow,
   updateKpiCompras, urgenciaPanelHTML, vdAutoPrice, zonaHoraBtn, zonaResetHora, zonaSetHora,
 });
