@@ -111,7 +111,7 @@ const BOTTOM_NAV_ITEMS = {
   gerencia:  [{icon:'🏠',label:'Inicio',page:'home'},{icon:'📋',label:'Checklist',page:'checklist'},{icon:'🎉',label:'Eventos',page:'eventos-maison'},{icon:'💰',label:'Caja',page:'caja'}],
   florista:  [{icon:'🎉',label:'Eventos',page:'eventos-maison'},{icon:'💲',label:'Precios',page:'lista-precios'}],
   operario:  [{icon:'🏠',label:'Inicio',page:'home'},{icon:'🎉',label:'Eventos',page:'eventos-maison'},{icon:'📦',label:'Stock',page:'stock'},{icon:'💲',label:'Precios',page:'lista-precios'}],
-  jardinero: [{icon:'🌿',label:'Jardín',page:'jardineria-ops'},{icon:'🏡',label:'Habitac.',page:'hab-ops'}],
+  jardinero: [{icon:'🌿',label:'Jardín',page:'jardineria-ops'},{icon:'🏡',label:'Habitac.',page:'hab-ops'},{icon:'🔔',label:'Avisos',page:'recordatorios-jardineria'}],
   compras:   [{icon:'🛒',label:'Compras',page:'compras-floreria'},{icon:'📦',label:'Stock',page:'stock-admin'},{icon:'📬',label:'Recepción',page:'recepcion-pedidos'}],
   comercial: [{icon:'🎉',label:'Eventos',page:'eventos-comercial'},{icon:'💰',label:'Ventas',page:'ventas-externas'},{icon:'📖',label:'Glosario',page:'glosario'},{icon:'💲',label:'Precios',page:'lista-precios'}],
   ventas:    [{icon:'🌺',label:'Ramos',page:'ramos-disponibles'},{icon:'🏨',label:'Pedidos',page:'pedidos-habitacion'},{icon:'💲',label:'Precios',page:'lista-precios'}],
@@ -210,7 +210,8 @@ function navigate(pageId, navEl){
   if(pageId==='control-horarios') renderHorarios();
   if(pageId==='cotizador')          renderCotizador();
   if(pageId==='cotizador-ops')      renderCotizadorOps();
-  if(pageId==='recetas-arreglos')   renderRecetas();
+  if(pageId==='recetas-arreglos')       renderRecetas();
+  if(pageId==='recordatorios-jardineria') renderRecordatoriosJard();
   if(pageId==='control-jardineria') renderCtrlJard();
   if(pageId==='jardineria-ops') renderJardOps();
   if(pageId==='hab-ops') renderHabOps();
@@ -2847,6 +2848,7 @@ function renderHome(){
   const pendientesCL = CL_TASKS.filter((_,i) => !checked[i]).slice(0, 5);
 
   const fmtARS = n => '$' + Math.round(n).toLocaleString('es-AR');
+  const recAlerts = jardRecordatorios.filter(r=>recEstado(r)==='vencido'||recEstado(r)==='proximo');
 
   // ── KPIs ──
   document.getElementById('home-kpis').innerHTML = `
@@ -2871,6 +2873,11 @@ function renderHome(){
         <div class="card-value${pct===100?' green':''}">${hechas}<span style="font-size:16px;font-weight:400;color:var(--mid-gray)">/${totalTareas}</span></div>
         <div class="card-sub">${pct}% completado</div>
       </div>
+      ${recAlerts.length ? `<div class="card card-clickable" onclick="navigate('recordatorios-jardineria')" style="border-left:3px solid var(--red-alert)">
+        <div class="card-label">🌿 Recordatorios Jardín</div>
+        <div class="card-value red">${recAlerts.length}</div>
+        <div class="card-sub">${recAlerts.filter(r=>recEstado(r)==='vencido').length} vencido${recAlerts.filter(r=>recEstado(r)==='vencido').length!==1?'s':''} · ${recAlerts.filter(r=>recEstado(r)==='proximo').length} próximo${recAlerts.filter(r=>recEstado(r)==='proximo').length!==1?'s':''}</div>
+      </div>` : ''}
     </div>`;
 
   // ── Columna Eventos ──
@@ -3806,6 +3813,168 @@ window._setHabitacionesData = (arr) => {
 };
 window._setJardineriaLog = (arr) => { jardineriaLog.splice(0, jardineriaLog.length, ...arr); };
 window._setHabitacionesLog = (arr) => { habitacionesLog.splice(0, habitacionesLog.length, ...arr); };
+
+// ── RECORDATORIOS JARDINERÍA ─────────────────────────────────────────────────
+let jardRecordatorios = [];
+window._setJardRecordatorios = (arr) => { jardRecordatorios.splice(0, jardRecordatorios.length, ...arr); };
+
+const JARD_TIPOS = ['Riego','Fertilización','Desmalezado','Poda'];
+const JARD_TIPOS_ICON = { 'Riego':'💧','Fertilización':'🌱','Desmalezado':'🌿','Poda':'✂️' };
+const JARD_TIPO_STYLE = {
+  'Riego':        'background:#E8F4FD;color:#1A6B9A',
+  'Fertilización':'background:#EBF5E8;color:#2D6A2D',
+  'Desmalezado':  'background:#FDF8E8;color:#7A5A00',
+  'Poda':         'background:#FBE8E8;color:#8B2020',
+};
+
+function addDaysISO(iso, days){
+  const d = new Date(iso); d.setDate(d.getDate()+days);
+  return d.toISOString().split('T')[0];
+}
+
+function recEstado(rec){
+  if(!rec.ultimaVez) return 'vencido';
+  const dias = Math.floor((new Date(TODAY_ISO)-new Date(rec.ultimaVez))/86400000);
+  if(dias >= rec.frecuencia) return 'vencido';
+  if(dias >= rec.frecuencia - 3) return 'proximo';
+  return 'ok';
+}
+
+function recDiasRestantes(rec){
+  if(!rec.ultimaVez) return null;
+  const dias = Math.floor((new Date(TODAY_ISO)-new Date(rec.ultimaVez))/86400000);
+  return rec.frecuencia - dias;
+}
+
+function renderRecordatoriosJard(){
+  if(!document.getElementById('jrec-kpis')) return;
+  const vencidos = jardRecordatorios.filter(r=>recEstado(r)==='vencido');
+  const proximos = jardRecordatorios.filter(r=>recEstado(r)==='proximo');
+  const ok       = jardRecordatorios.filter(r=>recEstado(r)==='ok');
+
+  document.getElementById('jrec-kpis').innerHTML = `
+    <div class="cards-grid cards-grid-3" style="margin-bottom:24px">
+      <div class="card"><div class="card-label">🔴 Vencidos</div><div class="card-value red">${vencidos.length}</div><div class="card-sub">requieren atención ya</div></div>
+      <div class="card"><div class="card-label">🟡 Próximos</div><div class="card-value amber">${proximos.length}</div><div class="card-sub">en los próximos 3 días</div></div>
+      <div class="card"><div class="card-label">🟢 Al día</div><div class="card-value green">${ok.length}</div><div class="card-sub">sin vencer</div></div>
+    </div>`;
+
+  const alertas = [...vencidos,...proximos];
+  document.getElementById('jrec-alertas').innerHTML = alertas.length
+    ? `<div class="section-title" style="margin-bottom:14px">⚠️ Alertas Activas</div>
+       ${alertas.map(r=>{
+         const idx=jardRecordatorios.indexOf(r);
+         const est=recEstado(r);
+         const dr=recDiasRestantes(r);
+         const diasLabel = dr===null ? 'Sin registro previo'
+           : est==='vencido' ? `Vencido hace ${Math.abs(dr)} día${Math.abs(dr)!==1?'s':''}`
+           : `Vence en ${dr} día${dr!==1?'s':''}`;
+         return `<div class="jrec-alert-row jrec-${est}">
+           <div class="jrec-alert-left">
+             <div class="jrec-alert-nombre">${esc(r.task)}</div>
+             <div class="jrec-alert-meta">${esc(r.section)} · ${esc(r.group)}</div>
+             <span class="jrec-tipo-badge" style="${JARD_TIPO_STYLE[r.tipo]||''}">${JARD_TIPOS_ICON[r.tipo]||''} ${esc(r.tipo)} · cada ${r.frecuencia} días</span>
+           </div>
+           <div class="jrec-alert-right">
+             <div class="jrec-dias-label jrec-${est}">${diasLabel}</div>
+             <button class="btn-add" style="padding:7px 16px;font-size:12px;margin-top:6px" onclick="marcarRecordatorioHecho(${idx})">✓ Hecho hoy</button>
+           </div>
+         </div>`;
+       }).join('')}`
+    : `<div class="jrec-all-ok">✅ Todo al día — sin alertas pendientes</div>`;
+
+  // Tabla de configuración (solo gerencia)
+  const cfg = document.getElementById('jrec-config');
+  if(!cfg) return;
+  if(userRole !== 'gerencia'){
+    cfg.innerHTML=''; return;
+  }
+  cfg.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div class="section-title" style="margin:0">Todos los Recordatorios</div>
+      <button class="btn-add" onclick="openRecordatorioModal(-1)">+ Nuevo recordatorio</button>
+    </div>
+    <div class="table-wrapper">
+      <table class="stock-table" style="min-width:700px">
+        <thead><tr>
+          <th>Zona / Planta</th><th>Grupo</th><th>Tipo</th><th>Cada</th><th>Última vez</th><th>Próximo</th><th></th>
+        </tr></thead>
+        <tbody>
+          ${jardRecordatorios.length ? jardRecordatorios.map((r,i)=>{
+            const est=recEstado(r);
+            const proximo=r.ultimaVez ? fmtDate(addDaysISO(r.ultimaVez,r.frecuencia)) : '—';
+            const color=est==='vencido'?'color:var(--red-alert);font-weight:600':est==='proximo'?'color:#A06A00;font-weight:600':'';
+            return `<tr>
+              <td><strong>${esc(r.task)}</strong></td>
+              <td style="font-size:11.5px;color:var(--mid-gray)">${esc(r.group)}</td>
+              <td><span class="jrec-tipo-badge" style="${JARD_TIPO_STYLE[r.tipo]||''}">${JARD_TIPOS_ICON[r.tipo]||''} ${esc(r.tipo)}</span></td>
+              <td>${r.frecuencia} días</td>
+              <td>${r.ultimaVez?fmtDate(r.ultimaVez):'—'}</td>
+              <td><span style="${color}">${proximo}</span></td>
+              <td style="white-space:nowrap">
+                <button class="btn-icon" onclick="openRecordatorioModal(${i})" title="Editar">✏️</button>
+                <button class="btn-icon" style="color:var(--red-alert)" onclick="deleteRecordatorio(${i})" title="Eliminar">✕</button>
+              </td>
+            </tr>`;
+          }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--mid-gray);padding:24px">Sin recordatorios configurados</td></tr>'}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function marcarRecordatorioHecho(idx){
+  jardRecordatorios[idx].ultimaVez = TODAY_ISO;
+  fbSave('jardRecordatorios', jardRecordatorios);
+  renderRecordatoriosJard();
+  renderHome();
+  showToast('✅ Marcado como hecho hoy');
+}
+
+function openRecordatorioModal(idx){
+  const rec = idx>=0 ? jardRecordatorios[idx] : null;
+  document.getElementById('jrec-modal-idx').value = idx;
+  document.getElementById('jrec-modal-tipo').value = rec?.tipo || 'Riego';
+  document.getElementById('jrec-modal-frecuencia').value = rec?.frecuencia || 7;
+  document.getElementById('jrec-modal-ultima').value = rec?.ultimaVez || '';
+  // Build task picker
+  const sel = document.getElementById('jrec-modal-task');
+  const groups = {};
+  JARDINERIA_BASE.forEach(t => {
+    const k = `${t.section} · ${t.group}`;
+    if(!groups[k]) groups[k] = [];
+    groups[k].push(t);
+  });
+  sel.innerHTML = Object.entries(groups).map(([grp,tasks])=>
+    `<optgroup label="${esc(grp)}">${tasks.map(t=>`<option value="${esc(t.task)}" data-section="${esc(t.section)}" data-group="${esc(t.group)}"${rec?.task===t.task&&rec?.group===t.group?' selected':''}>${esc(t.task)}</option>`).join('')}</optgroup>`
+  ).join('');
+  document.getElementById('jrec-modal-title').textContent = rec ? 'Editar Recordatorio' : 'Nuevo Recordatorio';
+  openModal('jrec-modal');
+}
+
+function saveRecordatorio(){
+  const idx = parseInt(document.getElementById('jrec-modal-idx').value);
+  const sel = document.getElementById('jrec-modal-task');
+  const opt = sel.options[sel.selectedIndex];
+  const rec = {
+    task: opt.value,
+    section: opt.dataset.section,
+    group: opt.dataset.group,
+    tipo: document.getElementById('jrec-modal-tipo').value,
+    frecuencia: parseInt(document.getElementById('jrec-modal-frecuencia').value)||7,
+    ultimaVez: document.getElementById('jrec-modal-ultima').value || null,
+  };
+  if(idx>=0) jardRecordatorios[idx]=rec; else jardRecordatorios.push(rec);
+  fbSave('jardRecordatorios', jardRecordatorios);
+  closeModal('jrec-modal');
+  renderRecordatoriosJard();
+}
+
+function deleteRecordatorio(idx){
+  if(!confirm('¿Eliminar este recordatorio?')) return;
+  jardRecordatorios.splice(idx,1);
+  fbSave('jardRecordatorios', jardRecordatorios);
+  renderRecordatoriosJard();
+}
 let zonaHorasData = {};   // key: section+'|||'+group → {inicio:'', fin:'', fecha:''}
 let _jopsZones = [];      // zonas renderizadas en orden, para referencias por índice
 let ctrlJardFilterMode='all';
@@ -5869,7 +6038,15 @@ function applyRole(role){
           sib = sib.nextElementSibling;
         }
       }
-      // Control section stays hidden for jardinero
+      // Mostrar Control solo con Recordatorios para jardinero
+      if(text === 'Control'){
+        label.style.display = '';
+        let sib = label.nextElementSibling;
+        while(sib && !sib.classList.contains('nav-section-label')){
+          if(sib.textContent.trim() === 'Recordatorios Jardín') sib.style.display = '';
+          sib = sib.nextElementSibling;
+        }
+      }
     });
     // Quick links: solo mostrar Tareas Jardinería y Habitaciones con Plantas
     document.querySelectorAll('.quick-link').forEach(ql => {
@@ -7501,7 +7678,7 @@ Object.assign(window, {
   hopsVisita, horNavMes, initChecklist, initCotizadorEventosHyatt, initCtrlHab, initCtrlJard,
   jopsDone, jopsHoraCell, jopsRegistrarHora, jopsResetHora, jopsUpdHora, limpiarCarrito,
   limpiarCarritoOps, limpiarDiaHorario, loadWeekState, lpAddPhotos, lpDelCat, lpDelItem,
-  lpOpenViewer, lpRemovePhoto, lpUpdItem, markHabDone, markJardDone, navToggleGroup, navExpandGroup, navCollapseGroup, finalizeNavGroups, navigate, renderBottomNav, updateBottomNav, openCajaModal,
+  lpOpenViewer, lpRemovePhoto, lpUpdItem, markHabDone, markJardDone, marcarRecordatorioHecho, navToggleGroup, navExpandGroup, navCollapseGroup, finalizeNavGroups, navigate, openRecordatorioModal, renderBottomNav, renderRecordatoriosJard, saveRecordatorio, deleteRecordatorio, updateBottomNav, openCajaModal,
   openDiaHorario, openEditSaleModal, openEventModal, openEventoDetail, openGestionPasswords,
   openGlosarioModal, openLpCatModal, openLpModal, openPhotoViewer, openRamoModal, openRamoPhoto,
   openRecetaModal, openSaleModal, openSidebar, openTaskModal, openVentaRamo, parseMoney,

@@ -158,6 +158,18 @@
   .home-cl-task { font-size:12px; color:var(--mid-gray); padding:4px 0; border-bottom:1px solid rgba(232,230,224,.4); }
   .home-cl-task:last-child { border-bottom:none; }
   .card-value.neutral { color:var(--mid-gray); }
+  /* ── RECORDATORIOS JARDINERÍA ── */
+  .jrec-alert-row { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; background:#FDFCFB; border:1px solid rgba(228,226,220,.8); border-radius:var(--radius-md); padding:16px 20px; margin-bottom:10px; border-left:4px solid; }
+  .jrec-vencido { border-left-color:var(--red-alert); background:#FFFAFA; }
+  .jrec-proximo { border-left-color:#D4A820; background:#FFFDF5; }
+  .jrec-alert-nombre { font-size:14px; font-weight:600; color:var(--charcoal); margin-bottom:3px; }
+  .jrec-alert-meta { font-size:11.5px; color:var(--mid-gray); margin-bottom:8px; }
+  .jrec-tipo-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:500; }
+  .jrec-alert-right { display:flex; flex-direction:column; align-items:flex-end; flex-shrink:0; }
+  .jrec-dias-label { font-size:12px; font-weight:600; white-space:nowrap; }
+  .jrec-dias-label.jrec-vencido { color:var(--red-alert); }
+  .jrec-dias-label.jrec-proximo { color:#A06A00; }
+  .jrec-all-ok { background:#EBF5E8; border-radius:var(--radius-md); padding:24px; text-align:center; color:var(--sage-dark); font-weight:600; font-size:14px; margin-bottom:24px; }
 
   /* ── BADGES ── */
   .badge { display:inline-flex; align-items:center; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:500; letter-spacing:.2px; }

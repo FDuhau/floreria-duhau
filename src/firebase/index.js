@@ -187,6 +187,13 @@
         if(document.getElementById('page-control-jardineria')?.classList.contains('active')) window.renderJardLog?.();
       });
 
+      fbListen('jardRecordatorios', val => {
+        const arr = val ? (Array.isArray(val) ? val : Object.values(val)) : [];
+        if(window._setJardRecordatorios) window._setJardRecordatorios(arr);
+        if(document.getElementById('page-recordatorios-jardineria')?.classList.contains('active')) window.renderRecordatoriosJard?.();
+        if(document.getElementById('page-home')?.classList.contains('active')) window.renderHome?.();
+      });
+
       fbListen('habitacionesLog', val => {
         if(!val) return;
         const arr = Array.isArray(val) ? val : Object.values(val||{});

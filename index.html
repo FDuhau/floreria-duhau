@@ -58,6 +58,7 @@
     <div class="nav-sub-item" data-group="grp-ctrl" onclick="navigate('control-jardineria',this)">Seguimiento Jardinería</div>
     <div class="nav-sub-item" data-group="grp-ctrl" onclick="navigate('control-horarios',this)">Horarios y Productividad</div>
     <div class="nav-sub-item" data-group="grp-ctrl" onclick="navigate('control-habitaciones',this)">Habitaciones con Plantas</div>
+    <div class="nav-sub-item" data-group="grp-ctrl" onclick="navigate('recordatorios-jardineria',this)">Recordatorios Jardín</div>
     <div class="nav-section-label">Compras</div>
     <div class="nav-item nav-group-hdr" data-group-id="grp-compras" onclick="navToggleGroup('grp-compras');navigate('compras',this)"><span class="nav-icon">🛒</span> Compras<span class="nav-chevron">›</span></div>
     <div class="nav-sub-item" data-group="grp-compras" onclick="navigate('compras-floreria',this)">Compras Florería</div>
@@ -1555,6 +1556,54 @@
     <!-- Dashboard productividad del día -->
     <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:10px;font-weight:500">📊 Productividad de hoy · <span id="hor-hoy-label"></span></div>
     <div id="hor-productividad"></div>
+  </div>
+
+  <!-- ══════ RECORDATORIOS JARDINERÍA ══════ -->
+  <div id="page-recordatorios-jardineria" class="content">
+    <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px">
+      <div>
+        <div class="page-title">Recordatorios · Jardinería</div>
+        <div class="page-subtitle">Avisos automáticos de riego, fertilización, desmalezado y poda por zona</div>
+      </div>
+    </div>
+    <div id="jrec-kpis"></div>
+    <div id="jrec-alertas" style="margin-bottom:28px"></div>
+    <div id="jrec-config"></div>
+
+    <!-- Modal nuevo/editar recordatorio -->
+    <div class="modal-overlay" id="jrec-modal" style="display:none" onclick="if(event.target===this)closeModal('jrec-modal')">
+      <div class="modal" style="max-width:480px">
+        <div class="modal-title" id="jrec-modal-title">Nuevo Recordatorio</div>
+        <input type="hidden" id="jrec-modal-idx">
+        <div class="form-group">
+          <label class="form-label">Zona / Planta</label>
+          <select class="form-input-modal" id="jrec-modal-task" style="max-height:200px"></select>
+        </div>
+        <div class="modal-row" style="grid-template-columns:1fr 1fr;gap:12px;display:grid">
+          <div class="form-group">
+            <label class="form-label">Tipo de tarea</label>
+            <select class="form-input-modal" id="jrec-modal-tipo">
+              <option>Riego</option>
+              <option>Fertilización</option>
+              <option>Desmalezado</option>
+              <option>Poda</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Frecuencia (días)</label>
+            <input type="number" class="form-input-modal" id="jrec-modal-frecuencia" min="1" max="365" placeholder="ej. 30">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Última vez realizado (opcional)</label>
+          <input type="date" class="form-input-modal" id="jrec-modal-ultima">
+        </div>
+        <div class="modal-actions">
+          <button class="btn-secondary" onclick="closeModal('jrec-modal')">Cancelar</button>
+          <button class="btn-add" onclick="saveRecordatorio()">Guardar</button>
+        </div>
+      </div>
+    </div>
   </div>
 
 </div><!-- end .main -->
