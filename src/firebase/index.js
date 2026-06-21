@@ -76,6 +76,18 @@
     window.pushRequestPermission = pushRequestPermission;
     window.pushSend = pushSend;
 
+    // Listen for broadcasts — show notification on all connected devices
+    let _pushSessionStart = Date.now();
+    fbListen('pushBroadcast', val => {
+      if(!val || Notification.permission !== 'granted') return;
+      const entries = Object.values(val);
+      const recientes = entries.filter(e => e.ts > _pushSessionStart);
+      recientes.forEach(e => {
+        new Notification(e.title||'Florería Duhau', { body: e.body||'', icon: '/icon-192.png', tag: e.tag||'general' });
+        _pushSessionStart = Math.max(_pushSessionStart, e.ts + 1);
+      });
+    });
+
     // Cargar contraseñas personalizadas ANTES del login
     fbListen('loginPasswords', val => {
       if(val && typeof val === 'object' && Object.keys(val).length > 0){
@@ -249,6 +261,7 @@
       fbListen('proveedoresList', val => {
         if(!val) return;
         window.proveedoresList = Array.isArray(val) ? val : Object.values(val);
+        if(document.getElementById('page-proveedores')?.classList.contains('active')) window.renderProveedores?.();
       });
 
       fbListen('kanbanData', val => {

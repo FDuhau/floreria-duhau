@@ -142,7 +142,10 @@ const PAGE_LABELS = {control:'Control','control-jardineria':'Control › Seguimi
   auditoria:'Auditoría de Cambios',
   'crm-clientes':'CRM · Clientes',
   sucursales:'Administración de Sucursales',
-  'dashboard-consolidado':'Dashboard Consolidado'
+  'dashboard-consolidado':'Dashboard Consolidado',
+  'calendario': 'Calendario de Eventos',
+  'proveedores': 'Proveedores',
+  'rentabilidad-eventos': 'Rentabilidad por Evento'
 };
 const COMPRAS_PAGES=['compras','compras-floreria','compras-jardineria','stock-admin'];
 const CONTROL_PAGES=['control','control-jardineria','control-habitaciones','control-horarios','recordatorios-jardineria'];
@@ -267,6 +270,9 @@ function navigate(pageId, navEl){
   if(pageId==='crm-clientes') renderClientes();
   if(pageId==='sucursales') renderSucursales();
   if(pageId==='dashboard-consolidado') renderDashboardConsolidado();
+  if(pageId==='calendario') renderCalendario();
+  if(pageId==='proveedores') renderProveedores();
+  if(pageId==='rentabilidad-eventos') renderRentabilidad();
 
   // En mobile, cerrar el sidebar automáticamente al navegar
   if(window.innerWidth <= 768) closeSidebar();
@@ -7657,6 +7663,7 @@ function doLogin(){
     setTimeout(()=>screen.remove(), 520);
     // Activar notificaciones push si el navegador lo soporta
     setTimeout(()=>initPushForUser?.(), 2000);
+    setTimeout(()=>alertasAutomaticas(), 4000);
     setTimeout(()=>checkOnboarding(entry.role), 800);
   } else {
     err.textContent = 'Contraseña incorrecta';
@@ -8438,6 +8445,8 @@ function saveEvent(){
     zonas: [...evZonasSelected],
     salon: evZonasSelected.join(', '),
     pax:+document.getElementById('ev-pax').value||0,
+    presupuesto:+document.getElementById('ev-presupuesto')?.value||0,
+    costoEstimado:+document.getElementById('ev-costo-est')?.value||0,
     notas:document.getElementById('ev-notas').value,
     precio:document.getElementById('ev-precio').value||'A confirmar',
     estado:document.getElementById('ev-estado').value,
@@ -8488,6 +8497,8 @@ function openEventModal(i){
   document.getElementById('ev-fecha').value   = ev.fecha   || '';
   document.getElementById('ev-hora').value    = ev.hora    || '';
   document.getElementById('ev-pax').value     = ev.pax     || '';
+  if(document.getElementById('ev-presupuesto')) document.getElementById('ev-presupuesto').value = ev.presupuesto||'';
+  if(document.getElementById('ev-costo-est')) document.getElementById('ev-costo-est').value = ev.costoEstimado||'';
   document.getElementById('ev-notas').value   = ev.notas   || '';
   document.getElementById('ev-precio').value  = ev.precio  || '';
   document.getElementById('ev-estado').value  = ev.estado  || 'Pedidos Pendientes';
@@ -9338,6 +9349,261 @@ function exportPDF(title){
   setTimeout(() => { document.title = orig; }, 1000);
 }
 
+// ── CALENDARIO ────────────────────────────────────────────────────────────────
+let calMes = CURR_MONTH;
+
+function renderCalendario(){
+  const [y, m] = calMes.split('-').map(Number);
+  const label = document.getElementById('cal-mes-label');
+  if(label) label.textContent = fmtMonth(calMes);
+
+  const firstDay = new Date(y, m-1, 1);
+  const lastDay = new Date(y, m, 0);
+  const startWd = firstDay.getDay();
+
+  const mesEvents = eventosData.filter(ev => (ev.fecha||'').startsWith(calMes));
+
+  const ESTADO_BG = {
+    'Pedidos Pendientes':'#E8E4DC',
+    'En Proceso':'#EBF0E8',
+    'Pendiente de Colocacion':'#FDF0E8',
+    'Confirmado':'#EBF5E8',
+    'Pedidos Finalizados':'#E8F0F8'
+  };
+
+  const days = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  let html = `<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:2px">
+    ${days.map(d=>`<div style="text-align:center;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);padding:8px 0">${d}</div>`).join('')}
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">`;
+
+  for(let i=0; i<startWd; i++) html += `<div style="min-height:100px"></div>`;
+
+  for(let d=1; d<=lastDay.getDate(); d++){
+    const dateStr = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dayEvents = mesEvents.filter(ev => ev.fecha === dateStr);
+    const isToday = dateStr === TODAY_ISO;
+    html += `<div style="min-height:100px;border:1px solid var(--light-gray);border-radius:6px;padding:6px;background:${isToday?'var(--blush-light)':'var(--warm-white)'}">
+      <div style="font-size:12px;font-weight:${isToday?'700':'400'};color:${isToday?'var(--blush)':'var(--mid-gray)'};margin-bottom:4px">${d}</div>
+      ${dayEvents.map(ev=>`<div onclick="openEventoDetail(${eventosData.indexOf(ev)})" style="background:${ESTADO_BG[ev.estado]||'#E8E4DC'};border-radius:4px;padding:3px 6px;margin-bottom:3px;font-size:11px;cursor:pointer;line-height:1.3;overflow:hidden;white-space:nowrap;text-overflow:ellipsis" title="${esc(ev.nombre)} · ${esc(ev.estado)}">${esc(ev.nombre)}</div>`).join('')}
+    </div>`;
+  }
+  html += '</div>';
+
+  html += `<div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap">
+    ${Object.entries(ESTADO_BG).map(([k,v])=>`<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--mid-gray)"><span style="width:12px;height:12px;border-radius:3px;background:${v};display:inline-block"></span>${k}</div>`).join('')}
+  </div>`;
+
+  const el = document.getElementById('cal-grid');
+  if(el) el.innerHTML = html;
+}
+
+function calPrevMonth(){
+  const [y,m] = calMes.split('-').map(Number);
+  const prev = new Date(y, m-2, 1);
+  calMes = `${prev.getFullYear()}-${String(prev.getMonth()+1).padStart(2,'0')}`;
+  renderCalendario();
+}
+function calNextMonth(){
+  const [y,m] = calMes.split('-').map(Number);
+  const next = new Date(y, m, 1);
+  calMes = `${next.getFullYear()}-${String(next.getMonth()+1).padStart(2,'0')}`;
+  renderCalendario();
+}
+
+// ── PROVEEDORES ───────────────────────────────────────────────────────────────
+function renderProveedores(){
+  const search = (document.getElementById('prov-search')?.value||'').toLowerCase();
+  const rubro = document.getElementById('prov-rubro')?.value||'';
+  const list = (window.proveedoresList||[]).filter(p=>{
+    const mSearch = !search || p.nombre?.toLowerCase().includes(search) || p.contacto?.toLowerCase().includes(search);
+    const mRubro = !rubro || p.rubro === rubro;
+    return mSearch && mRubro;
+  });
+  const el = document.getElementById('prov-list');
+  if(!el) return;
+  if(!list.length){
+    el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--mid-gray)">No hay proveedores registrados. Agregá el primero.</div>';
+    return;
+  }
+  const RUBRO_ICON = {Flores:'🌸',Insumos:'📦',Packaging:'🎁',Otros:'🏭'};
+  el.innerHTML = `<div class="table-wrapper"><table style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead><tr>
+      <th style="text-align:left;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Proveedor</th>
+      <th style="text-align:left;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Rubro</th>
+      <th style="text-align:left;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Contacto</th>
+      <th style="text-align:left;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Teléfono</th>
+      <th style="text-align:left;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Email</th>
+      <th style="padding:10px 14px;border-bottom:2px solid var(--light-gray);background:var(--warm-white)"></th>
+    </tr></thead>
+    <tbody>${list.map((p)=>{
+      const realIdx = (window.proveedoresList||[]).indexOf(p);
+      return `<tr style="cursor:pointer" onclick="openProveedorModal(${realIdx})">
+        <td style="padding:10px 14px;border-bottom:1px solid var(--light-gray);font-weight:600">${RUBRO_ICON[p.rubro]||'🏭'} ${esc(p.nombre||'—')}</td>
+        <td style="padding:10px 14px;border-bottom:1px solid var(--light-gray)">${esc(p.rubro||'—')}</td>
+        <td style="padding:10px 14px;border-bottom:1px solid var(--light-gray)">${esc(p.contacto||'—')}</td>
+        <td style="padding:10px 14px;border-bottom:1px solid var(--light-gray)">${p.telefono?`<a href="tel:${esc(p.telefono)}" onclick="event.stopPropagation()">${esc(p.telefono)}</a>`:'—'}</td>
+        <td style="padding:10px 14px;border-bottom:1px solid var(--light-gray)">${p.email?`<a href="mailto:${esc(p.email)}" onclick="event.stopPropagation()">${esc(p.email)}</a>`:'—'}</td>
+        <td style="padding:10px 14px;border-bottom:1px solid var(--light-gray);text-align:right">
+          <button class="btn-icon" onclick="event.stopPropagation();eliminarProveedor(${realIdx})" title="Eliminar">🗑</button>
+        </td>
+      </tr>
+      ${p.notas?`<tr onclick="openProveedorModal(${realIdx})" style="cursor:pointer"><td colspan="6" style="padding:4px 14px 10px;border-bottom:1px solid var(--light-gray);font-size:12px;color:var(--mid-gray)">${esc(p.notas)}</td></tr>`:''}`;
+    }).join('')}</tbody>
+  </table></div>`;
+}
+
+function openProveedorModal(idx){
+  const p = idx != null ? (window.proveedoresList||[])[idx] : {};
+  let ov = document.getElementById('prov-modal');
+  if(!ov){ ov=document.createElement('div'); ov.id='prov-modal'; ov.className='modal-overlay'; document.body.appendChild(ov); }
+  ov.innerHTML = `<div class="modal">
+    <button class="modal-close" onclick="closeModal('prov-modal')">✕</button>
+    <div class="modal-title">${idx!=null?'Editar':'Nuevo'} Proveedor</div>
+    <div class="modal-row">
+      <div class="form-group"><label class="form-label">Nombre *</label><input class="form-input-modal" id="prov-nombre" value="${esc(p.nombre||'')}"></div>
+      <div class="form-group"><label class="form-label">Rubro</label><select class="form-input-modal" id="prov-rubro-sel">
+        ${['Flores','Insumos','Packaging','Otros'].map(r=>`<option${r===(p.rubro||'')?' selected':''}>${r}</option>`).join('')}
+      </select></div>
+    </div>
+    <div class="modal-row">
+      <div class="form-group"><label class="form-label">Contacto</label><input class="form-input-modal" id="prov-contacto" value="${esc(p.contacto||'')}"></div>
+      <div class="form-group"><label class="form-label">Teléfono</label><input class="form-input-modal" id="prov-tel" value="${esc(p.telefono||'')}" type="tel"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Email</label><input class="form-input-modal" id="prov-email" value="${esc(p.email||'')}" type="email"></div>
+    <div class="form-group"><label class="form-label">Notas</label><textarea class="form-input-modal" id="prov-notas" rows="3">${esc(p.notas||'')}</textarea></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal('prov-modal')">Cancelar</button>
+      <button class="btn-add" onclick="guardarProveedor(${idx!=null?idx:'null'})">Guardar</button>
+    </div>
+  </div>`;
+  ov.classList.add('open');
+}
+
+function guardarProveedor(idx){
+  const nombre = document.getElementById('prov-nombre')?.value?.trim();
+  if(!nombre){ showToast('Ingresá el nombre del proveedor'); return; }
+  const p = {
+    nombre,
+    rubro: document.getElementById('prov-rubro-sel')?.value||'Otros',
+    contacto: document.getElementById('prov-contacto')?.value?.trim()||'',
+    telefono: document.getElementById('prov-tel')?.value?.trim()||'',
+    email: document.getElementById('prov-email')?.value?.trim()||'',
+    notas: document.getElementById('prov-notas')?.value?.trim()||''
+  };
+  const list = [...(window.proveedoresList||[])];
+  if(idx != null) list[idx] = p; else list.push(p);
+  window.proveedoresList = list;
+  fbSave('proveedoresList', list);
+  closeModal('prov-modal');
+  renderProveedores();
+  showToast('✅ Proveedor guardado');
+}
+
+function eliminarProveedor(idx){
+  if(!confirm('¿Eliminar este proveedor?')) return;
+  const list = [...(window.proveedoresList||[])];
+  list.splice(idx,1);
+  window.proveedoresList = list;
+  fbSave('proveedoresList', list);
+  renderProveedores();
+  showToast('Proveedor eliminado');
+}
+
+// ── RENTABILIDAD POR EVENTO ───────────────────────────────────────────────────
+function renderRentabilidad(){
+  const search = (document.getElementById('rent-search')?.value||'').toLowerCase();
+  const tipoSel = document.getElementById('rent-tipo');
+  const tipo = tipoSel?.value||'';
+
+  if(tipoSel){
+    const cur = tipoSel.value;
+    const tipos = [...new Set(eventosData.map(e=>e.tipo).filter(Boolean))].sort();
+    tipoSel.innerHTML = '<option value="">Todos los tipos</option>' + tipos.map(t=>`<option${t===cur?' selected':''}>${esc(t)}</option>`).join('');
+    tipoSel.value = cur;
+  }
+
+  const filtered = eventosData.filter(ev=>{
+    const m = !search || ev.nombre?.toLowerCase().includes(search) || ev.tipo?.toLowerCase().includes(search);
+    const mt = !tipo || ev.tipo === tipo;
+    return m && mt;
+  }).sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+
+  const withPpto = filtered.filter(ev => +ev.presupuesto > 0);
+  const totalPpto = withPpto.reduce((s,e)=>s+(+e.presupuesto||0),0);
+  const totalCosto = withPpto.reduce((s,e)=>s+(+e.costoEstimado||0),0);
+  const margenGlobal = totalPpto > 0 ? ((totalPpto - totalCosto)/totalPpto*100).toFixed(1) : '—';
+  const kpisEl = document.getElementById('rent-kpis');
+  if(kpisEl) kpisEl.innerHTML = `
+    <div class="card"><div class="card-label">Eventos con presupuesto</div><div class="card-value" style="font-size:32px">${withPpto.length}</div></div>
+    <div class="card"><div class="card-label">Total presupuestado</div><div class="card-value" style="font-size:28px">$${totalPpto.toLocaleString('es-AR')}</div></div>
+    <div class="card"><div class="card-label">Total costo estimado</div><div class="card-value" style="font-size:28px">$${totalCosto.toLocaleString('es-AR')}</div></div>
+    <div class="card"><div class="card-label">Margen bruto global</div><div class="card-value ${+margenGlobal>40?'green':+margenGlobal>20?'amber':'red'}" style="font-size:32px">${margenGlobal}%</div></div>`;
+
+  const tbody = document.getElementById('rent-body');
+  if(!tbody) return;
+  if(!filtered.length){
+    tbody.innerHTML = '<tr><td colspan="7" style="padding:24px;text-align:center;color:var(--mid-gray)">Sin eventos para mostrar.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = filtered.map(ev=>{
+    const idx = eventosData.indexOf(ev);
+    const ppto = +ev.presupuesto||0;
+    const costo = +ev.costoEstimado||0;
+    const margen = ppto > 0 ? ((ppto - costo)/ppto*100).toFixed(1) : null;
+    const margenColor = margen != null ? (+margen > 40 ? 'var(--green-ok)' : +margen > 20 ? 'var(--amber)' : 'var(--red-alert)') : 'var(--mid-gray)';
+    return `<tr style="cursor:pointer" onclick="openEventoDetail(${idx})">
+      <td style="padding:9px 14px;border-bottom:1px solid var(--light-gray);font-weight:500">${esc(ev.nombre||'—')}</td>
+      <td style="padding:9px 14px;border-bottom:1px solid var(--light-gray)">${fmtDate(ev.fecha)}</td>
+      <td style="padding:9px 14px;border-bottom:1px solid var(--light-gray)">${esc(ev.tipo||'—')}</td>
+      <td style="padding:9px 14px;border-bottom:1px solid var(--light-gray);text-align:right;font-weight:500">${ppto?'$'+ppto.toLocaleString('es-AR'):'<span style="color:var(--mid-gray)">—</span>'}</td>
+      <td style="padding:9px 14px;border-bottom:1px solid var(--light-gray);text-align:right">${costo?'$'+costo.toLocaleString('es-AR'):'<span style="color:var(--mid-gray)">—</span>'}</td>
+      <td style="padding:9px 14px;border-bottom:1px solid var(--light-gray);text-align:right;font-weight:700;color:${margenColor}">${margen!=null?margen+'%':'—'}</td>
+      <td style="padding:9px 14px;border-bottom:1px solid var(--light-gray)"><span style="padding:2px 10px;border-radius:20px;font-size:11px;font-weight:500;${ESTADO_COLORS[ev.estado]||''}">${esc(ev.estado||'—')}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── ALERTAS AUTOMÁTICAS ───────────────────────────────────────────────────────
+function alertasAutomaticas(){
+  if(Notification.permission !== 'granted') return;
+
+  const bajos = (window.stockData||[]).filter(s => s.alerta === 'comprar');
+  if(bajos.length > 0){
+    setTimeout(()=>{
+      new Notification('⚠️ Stock bajo', {
+        body: `${bajos.length} insumo${bajos.length>1?'s':''} por reponer: ${bajos.slice(0,3).map(s=>s.nombre).join(', ')}${bajos.length>3?'...':''}`,
+        icon: '/icon-192.png', tag: 'stock-bajo'
+      });
+    }, 3000);
+  }
+
+  const eventosHoyAl = (window.eventosData||[]).filter(ev => ev.fecha === TODAY_ISO && ev.estado !== 'Pedidos Finalizados');
+  if(eventosHoyAl.length > 0){
+    setTimeout(()=>{
+      new Notification('📅 Eventos de hoy', {
+        body: eventosHoyAl.map(e => e.nombre).join(' · '),
+        icon: '/icon-192.png', tag: 'eventos-hoy'
+      });
+    }, 5000);
+  }
+
+  const now = new Date();
+  const cierre = new Date();
+  cierre.setHours(18,0,0,0);
+  if(now < cierre){
+    const delay = cierre.getTime() - now.getTime();
+    setTimeout(()=>{
+      if(Notification.permission === 'granted'){
+        new Notification('💰 Recordatorio de caja', {
+          body: 'Es hora de verificar y cerrar la caja del día.',
+          icon: '/icon-192.png', tag: 'cierre-caja'
+        });
+      }
+    }, delay);
+  }
+}
+
 Object.assign(window, {
   _downloadCSV, addCajaMovimiento, addCompra, addEvArregloRow, addEvArregloRowWithData,
   addGlosario, addInsumoToBase, addLpCat, addPhotos, addProveedor, addRecetaIngRow,
@@ -9387,6 +9653,9 @@ Object.assign(window, {
   renderRecetas, renderReportesEquipo, renderReportesVentas, renderReportesStock,
   exportReporteEquipo, exportReporteVentas, exportReporteStock,
   openPushNotifModal, enviarPushNotif, initPushForUser,
+  renderCalendario, calPrevMonth, calNextMonth,
+  renderProveedores, openProveedorModal, guardarProveedor, eliminarProveedor,
+  renderRentabilidad, alertasAutomaticas,
   renderStock, renderStockAdmin, renderVentaHoraCell, renderVentas, renderZonasPicker,
   resetHora, resetWeekState, resetearPassword, resetearTodasPasswords, saleAutoFillPrice,
   saveEvent, saveInsumosCustom, saveKanbanTask, saveLpItem, saveRamo, saveReceta, saveUrgenciaConfig,

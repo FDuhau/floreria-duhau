@@ -81,6 +81,7 @@
     <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('reportes-stock',this)">Stock & Compras</div>
     <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('reportes-margen',this)">💹 Dashboard de Margen</div>
     <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('auditoria',this)">🔍 Auditoría de Cambios</div>
+    <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('rentabilidad-eventos',this)">💰 Rentabilidad</div>
     <div class="nav-section-label nav-gerencia-only" style="display:none">Clientes</div>
     <div class="nav-item nav-gerencia-only" style="display:none" onclick="navigate('crm-clientes',this)"><span class="nav-icon">👥</span> CRM Clientes</div>
     <div class="nav-section-label nav-gerencia-only" style="display:none">Multi-Sucursal</div>
@@ -98,6 +99,7 @@
     <div class="nav-sub-item" data-group="grp-compras" onclick="navigate('compras-floreria',this)">Compras Florería</div>
     <div class="nav-sub-item" data-group="grp-compras" onclick="navigate('compras-jardineria',this)">Compras Jardinería</div>
     <div class="nav-sub-item" data-group="grp-compras" onclick="navigate('stock-admin',this)">Gestión de Stock</div>
+    <div class="nav-sub-item" data-group="grp-compras" onclick="navigate('proveedores',this)">🏭 Proveedores</div>
     <div class="nav-section-label">Comercial</div>
     <div class="nav-item nav-group-hdr" data-group-id="grp-com" onclick="navToggleGroup('grp-com');navigate('comercial',this)"><span class="nav-icon">💼</span> Área Comercial<span class="nav-chevron">›</span></div>
     <div class="nav-sub-item" data-group="grp-com" onclick="navigate('eventos-comercial',this)">Eventos</div>
@@ -112,6 +114,7 @@
     <div class="nav-sub-item" data-group="grp-com" onclick="navigate('ramos-disponibles',this)">Ramos Disponibles</div>
     <div class="nav-sub-item" data-group="grp-com" onclick="navigate('pedidos-habitacion',this)">Pedidos de Habitación</div>
     <div class="nav-sub-item" data-group="grp-com" onclick="navigate('recetas-arreglos',this)">Composiciones</div>
+    <div class="nav-sub-item" data-group="grp-com" onclick="navigate('calendario',this)">📅 Calendario</div>
   </div>
   <div style="padding:12px 24px;border-top:1px solid rgba(255,255,255,.07)">
     <button onclick="cambiarContrasena()" style="width:100%;padding:8px 12px;font-size:11px;letter-spacing:.5px;background:rgba(255,255,255,.06);color:rgba(247,245,242,.6);border:1px solid rgba(255,255,255,.1);border-radius:6px;cursor:pointer;font-family:inherit;margin-bottom:6px">🔑 Cambiar contraseña</button>
@@ -378,7 +381,27 @@
       <div class="quick-link" onclick="navigate('compras-floreria')"><span class="quick-link-icon">💐</span><div class="quick-link-title">Compras Florería</div><div class="quick-link-sub">Flores, follaje y materiales</div></div>
       <div class="quick-link" onclick="navigate('compras-jardineria')"><span class="quick-link-icon">🌿</span><div class="quick-link-title">Compras Jardinería & General</div><div class="quick-link-sub">Plantas, insumos y herramientas</div></div>
       <div class="quick-link" onclick="navigate('stock-admin')"><span class="quick-link-icon">📦</span><div class="quick-link-title">Gestión de Stock</div><div class="quick-link-sub">Ajustar valores · mínimos y máximos</div></div>
+      <div class="quick-link" onclick="navigate('proveedores')"><span class="quick-link-icon">🏭</span><div class="quick-link-title">Proveedores</div><div class="quick-link-sub">Contactos y proveedores</div></div>
     </div>
+  </div>
+
+  <!-- ══════ PROVEEDORES ══════ -->
+  <div id="page-proveedores" class="content">
+    <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px">
+      <div><div class="page-title">Proveedores</div><div class="page-subtitle">Gestión de contactos y proveedores de insumos</div></div>
+      <button class="btn-add" onclick="openProveedorModal()">+ Nuevo proveedor</button>
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap">
+      <input class="stock-search" id="prov-search" placeholder="Buscar proveedor..." oninput="renderProveedores()" style="width:220px">
+      <select class="form-select" id="prov-rubro" onchange="renderProveedores()" style="width:180px">
+        <option value="">Todos los rubros</option>
+        <option>Flores</option>
+        <option>Insumos</option>
+        <option>Packaging</option>
+        <option>Otros</option>
+      </select>
+    </div>
+    <div id="prov-list"></div>
   </div>
 
   <!-- ══════ COMPRAS FLORERÍA ══════ -->
@@ -636,7 +659,25 @@
         <div class="quick-link-title">Pedidos Habitación</div>
         <div class="quick-link-sub">Amenities y pedidos</div>
       </div>
+      <div class="quick-link" onclick="navigate('calendario',this)">
+        <span class="quick-link-icon">📅</span>
+        <div class="quick-link-title">Calendario</div>
+        <div class="quick-link-sub">Vista mensual de eventos</div>
+      </div>
     </div>
+  </div>
+
+  <!-- ══════ CALENDARIO ══════ -->
+  <div id="page-calendario" class="content">
+    <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px">
+      <div><div class="page-title">Calendario de Eventos</div><div class="page-subtitle">Vista mensual · todos los eventos programados</div></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn-secondary" onclick="calPrevMonth()">‹ Anterior</button>
+        <span id="cal-mes-label" style="font-size:13px;font-weight:600;min-width:140px;text-align:center"></span>
+        <button class="btn-secondary" onclick="calNextMonth()">Siguiente ›</button>
+      </div>
+    </div>
+    <div id="cal-grid"></div>
   </div>
 
   <!-- ══════ EVENTOS COMERCIAL ══════ -->
@@ -679,6 +720,10 @@
       <textarea class="form-input-modal" id="ev-notas" placeholder="Colores, materiales, estilo..."></textarea>
       <label class="form-label">Precio</label>
       <input class="form-input-modal" id="ev-precio" placeholder="$ (opcional)">
+      <div class="modal-row">
+        <div class="form-group"><label class="form-label">Presupuesto ($)</label><input type="number" class="form-input-modal" id="ev-presupuesto" placeholder="0"></div>
+        <div class="form-group"><label class="form-label">Costo estimado ($)</label><input type="number" class="form-input-modal" id="ev-costo-est" placeholder="0"></div>
+      </div>
       <label class="form-label">Estado</label>
       <select class="form-input-modal" id="ev-estado">
         <option value="Pedidos Pendientes">📋 Pedidos Pendientes</option>
@@ -1774,6 +1819,40 @@
         <div class="quick-link-title">Auditoría de Cambios</div>
         <div class="quick-link-sub">Quién modificó qué y cuándo</div>
       </div>
+      <div class="quick-link" onclick="navigate('rentabilidad-eventos',this)">
+        <span class="quick-link-icon">💰</span>
+        <div class="quick-link-title">Rentabilidad</div>
+        <div class="quick-link-sub">Margen por evento</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ RENTABILIDAD POR EVENTO ══════ -->
+  <div id="page-rentabilidad-eventos" class="content">
+    <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px">
+      <div><div class="page-title">Rentabilidad por Evento</div><div class="page-subtitle">Margen bruto · presupuesto vs costo real</div></div>
+      <button class="btn-print" onclick="exportPDF()">🖨 Imprimir</button>
+    </div>
+    <div id="rent-kpis" class="cards-grid cards-grid-4" style="margin-bottom:24px"></div>
+    <div class="card">
+      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+        <input class="stock-search" id="rent-search" placeholder="Buscar evento..." oninput="renderRentabilidad()" style="width:200px">
+        <select class="form-select" id="rent-tipo" onchange="renderRentabilidad()" style="width:160px">
+          <option value="">Todos los tipos</option>
+        </select>
+      </div>
+      <div class="table-wrapper"><table style="width:100%;border-collapse:collapse;font-size:13px" id="rent-table">
+        <thead><tr>
+          <th style="text-align:left;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Evento</th>
+          <th style="text-align:left;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Fecha</th>
+          <th style="text-align:left;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Tipo</th>
+          <th style="text-align:right;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Presupuesto</th>
+          <th style="text-align:right;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Costo Est.</th>
+          <th style="text-align:right;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Margen</th>
+          <th style="text-align:left;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Estado</th>
+        </tr></thead>
+        <tbody id="rent-body"></tbody>
+      </table></div>
     </div>
   </div>
 
