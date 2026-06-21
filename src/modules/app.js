@@ -4518,95 +4518,137 @@ function renderJardProdEquipo(){
   const el = document.getElementById('jard-prod-body');
   if(!el) return;
 
-  // Determinar mes a mostrar
   const y = new Date().getFullYear(), m = new Date().getMonth();
   const mesKey = y+'-'+String(m+1).padStart(2,'0');
   const diasEnMes = new Date(y, m+1, 0).getDate();
-  const primerDia = new Date(y, m, 1).getDay(); // 0=dom
 
-  const nombres = Object.keys(window.jardHorarios).sort();
-  if(!nombres.length){
-    el.innerHTML = '<p style="color:var(--mid-gray);font-size:13px;padding:20px;text-align:center">Sin registros de turnos aún. Los jardineros deben registrar inicio y fin de jornada desde Tareas Jardinería.</p>';
+  const allNames = [...new Set([
+    ...Object.keys(window.jardHorarios),
+    ...jardineriaLog.map(l=>l.quien).filter(Boolean)
+  ])].sort();
+
+  if(!allNames.length){
+    el.innerHTML = '<p style="color:var(--mid-gray);font-size:13px;padding:20px;text-align:center">Sin registros aún. Los jardineros deben registrar inicio y fin de jornada desde Tareas Jardinería.</p>';
     return;
   }
 
-  // También incluir jardineros del log aunque no tengan window.jardHorarios todavía
-  const allNames = [...new Set([...nombres, ...jardineriaLog.map(l=>l.quien).filter(Boolean)])].sort();
-
+  const DIAS_CAL = ['Do','Lu','Ma','Mi','Ju','Vi','Sá'];
   let html = '';
+
   allNames.forEach(nombre => {
     const horarioNombre = window.jardHorarios[nombre] || {};
     const logNombre = jardineriaLog.filter(l => l.quien === nombre && l.fecha.startsWith(mesKey));
 
-    // KPIs del mes
+    // Armar datos por día del mes
     let totalMin = 0, diasTrabajados = 0;
     const diasData = {};
     Object.entries(horarioNombre).forEach(([fecha, d]) => {
       if(!fecha.startsWith(mesKey)) return;
       const dur = calcDuracion(d.inicio, d.fin);
-      diasData[fecha] = { inicio:d.inicio, fin:d.fin, dur, tareas:d.tareas||0 };
+      diasData[fecha] = { inicio:d.inicio, fin:d.fin, dur, tareas:[] };
       if(dur){ totalMin += dur; diasTrabajados++; }
     });
-    // Días con tareas en log (aunque no tengan turno registrado)
     logNombre.forEach(l => {
-      if(!diasData[l.fecha]) diasData[l.fecha] = { inicio:'', fin:'', dur:0, tareas:0 };
-      diasData[l.fecha].tareas = (diasData[l.fecha].tareas||0);
+      if(!diasData[l.fecha]) diasData[l.fecha] = { inicio:'', fin:'', dur:0, tareas:[] };
+      diasData[l.fecha].tareas.push(l);
     });
     const tareasTotal = logNombre.length;
     const avgHoras = diasTrabajados > 0 ? Math.round(totalMin/diasTrabajados) : 0;
 
-    // Calendario mensual
-    const DIAS = ['Do','Lu','Ma','Mi','Ju','Vi','Sá'];
-    let calHtml = `<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-top:12px;font-size:11px">`;
-    DIAS.forEach(d => { calHtml += `<div style="text-align:center;color:var(--mid-gray);font-weight:600;padding:3px 0">${d}</div>`; });
-    // Días vacíos al inicio
+    // Calendario
     const startDow = new Date(y, m, 1).getDay();
+    let calHtml = `<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:12px;font-size:11px">`;
+    DIAS_CAL.forEach(d => { calHtml += `<div style="text-align:center;color:var(--mid-gray);font-weight:600;padding:3px 0">${d}</div>`; });
     for(let i=0;i<startDow;i++) calHtml += `<div></div>`;
     for(let d=1; d<=diasEnMes; d++){
-      const fechaStr = y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+      const fechaStr = mesKey+'-'+String(d).padStart(2,'0');
       const dd = diasData[fechaStr];
       const esHoy = fechaStr === TODAY_ISO;
-      const tieneRegistro = dd && (dd.dur>0 || dd.tareas>0);
-      const title = dd ? `${dd.inicio||'?'} – ${dd.fin||'?'} · ${fmtDur(dd.dur)} · ${dd.tareas||0} tareas` : '';
-      const bg = tieneRegistro
-        ? (dd.dur >= 360 ? '#2C6B3A' : dd.dur >= 120 ? '#D4A820' : '#7CA87C')
-        : (esHoy ? 'var(--cream)' : 'transparent');
+      const tieneRegistro = dd && (dd.dur>0 || dd.tareas.length>0);
+      const bg = tieneRegistro ? (dd.dur>=360?'#2C6B3A':dd.dur>=120?'#D4A820':'#7CA87C') : (esHoy?'var(--cream)':'transparent');
       const color = tieneRegistro ? 'white' : esHoy ? 'var(--charcoal)' : 'var(--mid-gray)';
       const border = esHoy ? '1.5px solid var(--charcoal)' : '1px solid transparent';
-      calHtml += `<div title="${title}" style="text-align:center;padding:4px 2px;border-radius:6px;background:${bg};color:${color};border:${border};cursor:${tieneRegistro?'pointer':'default'};font-weight:${tieneRegistro?'700':'400'}">${d}</div>`;
+      const titleTxt = dd ? (dd.inicio?`${dd.inicio}–${dd.fin||'?'} · ${fmtDur(dd.dur)} · `:'')+(dd.tareas.length+' tareas') : '';
+      calHtml += `<div title="${titleTxt}" onclick="jardProdDiaClick('${nombre}','${fechaStr}')"
+        style="text-align:center;padding:5px 2px;border-radius:6px;background:${bg};color:${color};border:${border};cursor:${tieneRegistro?'pointer':'default'};font-weight:${tieneRegistro?'700':'400'}">${d}</div>`;
     }
     calHtml += '</div>';
 
+    // Detalle de los últimos días trabajados (los 5 más recientes)
+    const diasConActividad = Object.entries(diasData)
+      .filter(([,d]) => d.dur>0 || d.tareas.length>0)
+      .sort((a,b) => b[0].localeCompare(a[0]))
+      .slice(0,5);
+
+    let actividadHtml = '';
+    if(diasConActividad.length){
+      actividadHtml = `<div style="margin-top:16px;border-top:1px solid var(--light-gray);padding-top:14px">
+        <div style="font-size:11px;font-weight:600;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Últimos días trabajados</div>
+        <div id="jard-prod-act-${nombre.replace(/\s/g,'_')}" style="display:flex;flex-direction:column;gap:8px">
+          ${diasConActividad.map(([fecha, dd]) => _jardDiaHTML(nombre, fecha, dd)).join('')}
+        </div>
+      </div>`;
+    }
+
     html += `<div style="background:#FDFCFB;border:1px solid #E4E2DC;border-radius:8px;padding:16px;margin-bottom:12px">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:4px">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:8px">
         <div style="display:flex;align-items:center;gap:8px">
           <span style="font-size:18px">🌿</span>
           <span style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:500;color:var(--charcoal)">${esc(nombre)}</span>
         </div>
         <div style="display:flex;gap:20px;flex-wrap:wrap">
-          <div style="text-align:center">
-            <div style="font-size:10px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">Horas mes</div>
-            <div style="font-size:22px;font-weight:700;color:var(--charcoal)">${fmtDur(totalMin)}</div>
-          </div>
-          <div style="text-align:center">
-            <div style="font-size:10px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">Días trabajados</div>
-            <div style="font-size:22px;font-weight:700;color:var(--charcoal)">${diasTrabajados}</div>
-          </div>
-          <div style="text-align:center">
-            <div style="font-size:10px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">Prom. diario</div>
-            <div style="font-size:22px;font-weight:700;color:#2C6B3A">${avgHoras>0?fmtDur(avgHoras):'—'}</div>
-          </div>
-          <div style="text-align:center">
-            <div style="font-size:10px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">Tareas mes</div>
-            <div style="font-size:22px;font-weight:700;color:var(--charcoal)">${tareasTotal}</div>
-          </div>
+          <div style="text-align:center"><div style="font-size:10px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">Horas mes</div><div style="font-size:22px;font-weight:700;color:var(--charcoal)">${fmtDur(totalMin)}</div></div>
+          <div style="text-align:center"><div style="font-size:10px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">Días</div><div style="font-size:22px;font-weight:700;color:var(--charcoal)">${diasTrabajados}</div></div>
+          <div style="text-align:center"><div style="font-size:10px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">Prom. diario</div><div style="font-size:22px;font-weight:700;color:#2C6B3A">${avgHoras>0?fmtDur(avgHoras):'—'}</div></div>
+          <div style="text-align:center"><div style="font-size:10px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">Tareas mes</div><div style="font-size:22px;font-weight:700;color:var(--charcoal)">${tareasTotal}</div></div>
         </div>
       </div>
-      <div style="font-size:10px;color:var(--mid-gray);margin-bottom:4px">🟢 ≥6h &nbsp;🟡 2-6h &nbsp;🌿 &lt;2h · Pasá el cursor por un día para ver el detalle</div>
+      <div style="font-size:10px;color:var(--mid-gray)">🟢 ≥6h &nbsp;🟡 2-6h &nbsp;🌿 &lt;2h &nbsp;· Tocá un día para ver el detalle</div>
       ${calHtml}
+      ${actividadHtml}
     </div>`;
   });
   el.innerHTML = html;
+}
+
+function _jardDiaHTML(nombre, fecha, dd){
+  const tareasItems = dd.tareas.map(t => `
+    <div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid #F0EEE8">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:600;color:var(--charcoal)">${esc(t.task)}</div>
+        <div style="font-size:11px;color:var(--mid-gray)">${esc(t.group)} · ${esc(t.section)}</div>
+        ${t.obs ? `<div style="font-size:11px;color:#5A5A50;margin-top:2px;font-style:italic">"${esc(t.obs)}"</div>` : ''}
+      </div>
+      ${t.horaInicio||t.horaFin ? `<div style="text-align:right;white-space:nowrap;font-size:11px;color:var(--mid-gray)">
+        ${t.horaInicio?'▶ '+t.horaInicio:''}${t.horaFin?' · ⏹ '+t.horaFin:''}
+        ${t.horaInicio&&t.horaFin?'<br><span style="color:#2C6B3A;font-weight:600">'+fmtDur(calcDuracion(t.horaInicio,t.horaFin))+'</span>':''}
+      </div>` : ''}
+    </div>`).join('');
+
+  return `<div style="border:1px solid #E4E2DC;border-radius:6px;overflow:hidden">
+    <div style="background:var(--cream);padding:8px 12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;cursor:pointer"
+         onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:12px;font-weight:700;color:var(--charcoal)">${fmtDate(fecha)}</span>
+        ${dd.inicio ? `<span style="font-size:11px;color:var(--mid-gray)">▶ ${dd.inicio}${dd.fin?' · ⏹ '+dd.fin:' · en curso'}</span>` : ''}
+      </div>
+      <div style="display:flex;gap:12px;align-items:center">
+        ${dd.dur>0 ? `<span style="font-size:12px;font-weight:700;color:#2C6B3A">${fmtDur(dd.dur)}</span>` : ''}
+        <span style="font-size:11px;color:var(--mid-gray)">${dd.tareas.length} tarea${dd.tareas.length!==1?'s':''}</span>
+        <span style="font-size:11px;color:var(--mid-gray)">▾</span>
+      </div>
+    </div>
+    <div style="padding:4px 12px 8px;${dd.tareas.length>2?'display:none':''}">
+      ${tareasItems || '<div style="padding:8px 0;color:var(--mid-gray);font-size:12px">Sin tareas registradas ese día</div>'}
+    </div>
+  </div>`;
+}
+
+function jardProdDiaClick(nombre, fecha){
+  // Resaltar en el calendario y hacer scroll al día en el detalle
+  const actEl = document.getElementById('jard-prod-act-'+nombre.replace(/\s/g,'_'));
+  if(!actEl) return;
+  actEl.scrollIntoView({behavior:'smooth', block:'nearest'});
 }
 
 function renderCtrlJard(){
@@ -8028,7 +8070,7 @@ Object.assign(window, {
   renderHabReporte, renderHistorialCompras, renderHistorialEventos, renderHistoryPanel, renderHome,
   renderHomeHyatt, renderHoraCell, renderHorarios, renderInsumosGrid, renderJardLog, renderJardOps,
   renderJardProdEquipo, renderJardTurnoCard, renderJardReporte, renderJordProd, renderKanban,
-  jardSetJardinero, jardRegistrarHoraTurno, jardResetHoraTurno, renderLPenCotizador, renderListaPrecios,
+  jardSetJardinero, jardRegistrarHoraTurno, jardResetHoraTurno, jardProdDiaClick, renderLPenCotizador, renderListaPrecios,
   renderPedidosHab, renderPeriodTabs, renderPlantilla, renderPreciosList, renderProductividad,
   renderProductividadHome, renderProductividadCL, renderProductividadHorarios, renderProvTags, renderRamosDisp, renderRecepcionPedidos,
   renderRecetas, renderStock, renderStockAdmin, renderVentaHoraCell, renderVentas, renderZonasPicker,
