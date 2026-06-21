@@ -2830,31 +2830,64 @@ function fmtMin(min){
   return h>0 ? `${h}h ${m}m` : `${m}m`;
 }
 
-function getProdFlorista(nombre){
-  const horario=(window.horariosData||{})[nombre]?.[TODAY_ISO];
+function getProdEmpleado(nombre){
   let desde=null,hasta=null,totalMin=0,elapsed=0,remaining=0,timePct=0,started=false,finished=false;
-  if(horario?.desde && horario?.hasta){
-    const [h1,m1]=horario.desde.split(':').map(Number);
-    const [h2,m2]=horario.hasta.split(':').map(Number);
-    totalMin=(h2*60+m2)-(h1*60+m1);
-    const now=new Date(), nowMin=now.getHours()*60+now.getMinutes();
-    started=nowMin>=(h1*60+m1);
-    finished=nowMin>=(h2*60+m2);
-    elapsed=Math.max(0,Math.min(nowMin-(h1*60+m1),totalMin));
-    remaining=Math.max(0,(h2*60+m2)-nowMin);
-    timePct=totalMin>0 ? Math.round(elapsed/totalMin*100) : 0;
-    desde=horario.desde; hasta=horario.hasta;
+  let myTotal=0,myDone=0,taskPct=0;
+
+  if(isJardinero(nombre)){
+    // Turno real del jardinero (check-in/checkout)
+    const jTurno=(window.jardHorarios||{})[nombre]?.[TODAY_ISO];
+    if(jTurno?.inicio && jTurno?.fin){
+      const [h1,m1]=jTurno.inicio.split(':').map(Number);
+      const [h2,m2]=jTurno.fin.split(':').map(Number);
+      totalMin=(h2*60+m2)-(h1*60+m1);
+      const now=new Date(), nowMin=now.getHours()*60+now.getMinutes();
+      started=nowMin>=(h1*60+m1);
+      finished=nowMin>=(h2*60+m2);
+      elapsed=Math.max(0,Math.min(nowMin-(h1*60+m1),totalMin));
+      remaining=Math.max(0,(h2*60+m2)-nowMin);
+      timePct=totalMin>0 ? Math.round(elapsed/totalMin*100) : 0;
+      desde=jTurno.inicio; hasta=jTurno.fin;
+    } else if(jTurno?.inicio){
+      // Inició pero no terminó
+      const [h1,m1]=jTurno.inicio.split(':').map(Number);
+      const now=new Date(), nowMin=now.getHours()*60+now.getMinutes();
+      started=true; finished=false;
+      elapsed=Math.max(0,nowMin-(h1*60+m1));
+      desde=jTurno.inicio; hasta=null;
+    }
+    // Tareas del jardinero hoy (desde jardineriaLog)
+    const logHoy=(window.jardineriaLog||[]).filter(e=>e.fecha===TODAY_ISO && e.quien===nombre);
+    myTotal=logHoy.length;
+    myDone=logHoy.filter(e=>e.horaFin).length;
+    taskPct=myTotal>0 ? Math.round(myDone/myTotal*100) : 0;
+  } else {
+    // Florista: turno planificado en horariosData
+    const horario=(window.horariosData||{})[nombre]?.[TODAY_ISO];
+    if(horario?.desde && horario?.hasta){
+      const [h1,m1]=horario.desde.split(':').map(Number);
+      const [h2,m2]=horario.hasta.split(':').map(Number);
+      totalMin=(h2*60+m2)-(h1*60+m1);
+      const now=new Date(), nowMin=now.getHours()*60+now.getMinutes();
+      started=nowMin>=(h1*60+m1);
+      finished=nowMin>=(h2*60+m2);
+      elapsed=Math.max(0,Math.min(nowMin-(h1*60+m1),totalMin));
+      remaining=Math.max(0,(h2*60+m2)-nowMin);
+      timePct=totalMin>0 ? Math.round(elapsed/totalMin*100) : 0;
+      desde=horario.desde; hasta=horario.hasta;
+    }
+    const day=window.currentDay;
+    const dayState=(window.clStateByDay||{})[day]||window.clState||{};
+    const resp=dayState.responsable||[], checked=dayState.checked||[];
+    const myIdxs=resp.reduce((a,r,i)=>{ if(r===nombre) a.push(i); return a; },[]);
+    myTotal=myIdxs.length;
+    myDone=myIdxs.filter(i=>checked[i]).length;
+    taskPct=myTotal>0 ? Math.round(myDone/myTotal*100) : 0;
   }
-  // Tareas del día asignadas a este operario
-  const day=window.currentDay;
-  const dayState=(window.clStateByDay||{})[day]||window.clState||{};
-  const resp=dayState.responsable||[], checked=dayState.checked||[];
-  const myIdxs=resp.reduce((a,r,i)=>{ if(r===nombre) a.push(i); return a; },[]);
-  const myTotal=myIdxs.length;
-  const myDone=myIdxs.filter(i=>checked[i]).length;
-  const taskPct=myTotal>0 ? Math.round(myDone/myTotal*100) : 0;
   return {desde,hasta,totalMin,elapsed,remaining,timePct,myTotal,myDone,taskPct,started,finished};
 }
+
+function getProdFlorista(nombre){ return getProdEmpleado(nombre); }
 
 function _prodCardHTML(nombre, d, full=true){
   if(!d.desde) return `<div class="prod-card prod-equipo-card" style="opacity:.6">
@@ -2914,11 +2947,14 @@ function renderProductividadHome(){
       ${_prodCardHTML(floristaNombre, getProdFlorista(floristaNombre), true)}
     </div>`;
   } else if(userRole==='gerencia'){
-    const nombres=Object.keys(window.horariosData||{}).sort((a,b)=>a.localeCompare(b,'es'));
+    const nombres=getEmpleadosActivos();
     if(!nombres.length){ el.innerHTML=''; return; }
     const total=nombres.length;
-    const conTurno=nombres.filter(n=>(window.horariosData||{})[n]?.[TODAY_ISO]?.desde).length;
-    const cards=nombres.map(n=>_prodCardHTML(n,getProdFlorista(n),false)).join('');
+    const conTurno=nombres.filter(n=>{
+      if(isJardinero(n)) return !!(window.jardHorarios||{})[n]?.[TODAY_ISO]?.inicio;
+      return !!(window.horariosData||{})[n]?.[TODAY_ISO]?.desde;
+    }).length;
+    const cards=nombres.map(n=>_prodCardHTML(n,getProdEmpleado(n),false)).join('');
     el.innerHTML=`<div class="home-dash-card" style="margin-bottom:20px">
       <div class="home-card-title" style="display:flex;justify-content:space-between;align-items:center">
         <span>👥 Productividad del Equipo</span>
@@ -6439,6 +6475,14 @@ function getFloristasActivos(){
   return nombres.sort((a,b) => a.localeCompare(b,'es'));
 }
 
+function getEmpleadosActivos(){
+  return [...getFloristasActivos(), ...JARDINEROS_LIST];
+}
+
+function isJardinero(nombre){
+  return JARDINEROS_LIST.includes(nombre);
+}
+
 function calcHorasDia(desde, hasta){
   if(!desde || !hasta) return 0;
   const [h1,m1] = desde.split(':').map(Number);
@@ -6570,14 +6614,17 @@ function renderHorarios(){
   const sel = document.getElementById('hor-florista-sel');
   if(!cal) return;
 
+  const empleados = getEmpleadosActivos();
   const floristas = getFloristasActivos();
   if(sel){
     const cur = sel.value;
-    sel.innerHTML = '<option value="">— Todos —</option>' + floristas.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+    sel.innerHTML = '<option value="">— Todos —</option>'
+      + '<optgroup label="Florería">' + floristas.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('') + '</optgroup>'
+      + '<optgroup label="Jardinería">' + JARDINEROS_LIST.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('') + '</optgroup>';
     sel.value = cur;
   }
   const filtro = sel?.value || '';
-  const lista = filtro ? [filtro] : floristas;
+  const lista = filtro ? [filtro] : empleados;
 
   const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
   const primerDia = new Date(horAnio, horMes, 1);
@@ -6608,14 +6655,20 @@ function renderHorarios(){
     const isToday = iso === TODAY_ISO;
     const isPast = iso < TODAY_ISO;
 
-    // Contar floristas con horario ese día
+    // Contar empleados con horario ese día
     let totalHs = 0;
     let asignados = 0;
     lista.forEach(n => {
-      const h = horariosData[n]?.[iso];
-      if(h && h.desde && h.hasta){
-        totalHs += calcHorasDia(h.desde, h.hasta);
-        asignados++;
+      if(isJardinero(n)){
+        const jt=(window.jardHorarios||{})[n]?.[iso];
+        if(jt?.inicio && jt?.fin){ totalHs += calcHorasDia(jt.inicio,jt.fin); asignados++; }
+        else {
+          const hp=horariosData[n]?.[iso];
+          if(hp?.desde && hp?.hasta){ totalHs += calcHorasDia(hp.desde,hp.hasta); asignados++; }
+        }
+      } else {
+        const h = horariosData[n]?.[iso];
+        if(h && h.desde && h.hasta){ totalHs += calcHorasDia(h.desde, h.hasta); asignados++; }
       }
     });
 
@@ -6624,7 +6677,7 @@ function renderHorarios(){
 
     calHtml += `<div style="background:${bgColor};padding:6px;min-height:60px;cursor:pointer;border:${border}" onclick="openDiaHorario('${iso}')">
       <div style="font-size:12px;font-weight:${isToday?'700':'500'};color:${isToday?'var(--green-ok)':'#1A1A1A'};margin-bottom:3px">${d}</div>
-      ${asignados > 0 ? `<div style="font-size:9px;color:var(--sage-dark);font-weight:600">${asignados} florista${asignados>1?'s':''}</div>
+      ${asignados > 0 ? `<div style="font-size:9px;color:var(--sage-dark);font-weight:600">${asignados} empleado${asignados>1?'s':''}</div>
         <div style="font-size:9px;color:var(--mid-gray)">${totalHs}h total</div>` : ''}
     </div>`;
   }
@@ -6635,9 +6688,8 @@ function renderHorarios(){
 }
 
 function openDiaHorario(iso){
-  const floristas = getFloristasActivos();
   const filtro = document.getElementById('hor-florista-sel')?.value;
-  const lista = filtro ? [filtro] : floristas;
+  const lista = filtro ? [filtro] : getEmpleadosActivos();
   const diaLabel = fmtDate(iso);
 
   let ov = document.getElementById('dia-horario-modal');
@@ -6651,7 +6703,7 @@ function openDiaHorario(iso){
   ov.innerHTML = `<div class="modal" style="max-width:500px">
     <button class="modal-close" onclick="document.getElementById('dia-horario-modal').classList.remove('open')">✕</button>
     <div class="modal-title">📅 ${diaLabel}</div>
-    <div style="font-size:12px;color:var(--mid-gray);margin-bottom:14px">Cargá las horas de cada florista para este día.</div>
+    <div style="font-size:12px;color:var(--mid-gray);margin-bottom:14px">Cargá las horas de cada empleado para este día.</div>
     <div style="display:flex;flex-direction:column;gap:10px">
       ${lista.map(nombre => {
         if(!horariosData[nombre]) horariosData[nombre] = {};
@@ -6677,9 +6729,8 @@ function openDiaHorario(iso){
 }
 
 function guardarDiaHorario(iso){
-  const floristas = getFloristasActivos();
   const filtro = document.getElementById('hor-florista-sel')?.value;
-  const lista = filtro ? [filtro] : floristas;
+  const lista = filtro ? [filtro] : getEmpleadosActivos();
 
   lista.forEach(nombre => {
     if(!horariosData[nombre]) horariosData[nombre] = {};
@@ -6698,8 +6749,7 @@ function guardarDiaHorario(iso){
 }
 
 function limpiarDiaHorario(iso){
-  const floristas = getFloristasActivos();
-  floristas.forEach(nombre => {
+  getEmpleadosActivos().forEach(nombre => {
     if(horariosData[nombre]) delete horariosData[nombre][iso];
   });
   fbSave('horariosData', horariosData);
@@ -6708,7 +6758,7 @@ function limpiarDiaHorario(iso){
   showToast('🗑 Horarios del día limpiados');
 }
 
-function renderProductividadHorarios(floristas){
+function renderProductividadHorarios(empleados){
   const container = document.getElementById('hor-productividad');
   const labelEl = document.getElementById('hor-hoy-label');
   if(!container) return;
@@ -6716,52 +6766,72 @@ function renderProductividadHorarios(floristas){
 
   const dayState = clStateByDay[currentDay];
 
-  container.innerHTML = floristas.map(nombre => {
-    const hor = horariosData[nombre]?.[TODAY_ISO] || {};
-    const hsProgramadas = calcHorasDia(hor.desde, hor.hasta);
+  container.innerHTML = empleados.map(nombre => {
+    let hsProgramadas = 0, minsTrabjados = 0, tareasHechas = 0, tareasAsignadas = 0;
 
-    let minsTrabjados = 0;
-    let tareasHechas = 0;
-    let tareasAsignadas = 0;
-    if(dayState){
-      CL_TASKS.forEach((t,i) => {
-        const resp = dayState.responsable?.[i] || '';
-        if(resp !== nombre) return;
-        tareasAsignadas++;
-        const ini = dayState.inicio?.[i];
-        const fin = dayState.fin?.[i];
-        if(ini && fin){
-          const [h1,m1] = ini.split(':').map(Number);
-          const [h2,m2] = fin.split(':').map(Number);
+    if(isJardinero(nombre)){
+      // Horario planificado (desde horariosData si gerencia lo cargó)
+      const hp = horariosData[nombre]?.[TODAY_ISO] || {};
+      hsProgramadas = calcHorasDia(hp.desde, hp.hasta);
+      // Turno real: jardHorarios check-in/out
+      const jt=(window.jardHorarios||{})[nombre]?.[TODAY_ISO];
+      if(jt?.inicio && jt?.fin){ minsTrabjados = calcHorasDia(jt.inicio,jt.fin)*60; }
+      // Tareas: jardineriaLog
+      const logHoy=(window.jardineriaLog||[]).filter(e=>e.fecha===TODAY_ISO && e.quien===nombre);
+      tareasAsignadas = logHoy.length;
+      tareasHechas = logHoy.filter(e=>e.horaFin).length;
+      // Sumar minutos de cada entrada del log
+      if(minsTrabjados===0){
+        logHoy.forEach(e => {
+          if(e.horaInicio && e.horaFin){
+            const [h1,m1]=e.horaInicio.split(':').map(Number);
+            const [h2,m2]=e.horaFin.split(':').map(Number);
+            const d=(h2*60+m2)-(h1*60+m1);
+            if(d>0) minsTrabjados+=d;
+          }
+        });
+      }
+    } else {
+      const hor = horariosData[nombre]?.[TODAY_ISO] || {};
+      hsProgramadas = calcHorasDia(hor.desde, hor.hasta);
+      if(dayState){
+        CL_TASKS.forEach((t,i) => {
+          const resp = dayState.responsable?.[i] || '';
+          if(resp !== nombre) return;
+          tareasAsignadas++;
+          const ini = dayState.inicio?.[i];
+          const fin = dayState.fin?.[i];
+          if(ini && fin){
+            const [h1,m1] = ini.split(':').map(Number);
+            const [h2,m2] = fin.split(':').map(Number);
+            const diff = (h2*60+m2) - (h1*60+m1);
+            if(diff > 0) minsTrabjados += diff;
+          }
+          const checked = Array.isArray(dayState.checked) ? dayState.checked[i] : (dayState.checked?.[i]);
+          if(checked) tareasHechas++;
+        });
+      }
+      eventosData.forEach(ev => {
+        if(ev.asignado === nombre && ev.fecha === TODAY_ISO && ev.inicio && ev.fin){
+          const [h1,m1] = ev.inicio.split(':').map(Number);
+          const [h2,m2] = ev.fin.split(':').map(Number);
           const diff = (h2*60+m2) - (h1*60+m1);
-          if(diff > 0) minsTrabjados += diff;
+          if(diff > 0){ minsTrabjados += diff; tareasHechas++; tareasAsignadas++; }
+        } else if(ev.asignado === nombre && ev.fecha === TODAY_ISO){
+          tareasAsignadas++;
         }
-        const checked = Array.isArray(dayState.checked) ? dayState.checked[i] : (dayState.checked?.[i]);
-        if(checked) tareasHechas++;
+      });
+      (ventasData||[]).forEach(v => {
+        if(v.asignado === nombre && v.estado === 'pendiente' && v.inicio && v.fin){
+          const [h1,m1] = v.inicio.split(':').map(Number);
+          const [h2,m2] = v.fin.split(':').map(Number);
+          const diff = (h2*60+m2) - (h1*60+m1);
+          if(diff > 0){ minsTrabjados += diff; tareasHechas++; tareasAsignadas++; }
+        } else if(v.asignado === nombre && v.estado === 'pendiente'){
+          tareasAsignadas++;
+        }
       });
     }
-    // Sumar tiempo de eventos asignados al florista hoy
-    eventosData.forEach(ev => {
-      if(ev.asignado === nombre && ev.fecha === TODAY_ISO && ev.inicio && ev.fin){
-        const [h1,m1] = ev.inicio.split(':').map(Number);
-        const [h2,m2] = ev.fin.split(':').map(Number);
-        const diff = (h2*60+m2) - (h1*60+m1);
-        if(diff > 0){ minsTrabjados += diff; tareasHechas++; tareasAsignadas++; }
-      } else if(ev.asignado === nombre && ev.fecha === TODAY_ISO){
-        tareasAsignadas++;
-      }
-    });
-    // Sumar tiempo de ventas asignadas al florista
-    (ventasData||[]).forEach(v => {
-      if(v.asignado === nombre && v.estado === 'pendiente' && v.inicio && v.fin){
-        const [h1,m1] = v.inicio.split(':').map(Number);
-        const [h2,m2] = v.fin.split(':').map(Number);
-        const diff = (h2*60+m2) - (h1*60+m1);
-        if(diff > 0){ minsTrabjados += diff; tareasHechas++; tareasAsignadas++; }
-      } else if(v.asignado === nombre && v.estado === 'pendiente'){
-        tareasAsignadas++;
-      }
-    });
     const hsTrabajadas = Math.round(minsTrabjados/60*10)/10;
     const diff = hsTrabajadas - hsProgramadas;
     const pct = hsProgramadas > 0 ? Math.round(hsTrabajadas/hsProgramadas*100) : 0;
@@ -8032,7 +8102,7 @@ Object.assign(window, {
   estaEditando, evAgregarComposicion, evAgregarFlor, evZonasLabel, exportCtrlCSV, exportHabCSV,
   exportMesHab, exportMesJard, fbSave, filterByStatus, filterStock, fmtDate, fmtDateTime,
   fmtDur, fmtMonth, generarTextoCotEvento, gerenciaSetFecha, getAlerta, getAllInsumos,
-  getAllMonths, getArr, getBadge, getDaysBadge, getFloristasActivos, getISOWeekKey,
+  getAllMonths, getArr, getBadge, getDaysBadge, getEmpleadosActivos, getFloristasActivos, getISOWeekKey, isJardinero,
   getMonthLabel, getMonthVisits, getOrCreateDayState, getProvOpts, getSectionEmoji,
   getSectionPillCls, getStockBadge, getStockComprometido, getStockEnPedido, getTbody,
   getWeekLabel, guardarDiaHorario, habsHoraCell, habsRegistrarHora, habsResetHora,
