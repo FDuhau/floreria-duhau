@@ -5914,11 +5914,16 @@ function applyRole(role){
         }
       }
     });
-    // Mostrar headers de acordeón
+    // Mostrar headers de acordeón y expandirlos
     document.querySelector('[data-group-id="grp-ops"]').style.display = '';
     document.querySelector('[data-group-id="grp-com"]').style.display = '';
-    // Ocultar quick-links
-    document.querySelectorAll('.quick-link').forEach(ql => ql.style.display = 'none');
+    setTimeout(() => { navExpandGroup('grp-ops'); navExpandGroup('grp-com'); }, 50);
+    // Mostrar solo quick-links relevantes para florista
+    const FL_QL = ['Checklist','Stock','Eventos','Cotizador','Recepción','Ramos','Lista de Precios'];
+    document.querySelectorAll('.quick-link').forEach(ql => {
+      const title = ql.querySelector('.quick-link-title')?.textContent || '';
+      if(!FL_QL.some(t => title.includes(t))) ql.style.display = 'none';
+    });
     showToast('👋 Hola ' + floristaNombre + '!');
   }
 
