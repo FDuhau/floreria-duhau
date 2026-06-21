@@ -72,12 +72,16 @@ document.getElementById('topbar-date').textContent = DATE_STR;
 document.getElementById('topbar-day').textContent = TODAY_DAY;
 document.getElementById('hero-date').textContent = '📅 ' + DATE_STR;
 
-// Tema guardado
+// Tema guardado — el atributo se aplica inmediatamente; el botón se actualiza tras DOMContentLoaded
 (()=>{
   const saved = localStorage.getItem('fd-theme') || 'light';
   document.documentElement.setAttribute('data-theme', saved);
-  const btn = document.getElementById('theme-toggle-btn');
-  if(btn) btn.textContent = saved === 'dark' ? '☀️' : '🌙';
+  const updateBtn = () => {
+    const btn = document.getElementById('theme-toggle-btn');
+    if(btn) btn.textContent = saved === 'dark' ? '☀️' : '🌙';
+  };
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', updateBtn);
+  else updateBtn();
 })();
 
 // Atajos de teclado globales
@@ -7022,6 +7026,9 @@ function applyRole(role){
     });
     // Ocultar quick-links
     document.querySelectorAll('.quick-link').forEach(ql => ql.style.display = 'none');
+    const grpComC = document.querySelector('[data-group-id="grp-com"]');
+    if(grpComC) grpComC.style.display = '';
+    setTimeout(() => navExpandGroup('grp-com'), 50);
     showToast('👋 Hola Euge!');
   }
 
@@ -7057,6 +7064,9 @@ function applyRole(role){
     });
     // Quick links: ocultar todos
     document.querySelectorAll('.quick-link').forEach(ql => ql.style.display = 'none');
+    const grpComV = document.querySelector('[data-group-id="grp-com"]');
+    if(grpComV) grpComV.style.display = '';
+    setTimeout(() => navExpandGroup('grp-com'), 50);
     // Navegar al Panel Hyatt
     setTimeout(()=> navigate('home-hyatt'), 100);
     // Ocultar botón de cargar ramo (ventas solo ve y vende)
@@ -7096,8 +7106,9 @@ function applyRole(role){
       const title = ql.querySelector('.quick-link-title')?.textContent || '';
       if(!['Compras','Gestión de Stock','Recepción de Pedidos'].some(t => title.includes(t))) ql.style.display = 'none';
     });
-    // Navegar directo a Compras
-    setTimeout(()=> navigate('compras'), 100);
+    document.querySelector('[data-group-id="grp-compras"]').style.display = '';
+    document.querySelector('[data-group-id="grp-ops"]').style.display = '';
+    setTimeout(()=>{ navigate('compras'); navExpandGroup('grp-compras'); }, 100);
   }
 
   if(role === 'jardinero'){

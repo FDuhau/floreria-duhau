@@ -791,6 +791,54 @@
   [data-theme="dark"] .prod-row { border-color: #2E2E2B !important; }
   [data-theme="dark"] .turno-card { background: #252523 !important; }
 
+  /* Elementos con background:white hardcodeado */
+  [data-theme="dark"] .form-input-modal,
+  [data-theme="dark"] .btn-secondary,
+  [data-theme="dark"] .history-week-btn,
+  [data-theme="dark"] .qty-btn,
+  [data-theme="dark"] .kanban-count,
+  [data-theme="dark"] .insumo-check,
+  [data-theme="dark"] .recep-check,
+  [data-theme="dark"] .cl-obs-input,
+  [data-theme="dark"] .cl-select {
+    background: #1E1E1C !important; color: #F0EDE8 !important; border-color: #3A3A38 !important;
+  }
+  [data-theme="dark"] .btn-secondary:hover { background: #2E2E2B !important; }
+
+  /* Badges de color (verde/rojo/amarillo) */
+  [data-theme="dark"] .ingreso-badge,
+  [data-theme="dark"] .alerta-badge.ok,
+  [data-theme="dark"] .prod-tag-ok,
+  [data-theme="dark"] .sib-ok,
+  [data-theme="dark"] .stock-impact.ok,
+  [data-theme="dark"] .alert-banner.green,
+  [data-theme="dark"] .jrec-all-ok,
+  [data-theme="dark"] .crm-badge.green { background: #1A2E1A !important; color: #6BBF6B !important; border-color: #2A4A2A !important; }
+
+  [data-theme="dark"] .egreso-badge,
+  [data-theme="dark"] .alerta-badge.comprar,
+  [data-theme="dark"] .tag-urgente,
+  [data-theme="dark"] .sib-out,
+  [data-theme="dark"] .stock-impact,
+  [data-theme="dark"] .alert-banner { background: #2E1A1A !important; color: #D06060 !important; border-color: #4A2A2A !important; }
+
+  [data-theme="dark"] .prod-tag-warn,
+  [data-theme="dark"] .days-warn,
+  [data-theme="dark"] .jrec-proximo { background: #2A2010 !important; color: #C0A040 !important; }
+
+  [data-theme="dark"] .jrec-vencido { background: #2E1A1A !important; }
+  [data-theme="dark"] .badge-reemplazo,
+  [data-theme="dark"] .badge-pedido { background: #2A1E10 !important; color: #C07840 !important; }
+
+  /* Rows coloridas del checklist */
+  [data-theme="dark"] .row-sec-a td { background: rgba(194,168,130,.08) !important; }
+  [data-theme="dark"] .row-sec-b td { background: rgba(122,154,184,.08) !important; }
+  [data-theme="dark"] .row-sec-c td { background: rgba(184,120,136,.08) !important; }
+
+  /* Turno check */
+  [data-theme="dark"] .turno-check,
+  [data-theme="dark"] .nav-item-dot { background: #2E2E2B !important; }
+
   .theme-toggle-btn {
     background: none; border: 1px solid rgba(0,0,0,.12); border-radius: var(--radius-sm);
     padding: 4px 8px; cursor: pointer; font-size: 14px; color: var(--mid-gray);
