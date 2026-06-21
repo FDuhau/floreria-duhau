@@ -106,6 +106,35 @@ const COMPRAS_PAGES=['compras','compras-floreria','compras-jardineria','stock-ad
 const CONTROL_PAGES=['control','control-jardineria','control-habitaciones'];
 const COMERCIAL_PAGES = ['comercial','eventos-comercial','historial-eventos','ventas-externas','caja','glosario','lista-precios','ramos-disponibles','pedidos-habitacion','recetas-arreglos'];
 
+// ── NAVEGACIÓN INFERIOR MOBILE ──────────────────────────────────────────────
+const BOTTOM_NAV_ITEMS = {
+  gerencia:  [{icon:'🏠',label:'Inicio',page:'home'},{icon:'📋',label:'Checklist',page:'checklist'},{icon:'🎉',label:'Eventos',page:'eventos-maison'},{icon:'💰',label:'Caja',page:'caja'}],
+  florista:  [{icon:'📋',label:'Checklist',page:'checklist'},{icon:'📦',label:'Stock',page:'stock'},{icon:'🎉',label:'Eventos',page:'eventos-maison'},{icon:'🌸',label:'Cotizador',page:'cotizador-ops'}],
+  operario:  [{icon:'🏠',label:'Inicio',page:'home'},{icon:'🎉',label:'Eventos',page:'eventos-maison'},{icon:'📦',label:'Stock',page:'stock'},{icon:'💲',label:'Precios',page:'lista-precios'}],
+  jardinero: [{icon:'🌿',label:'Jardín',page:'jardineria-ops'},{icon:'🏡',label:'Habitac.',page:'hab-ops'}],
+  compras:   [{icon:'🛒',label:'Compras',page:'compras-floreria'},{icon:'📦',label:'Stock',page:'stock-admin'},{icon:'📬',label:'Recepción',page:'recepcion-pedidos'}],
+  comercial: [{icon:'🎉',label:'Eventos',page:'eventos-comercial'},{icon:'💰',label:'Ventas',page:'ventas-externas'},{icon:'📖',label:'Glosario',page:'glosario'},{icon:'💲',label:'Precios',page:'lista-precios'}],
+  ventas:    [{icon:'🌺',label:'Ramos',page:'ramos-disponibles'},{icon:'🏨',label:'Pedidos',page:'pedidos-habitacion'},{icon:'💲',label:'Precios',page:'lista-precios'}],
+};
+
+function renderBottomNav(role) {
+  const nav = document.getElementById('bottom-nav');
+  if(!nav) return;
+  const items = BOTTOM_NAV_ITEMS[role] || [];
+  nav.innerHTML = items.map(it =>
+    `<div class="bottom-nav-item" data-page="${it.page}" onclick="navigate('${it.page}',null);updateBottomNav('${it.page}')">
+      <span class="bottom-nav-icon">${it.icon}</span>
+      <span class="bottom-nav-label">${it.label}</span>
+    </div>`
+  ).join('');
+}
+
+function updateBottomNav(pageId) {
+  document.querySelectorAll('.bottom-nav-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.page === pageId);
+  });
+}
+
 // ── ACORDEÓN DE NAVEGACIÓN ──────────────────────────────────────────────────
 const navOpenGroups = new Set();
 
@@ -149,6 +178,7 @@ function finalizeNavGroups() {
 // ────────────────────────────────────────────────────────────────────────────
 
 function navigate(pageId, navEl){
+  updateBottomNav(pageId);
   // Redirigir home según rol
   if(pageId === 'home' && userRole === 'ventas') pageId = 'home-hyatt';
   document.querySelectorAll('.content').forEach(p=>p.classList.remove('active'));
@@ -5772,6 +5802,8 @@ function applyRole(role){
 
   // Aplicar estado colapsado del acordeón según visibilidad de rol
   finalizeNavGroups();
+  // Renderizar barra de navegación inferior mobile
+  renderBottomNav(role);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -7389,7 +7421,7 @@ Object.assign(window, {
   hopsVisita, horNavMes, initChecklist, initCotizadorEventosHyatt, initCtrlHab, initCtrlJard,
   jopsDone, jopsHoraCell, jopsRegistrarHora, jopsResetHora, jopsUpdHora, limpiarCarrito,
   limpiarCarritoOps, limpiarDiaHorario, loadWeekState, lpAddPhotos, lpDelCat, lpDelItem,
-  lpOpenViewer, lpRemovePhoto, lpUpdItem, markHabDone, markJardDone, navToggleGroup, navExpandGroup, navCollapseGroup, finalizeNavGroups, navigate, openCajaModal,
+  lpOpenViewer, lpRemovePhoto, lpUpdItem, markHabDone, markJardDone, navToggleGroup, navExpandGroup, navCollapseGroup, finalizeNavGroups, navigate, renderBottomNav, updateBottomNav, openCajaModal,
   openDiaHorario, openEditSaleModal, openEventModal, openEventoDetail, openGestionPasswords,
   openGlosarioModal, openLpCatModal, openLpModal, openPhotoViewer, openRamoModal, openRamoPhoto,
   openRecetaModal, openSaleModal, openSidebar, openTaskModal, openVentaRamo, parseMoney,
