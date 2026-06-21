@@ -3948,7 +3948,7 @@ function openRecordatorioModal(idx){
     `<optgroup label="${esc(grp)}">${tasks.map(t=>`<option value="${esc(t.task)}" data-section="${esc(t.section)}" data-group="${esc(t.group)}"${rec?.task===t.task&&rec?.group===t.group?' selected':''}>${esc(t.task)}</option>`).join('')}</optgroup>`
   ).join('');
   document.getElementById('jrec-modal-title').textContent = rec ? 'Editar Recordatorio' : 'Nuevo Recordatorio';
-  openModal('jrec-modal');
+  document.getElementById('jrec-modal').classList.add('open');
 }
 
 function saveRecordatorio(){
