@@ -1,6 +1,7 @@
     // ════════════ FIREBASE SETUP ════════════
     import { initializeApp } from "firebase/app";
     import { getDatabase, ref, set, update, onValue, get } from "firebase/database";
+    import { getMessaging, getToken, onMessage } from "firebase/messaging";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDU9kLCnXeO7qnINEy121Nktj1K96gJ9Lw",
@@ -43,6 +44,37 @@
     window.fbUpdate  = fbUpdate;
     window.fbListen  = fbListen;
     window.fbReady   = true;
+
+    // ── Push Notifications (FCM) ──────────────────────────────────
+    const FCM_VAPID = 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjZkiDgE85ia8p7dDdMY5c8KL3YE'; // reemplazar con tu clave VAPID
+    let messaging = null;
+    try { messaging = getMessaging(fbApp); } catch(e){}
+
+    async function pushRequestPermission(){
+      if(!messaging) return false;
+      try {
+        const perm = await Notification.requestPermission();
+        if(perm !== 'granted') return false;
+        const reg = await navigator.serviceWorker.ready;
+        const token = await getToken(messaging, { vapidKey: FCM_VAPID, serviceWorkerRegistration: reg });
+        if(token){
+          const uid = window.currentUserLabel || 'anon';
+          fbSetPath('pushTokens/' + uid.replace(/[.#$/\[\]]/g,'_'), token);
+          if(messaging) onMessage(messaging, payload => {
+            window.showToast?.('🔔 ' + (payload.notification?.title||'') + ': ' + (payload.notification?.body||''));
+          });
+          return true;
+        }
+      } catch(e){ console.warn('FCM error:', e); }
+      return false;
+    }
+
+    async function pushSend(title, body, tag='general'){
+      fbSet('pushBroadcast/' + Date.now(), { title, body, tag, ts: Date.now() });
+    }
+
+    window.pushRequestPermission = pushRequestPermission;
+    window.pushSend = pushSend;
 
     // Cargar contraseñas personalizadas ANTES del login
     fbListen('loginPasswords', val => {

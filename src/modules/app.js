@@ -100,7 +100,9 @@ const PAGE_LABELS = {control:'Control','control-jardineria':'Control › Seguimi
   'home-hyatt':'Panel Hyatt',
   'cotizador-eventos-hyatt':'Cotizador de Eventos',
   'control-horarios':'Control › Horarios y Productividad',
-  'recetas-arreglos':'Comercial › Composiciones'
+  'recetas-arreglos':'Comercial › Composiciones',
+  reportes:'Reportes', 'reportes-equipo':'Reportes › Equipo & Horarios',
+  'reportes-ventas':'Reportes › Ventas & Comercial', 'reportes-stock':'Reportes › Stock & Compras'
 };
 const COMPRAS_PAGES=['compras','compras-floreria','compras-jardineria','stock-admin'];
 const CONTROL_PAGES=['control','control-jardineria','control-habitaciones'];
@@ -217,6 +219,9 @@ function navigate(pageId, navEl){
   if(pageId==='hab-ops') renderHabOps();
   if(pageId==='recepcion-pedidos') renderRecepcionPedidos();
   if(pageId==='control-habitaciones') renderCtrlHab();
+  if(pageId==='reportes-equipo') renderReportesEquipo();
+  if(pageId==='reportes-ventas') renderReportesVentas();
+  if(pageId==='reportes-stock') renderReportesStock();
 
   // En mobile, cerrar el sidebar automáticamente al navegar
   if(window.innerWidth <= 768) closeSidebar();
@@ -5703,6 +5708,316 @@ function copiarCotizacionEvento(){
   navigator.clipboard.writeText(texto).then(() => showToast('📋 Cotización copiada'));
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// REPORTES / ANALYTICS
+// ══════════════════════════════════════════════════════════════════════════════
+
+const _chartInstances = {};
+function _destroyChart(id){ if(_chartInstances[id]){ _chartInstances[id].destroy(); delete _chartInstances[id]; } }
+
+function _repMeses(selectId, mesesCount=12){
+  const sel = document.getElementById(selectId);
+  if(!sel) return;
+  const cur = sel.value;
+  const now = new Date();
+  const opts = [];
+  for(let i=0; i<mesesCount; i++){
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const label = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][d.getMonth()] + ' ' + d.getFullYear();
+    opts.push(`<option value="${iso}"${iso===cur?' selected':''}>${label}</option>`);
+  }
+  sel.innerHTML = opts.join('');
+}
+
+function _kpiCard(label, value, sub='', color='var(--sage-dark)'){
+  return `<div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:10px;padding:14px 16px">
+    <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:6px;font-weight:500">${label}</div>
+    <div style="font-size:26px;font-weight:700;color:${color};line-height:1">${value}</div>
+    ${sub ? `<div style="font-size:11px;color:var(--mid-gray);margin-top:4px">${sub}</div>` : ''}
+  </div>`;
+}
+
+// ── Reportes Equipo ───────────────────────────────────────────────────────────
+function renderReportesEquipo(){
+  _repMeses('rep-eq-mes');
+  const mesISO = document.getElementById('rep-eq-mes')?.value || TODAY_ISO.slice(0,7);
+  const empleados = getEmpleadosActivos();
+
+  // Poblar selector empleados
+  const sel = document.getElementById('rep-eq-empleado');
+  if(sel && sel.querySelectorAll('option').length <= 1){
+    sel.innerHTML = '<option value="">— Todos —</option>' + empleados.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  }
+  const filtroEmp = document.getElementById('rep-eq-empleado')?.value || '';
+  const lista = filtroEmp ? [filtroEmp] : empleados;
+
+  // Calcular días del mes
+  const [anio, mes] = mesISO.split('-').map(Number);
+  const diasMes = new Date(anio, mes, 0).getDate();
+  let totalHsProg=0, totalHsTrab=0, diasConTurno=0, empleadosActivos=0;
+
+  const datosEmpleado = lista.map(nombre => {
+    let hsProg=0, hsTrab=0, dias=0;
+    for(let d=1; d<=diasMes; d++){
+      const iso = `${mesISO}-${String(d).padStart(2,'0')}`;
+      if(isJardinero(nombre)){
+        const hp = (window.horariosData||{})[nombre]?.[iso];
+        if(hp?.desde && hp?.hasta){ hsProg += calcHorasDia(hp.desde,hp.hasta); dias++; }
+        const jt = (window.jardHorarios||{})[nombre]?.[iso];
+        if(jt?.inicio && jt?.fin) hsTrab += calcHorasDia(jt.inicio,jt.fin);
+      } else {
+        const h = (window.horariosData||{})[nombre]?.[iso];
+        if(h?.desde && h?.hasta){ hsProg += calcHorasDia(h.desde,h.hasta); dias++; }
+        // Horas trabajadas: sumar de checklist
+        const dayName = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'][new Date(anio,mes-1,d).getDay()];
+        const dayState = (window.clStateByDay||{})[dayName];
+        if(dayState) CL_TASKS.forEach((_,i)=>{
+          if((dayState.responsable||[])[i]!==nombre) return;
+          const ini=dayState.inicio?.[i], fin=dayState.fin?.[i];
+          if(ini&&fin){ const [h1,m1]=ini.split(':').map(Number);const [h2,m2]=fin.split(':').map(Number);const dd=(h2*60+m2)-(h1*60+m1);if(dd>0)hsTrab+=dd/60; }
+        });
+      }
+    }
+    totalHsProg+=hsProg; totalHsTrab+=hsTrab; diasConTurno+=dias;
+    if(hsProg>0) empleadosActivos++;
+    return { nombre, hsProg: Math.round(hsProg*10)/10, hsTrab: Math.round(hsTrab*10)/10, dias };
+  });
+
+  // KPIs
+  const pctGlobal = totalHsProg>0 ? Math.round(totalHsTrab/totalHsProg*100) : 0;
+  document.getElementById('rep-eq-kpis').innerHTML =
+    _kpiCard('Empleados activos', empleadosActivos, 'con turno en el mes') +
+    _kpiCard('Horas programadas', totalHsProg.toFixed(1)+'h', 'en el mes') +
+    _kpiCard('Horas registradas', totalHsTrab.toFixed(1)+'h', 'según registros', pctGlobal>=80?'var(--green-ok)':pctGlobal>=50?'#D4A820':'var(--red-alert)') +
+    _kpiCard('Cumplimiento', pctGlobal+'%', 'horas trab./programadas', pctGlobal>=80?'var(--green-ok)':'#D4A820');
+
+  // Gráfico barras hs programadas vs trabajadas
+  _destroyChart('rep-eq-hs');
+  const ctx1 = document.getElementById('rep-eq-chart-hs')?.getContext('2d');
+  if(ctx1){
+    _chartInstances['rep-eq-hs'] = new Chart(ctx1, {
+      type: 'bar',
+      data: {
+        labels: datosEmpleado.map(d=>d.nombre),
+        datasets: [
+          { label: 'Programado', data: datosEmpleado.map(d=>d.hsProg), backgroundColor: 'rgba(101,130,90,0.3)', borderColor: '#65825A', borderWidth: 2, borderRadius: 4 },
+          { label: 'Trabajado', data: datosEmpleado.map(d=>d.hsTrab), backgroundColor: 'rgba(101,130,90,0.8)', borderColor: '#65825A', borderWidth: 2, borderRadius: 4 }
+        ]
+      },
+      options: { responsive:true, plugins:{ legend:{ labels:{ font:{size:11} } } }, scales:{ y:{ beginAtZero:true, ticks:{ font:{size:11} } }, x:{ ticks:{ font:{size:11} } } } }
+    });
+  }
+
+  // Gráfico asistencia (días con turno por empleado)
+  _destroyChart('rep-eq-asist');
+  const ctx2 = document.getElementById('rep-eq-chart-asist')?.getContext('2d');
+  if(ctx2){
+    _chartInstances['rep-eq-asist'] = new Chart(ctx2, {
+      type: 'bar',
+      data: {
+        labels: datosEmpleado.map(d=>d.nombre),
+        datasets: [{ label: 'Días con turno', data: datosEmpleado.map(d=>d.dias), backgroundColor: 'rgba(180,150,100,0.7)', borderColor: '#B49664', borderWidth: 2, borderRadius: 4 }]
+      },
+      options: { responsive:true, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, ticks:{ font:{size:11} } }, x:{ ticks:{ font:{size:11} } } } }
+    });
+  }
+
+  // Tabla detalle
+  document.getElementById('rep-eq-tabla').innerHTML = `<div class="table-wrapper"><table class="stock-table">
+    <thead><tr><th>Empleado</th><th>Área</th><th>Días asignados</th><th>Hs programadas</th><th>Hs registradas</th><th>Cumplimiento</th></tr></thead>
+    <tbody>${datosEmpleado.map(d=>{
+      const pct = d.hsProg>0 ? Math.round(d.hsTrab/d.hsProg*100) : 0;
+      const col = pct>=80?'var(--green-ok)':pct>=50?'#D4A820':'var(--mid-gray)';
+      return `<tr><td><strong>${esc(d.nombre)}</strong></td><td>${isJardinero(d.nombre)?'Jardinería':'Florería'}</td><td>${d.dias}</td><td>${d.hsProg}h</td><td>${d.hsTrab}h</td><td style="color:${col};font-weight:600">${d.hsProg>0?pct+'%':'—'}</td></tr>`;
+    }).join('')}</tbody>
+  </table></div>`;
+}
+
+function exportReporteEquipo(){
+  const mesISO = document.getElementById('rep-eq-mes')?.value || TODAY_ISO.slice(0,7);
+  const rows = [['Empleado','Área','Hs Programadas','Hs Trabajadas','Cumplimiento%']];
+  getEmpleadosActivos().forEach(nombre=>{
+    const [anio,mes]=mesISO.split('-').map(Number);
+    const diasMes=new Date(anio,mes,0).getDate();
+    let hsProg=0,hsTrab=0;
+    for(let d=1;d<=diasMes;d++){
+      const iso=`${mesISO}-${String(d).padStart(2,'0')}`;
+      if(isJardinero(nombre)){
+        const hp=(window.horariosData||{})[nombre]?.[iso];if(hp?.desde&&hp?.hasta)hsProg+=calcHorasDia(hp.desde,hp.hasta);
+        const jt=(window.jardHorarios||{})[nombre]?.[iso];if(jt?.inicio&&jt?.fin)hsTrab+=calcHorasDia(jt.inicio,jt.fin);
+      } else {
+        const h=(window.horariosData||{})[nombre]?.[iso];if(h?.desde&&h?.hasta)hsProg+=calcHorasDia(h.desde,h.hasta);
+      }
+    }
+    const pct=hsProg>0?Math.round(hsTrab/hsProg*100):0;
+    rows.push([nombre,isJardinero(nombre)?'Jardinería':'Florería',hsProg.toFixed(1),hsTrab.toFixed(1),hsProg>0?pct:'—']);
+  });
+  _downloadCSV(rows, `reporte-equipo-${mesISO}.csv`);
+}
+
+// ── Reportes Ventas ───────────────────────────────────────────────────────────
+function renderReportesVentas(){
+  _repMeses('rep-vt-mes');
+  const mesISO = document.getElementById('rep-vt-mes')?.value || TODAY_ISO.slice(0,7);
+
+  // Últimos 6 meses para trend
+  const now = new Date();
+  const mesesLabels=[], mesesTotales=[];
+  for(let i=5;i>=0;i--){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    const iso=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    mesesLabels.push(['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][d.getMonth()]);
+    const total=(ventasData||[]).filter(v=>(v.fecha||'').startsWith(iso)).reduce((s,v)=>s+parseMoney(v.precio),0);
+    mesesTotales.push(total);
+  }
+
+  const ventasMes=(ventasData||[]).filter(v=>(v.fecha||'').startsWith(mesISO));
+  const totalMes=ventasMes.reduce((s,v)=>s+parseMoney(v.precio),0);
+  const confirmadas=ventasMes.filter(v=>v.estado==='confirmado'||v.estado==='entregado').length;
+  const pendientes=ventasMes.filter(v=>v.estado==='pendiente').length;
+  const eventosHoy=(eventosData||[]).filter(e=>e.fecha?.startsWith(mesISO)).length;
+
+  document.getElementById('rep-vt-kpis').innerHTML =
+    _kpiCard('Total ventas', '$'+totalMes.toLocaleString('es-AR'), mesISO) +
+    _kpiCard('Confirmadas', confirmadas, 'ventas confirmadas/entregadas', 'var(--green-ok)') +
+    _kpiCard('Pendientes', pendientes, 'ventas pendientes') +
+    _kpiCard('Eventos en el mes', eventosHoy, 'eventos/bodas');
+
+  // Trend 6 meses
+  _destroyChart('rep-vt-trend');
+  const ctx1=document.getElementById('rep-vt-chart-trend')?.getContext('2d');
+  if(ctx1){
+    _chartInstances['rep-vt-trend']=new Chart(ctx1,{
+      type:'line',
+      data:{ labels:mesesLabels, datasets:[{ label:'Ventas ($)', data:mesesTotales, fill:true, backgroundColor:'rgba(101,130,90,0.15)', borderColor:'#65825A', borderWidth:2, tension:0.4, pointRadius:4 }] },
+      options:{ responsive:true, plugins:{ legend:{display:false} }, scales:{ y:{ beginAtZero:true, ticks:{ font:{size:11}, callback:v=>'$'+v.toLocaleString('es-AR') } }, x:{ticks:{font:{size:11}}} } }
+    });
+  }
+
+  // Eventos por estado (donut)
+  const estadoCount={};
+  (eventosData||[]).filter(e=>e.fecha?.startsWith(mesISO)).forEach(e=>{ estadoCount[e.estado||'Sin estado']=(estadoCount[e.estado||'Sin estado']||0)+1; });
+  _destroyChart('rep-vt-ev');
+  const ctx2=document.getElementById('rep-vt-chart-ev')?.getContext('2d');
+  if(ctx2&&Object.keys(estadoCount).length){
+    _chartInstances['rep-vt-ev']=new Chart(ctx2,{
+      type:'doughnut',
+      data:{ labels:Object.keys(estadoCount), datasets:[{ data:Object.values(estadoCount), backgroundColor:['#65825A','#B49664','#A0BFAB','#D4A820','#c0392b','#7f8c8d'] }] },
+      options:{ responsive:true, plugins:{ legend:{ position:'bottom', labels:{ font:{size:11} } } } }
+    });
+  } else if(ctx2){ ctx2.canvas.parentElement.innerHTML += '<div style="text-align:center;color:var(--mid-gray);padding:20px;font-size:12px">Sin eventos este mes</div>'; }
+
+  // Tabla
+  const porEmp={};
+  ventasMes.forEach(v=>{ const n=v.asignado||'Sin asignar'; if(!porEmp[n])porEmp[n]={total:0,cnt:0}; porEmp[n].total+=parseMoney(v.precio); porEmp[n].cnt++; });
+  document.getElementById('rep-vt-tabla').innerHTML=`<div class="table-wrapper"><table class="stock-table">
+    <thead><tr><th>Empleado</th><th>Ventas</th><th>Total</th></tr></thead>
+    <tbody>${Object.entries(porEmp).sort((a,b)=>b[1].total-a[1].total).map(([n,d])=>`<tr><td>${esc(n)}</td><td>${d.cnt}</td><td>$${d.total.toLocaleString('es-AR')}</td></tr>`).join('')}</tbody>
+  </table></div>`;
+}
+
+function exportReporteVentas(){
+  const mesISO=document.getElementById('rep-vt-mes')?.value||TODAY_ISO.slice(0,7);
+  const rows=[['Fecha','Descripción','Precio','Estado','Asignado']];
+  (ventasData||[]).filter(v=>(v.fecha||'').startsWith(mesISO)).forEach(v=>rows.push([v.fecha,v.descripcion||'',v.precio||'',v.estado||'',v.asignado||'']));
+  _downloadCSV(rows,`reporte-ventas-${mesISO}.csv`);
+}
+
+// ── Reportes Stock ────────────────────────────────────────────────────────────
+function renderReportesStock(){
+  _repMeses('rep-st-mes');
+  const mesISO=document.getElementById('rep-st-mes')?.value||TODAY_ISO.slice(0,7);
+
+  const stock=window.stockData||[];
+  const criticos=stock.filter(s=>s.minimo>0 && s.cantidad<s.minimo);
+  const sinStock=stock.filter(s=>s.cantidad<=0);
+  const totalItems=stock.length;
+
+  // Compras del mes
+  const comprasMes=[...(window.comprasFlore||[]),...(window.comprasJard||[])].filter(c=>(c.fecha||'').startsWith(mesISO));
+  const gastoMes=comprasMes.reduce((s,c)=>s+parseMoney(c.total||c.precio||0),0);
+
+  // Gasto últimos 6 meses
+  const now=new Date();
+  const mesesLbls=[],mesesGasto=[];
+  for(let i=5;i>=0;i--){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    const iso=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    mesesLbls.push(['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][d.getMonth()]);
+    const g=[...(window.comprasFlore||[]),...(window.comprasJard||[])].filter(c=>(c.fecha||'').startsWith(iso)).reduce((s,c)=>s+parseMoney(c.total||c.precio||0),0);
+    mesesGasto.push(g);
+  }
+
+  document.getElementById('rep-st-kpis').innerHTML=
+    _kpiCard('Total ítems stock',totalItems,'productos en inventario')+
+    _kpiCard('Stock crítico',criticos.length,'bajo el mínimo','var(--red-alert)')+
+    _kpiCard('Sin stock',sinStock.length,'sin unidades disponibles','#D4A820')+
+    _kpiCard('Gasto compras','$'+gastoMes.toLocaleString('es-AR'),mesISO);
+
+  _destroyChart('rep-st-gasto');
+  const ctx1=document.getElementById('rep-st-chart-gasto')?.getContext('2d');
+  if(ctx1){ _chartInstances['rep-st-gasto']=new Chart(ctx1,{ type:'bar', data:{ labels:mesesLbls, datasets:[{ label:'Gasto ($)', data:mesesGasto, backgroundColor:'rgba(180,150,100,0.7)', borderColor:'#B49664', borderWidth:2, borderRadius:4 }] }, options:{ responsive:true, plugins:{legend:{display:false}}, scales:{ y:{beginAtZero:true,ticks:{font:{size:11},callback:v=>'$'+v.toLocaleString('es-AR')}}, x:{ticks:{font:{size:11}}} } } }); }
+
+  // Stock crítico bar chart
+  const topCrit=criticos.slice(0,10);
+  _destroyChart('rep-st-critico');
+  const ctx2=document.getElementById('rep-st-chart-critico')?.getContext('2d');
+  if(ctx2&&topCrit.length){ _chartInstances['rep-st-critico']=new Chart(ctx2,{ type:'bar', indexAxis:'y', data:{ labels:topCrit.map(s=>s.nombre||s.producto||''), datasets:[{ label:'Disponible', data:topCrit.map(s=>s.cantidad||0), backgroundColor:'rgba(192,57,43,0.6)', borderColor:'#c0392b', borderWidth:2, borderRadius:3 }, { label:'Mínimo', data:topCrit.map(s=>s.minimo||0), backgroundColor:'rgba(101,130,90,0.3)', borderColor:'#65825A', borderWidth:2, borderRadius:3 }] }, options:{ responsive:true, plugins:{legend:{labels:{font:{size:11}}}}, scales:{ x:{beginAtZero:true,ticks:{font:{size:11}}}, y:{ticks:{font:{size:10}}} } } }); }
+  else if(ctx2){ ctx2.canvas.parentElement.innerHTML+='<div style="text-align:center;color:var(--green-ok);padding:20px;font-size:12px">✅ Sin ítems críticos</div>'; }
+
+  document.getElementById('rep-st-tabla').innerHTML=criticos.length?`<div class="table-wrapper"><table class="stock-table">
+    <thead><tr><th>Producto</th><th>Disponible</th><th>Mínimo</th><th>Diferencia</th></tr></thead>
+    <tbody>${criticos.map(s=>`<tr><td><strong>${esc(s.nombre||s.producto||'')}</strong></td><td style="color:var(--red-alert)">${s.cantidad}</td><td>${s.minimo}</td><td style="color:var(--red-alert)">−${s.minimo-s.cantidad}</td></tr>`).join('')}</tbody>
+  </table></div>`:'';
+}
+
+function exportReporteStock(){
+  const rows=[['Producto','Categoría','Cantidad','Mínimo','Estado']];
+  (window.stockData||[]).forEach(s=>rows.push([s.nombre||s.producto||'',s.categoria||'',s.cantidad||0,s.minimo||0,s.cantidad<=(s.minimo||0)?'CRÍTICO':'OK']));
+  _downloadCSV(rows,'reporte-stock.csv');
+}
+
+
+// ── Push Notifications UI ─────────────────────────────────────────────────────
+function openPushNotifModal(){
+  let ov=document.getElementById('push-modal');
+  if(!ov){
+    ov=document.createElement('div'); ov.id='push-modal'; ov.className='modal-overlay';
+    ov.innerHTML=`<div class="modal" style="max-width:400px">
+      <button class="modal-close" onclick="closeModal('push-modal')">✕</button>
+      <div class="modal-title">🔔 Enviar Notificación</div>
+      <div class="form-group"><label class="form-label">Título</label><input class="form-input-modal" id="pn-titulo" placeholder="ej. Recordatorio de reunión"></div>
+      <div class="form-group"><label class="form-label">Mensaje</label><textarea class="form-input-modal" id="pn-body" rows="3" placeholder="ej. Reunión de equipo a las 10:00"></textarea></div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="closeModal('push-modal')">Cancelar</button>
+        <button class="btn-add" onclick="enviarPushNotif()">📤 Enviar a todos</button>
+      </div>
+    </div>`;
+    document.body.appendChild(ov);
+  }
+  ov.classList.add('open');
+}
+
+async function enviarPushNotif(){
+  const title=document.getElementById('pn-titulo')?.value?.trim();
+  const body=document.getElementById('pn-body')?.value?.trim();
+  if(!title||!body){ showToast('Completá título y mensaje'); return; }
+  await window.pushSend?.(title,body);
+  closeModal('push-modal');
+  showToast('✅ Notificación enviada al equipo');
+}
+
+async function initPushForUser(){
+  if(!('Notification' in window)) return;
+  if(Notification.permission==='default'){
+    const granted=await window.pushRequestPermission?.();
+    if(granted) showToast('🔔 Notificaciones activadas');
+  } else if(Notification.permission==='granted'){
+    await window.pushRequestPermission?.();
+  }
+}
+
 // ── PEDIDOS DE HABITACIÓN ──────────────────────────────────────────────────────
 let pedidosHabData = [];
 
@@ -6226,6 +6541,9 @@ function applyRole(role){
     document.querySelectorAll('.nav-sub-item[data-group="grp-ops"]').forEach(el => {
       if(GER_OPS_HIDE.some(t => el.textContent.trim().includes(t))) el.style.display = 'none';
     });
+    // Mostrar sección Reportes (solo gerencia)
+    document.querySelectorAll('.nav-gerencia-only').forEach(el => el.style.display = '');
+    document.querySelector('[data-group-id="grp-rep"]')?.style && (document.querySelector('[data-group-id="grp-rep"]').style.display = '');
   }
 
   if(role === 'operario'){
@@ -6962,10 +7280,13 @@ function doLogin(){
     currentLoginKey = key;
     if(entry.floristaNombre) floristaNombre = entry.floristaNombre;
     if(entry.jardineroNombre){ jardineroNombre = entry.jardineroNombre; jardCurrentJardinero = jardineroNombre; try{ localStorage.setItem('jardCurrentJardinero', jardineroNombre); }catch(e){} }
+    window.currentUserLabel = entry.label || key;
     applyRole(entry.role);
     const screen = document.getElementById('login-screen');
     screen.classList.add('hide');
     setTimeout(()=>screen.remove(), 520);
+    // Activar notificaciones push si el navegador lo soporta
+    setTimeout(()=>initPushForUser?.(), 2000);
   } else {
     err.textContent = 'Contraseña incorrecta';
     inp.classList.add('error');
@@ -8128,7 +8449,10 @@ Object.assign(window, {
   jardSetJardinero, jardRegistrarHoraTurno, jardResetHoraTurno, jardProdDiaClick, renderLPenCotizador, renderListaPrecios,
   renderPedidosHab, renderPeriodTabs, renderPlantilla, renderPreciosList, renderProductividad,
   renderProductividadHome, renderProductividadCL, renderProductividadHorarios, renderProvTags, renderRamosDisp, renderRecepcionPedidos,
-  renderRecetas, renderStock, renderStockAdmin, renderVentaHoraCell, renderVentas, renderZonasPicker,
+  renderRecetas, renderReportesEquipo, renderReportesVentas, renderReportesStock,
+  exportReporteEquipo, exportReporteVentas, exportReporteStock,
+  openPushNotifModal, enviarPushNotif, initPushForUser,
+  renderStock, renderStockAdmin, renderVentaHoraCell, renderVentas, renderZonasPicker,
   resetHora, resetWeekState, resetearPassword, resetearTodasPasswords, saleAutoFillPrice,
   saveEvent, saveInsumosCustom, saveKanbanTask, saveLpItem, saveRamo, saveReceta, saveUrgenciaConfig,
   saveWeekState, setCotTab, setHabReporteMes, setHopsFilter, setJardReporteMes, setJopsFilter,

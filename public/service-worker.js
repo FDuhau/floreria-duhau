@@ -1,11 +1,14 @@
-const CACHE = 'floreria-duhau-v1';
+const CACHE = 'floreria-duhau-v3';
 const ASSETS = [
   '/',
   '/index.html',
+  '/manifest.json',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/apple-touch-icon.png',
   'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300;1,9..40,400&family=Jost:wght@300;400;500;600&display=swap'
 ];
 
-// Instalar: cachear assets estáticos
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE).then(cache => cache.addAll(ASSETS)).catch(() => {})
@@ -13,7 +16,6 @@ self.addEventListener('install', e => {
   self.skipWaiting();
 });
 
-// Activar: limpiar caches viejos
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys =>
@@ -23,26 +25,51 @@ self.addEventListener('activate', e => {
   self.clients.claim();
 });
 
-// Fetch: network-first para Firebase, cache-first para assets locales
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
-  // Firebase siempre va a la red
-  if (url.hostname.includes('firebase') || url.hostname.includes('google')) {
+  // Firebase y APIs externas: siempre a la red
+  if(url.hostname.includes('firebase') || url.hostname.includes('google') ||
+     url.hostname.includes('jsdelivr') || url.hostname.includes('googleapis')){
     e.respondWith(fetch(e.request).catch(() => new Response('', { status: 503 })));
     return;
   }
 
-  // Assets locales: cache first, fallback a red
+  // Assets locales: stale-while-revalidate
   e.respondWith(
-    caches.match(e.request).then(cached => {
-      return cached || fetch(e.request).then(response => {
-        if (response.ok) {
-          const clone = response.clone();
-          caches.open(CACHE).then(cache => cache.put(e.request, clone));
-        }
+    caches.open(CACHE).then(async cache => {
+      const cached = await cache.match(e.request);
+      const fetchPromise = fetch(e.request).then(response => {
+        if(response.ok) cache.put(e.request, response.clone());
         return response;
-      });
-    }).catch(() => caches.match('/index.html'))
+      }).catch(() => null);
+      return cached || fetchPromise || caches.match('/index.html');
+    })
+  );
+});
+
+// Push notifications
+self.addEventListener('push', e => {
+  const data = e.data?.json() || {};
+  const title = data.title || 'Florería Duhau';
+  const options = {
+    body: data.body || '',
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
+    tag: data.tag || 'general',
+    data: { url: data.url || '/' }
+  };
+  e.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+      const url = e.notification.data?.url || '/';
+      const existing = list.find(c => c.url.includes(self.registration.scope));
+      if(existing){ existing.focus(); return; }
+      return clients.openWindow(url);
+    })
   );
 });

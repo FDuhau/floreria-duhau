@@ -15,7 +15,27 @@
   <link rel="apple-touch-icon" sizes="512x512" href="icon-512.png">
   <title>Florería Duhau — Panel de Control</title>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300;1,9..40,400&family=Inter:wght@300;400;500;600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <script type="module" src="/src/main.js"></script>
+  <script>
+    // ── Service Worker ─────────────────────────────────────────────
+    if('serviceWorker' in navigator){
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+          .then(reg => {
+            window._swReg = reg;
+            reg.addEventListener('updatefound', () => {
+              const w = reg.installing;
+              w.addEventListener('statechange', () => {
+                if(w.state === 'installed' && navigator.serviceWorker.controller){
+                  window.showToast?.('🔄 Nueva versión disponible — recargá para actualizar');
+                }
+              });
+            });
+          }).catch(()=>{});
+      });
+    }
+  </script>
 </head>
 <body>
 
@@ -54,6 +74,11 @@
     <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('hab-ops',this)">Habitaciones con Plantas</div>
     <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('recepcion-pedidos',this)">📦 Recepción de Pedidos</div>
     <div class="nav-sub-item nav-jard-only" data-group="grp-ops" style="display:none" onclick="navigate('recordatorios-jardineria',this)">🔔 Recordatorios Jardín</div>
+    <div class="nav-section-label nav-gerencia-only" style="display:none">Reportes</div>
+    <div class="nav-item nav-group-hdr nav-gerencia-only" data-group-id="grp-rep" style="display:none" onclick="navToggleGroup('grp-rep');navigate('reportes',this)"><span class="nav-icon">📊</span> Reportes<span class="nav-chevron">›</span></div>
+    <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('reportes-equipo',this)">Equipo & Horarios</div>
+    <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('reportes-ventas',this)">Ventas & Comercial</div>
+    <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('reportes-stock',this)">Stock & Compras</div>
     <div class="nav-section-label">Control</div>
     <div class="nav-item nav-group-hdr" data-group-id="grp-ctrl" onclick="navToggleGroup('grp-ctrl');navigate('control',this)"><span class="nav-icon">🌿</span> Control<span class="nav-chevron">›</span></div>
     <div class="nav-sub-item" data-group="grp-ctrl" onclick="navigate('control-jardineria',this)">Seguimiento Jardinería</div>
@@ -82,7 +107,8 @@
   </div>
   <div style="padding:12px 24px;border-top:1px solid rgba(255,255,255,.07)">
     <button onclick="cambiarContrasena()" style="width:100%;padding:8px 12px;font-size:11px;letter-spacing:.5px;background:rgba(255,255,255,.06);color:rgba(247,245,242,.6);border:1px solid rgba(255,255,255,.1);border-radius:6px;cursor:pointer;font-family:inherit;margin-bottom:6px">🔑 Cambiar contraseña</button>
-    <button onclick="openGestionPasswords()" class="gerencia-only" style="width:100%;padding:8px 12px;font-size:11px;letter-spacing:.5px;background:rgba(255,255,255,.06);color:rgba(247,245,242,.6);border:1px solid rgba(255,255,255,.1);border-radius:6px;cursor:pointer;font-family:inherit">👥 Gestionar usuarios</button>
+    <button onclick="openGestionPasswords()" class="gerencia-only" style="width:100%;padding:8px 12px;font-size:11px;letter-spacing:.5px;background:rgba(255,255,255,.06);color:rgba(247,245,242,.6);border:1px solid rgba(255,255,255,.1);border-radius:6px;cursor:pointer;font-family:inherit;margin-bottom:6px">👥 Gestionar usuarios</button>
+    <button onclick="openPushNotifModal()" class="gerencia-only" style="width:100%;padding:8px 12px;font-size:11px;letter-spacing:.5px;background:rgba(255,255,255,.06);color:rgba(247,245,242,.6);border:1px solid rgba(255,255,255,.1);border-radius:6px;cursor:pointer;font-family:inherit">🔔 Enviar notificación</button>
   </div>
   <div class="sidebar-footer">Florería Duhau · Ivan Hechenleitner© 2026</div>
 </nav>
@@ -1611,6 +1637,81 @@
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- ══════ REPORTES — EQUIPO & HORARIOS ══════ -->
+  <div id="page-reportes-equipo" class="content">
+    <div class="page-header">
+      <div class="page-title">Reportes · Equipo</div>
+      <div class="page-subtitle">Productividad, asistencia y horas trabajadas por empleado</div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;align-items:center">
+      <select class="form-input" id="rep-eq-mes" onchange="renderReportesEquipo()" style="width:160px;padding:6px 10px;font-size:13px"></select>
+      <select class="form-input" id="rep-eq-empleado" onchange="renderReportesEquipo()" style="width:160px;padding:6px 10px;font-size:13px">
+        <option value="">— Todos —</option>
+      </select>
+      <button class="btn-secondary" onclick="exportReporteEquipo()" style="font-size:12px;padding:6px 14px">⬇ Exportar CSV</button>
+    </div>
+    <div id="rep-eq-kpis" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:24px"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px" id="rep-eq-charts-wrap">
+      <div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;padding:16px">
+        <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:12px;font-weight:500">Horas programadas vs trabajadas</div>
+        <canvas id="rep-eq-chart-hs" height="220"></canvas>
+      </div>
+      <div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;padding:16px">
+        <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:12px;font-weight:500">Asistencia por semana</div>
+        <canvas id="rep-eq-chart-asist" height="220"></canvas>
+      </div>
+    </div>
+    <div id="rep-eq-tabla"></div>
+  </div>
+
+  <!-- ══════ REPORTES — VENTAS & COMERCIAL ══════ -->
+  <div id="page-reportes-ventas" class="content">
+    <div class="page-header">
+      <div class="page-title">Reportes · Ventas</div>
+      <div class="page-subtitle">Ingresos, eventos y tendencia mensual</div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;align-items:center">
+      <select class="form-input" id="rep-vt-mes" onchange="renderReportesVentas()" style="width:160px;padding:6px 10px;font-size:13px"></select>
+      <button class="btn-secondary" onclick="exportReporteVentas()" style="font-size:12px;padding:6px 14px">⬇ Exportar CSV</button>
+    </div>
+    <div id="rep-vt-kpis" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:24px"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+      <div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;padding:16px">
+        <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:12px;font-weight:500">Ventas últimos 6 meses</div>
+        <canvas id="rep-vt-chart-trend" height="220"></canvas>
+      </div>
+      <div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;padding:16px">
+        <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:12px;font-weight:500">Eventos por estado</div>
+        <canvas id="rep-vt-chart-ev" height="220"></canvas>
+      </div>
+    </div>
+    <div id="rep-vt-tabla"></div>
+  </div>
+
+  <!-- ══════ REPORTES — STOCK & COMPRAS ══════ -->
+  <div id="page-reportes-stock" class="content">
+    <div class="page-header">
+      <div class="page-title">Reportes · Stock & Compras</div>
+      <div class="page-subtitle">Rotación de stock, alertas de reposición y gasto en compras</div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;align-items:center">
+      <select class="form-input" id="rep-st-mes" onchange="renderReportesStock()" style="width:160px;padding:6px 10px;font-size:13px"></select>
+      <button class="btn-secondary" onclick="exportReporteStock()" style="font-size:12px;padding:6px 14px">⬇ Exportar CSV</button>
+    </div>
+    <div id="rep-st-kpis" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:24px"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+      <div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;padding:16px">
+        <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:12px;font-weight:500">Gasto en compras por mes</div>
+        <canvas id="rep-st-chart-gasto" height="220"></canvas>
+      </div>
+      <div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;padding:16px">
+        <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:12px;font-weight:500">Stock crítico (bajo mínimo)</div>
+        <canvas id="rep-st-chart-critico" height="220"></canvas>
+      </div>
+    </div>
+    <div id="rep-st-tabla"></div>
   </div>
 
 </div><!-- end .main -->
