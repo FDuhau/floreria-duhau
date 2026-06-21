@@ -720,6 +720,7 @@ function renderChecklistTable(){
       <div style="font-size:12px;margin-top:4px">Gerencia asigna las tareas desde la checklist general.</div>
     </td></tr>`;
   }
+  renderProductividadCL();
 }
 
 
@@ -2822,6 +2823,130 @@ function changeEventoEstado(i,val){
 
 function deleteEvento(i){ if(!confirm('¿Eliminar este evento?')) return; eventosData.splice(i,1); renderEventos(); renderHome(); }
 
+// ── Productividad por operario ────────────────────────────────────────────────
+function fmtMin(min){
+  if(min<=0) return '0m';
+  const h=Math.floor(min/60), m=min%60;
+  return h>0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+function getProdFlorista(nombre){
+  const horario=(window.horariosData||{})[nombre]?.[TODAY_ISO];
+  let desde=null,hasta=null,totalMin=0,elapsed=0,remaining=0,timePct=0,started=false,finished=false;
+  if(horario?.desde && horario?.hasta){
+    const [h1,m1]=horario.desde.split(':').map(Number);
+    const [h2,m2]=horario.hasta.split(':').map(Number);
+    totalMin=(h2*60+m2)-(h1*60+m1);
+    const now=new Date(), nowMin=now.getHours()*60+now.getMinutes();
+    started=nowMin>=(h1*60+m1);
+    finished=nowMin>=(h2*60+m2);
+    elapsed=Math.max(0,Math.min(nowMin-(h1*60+m1),totalMin));
+    remaining=Math.max(0,(h2*60+m2)-nowMin);
+    timePct=totalMin>0 ? Math.round(elapsed/totalMin*100) : 0;
+    desde=horario.desde; hasta=horario.hasta;
+  }
+  // Tareas del día asignadas a este operario
+  const day=window.currentDay;
+  const dayState=(window.clStateByDay||{})[day]||window.clState||{};
+  const resp=dayState.responsable||[], checked=dayState.checked||[];
+  const myIdxs=resp.reduce((a,r,i)=>{ if(r===nombre) a.push(i); return a; },[]);
+  const myTotal=myIdxs.length;
+  const myDone=myIdxs.filter(i=>checked[i]).length;
+  const taskPct=myTotal>0 ? Math.round(myDone/myTotal*100) : 0;
+  return {desde,hasta,totalMin,elapsed,remaining,timePct,myTotal,myDone,taskPct,started,finished};
+}
+
+function _prodCardHTML(nombre, d, full=true){
+  if(!d.desde) return `<div class="prod-card prod-equipo-card" style="opacity:.6">
+    <div class="prod-equipo-nombre">${esc(nombre)}</div>
+    <div class="prod-equipo-sin-turno">Sin turno asignado hoy</div>
+  </div>`;
+  const taskColor=d.taskPct>=100?'#2C6B3A':d.taskPct>=60?'#D4A820':'var(--red-alert)';
+  const timeColor=d.timePct>=100?'var(--red-alert)':d.timePct>=80?'#D4A820':'var(--green-ok)';
+  const remStr=d.finished?'Turno finalizado':!d.started?`Empieza a las ${d.desde}`:`${fmtMin(d.remaining)} restantes`;
+  const tag=d.taskPct>=100?'prod-tag-done':d.taskPct>=60?'prod-tag-ok':d.taskPct>=30?'prod-tag-warn':'prod-tag-late';
+  const tagLabel=d.taskPct>=100?'✓ Todo hecho':d.taskPct>=60?'Buen progreso':d.taskPct>=30?'En curso':'Poco avance';
+  if(full) return `<div class="prod-card prod-card-personal">
+    <div class="prod-header">
+      <div class="prod-nombre">${esc(nombre)}</div>
+      <div class="prod-turno">${d.desde} – ${d.hasta}</div>
+    </div>
+    <div class="prod-bars">
+      <div class="prod-bar-row">
+        <span class="prod-bar-label">Tareas</span>
+        <div class="prod-bar-wrap"><div class="prod-bar-fill" style="width:${d.taskPct}%;background:${taskColor}"></div></div>
+        <span class="prod-bar-pct">${d.myDone}/${d.myTotal}</span>
+      </div>
+      <div class="prod-bar-row">
+        <span class="prod-bar-label">Turno</span>
+        <div class="prod-bar-wrap"><div class="prod-bar-fill" style="width:${d.timePct}%;background:${timeColor}"></div></div>
+        <span class="prod-bar-pct">${d.timePct}%</span>
+      </div>
+    </div>
+    <div class="prod-footer">${remStr}</div>
+  </div>`;
+  // compact (gerencia)
+  return `<div class="prod-equipo-card">
+    <div class="prod-equipo-nombre">${esc(nombre)}</div>
+    <div class="prod-equipo-turno">${d.desde} – ${d.hasta} · ${remStr}</div>
+    <div class="prod-bars">
+      <div class="prod-bar-row">
+        <span class="prod-bar-label">Tareas</span>
+        <div class="prod-bar-wrap"><div class="prod-bar-fill" style="width:${d.taskPct}%;background:${taskColor}"></div></div>
+        <span class="prod-bar-pct">${d.myDone}/${d.myTotal}</span>
+      </div>
+      <div class="prod-bar-row">
+        <span class="prod-bar-label">Turno</span>
+        <div class="prod-bar-wrap"><div class="prod-bar-fill" style="width:${d.timePct}%;background:${timeColor}"></div></div>
+        <span class="prod-bar-pct">${d.timePct}%</span>
+      </div>
+    </div>
+    <span class="prod-tag ${tag}">${tagLabel}</span>
+  </div>`;
+}
+
+function renderProductividadHome(){
+  const el=document.getElementById('home-prod');
+  if(!el) return;
+  if(userRole==='florista' && floristaNombre){
+    el.innerHTML=`<div class="home-dash-card" style="margin-bottom:20px">
+      <div class="home-card-title">⏱ Mi Turno Hoy</div>
+      ${_prodCardHTML(floristaNombre, getProdFlorista(floristaNombre), true)}
+    </div>`;
+  } else if(userRole==='gerencia'){
+    const nombres=Object.keys(window.horariosData||{}).sort((a,b)=>a.localeCompare(b,'es'));
+    if(!nombres.length){ el.innerHTML=''; return; }
+    const total=nombres.length;
+    const conTurno=nombres.filter(n=>(window.horariosData||{})[n]?.[TODAY_ISO]?.desde).length;
+    const cards=nombres.map(n=>_prodCardHTML(n,getProdFlorista(n),false)).join('');
+    el.innerHTML=`<div class="home-dash-card" style="margin-bottom:20px">
+      <div class="home-card-title" style="display:flex;justify-content:space-between;align-items:center">
+        <span>👥 Productividad del Equipo</span>
+        <span style="font-size:12px;font-weight:400;color:var(--mid-gray)">${conTurno} de ${total} con turno hoy</span>
+      </div>
+      <div class="prod-equipo-grid">${cards}</div>
+    </div>`;
+  } else {
+    el.innerHTML='';
+  }
+}
+
+function renderProductividadCL(){
+  const el=document.getElementById('cl-prod-card');
+  if(!el){ return; }
+  if(userRole==='florista' && floristaNombre){
+    el.innerHTML=_prodCardHTML(floristaNombre, getProdFlorista(floristaNombre), true);
+  } else {
+    el.innerHTML='';
+  }
+}
+
+// Refrescar productividad cada minuto (actualiza tiempo restante)
+setInterval(()=>{
+  if(document.getElementById('home-prod')?.innerHTML) renderProductividadHome();
+  if(document.getElementById('cl-prod-card')?.innerHTML) renderProductividadCL();
+}, 60000);
+
 function renderHome(){
   if(!document.getElementById('home-kpis')) return;
 
@@ -2938,6 +3063,7 @@ function renderHome(){
         }
       </div>
     </div>`;
+  renderProductividadHome();
 }
 
 // ════════════════════════════════════════
@@ -7716,7 +7842,7 @@ Object.assign(window, {
   renderHomeHyatt, renderHoraCell, renderHorarios, renderInsumosGrid, renderJardLog, renderJardOps,
   renderJardReporte, renderJordProd, renderKanban, renderLPenCotizador, renderListaPrecios,
   renderPedidosHab, renderPeriodTabs, renderPlantilla, renderPreciosList, renderProductividad,
-  renderProductividadHorarios, renderProvTags, renderRamosDisp, renderRecepcionPedidos,
+  renderProductividadHome, renderProductividadCL, renderProductividadHorarios, renderProvTags, renderRamosDisp, renderRecepcionPedidos,
   renderRecetas, renderStock, renderStockAdmin, renderVentaHoraCell, renderVentas, renderZonasPicker,
   resetHora, resetWeekState, resetearPassword, resetearTodasPasswords, saleAutoFillPrice,
   saveEvent, saveInsumosCustom, saveKanbanTask, saveLpItem, saveRamo, saveReceta, saveUrgenciaConfig,

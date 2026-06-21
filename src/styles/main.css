@@ -171,6 +171,31 @@
   .jrec-dias-label.jrec-proximo { color:#A06A00; }
   .jrec-all-ok { background:#EBF5E8; border-radius:var(--radius-md); padding:24px; text-align:center; color:var(--sage-dark); font-weight:600; font-size:14px; margin-bottom:24px; }
 
+  /* ── PRODUCTIVIDAD ── */
+  .prod-card { background:var(--warm-white); border:1px solid var(--light-gray); border-radius:10px; padding:14px 16px; }
+  .prod-card-personal { margin-bottom:20px; }
+  .prod-sin-turno-txt { color:var(--mid-gray); font-size:13px; margin-top:4px; }
+  .prod-header { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:12px; flex-wrap:wrap; gap:4px; }
+  .prod-nombre { font-weight:700; font-size:14px; color:#1A1A1A; }
+  .prod-turno { font-size:12px; color:var(--mid-gray); }
+  .prod-bars { display:flex; flex-direction:column; gap:8px; }
+  .prod-bar-row { display:flex; align-items:center; gap:8px; }
+  .prod-bar-label { font-size:11px; color:var(--mid-gray); width:42px; flex-shrink:0; }
+  .prod-bar-wrap { flex:1; height:8px; background:var(--light-gray); border-radius:4px; overflow:hidden; }
+  .prod-bar-fill { height:100%; border-radius:4px; transition:width 0.6s ease; }
+  .prod-bar-pct { font-size:11px; font-weight:600; color:#1A1A1A; width:38px; text-align:right; flex-shrink:0; }
+  .prod-footer { margin-top:10px; font-size:12px; color:var(--mid-gray); text-align:right; }
+  .prod-equipo-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:10px; margin-top:12px; }
+  .prod-equipo-card { background:var(--cream); border:1px solid var(--light-gray); border-radius:8px; padding:12px 14px; }
+  .prod-equipo-nombre { font-weight:700; font-size:13px; color:#1A1A1A; margin-bottom:2px; }
+  .prod-equipo-turno { font-size:11px; color:var(--mid-gray); margin-bottom:10px; }
+  .prod-equipo-sin-turno { font-size:11px; color:var(--mid-gray); font-style:italic; margin-top:4px; }
+  .prod-tag { display:inline-block; padding:2px 8px; border-radius:20px; font-size:10px; font-weight:600; margin-top:8px; }
+  .prod-tag-ok { background:#EBF5E8; color:#2C6B3A; }
+  .prod-tag-warn { background:#FEF6E0; color:#8C6A00; }
+  .prod-tag-late { background:#FDECEA; color:#A02020; }
+  .prod-tag-done { background:#E8EFF8; color:#2C4A80; }
+
   /* ── BADGES ── */
   .badge { display:inline-flex; align-items:center; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:500; letter-spacing:.2px; }
   .badge-retoque { background:#EBF0E8; color:#3A5230; }

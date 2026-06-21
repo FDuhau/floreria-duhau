@@ -293,6 +293,8 @@
       fbListen('horariosData', val => {
         window.horariosData = val && typeof val === 'object' ? val : {};
         if(document.getElementById('page-control-horarios')?.classList.contains('active')) window.renderHorarios?.();
+        if(document.getElementById('page-home')?.classList.contains('active')) window.renderProductividadHome?.();
+        if(document.getElementById('page-checklist')?.classList.contains('active')) window.renderProductividadCL?.();
       });
 
       fbListen('horariosPlantilla', val => {
