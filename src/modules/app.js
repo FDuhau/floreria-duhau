@@ -4355,7 +4355,7 @@ function renderJardOps(){
         <div style="display:flex;gap:8px;align-items:center;margin-top:2px">
           <select id="jops-quien-${i}" class="cl-select" style="font-size:12px;padding:5px 8px;flex:1">
             <option value="">— Jardinero —</option>
-            <option>Sole</option><option>Berni</option><option>Ivan</option>
+            ${JARDINEROS_LIST.map(n=>`<option ${n===(jardineroNombre||jardCurrentJardinero)?'selected':''}>${n}</option>`).join('')}
           </select>
           <button class="mark-done-btn" style="flex:1" onclick="jopsDone(${i})">✓ Hecho</button>
         </div>`;
@@ -4449,21 +4449,24 @@ function jardSetJardinero(nombre){
 }
 
 function jardRegistrarHoraTurno(campo){
-  if(!jardCurrentJardinero){ showToast('⚠️ Seleccioná tu nombre primero'); return; }
+  const nombre = jardineroNombre || jardCurrentJardinero;
+  if(!nombre){ showToast('⚠️ No hay jardinero identificado'); return; }
   const now = new Date();
   const hh = String(now.getHours()).padStart(2,'0');
   const mm = String(now.getMinutes()).padStart(2,'0');
-  if(!window.jardHorarios[jardCurrentJardinero]) window.jardHorarios[jardCurrentJardinero] = {};
-  if(!window.jardHorarios[jardCurrentJardinero][TODAY_ISO]) window.jardHorarios[jardCurrentJardinero][TODAY_ISO] = {inicio:'',fin:'',tareas:0};
-  window.jardHorarios[jardCurrentJardinero][TODAY_ISO][campo] = hh+':'+mm;
+  if(!window.jardHorarios[nombre]) window.jardHorarios[nombre] = {};
+  if(!window.jardHorarios[nombre][TODAY_ISO]) window.jardHorarios[nombre][TODAY_ISO] = {inicio:'',fin:'',tareas:0};
+  window.jardHorarios[nombre][TODAY_ISO][campo] = hh+':'+mm;
+  jardCurrentJardinero = nombre;
   fbSave('jardHorarios', window.jardHorarios);
   renderJardTurnoCard();
-  showToast(campo==='inicio' ? '▶ Turno iniciado: '+hh+':'+mm : '⏹ Turno finalizado: '+hh+':'+mm);
+  showToast(campo==='inicio' ? '▶ Jornada iniciada: '+hh+':'+mm : '⏹ Jornada finalizada: '+hh+':'+mm);
 }
 
 function jardResetHoraTurno(campo){
-  if(!jardCurrentJardinero || !window.jardHorarios[jardCurrentJardinero]?.[TODAY_ISO]) return;
-  window.jardHorarios[jardCurrentJardinero][TODAY_ISO][campo] = '';
+  const nombre = jardineroNombre || jardCurrentJardinero;
+  if(!nombre || !window.jardHorarios[nombre]?.[TODAY_ISO]) return;
+  window.jardHorarios[nombre][TODAY_ISO][campo] = '';
   fbSave('jardHorarios', window.jardHorarios);
   renderJardTurnoCard();
 }
@@ -4475,26 +4478,21 @@ function renderJardTurnoCard(){
   const isGer  = userRole === 'gerencia';
   if(!isJard && !isGer){ el.innerHTML=''; return; }
 
-  const turno = jardCurrentJardinero ? (window.jardHorarios[jardCurrentJardinero]?.[TODAY_ISO]||{}) : {};
+  const nombre = jardineroNombre || jardCurrentJardinero;
+  const turno = nombre ? (window.jardHorarios[nombre]?.[TODAY_ISO]||{}) : {};
   const inicio = turno.inicio||'', fin = turno.fin||'';
   const tareasHoy = turno.tareas||0;
-  const dur = inicio && fin ? calcDuracion(inicio,fin) : (inicio ? calcDuracion(inicio, new Date().getHours().toString().padStart(2,'0')+':'+new Date().getMinutes().toString().padStart(2,'0')) : 0);
-
-  const selectOpts = JARDINEROS_LIST.map(n =>
-    `<option value="${n}" ${n===jardCurrentJardinero?'selected':''}>${n}</option>`
-  ).join('');
+  const nowStr = new Date().getHours().toString().padStart(2,'0')+':'+new Date().getMinutes().toString().padStart(2,'0');
+  const dur = inicio&&fin ? calcDuracion(inicio,fin) : (inicio ? calcDuracion(inicio,nowStr) : 0);
 
   el.innerHTML = `<div class="prod-card prod-card-personal" style="display:flex;flex-direction:column;gap:12px">
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
       <span style="font-size:20px">🌿</span>
       <div style="flex:1;min-width:0">
-        <div style="font-size:11px;color:var(--mid-gray);margin-bottom:4px">¿Quién está trabajando?</div>
-        <select class="cl-select" style="font-size:13px;font-weight:600;padding:6px 10px;min-width:140px" onchange="jardSetJardinero(this.value)">
-          <option value="">— Seleccioná —</option>
-          ${selectOpts}
-        </select>
+        <div style="font-size:11px;color:var(--mid-gray);margin-bottom:2px">Mi jornada de hoy</div>
+        <div style="font-size:17px;font-weight:700;color:var(--charcoal)">${esc(nombre||'—')}</div>
       </div>
-      ${jardCurrentJardinero && tareasHoy > 0 ? `<div style="text-align:center;min-width:60px">
+      ${nombre && tareasHoy > 0 ? `<div style="text-align:center;min-width:60px">
         <div style="font-size:10px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">Tareas hoy</div>
         <div style="font-size:26px;font-weight:700;color:var(--charcoal)">${tareasHoy}</div>
       </div>` : ''}
@@ -4503,15 +4501,15 @@ function renderJardTurnoCard(){
         <div style="font-size:22px;font-weight:700;color:${fin?'var(--charcoal)':'#2C6B3A'}">${fmtDur(dur)}</div>
       </div>` : ''}
     </div>
-    ${jardCurrentJardinero ? `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding-top:10px;border-top:1px solid var(--light-gray)">
-      <span style="font-size:11px;color:var(--mid-gray);font-weight:600">⏱ Mi jornada:</span>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding-top:10px;border-top:1px solid var(--light-gray)">
+      <span style="font-size:11px;color:var(--mid-gray);font-weight:600">⏱ Jornada:</span>
       ${inicio
         ? `<span onclick="jardResetHoraTurno('inicio')" title="Tocar para borrar" style="font-size:13px;font-weight:700;color:#2C4A3E;background:#EBF5E8;padding:4px 12px;border-radius:8px;cursor:pointer">▶ ${inicio}</span>`
         : `<button class="btn-hora-inicio" onclick="jardRegistrarHoraTurno('inicio')">▶&nbsp;Inicio de jornada</button>`}
       ${fin
         ? `<span onclick="jardResetHoraTurno('fin')" title="Tocar para borrar" style="font-size:13px;font-weight:700;color:#8B3A3A;background:#FDF0F0;padding:4px 12px;border-radius:8px;cursor:pointer">⏹ ${fin}</span>`
         : inicio ? `<button class="btn-hora-fin" onclick="jardRegistrarHoraTurno('fin')">⏹&nbsp;Fin de jornada</button>` : ''}
-    </div>` : ''}
+    </div>
   </div>`;
 }
 
@@ -4698,7 +4696,7 @@ function renderCtrlJard(){
         <div style="display:flex;gap:6px;align-items:center">
           <select id="jard-quien-${i}" class="cl-select" style="font-size:12px;padding:5px 8px;flex:1">
             <option value="">— Jardinero —</option>
-            <option>Sole</option><option>Berni</option><option>Ivan</option>
+            ${JARDINEROS_LIST.map(n=>`<option ${n===(jardineroNombre||jardCurrentJardinero)?'selected':''}>${n}</option>`).join('')}
           </select>
           <button class="mark-done-btn" onclick="markJardDone(${i},document.getElementById('jard-quien-${i}').value)">✓ Hecho</button>
         </div>
@@ -6123,6 +6121,7 @@ document.querySelectorAll('.nav-item, .nav-sub-item').forEach(el => {
 // 'gerencia' → ve todo
 let userRole = null;
 let floristaNombre = null;
+let jardineroNombre = null;
 const FLORISTAS_LOGIN = {
   'caro':'Caro','clo':'Clo','cris':'Cris','gabi':'Gabi',
   'ivan':'Ivan','pao':'Pao','nora':'Nora'
@@ -6386,7 +6385,7 @@ function applyRole(role){
       if(!title.includes('Tareas Jardinería') && !title.includes('Habitaciones con Plantas')) ql.style.display = 'none';
     });
     // Navegar directo a tareas jardinería
-    setTimeout(()=> navigate('jardineria-ops'), 100);
+    setTimeout(()=>{ navigate('jardineria-ops'); if(jardineroNombre) showToast('👋 Hola '+jardineroNombre+'!'); }, 100);
   }
 
   // Aplicar estado colapsado del acordeón según visibilidad de rol
@@ -6839,7 +6838,9 @@ function registrarHoraVenta(vIdx, campo){
 const LOGIN_DEFAULTS = {
   'alvear':     { role:'gerencia',  label:'Gerencia' },
   'duhau':      { role:'operario',  label:'Operario General' },
-  'jardineria': { role:'jardinero', label:'Jardinero' },
+  'sole':       { role:'jardinero', label:'Sole',  jardineroNombre:'Sole' },
+  'berni':      { role:'jardinero', label:'Berni', jardineroNombre:'Berni' },
+  'ivan':       { role:'jardinero', label:'Ivan',  jardineroNombre:'Ivan' },
   'compras':    { role:'compras',   label:'Compras' },
   'hyatt':      { role:'ventas',    label:'Hyatt Ventas' },
   'caro':       { role:'florista',  label:'Caro',  floristaNombre:'Caro' },
@@ -6863,6 +6864,7 @@ function doLogin(){
   if(entry){
     currentLoginKey = key;
     if(entry.floristaNombre) floristaNombre = entry.floristaNombre;
+    if(entry.jardineroNombre){ jardineroNombre = entry.jardineroNombre; jardCurrentJardinero = jardineroNombre; try{ localStorage.setItem('jardCurrentJardinero', jardineroNombre); }catch(e){} }
     applyRole(entry.role);
     const screen = document.getElementById('login-screen');
     screen.classList.add('hide');
