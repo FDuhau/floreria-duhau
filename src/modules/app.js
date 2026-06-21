@@ -109,7 +109,7 @@ const COMERCIAL_PAGES = ['comercial','eventos-comercial','historial-eventos','ve
 // ── NAVEGACIÓN INFERIOR MOBILE ──────────────────────────────────────────────
 const BOTTOM_NAV_ITEMS = {
   gerencia:  [{icon:'🏠',label:'Inicio',page:'home'},{icon:'📋',label:'Checklist',page:'checklist'},{icon:'🎉',label:'Eventos',page:'eventos-maison'},{icon:'💰',label:'Caja',page:'caja'}],
-  florista:  [{icon:'🎉',label:'Eventos',page:'eventos-maison'},{icon:'💲',label:'Precios',page:'lista-precios'}],
+  florista:  [{icon:'📋',label:'Checklist',page:'checklist'},{icon:'📦',label:'Stock',page:'stock'},{icon:'🎉',label:'Eventos',page:'eventos-maison'},{icon:'🌺',label:'Ramos',page:'ramos-disponibles'},{icon:'💲',label:'Precios',page:'lista-precios'}],
   operario:  [{icon:'🏠',label:'Inicio',page:'home'},{icon:'🎉',label:'Eventos',page:'eventos-maison'},{icon:'📦',label:'Stock',page:'stock'},{icon:'💲',label:'Precios',page:'lista-precios'}],
   jardinero: [{icon:'🌿',label:'Jardín',page:'jardineria-ops'},{icon:'🏡',label:'Habitac.',page:'hab-ops'},{icon:'🔔',label:'Avisos',page:'recordatorios-jardineria'}],
   compras:   [{icon:'🛒',label:'Compras',page:'compras-floreria'},{icon:'📦',label:'Stock',page:'stock-admin'},{icon:'📬',label:'Recepción',page:'recepcion-pedidos'}],
@@ -5888,27 +5888,38 @@ function applyRole(role){
   }
 
   if(role === 'florista'){
-    // Ocultar TODAS las secciones del sidebar excepto Operaciones > Eventos/Maison y Comercial > Lista de Precios
+    // Ocultar TODO el sidebar
     document.querySelectorAll('.nav-section-label, .nav-item, .nav-sub-item').forEach(el => {
       el.style.display = 'none';
     });
-    // Mostrar solo Operaciones > Eventos / Maison
-    document.querySelectorAll('.nav-sub-item[data-group="grp-ops"]').forEach(el => {
-      if(el.textContent.trim() === 'Eventos / Maison') el.style.display = '';
+    // Operaciones: Checklist, Stock, Eventos/Maison, Recepción de Pedidos
+    const OPS_ALLOW = ['Checklist Diaria','Stock Florería','Eventos / Maison','📦 Recepción de Pedidos'];
+    document.querySelectorAll('.nav-section-label').forEach(label => {
+      if(label.textContent.trim() === 'Operaciones'){
+        label.style.display = '';
+        let sib = label.nextElementSibling;
+        while(sib && !sib.classList.contains('nav-section-label')){
+          if(OPS_ALLOW.some(t => sib.textContent.trim() === t)) sib.style.display = '';
+          sib = sib.nextElementSibling;
+        }
+      }
+      // Comercial: Ramos Disponibles, Lista de Precios
+      if(label.textContent.trim() === 'Comercial'){
+        label.style.display = '';
+        let sib = label.nextElementSibling;
+        while(sib && !sib.classList.contains('nav-section-label')){
+          const t = sib.textContent.trim();
+          if(t === 'Lista de Precios' || t === 'Ramos Disponibles') sib.style.display = '';
+          sib = sib.nextElementSibling;
+        }
+      }
     });
-    // Mostrar header de Operaciones
-    document.querySelector('[data-group-id="grp-ops"]')?.style && (document.querySelector('[data-group-id="grp-ops"]').style.display = '');
-    document.querySelectorAll('.nav-section-label').forEach(l => { if(l.textContent.trim() === 'Operaciones') l.style.display = ''; });
-    // Mostrar solo Comercial > Lista de Precios
-    document.querySelectorAll('.nav-sub-item[data-group="grp-com"]').forEach(el => {
-      if(el.textContent.trim() === 'Lista de Precios') el.style.display = '';
-    });
-    // Mostrar header de Comercial
-    document.querySelector('[data-group-id="grp-com"]')?.style && (document.querySelector('[data-group-id="grp-com"]').style.display = '');
-    document.querySelectorAll('.nav-section-label').forEach(l => { if(l.textContent.trim() === 'Comercial') l.style.display = ''; });
-    // Ocultar todos los quick-links
+    // Mostrar headers de acordeón
+    document.querySelector('[data-group-id="grp-ops"]').style.display = '';
+    document.querySelector('[data-group-id="grp-com"]').style.display = '';
+    // Ocultar quick-links
     document.querySelectorAll('.quick-link').forEach(ql => ql.style.display = 'none');
-    showToast('👋 Hola '+floristaNombre+'!');
+    showToast('👋 Hola ' + floristaNombre + '!');
   }
 
   if(role === 'comercial'){
