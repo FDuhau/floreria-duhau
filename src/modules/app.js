@@ -123,8 +123,8 @@ const PAGE_LABELS = {control:'Control','control-jardineria':'Control › Seguimi
   'reportes-ventas':'Reportes › Ventas & Comercial', 'reportes-stock':'Reportes › Stock & Compras'
 };
 const COMPRAS_PAGES=['compras','compras-floreria','compras-jardineria','stock-admin'];
-const CONTROL_PAGES=['control','control-jardineria','control-habitaciones'];
-const COMERCIAL_PAGES = ['comercial','eventos-comercial','historial-eventos','ventas-externas','caja','glosario','lista-precios','ramos-disponibles','pedidos-habitacion','recetas-arreglos'];
+const CONTROL_PAGES=['control','control-jardineria','control-habitaciones','control-horarios','recordatorios-jardineria'];
+const COMERCIAL_PAGES = ['comercial','eventos-comercial','historial-eventos','cotizador-ops','ventas-externas','caja','glosario','lista-precios','ramos-disponibles','pedidos-habitacion','recetas-arreglos','recepcion-pedidos'];
 
 // ── NAVEGACIÓN INFERIOR MOBILE ──────────────────────────────────────────────
 const BOTTOM_NAV_ITEMS = {
@@ -6650,6 +6650,10 @@ function applyRole(role){
   if(prodBtn) prodBtn.style.display = role === 'gerencia' ? '' : 'none';
   const jopsProdBtn = document.getElementById('jops-prod-btn');
   if(jopsProdBtn) jopsProdBtn.style.display = role === 'gerencia' ? '' : 'none';
+
+  // Búsqueda global: solo gerencia
+  const searchBtn = document.querySelector('[onclick="openGlobalSearch()"]');
+  if(searchBtn) searchBtn.style.display = role === 'gerencia' ? '' : 'none';
 
   // Para gerencia: sub-items visibles excepto los exclusivos de otros roles
   if(role === 'gerencia'){

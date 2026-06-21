@@ -572,13 +572,62 @@
   <!-- ══════ COMERCIAL LANDING ══════ -->
   <div id="page-comercial" class="content">
     <div class="page-header"><div class="page-title">Área Comercial</div><div class="page-subtitle">Eventos, ventas, caja y catálogo · área protegida</div></div>
-    <div class="quick-links" style="grid-template-columns:repeat(6,1fr)">
-      <div class="quick-link" onclick="navigate('eventos-comercial')"><span class="quick-link-icon">🎉</span><div class="quick-link-title">Eventos</div></div>
-      <div class="quick-link" onclick="navigate('ventas-externas')"><span class="quick-link-icon">💐</span><div class="quick-link-title">Ventas Externas</div></div>
-      <div class="quick-link" onclick="navigate('caja')"><span class="quick-link-icon">💰</span><div class="quick-link-title">Control de Caja</div></div>
-      <div class="quick-link" onclick="navigate('glosario')"><span class="quick-link-icon">📖</span><div class="quick-link-title">Glosario</div></div>
-      <div class="quick-link" onclick="navigate('lista-precios')"><span class="quick-link-icon">💲</span><div class="quick-link-title">Lista de Precios</div></div>
-      <div class="quick-link" onclick="navigate('recetas-arreglos')"><span class="quick-link-icon">🌸</span><div class="quick-link-title">Composiciones</div></div>
+    <div class="quick-links" style="grid-template-columns:repeat(3,1fr)">
+      <div class="quick-link" onclick="navigate('eventos-comercial',this)">
+        <span class="quick-link-icon">🎉</span>
+        <div class="quick-link-title">Eventos</div>
+        <div class="quick-link-sub">Registro y seguimiento</div>
+      </div>
+      <div class="quick-link" onclick="navigate('historial-eventos',this)">
+        <span class="quick-link-icon">📅</span>
+        <div class="quick-link-title">Historial de Eventos</div>
+        <div class="quick-link-sub">Eventos pasados</div>
+      </div>
+      <div class="quick-link" onclick="navigate('cotizador-ops',this)">
+        <span class="quick-link-icon">🧮</span>
+        <div class="quick-link-title">Cotizador</div>
+        <div class="quick-link-sub">Presupuestos rápidos</div>
+      </div>
+      <div class="quick-link" onclick="navigate('ventas-externas',this)">
+        <span class="quick-link-icon">💐</span>
+        <div class="quick-link-title">Ventas Externas</div>
+        <div class="quick-link-sub">Registro de ventas</div>
+      </div>
+      <div class="quick-link" onclick="navigate('caja',this)">
+        <span class="quick-link-icon">💰</span>
+        <div class="quick-link-title">Control de Caja</div>
+        <div class="quick-link-sub">Ingresos y egresos</div>
+      </div>
+      <div class="quick-link" onclick="navigate('glosario',this)">
+        <span class="quick-link-icon">📖</span>
+        <div class="quick-link-title">Glosario</div>
+        <div class="quick-link-sub">Muestrario floral</div>
+      </div>
+      <div class="quick-link" onclick="navigate('lista-precios',this)">
+        <span class="quick-link-icon">💲</span>
+        <div class="quick-link-title">Lista de Precios</div>
+        <div class="quick-link-sub">Precios actualizados</div>
+      </div>
+      <div class="quick-link" onclick="navigate('ramos-disponibles',this)">
+        <span class="quick-link-icon">💐</span>
+        <div class="quick-link-title">Ramos Disponibles</div>
+        <div class="quick-link-sub">Catálogo activo</div>
+      </div>
+      <div class="quick-link" onclick="navigate('recetas-arreglos',this)">
+        <span class="quick-link-icon">🌸</span>
+        <div class="quick-link-title">Composiciones</div>
+        <div class="quick-link-sub">Recetas de arreglos</div>
+      </div>
+      <div class="quick-link" onclick="navigate('recepcion-pedidos',this)">
+        <span class="quick-link-icon">📦</span>
+        <div class="quick-link-title">Recepción de Pedidos</div>
+        <div class="quick-link-sub">Ingreso de insumos</div>
+      </div>
+      <div class="quick-link" onclick="navigate('pedidos-habitacion',this)">
+        <span class="quick-link-icon">🏨</span>
+        <div class="quick-link-title">Pedidos Habitación</div>
+        <div class="quick-link-sub">Amenities y pedidos</div>
+      </div>
     </div>
   </div>
 
@@ -1441,17 +1490,27 @@
 
   <!-- ══════ CONTROL LANDING ══════ -->
   <div id="page-control" class="content">
-    <div class="page-header"><div class="page-title">Control</div><div class="page-subtitle">Seguimiento de jardinería y habitaciones con plantas</div></div>
+    <div class="page-header"><div class="page-title">Control</div><div class="page-subtitle">Seguimiento de jardinería, horarios y habitaciones con plantas</div></div>
     <div class="quick-links" style="grid-template-columns:repeat(2,1fr)">
-      <div class="quick-link" onclick="navigate('control-jardineria')">
+      <div class="quick-link" onclick="navigate('control-jardineria',this)">
         <span class="quick-link-icon">🌳</span>
         <div class="quick-link-title">Seguimiento Jardinería</div>
         <div class="quick-link-sub">Todas las zonas del hotel</div>
       </div>
-      <div class="quick-link" onclick="navigate('control-habitaciones')">
+      <div class="quick-link" onclick="navigate('control-horarios',this)">
+        <span class="quick-link-icon">🕐</span>
+        <div class="quick-link-title">Horarios y Productividad</div>
+        <div class="quick-link-sub">Equipo completo por mes</div>
+      </div>
+      <div class="quick-link" onclick="navigate('control-habitaciones',this)">
         <span class="quick-link-icon">🪴</span>
         <div class="quick-link-title">Habitaciones con Plantas</div>
         <div class="quick-link-sub">Control de ingreso por habitación</div>
+      </div>
+      <div class="quick-link nav-jard-only" onclick="navigate('recordatorios-jardineria',this)">
+        <span class="quick-link-icon">🔔</span>
+        <div class="quick-link-title">Recordatorios Jardín</div>
+        <div class="quick-link-sub">Alertas y mantenimiento</div>
       </div>
     </div>
   </div>
@@ -1655,6 +1714,28 @@
   </div>
 
   <!-- ══════ REPORTES — EQUIPO & HORARIOS ══════ -->
+  <!-- ══════ REPORTES HUB ══════ -->
+  <div id="page-reportes" class="content">
+    <div class="page-header"><div class="page-title">Reportes</div><div class="page-subtitle">Análisis de equipo, ventas y stock</div></div>
+    <div class="quick-links" style="grid-template-columns:repeat(3,1fr)">
+      <div class="quick-link" onclick="navigate('reportes-equipo',this)">
+        <span class="quick-link-icon">👥</span>
+        <div class="quick-link-title">Equipo & Horarios</div>
+        <div class="quick-link-sub">Productividad y asistencia</div>
+      </div>
+      <div class="quick-link" onclick="navigate('reportes-ventas',this)">
+        <span class="quick-link-icon">💰</span>
+        <div class="quick-link-title">Ventas & Comercial</div>
+        <div class="quick-link-sub">Ingresos y tendencia</div>
+      </div>
+      <div class="quick-link" onclick="navigate('reportes-stock',this)">
+        <span class="quick-link-icon">📦</span>
+        <div class="quick-link-title">Stock & Compras</div>
+        <div class="quick-link-sub">Rotación y alertas</div>
+      </div>
+    </div>
+  </div>
+
   <div id="page-reportes-equipo" class="content">
     <div class="page-header">
       <div class="page-title">Reportes · Equipo</div>
