@@ -81,6 +81,8 @@
     <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('reportes-stock',this)">Stock & Compras</div>
     <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('reportes-margen',this)">💹 Dashboard de Margen</div>
     <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('auditoria',this)">🔍 Auditoría de Cambios</div>
+    <div class="nav-section-label nav-gerencia-only" style="display:none">Clientes</div>
+    <div class="nav-item nav-gerencia-only" style="display:none" onclick="navigate('crm-clientes',this)"><span class="nav-icon">👥</span> CRM Clientes</div>
     <div class="nav-section-label">Control</div>
     <div class="nav-item nav-group-hdr" data-group-id="grp-ctrl" onclick="navToggleGroup('grp-ctrl');navigate('control',this)"><span class="nav-icon">🌿</span> Control<span class="nav-chevron">›</span></div>
     <div class="nav-sub-item" data-group="grp-ctrl" onclick="navigate('control-jardineria',this)">Seguimiento Jardinería</div>
@@ -868,9 +870,19 @@
               <span id="cot-precio-final" style="font-size:22px;font-weight:700;color:var(--green-ok)">$0</span>
             </div>
           </div>
-          <div style="display:flex;gap:8px">
-            <button class="btn-secondary" style="flex:1;font-size:12px" onclick="copiarCotizacion()">📋 Copiar cotización</button>
-            <button class="btn-secondary" style="font-size:12px;color:var(--red-alert)" onclick="limpiarCarrito()">🗑 Limpiar</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn-secondary" style="flex:1;font-size:12px" onclick="copiarCotizacion()">📋 Copiar</button>
+            <button class="btn-print" onclick="document.getElementById('ppto-panel').style.display=document.getElementById('ppto-panel').style.display==='none'?'block':'none'" style="font-size:12px;flex:1">📄 Presupuesto PDF</button>
+            <button class="btn-secondary" style="font-size:12px;color:var(--red-alert)" onclick="limpiarCarrito()">🗑</button>
+          </div>
+          <!-- Panel datos presupuesto -->
+          <div id="ppto-panel" style="display:none;margin-top:14px;border-top:1px solid var(--light-gray);padding-top:14px">
+            <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:10px;font-weight:500">Datos del presupuesto</div>
+            <input class="form-input-modal" id="ppto-cliente" placeholder="Nombre del cliente" style="margin-bottom:8px">
+            <input class="form-input-modal" id="ppto-evento" placeholder="Evento / Ocasión (opcional)" style="margin-bottom:8px">
+            <input class="form-input-modal" id="ppto-fecha" type="date" style="margin-bottom:8px">
+            <textarea class="form-input-modal" id="ppto-notas" rows="2" placeholder="Observaciones (opcional)" style="margin-bottom:10px"></textarea>
+            <button class="btn-add" style="width:100%;font-size:13px" onclick="generarPresupuestoPDF()">🖨 Generar PDF</button>
           </div>
         </div>
       </div>
@@ -1891,6 +1903,71 @@
           <tr><td colspan="4" style="text-align:center;padding:24px;color:var(--mid-gray);font-size:13px">Cargando...</td></tr>
         </tbody>
       </table>
+    </div>
+  </div>
+
+  <!-- ══════ CRM CLIENTES ══════ -->
+  <div id="page-crm-clientes" class="content">
+    <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px">
+      <div><div class="page-title">CRM · Clientes</div><div class="page-subtitle">Fichas de clientes con historial de eventos y compras</div></div>
+      <button class="btn-add" onclick="openNuevoClienteModal()">+ Nuevo Cliente</button>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;align-items:center">
+      <input class="form-input" id="crm-search" placeholder="Buscar por nombre, empresa o teléfono..." oninput="renderClientes()" style="flex:1;min-width:200px;padding:8px 12px;font-size:13px">
+      <select class="form-input" id="crm-filtro" onchange="renderClientes()" style="width:160px;padding:8px 10px;font-size:13px">
+        <option value="">— Todos —</option>
+        <option value="particular">Particular</option>
+        <option value="empresa">Empresa</option>
+        <option value="hotel">Hotel</option>
+        <option value="recurrente">Recurrente</option>
+      </select>
+    </div>
+    <div id="crm-lista"></div>
+
+    <!-- Modal nuevo/editar cliente -->
+    <div class="modal-overlay" id="crm-modal">
+      <div class="modal">
+        <button class="modal-close" onclick="closeModal('crm-modal')">✕</button>
+        <div class="modal-title" id="crm-modal-title">Nuevo Cliente</div>
+        <input type="hidden" id="crm-idx" value="-1">
+        <label class="form-label">Nombre *</label>
+        <input class="form-input-modal" id="crm-nombre" placeholder="Nombre completo">
+        <label class="form-label">Empresa</label>
+        <input class="form-input-modal" id="crm-empresa" placeholder="Nombre de la empresa (opcional)">
+        <div class="modal-row">
+          <div>
+            <label class="form-label">Teléfono</label>
+            <input class="form-input-modal" id="crm-telefono" placeholder="+54 11 ...">
+          </div>
+          <div>
+            <label class="form-label">Email</label>
+            <input class="form-input-modal" id="crm-email" type="email" placeholder="correo@ejemplo.com">
+          </div>
+        </div>
+        <label class="form-label">Tipo</label>
+        <select class="form-input-modal" id="crm-tipo">
+          <option value="">— Sin categoría —</option>
+          <option value="particular">Particular</option>
+          <option value="empresa">Empresa</option>
+          <option value="hotel">Hotel</option>
+          <option value="recurrente">Recurrente</option>
+        </select>
+        <label class="form-label">Notas</label>
+        <textarea class="form-input-modal" id="crm-notas" rows="3" placeholder="Preferencias, notas importantes..."></textarea>
+        <div class="modal-actions">
+          <button class="btn-secondary" onclick="closeModal('crm-modal')">Cancelar</button>
+          <button class="btn-add" onclick="guardarCliente()">Guardar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal ficha cliente -->
+    <div class="modal-overlay" id="ficha-cliente-modal">
+      <div class="modal" style="max-width:560px">
+        <button class="modal-close" onclick="closeModal('ficha-cliente-modal')">✕</button>
+        <div class="modal-title" id="ficha-nombre"></div>
+        <div id="ficha-body"></div>
+      </div>
     </div>
   </div>
 

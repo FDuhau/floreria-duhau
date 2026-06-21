@@ -135,7 +135,8 @@ const PAGE_LABELS = {control:'Control','control-jardineria':'Control › Seguimi
   reportes:'Reportes', 'reportes-equipo':'Reportes › Equipo & Horarios',
   'reportes-ventas':'Reportes › Ventas & Comercial', 'reportes-stock':'Reportes › Stock & Compras',
   'reportes-margen':'Reportes › Dashboard de Margen',
-  auditoria:'Auditoría de Cambios'
+  auditoria:'Auditoría de Cambios',
+  'crm-clientes':'CRM · Clientes'
 };
 const COMPRAS_PAGES=['compras','compras-floreria','compras-jardineria','stock-admin'];
 const CONTROL_PAGES=['control','control-jardineria','control-habitaciones','control-horarios','recordatorios-jardineria'];
@@ -257,6 +258,7 @@ function navigate(pageId, navEl){
   if(pageId==='reportes-stock') renderReportesStock();
   if(pageId==='reportes-margen') renderDashboardMargen();
   if(pageId==='auditoria') renderAuditoria();
+  if(pageId==='crm-clientes') renderClientes();
 
   // En mobile, cerrar el sidebar automáticamente al navegar
   if(window.innerWidth <= 768) closeSidebar();
@@ -7623,6 +7625,7 @@ function doLogin(){
     setTimeout(()=>screen.remove(), 520);
     // Activar notificaciones push si el navegador lo soporta
     setTimeout(()=>initPushForUser?.(), 2000);
+    setTimeout(()=>checkOnboarding(entry.role), 800);
   } else {
     err.textContent = 'Contraseña incorrecta';
     inp.classList.add('error');
@@ -8739,6 +8742,292 @@ function renderProductividad(){
 // changeEventoEstado extended with stock discount
 
 
+// ── CRM CLIENTES ──────────────────────────────────────────────
+let clientesData = [];
+window._setClientesData = (arr) => { clientesData = arr && typeof arr === 'object' ? (Array.isArray(arr) ? arr : Object.values(arr)) : []; };
+
+function renderClientes(){
+  const el = document.getElementById('crm-lista');
+  if(!el) return;
+  const q = (document.getElementById('crm-search')?.value||'').toLowerCase();
+  const filtro = document.getElementById('crm-filtro')?.value || '';
+
+  let lista = [...clientesData];
+  if(q) lista = lista.filter(c => (c.nombre||'').toLowerCase().includes(q) || (c.empresa||'').toLowerCase().includes(q) || (c.telefono||'').includes(q));
+  if(filtro) lista = lista.filter(c => c.tipo === filtro);
+  lista.sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));
+
+  if(!lista.length){ el.innerHTML='<div style="color:var(--mid-gray);font-size:13px;padding:24px">No hay clientes registrados.</div>'; return; }
+
+  el.innerHTML = lista.map((c,i)=>{
+    const idx = clientesData.indexOf(c);
+    const eventos = (window.eventosData||[]).filter(e=>(e.clienteId||e.cliente||'')===(c.id||c.nombre));
+    const compras = (window.ventasData||[]).filter(v=>(v.clienteId||v.cliente||'')===(c.id||c.nombre));
+    const totalGastado = compras.reduce((s,v)=>s+(+v.monto||+v.total||0),0);
+    return `<div class="crm-card" onclick="abrirFichaCliente(${idx})">
+      <div class="crm-card-avatar">${(c.nombre||'?').charAt(0).toUpperCase()}</div>
+      <div class="crm-card-info">
+        <div class="crm-card-nombre">${esc(c.nombre||'—')}</div>
+        ${c.empresa?`<div class="crm-card-sub">${esc(c.empresa)}</div>`:''}
+        <div class="crm-card-meta">${c.telefono?'📞 '+esc(c.telefono)+'  ':''} ${c.email?'✉️ '+esc(c.email):''}
+        </div>
+      </div>
+      <div class="crm-card-stats">
+        ${eventos.length?`<span class="crm-badge">🎉 ${eventos.length} evento${eventos.length!==1?'s':''}</span>`:''}
+        ${totalGastado>0?`<span class="crm-badge green">$${totalGastado.toLocaleString('es-AR')}</span>`:''}
+        ${c.tipo?`<span class="crm-badge blue">${esc(c.tipo)}</span>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function abrirFichaCliente(idx){
+  const c = clientesData[idx];
+  if(!c) return;
+  const eventos = (window.eventosData||[]).filter(e=>(e.clienteId||e.cliente||'')===(c.id||c.nombre));
+  const compras = (window.ventasData||[]).filter(v=>(v.clienteId||v.cliente||'')===(c.id||c.nombre));
+  const totalGastado = compras.reduce((s,v)=>s+(+v.monto||+v.total||0),0);
+
+  const historial = [
+    ...eventos.map(e=>({fecha:e.fecha||'',tipo:'Evento',desc:e.titulo||e.nombre||'—',extra:e.zona||''})),
+    ...compras.map(v=>({fecha:v.fecha||'',tipo:'Venta',desc:v.descripcion||v.desc||'—',extra:'$'+(+v.monto||+v.total||0).toLocaleString('es-AR')}))
+  ].sort((a,b)=>b.fecha.localeCompare(a.fecha));
+
+  document.getElementById('ficha-nombre').textContent = c.nombre||'—';
+  document.getElementById('ficha-body').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+      ${c.empresa?`<div><div class="form-label">Empresa</div><div style="font-size:14px">${esc(c.empresa)}</div></div>`:''}
+      ${c.telefono?`<div><div class="form-label">Teléfono</div><div style="font-size:14px">${esc(c.telefono)}</div></div>`:''}
+      ${c.email?`<div><div class="form-label">Email</div><div style="font-size:14px">${esc(c.email)}</div></div>`:''}
+      ${c.tipo?`<div><div class="form-label">Tipo</div><div style="font-size:14px">${esc(c.tipo)}</div></div>`:''}
+    </div>
+    <div style="display:flex;gap:16px;margin-bottom:20px">
+      <div class="kpi-card" style="flex:1;padding:14px"><div style="font-size:11px;color:var(--mid-gray);margin-bottom:4px">EVENTOS</div><div style="font-size:22px;font-weight:700">${eventos.length}</div></div>
+      <div class="kpi-card" style="flex:1;padding:14px"><div style="font-size:11px;color:var(--mid-gray);margin-bottom:4px">COMPRAS</div><div style="font-size:22px;font-weight:700">${compras.length}</div></div>
+      <div class="kpi-card" style="flex:1;padding:14px"><div style="font-size:11px;color:var(--mid-gray);margin-bottom:4px">TOTAL GASTADO</div><div style="font-size:20px;font-weight:700;color:var(--green-ok)">$${totalGastado.toLocaleString('es-AR')}</div></div>
+    </div>
+    ${c.notas?`<div style="margin-bottom:16px"><div class="form-label">Notas</div><div style="font-size:13px;color:var(--mid-gray);line-height:1.5">${esc(c.notas)}</div></div>`:''}
+    <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:12px;font-weight:500">Historial</div>
+    ${historial.length?historial.map(h=>`<div style="display:flex;gap:12px;padding:9px 0;border-bottom:1px solid var(--light-gray)">
+      <span style="font-size:10px;background:var(--light-gray);padding:2px 7px;border-radius:8px;white-space:nowrap;align-self:flex-start">${h.tipo}</span>
+      <div style="flex:1;min-width:0"><div style="font-size:13px">${esc(h.desc)}</div>${h.extra?`<div style="font-size:11px;color:var(--mid-gray)">${esc(h.extra)}</div>`:''}</div>
+      <span style="font-size:11px;color:var(--mid-gray);white-space:nowrap">${fmtDate(h.fecha)}</span>
+    </div>`).join(''):'<div style="color:var(--mid-gray);font-size:13px">Sin historial registrado.</div>'}
+    <div class="modal-actions" style="margin-top:20px">
+      <button class="btn-secondary" onclick="editarCliente(${idx})">✏️ Editar</button>
+      <button class="btn-secondary" style="color:var(--red-alert)" onclick="eliminarCliente(${idx})">🗑 Eliminar</button>
+    </div>`;
+  document.getElementById('ficha-cliente-modal').classList.add('open');
+}
+
+function openNuevoClienteModal(idx=-1){
+  const c = idx>=0 ? clientesData[idx] : {};
+  document.getElementById('crm-idx').value = idx;
+  ['crm-nombre','crm-empresa','crm-telefono','crm-email','crm-tipo','crm-notas'].forEach(id=>{
+    const key = id.replace('crm-','');
+    const el = document.getElementById(id);
+    if(el) el.value = c[key]||'';
+  });
+  document.getElementById('crm-modal').classList.add('open');
+}
+
+function editarCliente(idx){ closeModal('ficha-cliente-modal'); openNuevoClienteModal(idx); }
+
+function guardarCliente(){
+  const nombre = document.getElementById('crm-nombre')?.value?.trim();
+  if(!nombre){ showToast('⚠️ El nombre es obligatorio'); return; }
+  const idx = +document.getElementById('crm-idx').value;
+  const entry = {
+    id: idx>=0 ? (clientesData[idx]?.id||Date.now()) : Date.now(),
+    nombre,
+    empresa: document.getElementById('crm-empresa')?.value?.trim()||'',
+    telefono: document.getElementById('crm-telefono')?.value?.trim()||'',
+    email: document.getElementById('crm-email')?.value?.trim()||'',
+    tipo: document.getElementById('crm-tipo')?.value||'',
+    notas: document.getElementById('crm-notas')?.value?.trim()||'',
+    ts: Date.now()
+  };
+  if(idx>=0) clientesData[idx]=entry;
+  else clientesData.push(entry);
+  fbSave('clientesData', clientesData);
+  closeModal('crm-modal');
+  renderClientes();
+  showToast(idx>=0?'✅ Cliente actualizado':'✅ Cliente registrado');
+}
+
+function eliminarCliente(idx){
+  if(!confirm('¿Eliminar este cliente?')) return;
+  clientesData.splice(idx,1);
+  fbSave('clientesData', clientesData);
+  closeModal('ficha-cliente-modal');
+  renderClientes();
+}
+
+// ── PRESUPUESTOS EN PDF ───────────────────────────────────────
+function generarPresupuestoPDF(){
+  const carrito = window.cotizadorCarrito || [];
+  if(!carrito.length){ showToast('⚠️ El carrito está vacío'); return; }
+
+  const margen = +document.getElementById('cot-margen')?.value || 0;
+  const cliente = document.getElementById('ppto-cliente')?.value?.trim() || '';
+  const evento = document.getElementById('ppto-evento')?.value?.trim() || '';
+  const fecha = document.getElementById('ppto-fecha')?.value || TODAY_ISO;
+  const notas = document.getElementById('ppto-notas')?.value?.trim() || '';
+
+  const totalCosto = carrito.reduce((s,c)=>s+(c.precio*c.qty),0);
+  const precioFinal = Math.round(totalCosto*(1+margen/100));
+  const nro = 'P-' + Date.now().toString().slice(-6);
+
+  const win = window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html lang="es"><head>
+  <meta charset="UTF-8">
+  <title>Presupuesto ${nro} — Florería Duhau</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:wght@300;400;500&display=swap');
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'DM Sans',sans-serif; color:#1A1A1A; padding:48px; max-width:800px; margin:0 auto; }
+    .logo { font-family:'Cormorant Garamond',serif; font-size:32px; font-weight:500; letter-spacing:1px; margin-bottom:4px; }
+    .logo-sub { font-size:10px; letter-spacing:3px; text-transform:uppercase; color:#7A7A72; margin-bottom:32px; }
+    .divider { border:none; border-top:1px solid #E8E6E0; margin:20px 0; }
+    .header-grid { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-bottom:28px; }
+    .label { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:#7A7A72; margin-bottom:4px; }
+    .value { font-size:14px; }
+    table { width:100%; border-collapse:collapse; margin:24px 0; }
+    th { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:#7A7A72; padding:8px 12px; text-align:left; border-bottom:2px solid #1A1A1A; }
+    td { padding:10px 12px; font-size:13px; border-bottom:1px solid #E8E6E0; }
+    .total-row td { font-weight:700; font-size:15px; border-bottom:none; border-top:2px solid #1A1A1A; padding-top:14px; }
+    .footer { margin-top:48px; font-size:10px; color:#7A7A72; text-align:center; letter-spacing:.5px; }
+    .nro { font-size:12px; color:#7A7A72; }
+    @media print { body { padding:24px; } }
+  </style>
+  </head><body>
+  <div class="logo">Florería Duhau</div>
+  <div class="logo-sub">Park Hyatt Buenos Aires</div>
+  <hr class="divider">
+  <div class="header-grid">
+    <div>
+      <div class="label">Presupuesto N°</div><div class="value">${nro}</div>
+      <div class="label" style="margin-top:16px">Fecha</div><div class="value">${fmtDate(fecha)}</div>
+    </div>
+    <div>
+      ${cliente?`<div class="label">Cliente</div><div class="value">${cliente}</div>`:''}
+      ${evento?`<div class="label" style="margin-top:${cliente?'16px':'0'}">Evento / Ocasión</div><div class="value">${evento}</div>`:''}
+    </div>
+  </div>
+  <table>
+    <thead><tr><th>Ítem</th><th style="text-align:right">Precio unit.</th><th style="text-align:center">Qty</th><th style="text-align:right">Subtotal</th></tr></thead>
+    <tbody>
+      ${carrito.map(c=>`<tr>
+        <td>${c.nombre}</td>
+        <td style="text-align:right">$${c.precio.toLocaleString('es-AR')}</td>
+        <td style="text-align:center">${c.qty}</td>
+        <td style="text-align:right">$${(c.precio*c.qty).toLocaleString('es-AR')}</td>
+      </tr>`).join('')}
+      ${margen>0?`<tr><td colspan="3" style="text-align:right;font-size:12px;color:#7A7A72">Costo base</td><td style="text-align:right;font-size:12px;color:#7A7A72">$${totalCosto.toLocaleString('es-AR')}</td></tr>
+      <tr><td colspan="3" style="text-align:right;font-size:12px;color:#7A7A72">Margen (${margen}%)</td><td style="text-align:right;font-size:12px;color:#7A7A72">$${(precioFinal-totalCosto).toLocaleString('es-AR')}</td></tr>`:''}
+    </tbody>
+    <tfoot><tr class="total-row"><td colspan="3">Total</td><td style="text-align:right">$${precioFinal.toLocaleString('es-AR')}</td></tr></tfoot>
+  </table>
+  ${notas?`<div style="margin-top:24px"><div class="label">Observaciones</div><div style="font-size:13px;line-height:1.6;margin-top:6px;color:#4A4A42">${notas}</div></div>`:''}
+  <div class="footer">
+    Florería Duhau · Park Hyatt Buenos Aires · Presupuesto válido por 7 días
+  </div>
+  <script>window.onload=()=>{ window.print(); }<\/script>
+  </body></html>`);
+  win.document.close();
+}
+
+// ── ONBOARDING ────────────────────────────────────────────────
+const ONBOARDING_STEPS = {
+  gerencia: [
+    { title:'Bienvenido al Panel de Gerencia', body:'Desde acá tenés visibilidad completa de operaciones, equipo, ventas, reportes y más. Usá el menú lateral para navegar entre secciones.', icon:'👋' },
+    { title:'Reportes & Auditoría', body:'En Reportes encontrás análisis de equipo, ventas, márgenes y auditoría de cambios. Todo se actualiza en tiempo real desde Firebase.', icon:'📊' },
+    { title:'Cierre de Caja', body:'Desde Control de Caja podés cerrar el día y archivar el resumen. El historial queda registrado con quién hizo el cierre.', icon:'🔒' },
+    { title:'Búsqueda global', body:'Usá Ctrl+K para buscar rápidamente en stock, ventas, eventos, glosario y páginas desde cualquier lugar de la app.', icon:'🔍' },
+  ],
+  operario: [
+    { title:'Panel de Operaciones', body:'Desde acá gestionás los eventos del hotel, el stock de florería y el cotizador. Tu trabajo del día a día está en la sección Operaciones.', icon:'⚙️' },
+    { title:'Eventos / Maison', body:'En Eventos encontrás todos los eventos activos del hotel. Podés ver zonas, estados y detalles de cada uno.', icon:'🎉' },
+    { title:'Stock Florería', body:'En Stock podés ver disponibilidad de flores e insumos. Reportá alertas de stock bajo a gerencia.', icon:'🌸' },
+  ],
+  florista: [
+    { title:'Tu panel de trabajo', body:'Registrá tu inicio y fin de turno desde Checklist. Eso nos ayuda a calcular tu productividad del día.', icon:'🌸' },
+    { title:'Checklist Diaria', body:'En Checklist encontrás las tareas asignadas a vos. Completalas a medida que avanza el día.', icon:'✅' },
+    { title:'Inicio', body:'Desde Inicio podés ver el resumen del día: eventos, alertas de stock y productividad de la florería.', icon:'🏠' },
+  ],
+  jardinero: [
+    { title:'Panel de Jardinería', body:'Registrá tu turno y completá las tareas de las zonas asignadas. Todo queda registrado en tiempo real.', icon:'🌿' },
+    { title:'Tareas de Jardinería', body:'En Operaciones › Tareas Jardinería encontrás el detalle de cada zona y sección del hotel.', icon:'🌳' },
+    { title:'Control & Horarios', body:'Desde Control podés ver tus horarios, productividad y recordatorios de mantenimiento.', icon:'🕐' },
+  ],
+  compras: [
+    { title:'Área de Compras', body:'Gestionás las compras de florería y jardinería, recepción de pedidos y el stock general.', icon:'📦' },
+    { title:'Recepción de Pedidos', body:'Registrá cada pedido recibido con proveedor, costo y estado. Eso actualiza el stock automáticamente.', icon:'🚚' },
+    { title:'Stock Admin', body:'Desde Compras › Gestión de Stock podés ajustar máximos y mínimos de stock.', icon:'📊' },
+  ],
+  ventas: [
+    { title:'Panel Hyatt', body:'Tenés acceso al catálogo de ramos disponibles y pedidos de habitación. Podés consultar lista de precios.', icon:'🏨' },
+    { title:'Ramos Disponibles', body:'Aquí encontrás el catálogo actualizado de ramos con precios y descripción para ofrecer a los huéspedes.', icon:'💐' },
+    { title:'Pedidos de Habitación', body:'Registrá pedidos de los huéspedes. El equipo de florería los recibe en tiempo real.', icon:'📝' },
+  ],
+  comercial: [
+    { title:'Área Comercial', body:'Tenés acceso a eventos, ventas externas, caja, glosario, lista de precios y composiciones.', icon:'💼' },
+    { title:'Eventos & Ventas', body:'Registrá eventos y ventas externas. Los datos alimentan los reportes de gerencia automáticamente.', icon:'🎉' },
+    { title:'Glosario & Precios', body:'En Glosario encontrás el muestrario floral. La Lista de Precios está siempre actualizada.', icon:'📖' },
+  ],
+};
+
+let _onboardingStep = 0;
+let _onboardingRole = '';
+
+function checkOnboarding(role){
+  const key = 'fd-onboarding-' + role;
+  if(localStorage.getItem(key)) return;
+  _onboardingRole = role;
+  _onboardingStep = 0;
+  showOnboardingStep();
+}
+
+function showOnboardingStep(){
+  const steps = ONBOARDING_STEPS[_onboardingRole] || [];
+  if(!steps.length || _onboardingStep >= steps.length){ finishOnboarding(); return; }
+  const step = steps[_onboardingStep];
+  const total = steps.length;
+
+  let ov = document.getElementById('onboarding-overlay');
+  if(!ov){
+    ov = document.createElement('div');
+    ov.id = 'onboarding-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;display:flex;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(4px)';
+    document.body.appendChild(ov);
+  }
+  ov.innerHTML = `
+    <div style="background:var(--warm-white);border-radius:20px;max-width:480px;width:100%;padding:40px;text-align:center;box-shadow:var(--shadow-lg);animation:slideUp .3s ease">
+      <div style="font-size:48px;margin-bottom:20px">${step.icon}</div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:500;margin-bottom:12px;color:var(--charcoal)">${step.title}</div>
+      <div style="font-size:14px;color:var(--mid-gray);line-height:1.7;margin-bottom:28px">${step.body}</div>
+      <div style="display:flex;gap:6px;justify-content:center;margin-bottom:24px">
+        ${steps.map((_,i)=>`<div style="width:8px;height:8px;border-radius:50%;background:${i===_onboardingStep?'var(--charcoal)':'var(--light-gray)'};transition:background .2s"></div>`).join('')}
+      </div>
+      <div style="display:flex;gap:12px;justify-content:center">
+        <button onclick="finishOnboarding()" style="background:none;border:1px solid var(--light-gray);border-radius:8px;padding:10px 20px;font-size:13px;cursor:pointer;color:var(--mid-gray);font-family:'DM Sans',sans-serif">Saltar</button>
+        <button onclick="nextOnboardingStep()" style="background:var(--charcoal);color:var(--warm-white);border:none;border-radius:8px;padding:10px 24px;font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif">${_onboardingStep<total-1?'Siguiente →':'Comenzar'}</button>
+      </div>
+    </div>`;
+}
+
+function nextOnboardingStep(){
+  const steps = ONBOARDING_STEPS[_onboardingRole] || [];
+  _onboardingStep++;
+  if(_onboardingStep >= steps.length) finishOnboarding();
+  else showOnboardingStep();
+}
+
+function finishOnboarding(){
+  localStorage.setItem('fd-onboarding-' + _onboardingRole, '1');
+  document.getElementById('onboarding-overlay')?.remove();
+}
+
 // ── MODO OSCURO ──────────────────────────────────────────────
 function toggleDarkMode(){
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
@@ -8952,6 +9241,8 @@ Object.assign(window, {
   toggleHistory, toggleInsumosGrid, toggleJordProd, togglePlantilla, toggleProductividad,
   toggleDarkMode, initDarkMode, openGlobalSearch, closeGlobalSearch, handleSearchKey, runGlobalSearch, _gsearchGo, exportPDF,
   renderAuditoria, cerrarCajaDia, renderCierreCajaHistorial, toggleCierreDetalle, renderDashboardMargen,
+  renderClientes, abrirFichaCliente, openNuevoClienteModal, editarCliente, guardarCliente, eliminarCliente,
+  generarPresupuestoPDF, checkOnboarding, nextOnboardingStep, finishOnboarding,
   toggleProvManager, toggleSidebar, toggleTask, updC, updCL, updCaja, updCajaMonto, updCajaTipo,
   updGlosario, updPedidoHabEstado, updTipoEvento, updV, updateInsumoCount, updateInsumoRow,
   updateKpiCompras, urgenciaPanelHTML, vdAutoPrice, zonaHoraBtn, zonaResetHora, zonaSetHora,

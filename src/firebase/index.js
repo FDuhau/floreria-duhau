@@ -347,6 +347,12 @@
         if(document.getElementById('plantilla-wrap')?.style.display !== 'none') window.renderPlantilla?.();
       });
 
+      fbListen('clientesData', val => {
+        const arr = !val ? [] : (Array.isArray(val) ? val : Object.values(val||{}));
+        if(window._setClientesData) window._setClientesData(arr);
+        if(document.getElementById('page-crm-clientes')?.classList.contains('active')) window.renderClientes?.();
+      });
+
       fbListen('auditLog', val => {
         if(window._setAuditLog) window._setAuditLog(val||{});
         if(document.getElementById('page-auditoria')?.classList.contains('active')) window.renderAuditoria?.();
