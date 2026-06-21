@@ -194,6 +194,12 @@
         if(document.getElementById('page-home')?.classList.contains('active')) window.renderHome?.();
       });
 
+      fbListen('jardHorarios', val => {
+        window.jardHorarios = (val && typeof val === 'object') ? val : {};
+        if(document.getElementById('page-jardineria-ops')?.classList.contains('active')) window.renderJardTurnoCard?.();
+        if(document.getElementById('jard-prod-wrap')?.style.display !== 'none') window.renderJardProdEquipo?.();
+      });
+
       fbListen('habitacionesLog', val => {
         if(!val) return;
         const arr = Array.isArray(val) ? val : Object.values(val||{});

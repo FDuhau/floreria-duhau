@@ -3911,6 +3911,9 @@ let jardineriaData = JARDINERIA_BASE.map(r=>({...r,liveVisits:0,monthlyVisits:{}
 let habitacionesData = HABITACIONES_BASE.map(r=>({...r,liveVisits:0,monthlyVisits:{}}));
 let jardineriaLog = [];
 let habitacionesLog = [];
+window.jardHorarios = {};
+let jardCurrentJardinero = (()=>{ try{ return localStorage.getItem('jardCurrentJardinero')||''; }catch(e){ return ''; } })();
+const JARDINEROS_LIST = ['Sole','Berni','Ivan'];
 window._setJardineriaData = (arr) => {
   arr.forEach((r, i) => {
     if(i >= jardineriaData.length) return;
@@ -4251,6 +4254,7 @@ function setJopsFilter(mode){
 }
 
 function renderJardOps(){
+  renderJardTurnoCard();
   // KPIs
   let kOk=0,kWarn=0,kAlert=0,kNone=0;
   jardineriaData.forEach(r=>{
@@ -4437,6 +4441,176 @@ function jopsDone(i){
 }
 
 
+// ── Turno de jardinero ────────────────────────────────────────────────────────
+function jardSetJardinero(nombre){
+  jardCurrentJardinero = nombre;
+  try{ localStorage.setItem('jardCurrentJardinero', nombre); }catch(e){}
+  renderJardTurnoCard();
+}
+
+function jardRegistrarHoraTurno(campo){
+  if(!jardCurrentJardinero){ showToast('⚠️ Seleccioná tu nombre primero'); return; }
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2,'0');
+  const mm = String(now.getMinutes()).padStart(2,'0');
+  if(!window.jardHorarios[jardCurrentJardinero]) window.jardHorarios[jardCurrentJardinero] = {};
+  if(!window.jardHorarios[jardCurrentJardinero][TODAY_ISO]) window.jardHorarios[jardCurrentJardinero][TODAY_ISO] = {inicio:'',fin:'',tareas:0};
+  window.jardHorarios[jardCurrentJardinero][TODAY_ISO][campo] = hh+':'+mm;
+  fbSave('jardHorarios', window.jardHorarios);
+  renderJardTurnoCard();
+  showToast(campo==='inicio' ? '▶ Turno iniciado: '+hh+':'+mm : '⏹ Turno finalizado: '+hh+':'+mm);
+}
+
+function jardResetHoraTurno(campo){
+  if(!jardCurrentJardinero || !window.jardHorarios[jardCurrentJardinero]?.[TODAY_ISO]) return;
+  window.jardHorarios[jardCurrentJardinero][TODAY_ISO][campo] = '';
+  fbSave('jardHorarios', window.jardHorarios);
+  renderJardTurnoCard();
+}
+
+function renderJardTurnoCard(){
+  const el = document.getElementById('jops-turno-card');
+  if(!el) return;
+  const isJard = userRole === 'jardinero';
+  const isGer  = userRole === 'gerencia';
+  if(!isJard && !isGer){ el.innerHTML=''; return; }
+
+  const turno = jardCurrentJardinero ? (window.jardHorarios[jardCurrentJardinero]?.[TODAY_ISO]||{}) : {};
+  const inicio = turno.inicio||'', fin = turno.fin||'';
+  const tareasHoy = turno.tareas||0;
+  const dur = inicio && fin ? calcDuracion(inicio,fin) : (inicio ? calcDuracion(inicio, new Date().getHours().toString().padStart(2,'0')+':'+new Date().getMinutes().toString().padStart(2,'0')) : 0);
+
+  const selectOpts = JARDINEROS_LIST.map(n =>
+    `<option value="${n}" ${n===jardCurrentJardinero?'selected':''}>${n}</option>`
+  ).join('');
+
+  el.innerHTML = `<div class="prod-card prod-card-personal" style="display:flex;flex-direction:column;gap:12px">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <span style="font-size:20px">🌿</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:11px;color:var(--mid-gray);margin-bottom:4px">¿Quién está trabajando?</div>
+        <select class="cl-select" style="font-size:13px;font-weight:600;padding:6px 10px;min-width:140px" onchange="jardSetJardinero(this.value)">
+          <option value="">— Seleccioná —</option>
+          ${selectOpts}
+        </select>
+      </div>
+      ${jardCurrentJardinero && tareasHoy > 0 ? `<div style="text-align:center;min-width:60px">
+        <div style="font-size:10px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">Tareas hoy</div>
+        <div style="font-size:26px;font-weight:700;color:var(--charcoal)">${tareasHoy}</div>
+      </div>` : ''}
+      ${dur > 0 ? `<div style="text-align:center;min-width:70px">
+        <div style="font-size:10px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">${fin?'Horas':'Transcurrido'}</div>
+        <div style="font-size:22px;font-weight:700;color:${fin?'var(--charcoal)':'#2C6B3A'}">${fmtDur(dur)}</div>
+      </div>` : ''}
+    </div>
+    ${jardCurrentJardinero ? `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding-top:10px;border-top:1px solid var(--light-gray)">
+      <span style="font-size:11px;color:var(--mid-gray);font-weight:600">⏱ Mi jornada:</span>
+      ${inicio
+        ? `<span onclick="jardResetHoraTurno('inicio')" title="Tocar para borrar" style="font-size:13px;font-weight:700;color:#2C4A3E;background:#EBF5E8;padding:4px 12px;border-radius:8px;cursor:pointer">▶ ${inicio}</span>`
+        : `<button class="btn-hora-inicio" onclick="jardRegistrarHoraTurno('inicio')">▶&nbsp;Inicio de jornada</button>`}
+      ${fin
+        ? `<span onclick="jardResetHoraTurno('fin')" title="Tocar para borrar" style="font-size:13px;font-weight:700;color:#8B3A3A;background:#FDF0F0;padding:4px 12px;border-radius:8px;cursor:pointer">⏹ ${fin}</span>`
+        : inicio ? `<button class="btn-hora-fin" onclick="jardRegistrarHoraTurno('fin')">⏹&nbsp;Fin de jornada</button>` : ''}
+    </div>` : ''}
+  </div>`;
+}
+
+// ── Productividad del equipo (gerencia) ──────────────────────────────────────
+function renderJardProdEquipo(){
+  const el = document.getElementById('jard-prod-body');
+  if(!el) return;
+
+  // Determinar mes a mostrar
+  const y = new Date().getFullYear(), m = new Date().getMonth();
+  const mesKey = y+'-'+String(m+1).padStart(2,'0');
+  const diasEnMes = new Date(y, m+1, 0).getDate();
+  const primerDia = new Date(y, m, 1).getDay(); // 0=dom
+
+  const nombres = Object.keys(window.jardHorarios).sort();
+  if(!nombres.length){
+    el.innerHTML = '<p style="color:var(--mid-gray);font-size:13px;padding:20px;text-align:center">Sin registros de turnos aún. Los jardineros deben registrar inicio y fin de jornada desde Tareas Jardinería.</p>';
+    return;
+  }
+
+  // También incluir jardineros del log aunque no tengan window.jardHorarios todavía
+  const allNames = [...new Set([...nombres, ...jardineriaLog.map(l=>l.quien).filter(Boolean)])].sort();
+
+  let html = '';
+  allNames.forEach(nombre => {
+    const horarioNombre = window.jardHorarios[nombre] || {};
+    const logNombre = jardineriaLog.filter(l => l.quien === nombre && l.fecha.startsWith(mesKey));
+
+    // KPIs del mes
+    let totalMin = 0, diasTrabajados = 0;
+    const diasData = {};
+    Object.entries(horarioNombre).forEach(([fecha, d]) => {
+      if(!fecha.startsWith(mesKey)) return;
+      const dur = calcDuracion(d.inicio, d.fin);
+      diasData[fecha] = { inicio:d.inicio, fin:d.fin, dur, tareas:d.tareas||0 };
+      if(dur){ totalMin += dur; diasTrabajados++; }
+    });
+    // Días con tareas en log (aunque no tengan turno registrado)
+    logNombre.forEach(l => {
+      if(!diasData[l.fecha]) diasData[l.fecha] = { inicio:'', fin:'', dur:0, tareas:0 };
+      diasData[l.fecha].tareas = (diasData[l.fecha].tareas||0);
+    });
+    const tareasTotal = logNombre.length;
+    const avgHoras = diasTrabajados > 0 ? Math.round(totalMin/diasTrabajados) : 0;
+
+    // Calendario mensual
+    const DIAS = ['Do','Lu','Ma','Mi','Ju','Vi','Sá'];
+    let calHtml = `<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-top:12px;font-size:11px">`;
+    DIAS.forEach(d => { calHtml += `<div style="text-align:center;color:var(--mid-gray);font-weight:600;padding:3px 0">${d}</div>`; });
+    // Días vacíos al inicio
+    const startDow = new Date(y, m, 1).getDay();
+    for(let i=0;i<startDow;i++) calHtml += `<div></div>`;
+    for(let d=1; d<=diasEnMes; d++){
+      const fechaStr = y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+      const dd = diasData[fechaStr];
+      const esHoy = fechaStr === TODAY_ISO;
+      const tieneRegistro = dd && (dd.dur>0 || dd.tareas>0);
+      const title = dd ? `${dd.inicio||'?'} – ${dd.fin||'?'} · ${fmtDur(dd.dur)} · ${dd.tareas||0} tareas` : '';
+      const bg = tieneRegistro
+        ? (dd.dur >= 360 ? '#2C6B3A' : dd.dur >= 120 ? '#D4A820' : '#7CA87C')
+        : (esHoy ? 'var(--cream)' : 'transparent');
+      const color = tieneRegistro ? 'white' : esHoy ? 'var(--charcoal)' : 'var(--mid-gray)';
+      const border = esHoy ? '1.5px solid var(--charcoal)' : '1px solid transparent';
+      calHtml += `<div title="${title}" style="text-align:center;padding:4px 2px;border-radius:6px;background:${bg};color:${color};border:${border};cursor:${tieneRegistro?'pointer':'default'};font-weight:${tieneRegistro?'700':'400'}">${d}</div>`;
+    }
+    calHtml += '</div>';
+
+    html += `<div style="background:#FDFCFB;border:1px solid #E4E2DC;border-radius:8px;padding:16px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:4px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:18px">🌿</span>
+          <span style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:500;color:var(--charcoal)">${esc(nombre)}</span>
+        </div>
+        <div style="display:flex;gap:20px;flex-wrap:wrap">
+          <div style="text-align:center">
+            <div style="font-size:10px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">Horas mes</div>
+            <div style="font-size:22px;font-weight:700;color:var(--charcoal)">${fmtDur(totalMin)}</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:10px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">Días trabajados</div>
+            <div style="font-size:22px;font-weight:700;color:var(--charcoal)">${diasTrabajados}</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:10px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">Prom. diario</div>
+            <div style="font-size:22px;font-weight:700;color:#2C6B3A">${avgHoras>0?fmtDur(avgHoras):'—'}</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:10px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">Tareas mes</div>
+            <div style="font-size:22px;font-weight:700;color:var(--charcoal)">${tareasTotal}</div>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:10px;color:var(--mid-gray);margin-bottom:4px">🟢 ≥6h &nbsp;🟡 2-6h &nbsp;🌿 &lt;2h · Pasá el cursor por un día para ver el detalle</div>
+      ${calHtml}
+    </div>`;
+  });
+  el.innerHTML = html;
+}
+
 function renderCtrlJard(){
   const search=(document.getElementById('ctrl-jard-search')?.value||'').toLowerCase();
   const mode=ctrlJardFilterMode;
@@ -4547,19 +4721,28 @@ function renderCtrlJard(){
 
 function markJardDone(i, quien){
   const r = jardineriaData[i];
+  const zh = zonaHorasData[r.section+'|||'+r.group] || {};
   jardineriaLog.push({
     fecha: TODAY_ISO,
     section: r.section,
     group: r.group,
     task: r.task,
-    quien: quien || '',
-    obs: r.obs || ''
+    quien: quien || jardCurrentJardinero || '',
+    obs: r.obs || '',
+    horaInicio: zh.inicio || r.horaInicio || '',
+    horaFin: zh.fin || r.horaFin || ''
   });
   r.last = TODAY_ISO;
   r.liveVisits = (r.liveVisits||0)+1;
   if(!r.monthlyVisits) r.monthlyVisits={};
   r.monthlyVisits[CURR_MONTH] = (r.monthlyVisits[CURR_MONTH]||0)+1;
   r.quien = ''; r.obs = ''; r.canUndo = false;
+  // Actualizar contador de tareas en el turno del jardinero
+  const quienFinal = quien || jardCurrentJardinero || '';
+  if(quienFinal && window.jardHorarios[quienFinal]?.[TODAY_ISO]){
+    window.jardHorarios[quienFinal][TODAY_ISO].tareas = (window.jardHorarios[quienFinal][TODAY_ISO].tareas||0)+1;
+    fbSave('jardHorarios', window.jardHorarios);
+  }
   fbSave('jardineriaData', jardineriaData);
   fbSave('jardineriaLog', jardineriaLog);
   if(document.getElementById('page-jardineria-ops')?.classList.contains('active')) renderJardOps();
@@ -4573,6 +4756,8 @@ function toggleCtrlSection(wrapId, chevId){
   const open = wrap.style.display !== 'none';
   wrap.style.display = open ? 'none' : 'block';
   if(chev) chev.style.transform = open ? '' : 'rotate(90deg)';
+  // Cargar productividad al abrir
+  if(!open && wrapId === 'jard-prod-wrap') renderJardProdEquipo();
 }
 
 function ctrlJardFilter(mode,btn){
@@ -7840,7 +8025,8 @@ Object.assign(window, {
   renderEvHoraCell, renderEvTipos, renderEventos, renderGlosario, renderHabLog, renderHabOps,
   renderHabReporte, renderHistorialCompras, renderHistorialEventos, renderHistoryPanel, renderHome,
   renderHomeHyatt, renderHoraCell, renderHorarios, renderInsumosGrid, renderJardLog, renderJardOps,
-  renderJardReporte, renderJordProd, renderKanban, renderLPenCotizador, renderListaPrecios,
+  renderJardProdEquipo, renderJardTurnoCard, renderJardReporte, renderJordProd, renderKanban,
+  jardSetJardinero, jardRegistrarHoraTurno, jardResetHoraTurno, renderLPenCotizador, renderListaPrecios,
   renderPedidosHab, renderPeriodTabs, renderPlantilla, renderPreciosList, renderProductividad,
   renderProductividadHome, renderProductividadCL, renderProductividadHorarios, renderProvTags, renderRamosDisp, renderRecepcionPedidos,
   renderRecetas, renderStock, renderStockAdmin, renderVentaHoraCell, renderVentas, renderZonasPicker,

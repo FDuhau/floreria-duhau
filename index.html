@@ -184,6 +184,9 @@
       </div>
     </div>
 
+    <!-- Turno card jardinero -->
+    <div id="jops-turno-card" style="margin-bottom:16px"></div>
+
     <!-- KPIs strip -->
     <div class="cards-grid cards-grid-3" style="margin-bottom:20px" id="jops-kpis"></div>
 
@@ -1451,6 +1454,15 @@
       </table>
     </div>
     <div style="margin-top:32px">
+      <div class="section-title toggle-section-header" onclick="toggleCtrlSection('jard-prod-wrap','jard-prod-chev')" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none">
+        <span>⏱ Productividad del equipo · Jardinería</span>
+        <span id="jard-prod-chev" style="font-size:13px;transition:transform .2s;display:inline-block">▶</span>
+      </div>
+      <div id="jard-prod-wrap" style="display:none">
+        <div id="jard-prod-body" style="padding:4px 0 20px"></div>
+      </div>
+    </div>
+    <div style="margin-top:24px">
       <div class="section-title toggle-section-header" onclick="toggleCtrlSection('jard-reporte-wrap','jard-reporte-chev')" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none">
         <span>📊 Reportes mensuales · Jardinería</span>
         <span id="jard-reporte-chev" style="font-size:13px;transition:transform .2s;display:inline-block">▶</span>
