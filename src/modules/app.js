@@ -151,7 +151,6 @@ const PAGE_LABELS = {control:'Control','control-jardineria':'Control › Seguimi
   liquidacion: 'Control › Liquidación Horas Extra',
   'precio-comparacion': 'Compras › Comparar Precios',
   'presupuestos': 'Comercial › Presupuestos Enviados',
-  'cotizaciones-ext': 'Comercial › Cotizaciones Externas',
   'cierre-mensual': 'Finanzas › Cierre Mensual',
   'dashboard-gerencia': 'Gerencia › Dashboard Unificado',
   'tv-dashboard': 'Pantalla TV / Dashboard'
@@ -287,7 +286,6 @@ function navigate(pageId, navEl){
   if(pageId==='liquidacion') renderLiquidacion();
   if(pageId==='precio-comparacion') renderPrecioComparacion();
   if(pageId==='presupuestos') renderPresupuestos();
-  if(pageId==='cotizaciones-ext') renderCotizacionesExt();
   if(pageId==='cierre-mensual'){ const sel=document.getElementById('cierre-mes-sel'); if(sel&&!sel.value) sel.value=CURR_MONTH; renderCierreMensual(); }
   if(pageId==='dashboard-gerencia') renderDashboardGerencia();
   if(pageId==='tv-dashboard') renderTVDashboard();
@@ -10395,60 +10393,6 @@ function renderTVDashboard(){
 }
 
 // ════════════════════════════════════════
-// FEATURE 3: COTIZACIONES EXTERNAS
-// ════════════════════════════════════════
-let cotizacionesExtData = [];
-window._setCotizacionesExt = arr => { cotizacionesExtData = arr && typeof arr === 'object' ? (Array.isArray(arr)?arr:Object.values(arr)) : []; renderCotizacionesExt(); };
-
-function renderCotizacionesExt(){
-  const el = document.getElementById('cotiz-ext-body');
-  if(!el) return;
-  const sorted = [...cotizacionesExtData].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
-  const totales = { nuevo:0, visto:0, presupuestado:0, cerrado:0, perdido:0 };
-  cotizacionesExtData.forEach(c=>{ if(totales[c.estado]!==undefined) totales[c.estado]++; });
-  const stats = document.getElementById('cotiz-ext-stats');
-  if(stats) stats.innerHTML = `
-    <span class="pill" style="background:#e8f0e8">Nuevas: <strong>${totales.nuevo}</strong></span>
-    <span class="pill" style="background:#fff3cd">Vistas: <strong>${totales.visto}</strong></span>
-    <span class="pill" style="background:#d1ecf1">Presupuestadas: <strong>${totales.presupuestado}</strong></span>
-    <span class="pill" style="background:#d4edda">Cerradas: <strong>${totales.cerrado}</strong></span>
-    <span class="pill" style="background:#f8d7da">Perdidas: <strong>${totales.perdido}</strong></span>`;
-  if(!sorted.length){ el.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--mid-gray);padding:24px">Sin cotizaciones externas aún.</td></tr>'; return; }
-  el.innerHTML = sorted.map((c,i)=>{
-    const stateColors = {nuevo:'#6c757d',visto:'#856404',presupuestado:'#0c5460',cerrado:'#155724',perdido:'#721c24'};
-    const stateBg = {nuevo:'#e2e3e5',visto:'#fff3cd',presupuestado:'#d1ecf1',cerrado:'#d4edda',perdido:'#f8d7da'};
-    return `<tr>
-      <td>${fmtDate(c.fecha||c.ts?.slice(0,10))}</td>
-      <td><strong>${esc(c.nombre||'—')}</strong><br><small>${esc(c.contacto||'')}</small></td>
-      <td>${esc(c.tipoEvento||c.tipo||'—')}</td>
-      <td>${esc((c.descripcion||'').slice(0,60))}${(c.descripcion||'').length>60?'…':''}</td>
-      <td><span style="background:${stateBg[c.estado]||'#eee'};color:${stateColors[c.estado]||'#333'};padding:2px 8px;border-radius:10px;font-size:12px">${c.estado||'nuevo'}</span></td>
-      <td>
-        <select onchange="cambiarEstadoCotExt(${i},this.value)" style="font-size:11px;padding:2px 4px">
-          <option value="">Cambiar...</option>
-          <option value="visto">Visto</option>
-          <option value="presupuestado">Presupuestado</option>
-          <option value="cerrado">Cerrado ✓</option>
-          <option value="perdido">Perdido ✗</option>
-        </select>
-      </td>
-    </tr>`;
-  }).join('');
-}
-
-function cambiarEstadoCotExt(idx, estado){
-  if(!estado) return;
-  const sorted = [...cotizacionesExtData].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
-  const item = sorted[idx];
-  const realIdx = cotizacionesExtData.indexOf(item);
-  if(realIdx<0) return;
-  cotizacionesExtData[realIdx].estado = estado;
-  fbSave('cotizacionesExternas', cotizacionesExtData);
-  renderCotizacionesExt();
-  showToast('Estado actualizado');
-}
-
-// ════════════════════════════════════════
 // FEATURE 4: SEGUIMIENTO DE PRESUPUESTOS
 // ════════════════════════════════════════
 let presupuestosData = [];
@@ -10843,7 +10787,6 @@ Object.assign(window, {
   calcStockMinInteligente, renderStockSugerencias, aplicarSugerenciaStock,
   renderCompraFiltersPanel, toggleCompraFilters, applyCompraFiltersExt, clearCompraFiltersExt,
   installPWA, toggleTVMode, renderTVDashboard,
-  renderCotizacionesExt, cambiarEstadoCotExt,
   renderPresupuestos, openPresupuestoModal, guardarPresupuesto, cambiarEstadoPres, eliminarPresupuesto,
   renderCierreMensual, generarCierreMensual, verCierreMensual, exportCierrePDF,
   renderDashboardGerencia,

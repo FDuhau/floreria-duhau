@@ -122,7 +122,6 @@
     <div class="nav-sub-item" data-group="grp-com" onclick="navigate('recetas-arreglos',this)">Composiciones</div>
     <div class="nav-sub-item" data-group="grp-com" onclick="navigate('calendario',this)">📅 Calendario</div>
     <div class="nav-sub-item" data-group="grp-com" onclick="navigate('presupuestos',this)">📄 Presupuestos</div>
-    <div class="nav-sub-item" data-group="grp-com" onclick="navigate('cotizaciones-ext',this)">🌐 Cotizaciones Externas</div>
   </div>
   <div style="padding:12px 24px;border-top:1px solid rgba(255,255,255,.07)">
     <button onclick="cambiarContrasena()" style="width:100%;padding:8px 12px;font-size:11px;letter-spacing:.5px;background:rgba(255,255,255,.06);color:rgba(247,245,242,.6);border:1px solid rgba(255,255,255,.1);border-radius:6px;cursor:pointer;font-family:inherit;margin-bottom:6px">🔑 Cambiar contraseña</button>
@@ -2295,20 +2294,6 @@
   </div>
 
   <!-- ════════ COTIZACIONES EXTERNAS ════════ -->
-  <div id="page-cotizaciones-ext" class="content">
-    <div class="page-header">
-      <div class="page-title">Cotizaciones de Clientes Externos</div>
-      <div class="page-subtitle">Solicitudes recibidas desde el formulario público</div>
-    </div>
-    <div id="cotiz-ext-stats" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px"></div>
-    <div class="table-wrapper">
-      <table class="stock-table">
-        <thead><tr><th>Fecha</th><th>Cliente</th><th>Tipo evento</th><th>Descripción</th><th>Estado</th><th>Acción</th></tr></thead>
-        <tbody id="cotiz-ext-body"><tr><td colspan="6" style="text-align:center;color:var(--mid-gray);padding:24px">Cargando...</td></tr></tbody>
-      </table>
-    </div>
-  </div>
-
   <!-- ════════ PRESUPUESTOS ENVIADOS ════════ -->
   <div id="page-presupuestos" class="content">
     <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
