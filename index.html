@@ -82,6 +82,8 @@
     <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('reportes-margen',this)">💹 Dashboard de Margen</div>
     <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('auditoria',this)">🔍 Auditoría de Cambios</div>
     <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('rentabilidad-eventos',this)">💰 Rentabilidad</div>
+    <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('dashboard-gerencia',this)">📊 Dashboard Gerencia</div>
+    <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('cierre-mensual',this)">📋 Cierre Mensual</div>
     <div class="nav-section-label nav-gerencia-only" style="display:none">Clientes</div>
     <div class="nav-item nav-gerencia-only" style="display:none" onclick="navigate('crm-clientes',this)"><span class="nav-icon">👥</span> CRM Clientes</div>
     <div class="nav-section-label nav-gerencia-only" style="display:none">Multi-Sucursal</div>
@@ -119,6 +121,8 @@
     <div class="nav-sub-item" data-group="grp-com" onclick="navigate('pedidos-habitacion',this)">Pedidos de Habitación</div>
     <div class="nav-sub-item" data-group="grp-com" onclick="navigate('recetas-arreglos',this)">Composiciones</div>
     <div class="nav-sub-item" data-group="grp-com" onclick="navigate('calendario',this)">📅 Calendario</div>
+    <div class="nav-sub-item" data-group="grp-com" onclick="navigate('presupuestos',this)">📄 Presupuestos</div>
+    <div class="nav-sub-item" data-group="grp-com" onclick="navigate('cotizaciones-ext',this)">🌐 Cotizaciones Externas</div>
   </div>
   <div style="padding:12px 24px;border-top:1px solid rgba(255,255,255,.07)">
     <button onclick="cambiarContrasena()" style="width:100%;padding:8px 12px;font-size:11px;letter-spacing:.5px;background:rgba(255,255,255,.06);color:rgba(247,245,242,.6);border:1px solid rgba(255,255,255,.1);border-radius:6px;cursor:pointer;font-family:inherit;margin-bottom:6px">🔑 Cambiar contraseña</button>
@@ -1944,6 +1948,7 @@
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;align-items:center">
       <select class="form-input" id="rep-vt-mes" onchange="renderReportesVentas()" style="width:160px;padding:6px 10px;font-size:13px"></select>
       <button class="btn-secondary" onclick="exportReporteVentas()" style="font-size:12px;padding:6px 14px">⬇ Exportar CSV</button>
+      <button class="btn-secondary" onclick="exportVentasXLSX()" style="font-size:12px;padding:6px 14px">📊 Exportar Excel</button>
       <button class="btn-print" onclick="exportPDF('Reportes · Ventas')">🖨 Imprimir / PDF</button>
     </div>
     <div id="rep-vt-kpis" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:24px"></div>
@@ -1969,6 +1974,8 @@
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;align-items:center">
       <select class="form-input" id="rep-st-mes" onchange="renderReportesStock()" style="width:160px;padding:6px 10px;font-size:13px"></select>
       <button class="btn-secondary" onclick="exportReporteStock()" style="font-size:12px;padding:6px 14px">⬇ Exportar CSV</button>
+      <button class="btn-secondary" onclick="exportStockXLSX()" style="font-size:12px;padding:6px 14px">📊 Excel Stock</button>
+      <button class="btn-secondary" onclick="exportComprasXLSX()" style="font-size:12px;padding:6px 14px">📊 Excel Compras</button>
       <button class="btn-print" onclick="exportPDF('Reportes · Stock')">🖨 Imprimir / PDF</button>
     </div>
     <div id="rep-st-kpis" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:24px"></div>
@@ -2153,7 +2160,10 @@
   <div id="page-legajo" class="content">
     <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px">
       <div><div class="page-title">Legajo de Empleados</div><div class="page-subtitle">Información personal, laboral y documentación del equipo</div></div>
-      <button class="btn-add" onclick="openLegajoModal(-1)">+ Nuevo Empleado</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn-secondary" onclick="exportLegajoXLSX()" style="font-size:12px">📊 Excel</button>
+        <button class="btn-add" onclick="openLegajoModal(-1)">+ Nuevo Empleado</button>
+      </div>
     </div>
     <div id="legajo-grid" class="cards-grid cards-grid-3"></div>
     <!-- Modal legajo -->
@@ -2283,6 +2293,120 @@
     </div>
     <div id="precio-result"></div>
   </div>
+
+  <!-- ════════ COTIZACIONES EXTERNAS ════════ -->
+  <div id="page-cotizaciones-ext" class="content">
+    <div class="page-header">
+      <div class="page-title">Cotizaciones de Clientes Externos</div>
+      <div class="page-subtitle">Solicitudes recibidas desde el formulario público</div>
+    </div>
+    <div id="cotiz-ext-stats" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px"></div>
+    <div class="table-wrapper">
+      <table class="stock-table">
+        <thead><tr><th>Fecha</th><th>Cliente</th><th>Tipo evento</th><th>Descripción</th><th>Estado</th><th>Acción</th></tr></thead>
+        <tbody id="cotiz-ext-body"><tr><td colspan="6" style="text-align:center;color:var(--mid-gray);padding:24px">Cargando...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ════════ PRESUPUESTOS ENVIADOS ════════ -->
+  <div id="page-presupuestos" class="content">
+    <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
+      <div>
+        <div class="page-title">Presupuestos Enviados</div>
+        <div class="page-subtitle">Seguimiento de propuestas comerciales y tasa de conversión</div>
+      </div>
+      <button class="btn-primary" onclick="openPresupuestoModal()">+ Nuevo presupuesto</button>
+    </div>
+    <div id="presupuestos-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:20px"></div>
+    <div class="table-wrapper">
+      <table class="stock-table">
+        <thead><tr><th>Fecha</th><th>Cliente</th><th>Concepto</th><th>Monto</th><th>Estado</th><th>Vencimiento</th><th>Acciones</th></tr></thead>
+        <tbody id="presupuestos-body"><tr><td colspan="7" style="text-align:center;color:var(--mid-gray);padding:24px">Cargando...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal Presupuesto -->
+  <div class="modal-overlay" id="modal-presupuesto">
+    <div class="modal" style="max-width:520px">
+      <div class="modal-header"><h2>Nuevo Presupuesto</h2><button class="modal-close" onclick="closeModal('modal-presupuesto')">✕</button></div>
+      <div class="modal-body">
+        <form id="pres-form" onsubmit="event.preventDefault();guardarPresupuesto()">
+          <div class="form-group"><label class="form-label">Cliente *</label><input class="form-input" id="pres-cliente" placeholder="Nombre del cliente" required></div>
+          <div class="form-group"><label class="form-label">Concepto</label><input class="form-input" id="pres-concepto" placeholder="Descripción del evento/servicio"></div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">Monto ($) *</label><input class="form-input" id="pres-monto" type="number" min="0" step="0.01" required></div>
+            <div class="form-group"><label class="form-label">Fecha</label><input class="form-input" id="pres-fecha" type="date"></div>
+          </div>
+          <div class="form-group"><label class="form-label">Vencimiento</label><input class="form-input" id="pres-vencimiento" type="date"></div>
+          <div class="form-group"><label class="form-label">Notas</label><textarea class="form-input" id="pres-notas" rows="2" placeholder="Observaciones adicionales"></textarea></div>
+          <div class="modal-footer"><button type="submit" class="btn-primary">Guardar presupuesto</button><button type="button" class="btn-secondary" onclick="closeModal('modal-presupuesto')">Cancelar</button></div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════ CIERRE MENSUAL ════════ -->
+  <div id="page-cierre-mensual" class="content">
+    <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
+      <div>
+        <div class="page-title">Cierre Mensual Automatizado</div>
+        <div class="page-subtitle">Consolidado de ventas, compras, caja y eventos por mes</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input class="form-input" id="cierre-mes-sel" type="month" style="padding:6px 10px;font-size:13px">
+        <button class="btn-primary" onclick="generarCierreMensual()">⚡ Generar cierre</button>
+      </div>
+    </div>
+    <div id="cierre-mensual-body"></div>
+  </div>
+
+  <!-- ════════ DASHBOARD GERENCIA ════════ -->
+  <div id="page-dashboard-gerencia" class="content">
+    <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
+      <div>
+        <div class="page-title">Dashboard Unificado de Gerencia</div>
+        <div class="page-subtitle">KPIs en tiempo real — se actualiza automáticamente cada 5 min</div>
+      </div>
+      <button class="btn-secondary" onclick="toggleTVMode()">📺 Modo TV</button>
+    </div>
+    <div id="dash-ger-body"></div>
+  </div>
+
+  <!-- ════════ TV DASHBOARD OVERLAY ════════ -->
+  <div id="tv-overlay" style="display:none;position:fixed;inset:0;background:#0a0a0a;z-index:9999;overflow-y:auto">
+    <div id="tv-content" style="min-height:100vh;padding:32px"></div>
+  </div>
+  <style>
+    #tv-overlay.tv-active { display:block!important; }
+    .tv-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:32px;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:16px}
+    .tv-logo{font-size:22px;color:#c8d5c8;font-weight:300;letter-spacing:2px}
+    .tv-clock{font-size:16px;color:#888;font-weight:300}
+    .tv-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:32px}
+    .tv-kpi{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:20px;text-align:center}
+    .tv-kpi-val{font-size:32px;font-weight:300;color:#c8d5c8;margin-bottom:6px}
+    .tv-kpi-lbl{font-size:12px;color:#666;letter-spacing:1px;text-transform:uppercase}
+    .tv-kpi-alert .tv-kpi-val{color:#e88c7a}
+    .tv-section-title{font-size:13px;color:#666;letter-spacing:2px;text-transform:uppercase;margin-bottom:16px}
+    .tv-ev-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+    .tv-ev-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:14px}
+    .tv-ev-date{font-size:11px;color:#666;margin-bottom:4px}
+    .tv-ev-title{font-size:15px;color:#c8d5c8;font-weight:400;margin-bottom:2px}
+    .tv-ev-zona{font-size:12px;color:#777}
+    .tv-footer{margin-top:32px;text-align:center}
+    .dash-ger-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:16px}
+    .dash-ger-section{background:var(--warm-white,#f7f4ef);border-radius:12px;padding:16px}
+    .dash-ger-title{font-size:12px;font-weight:600;color:var(--mid-gray,#9a9a90);letter-spacing:1px;text-transform:uppercase;margin-bottom:12px}
+    .dash-ger-update{font-size:12px;color:var(--mid-gray,#9a9a90);margin-bottom:12px}
+    .dash-ger-alert{background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:10px}
+    .kpi-grid-mini{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px}
+    .kpi-alert{border-color:var(--red-alert,#c0392b)!important}
+    #pwa-install-btn{display:none;position:fixed;bottom:80px;right:16px;background:var(--sage,#7a9e7e);color:#fff;border:none;border-radius:12px;padding:10px 16px;font-size:13px;cursor:pointer;gap:6px;align-items:center;z-index:100;box-shadow:0 4px 12px rgba(0,0,0,0.2)}
+  </style>
+
+  <!-- PWA Install Button -->
+  <button id="pwa-install-btn" onclick="installPWA()">📲 Instalar App</button>
 
 </div><!-- end .main -->
 

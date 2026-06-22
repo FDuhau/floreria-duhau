@@ -412,4 +412,19 @@
         if(document.getElementById('page-liquidacion')?.classList.contains('active')) window.renderLiquidacion?.();
       });
 
+      fbListen('cotizacionesExternas', val => {
+        const arr = !val ? [] : (Array.isArray(val) ? val : Object.values(val||{}));
+        if(window._setCotizacionesExt) window._setCotizacionesExt(arr);
+      });
+
+      fbListen('presupuestosData', val => {
+        const arr = !val ? [] : (Array.isArray(val) ? val : Object.values(val||{}));
+        if(window._setPresupuestos) window._setPresupuestos(arr);
+      });
+
+      fbListen('cierresMensualesData', val => {
+        const arr = !val ? [] : (Array.isArray(val) ? val : Object.values(val||{}));
+        if(window._setCierresMensuales) window._setCierresMensuales(arr);
+      });
+
     });

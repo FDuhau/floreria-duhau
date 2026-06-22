@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Solicitar Cotización · Florería Duhau · Park Hyatt Buenos Aires</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Georgia', serif; background: #f7f4ef; color: #1a1a18; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 40px 16px; }
+    .card { background: #fff; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); padding: 40px; max-width: 560px; width: 100%; }
+    .logo { text-align: center; margin-bottom: 32px; }
+    .logo-icon { font-size: 48px; margin-bottom: 8px; }
+    .logo-title { font-size: 22px; font-weight: 400; color: #1a1a18; letter-spacing: 2px; }
+    .logo-sub { font-size: 13px; color: #9a9a90; margin-top: 4px; }
+    h2 { font-size: 18px; font-weight: 400; margin-bottom: 24px; color: #1a1a18; }
+    label { display: block; font-size: 12px; font-weight: 600; letter-spacing: 0.5px; color: #7a7a72; margin-bottom: 6px; text-transform: uppercase; }
+    input, select, textarea { width: 100%; border: 1px solid #e0ddd8; border-radius: 8px; padding: 10px 14px; font-size: 14px; font-family: inherit; color: #1a1a18; background: #fafaf8; margin-bottom: 20px; outline: none; transition: border-color 0.2s; }
+    input:focus, select:focus, textarea:focus { border-color: #7a9e7e; }
+    textarea { resize: vertical; min-height: 100px; }
+    button { width: 100%; background: #7a9e7e; color: #fff; border: none; border-radius: 10px; padding: 14px; font-size: 15px; font-family: inherit; cursor: pointer; letter-spacing: 1px; transition: background 0.2s; }
+    button:hover { background: #5a7e5e; }
+    button:disabled { background: #bbb; cursor: not-allowed; }
+    .success { display: none; text-align: center; padding: 32px; }
+    .success-icon { font-size: 56px; margin-bottom: 16px; }
+    .success-title { font-size: 20px; color: #3a7a3a; margin-bottom: 8px; }
+    .success-sub { color: #7a7a72; font-size: 14px; }
+    .error-msg { color: #c0392b; font-size: 13px; margin-top: -14px; margin-bottom: 14px; display: none; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <div class="logo-icon">🌸</div>
+      <div class="logo-title">Florería Duhau</div>
+      <div class="logo-sub">Park Hyatt Buenos Aires</div>
+    </div>
+
+    <div id="form-section">
+      <h2>Solicitar Cotización</h2>
+      <form id="cotiz-form" onsubmit="enviarCotizacion(event)">
+        <label>Nombre y apellido *</label>
+        <input id="f-nombre" type="text" placeholder="Su nombre completo" required>
+
+        <label>Email o teléfono *</label>
+        <input id="f-contacto" type="text" placeholder="Email o número de contacto" required>
+
+        <label>Fecha del evento</label>
+        <input id="f-fecha" type="date">
+
+        <label>Tipo de evento</label>
+        <select id="f-tipo">
+          <option value="">Seleccionar...</option>
+          <option>Casamiento</option>
+          <option>Cumpleaños</option>
+          <option>Aniversario</option>
+          <option>Corporativo / Empresa</option>
+          <option>Regalo personal</option>
+          <option>Arreglo floral</option>
+          <option>Decoración de espacio</option>
+          <option>Otro</option>
+        </select>
+
+        <label>Descripción del pedido *</label>
+        <textarea id="f-desc" placeholder="Descripción del arreglo o evento, colores preferidos, presupuesto estimado, etc." required></textarea>
+
+        <div id="error-msg" class="error-msg">Por favor completá los campos obligatorios.</div>
+
+        <button type="submit" id="submit-btn">Enviar solicitud →</button>
+      </form>
+    </div>
+
+    <div class="success" id="success-section">
+      <div class="success-icon">✅</div>
+      <div class="success-title">¡Solicitud enviada!</div>
+      <div class="success-sub">Nos comunicaremos con usted a la brevedad para enviarle la cotización.<br><br>Gracias por contactar a Florería Duhau.</div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
+    import { getDatabase, ref, push } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js';
+    import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
+
+    const app = initializeApp({
+      apiKey: "AIzaSyDU9kLCnXeO7qnINEy121Nktj1K96gJ9Lw",
+      authDomain: "floreria-duhau-84de5.firebaseapp.com",
+      databaseURL: "https://floreria-duhau-84de5-default-rtdb.firebaseio.com",
+      projectId: "floreria-duhau-84de5",
+      storageBucket: "floreria-duhau-84de5.firebasestorage.app",
+      messagingSenderId: "921311806468",
+      appId: "1:921311806468:web:0c82d94e40857eddb1e151"
+    });
+    const db = getDatabase(app);
+    const auth = getAuth(app);
+
+    window.enviarCotizacion = async function(e) {
+      e.preventDefault();
+      const nombre = document.getElementById('f-nombre').value.trim();
+      const contacto = document.getElementById('f-contacto').value.trim();
+      const desc = document.getElementById('f-desc').value.trim();
+      const errEl = document.getElementById('error-msg');
+      if (!nombre || !contacto || !desc) { errEl.style.display = 'block'; return; }
+      errEl.style.display = 'none';
+      const btn = document.getElementById('submit-btn');
+      btn.disabled = true; btn.textContent = 'Enviando...';
+      try {
+        await signInAnonymously(auth);
+        await push(ref(db, 'cotizacionesExternas'), {
+          nombre,
+          contacto,
+          fecha: document.getElementById('f-fecha').value || '',
+          tipoEvento: document.getElementById('f-tipo').value || '',
+          descripcion: desc,
+          estado: 'nuevo',
+          ts: new Date().toISOString()
+        });
+        document.getElementById('form-section').style.display = 'none';
+        document.getElementById('success-section').style.display = 'block';
+      } catch(err) {
+        btn.disabled = false; btn.textContent = 'Enviar solicitud →';
+        alert('Error al enviar. Por favor intentá nuevamente.');
+      }
+    };
+  </script>
+</body>
+</html>
