@@ -64,7 +64,8 @@ window.estaEditando = estaEditando;
 const DAYS_ES = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
 const MONTHS_ES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const NOW = new Date();
-const TODAY_ISO = NOW.toISOString().split('T')[0];
+// Fecha local (no UTC) para evitar desfase horario en Argentina (UTC-3)
+const TODAY_ISO = `${NOW.getFullYear()}-${String(NOW.getMonth()+1).padStart(2,'0')}-${String(NOW.getDate()).padStart(2,'0')}`;
 const CURR_MONTH = TODAY_ISO.slice(0,7); // "2026-06"
 const TODAY_DAY = DAYS_ES[NOW.getDay()];
 const DATE_STR = `${TODAY_DAY} ${NOW.getDate()} de ${MONTHS_ES[NOW.getMonth()]} ${NOW.getFullYear()}`;
@@ -7571,12 +7572,12 @@ function renderProductividadHorarios(empleados){
   const container = document.getElementById('hor-productividad');
   const labelEl = document.getElementById('hor-hoy-label');
   if(!container) return;
-  if(labelEl) labelEl.textContent = currentDay + ' ' + fmtDate(TODAY_ISO);
+  if(labelEl) labelEl.textContent = TODAY_DAY + ' ' + fmtDate(TODAY_ISO);
 
-  const dayState = clStateByDay[currentDay];
+  const dayState = clStateByDay[TODAY_DAY];
 
   container.innerHTML = empleados.map(nombre => {
-    let hsProgramadas = 0, minsTrabjados = 0, tareasHechas = 0, tareasAsignadas = 0;
+    let hsProgramadas = 0, minsTrabjados = 0, tareasHechas = 0, tareasAsignadas = 0, hor = {};
 
     if(isJardinero(nombre)){
       // Horario planificado (desde window.horariosData si gerencia lo cargó)
@@ -7601,7 +7602,7 @@ function renderProductividadHorarios(empleados){
         });
       }
     } else {
-      const hor = window.horariosData[nombre]?.[TODAY_ISO] || {};
+      hor = window.horariosData[nombre]?.[TODAY_ISO] || {};
       hsProgramadas = calcHorasDia(hor.desde, hor.hasta);
       // Turno real del florista (check-in/checkout)
       const ft=(window.florTurnos||{})[nombre]?.[TODAY_ISO];
