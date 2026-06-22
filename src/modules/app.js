@@ -149,7 +149,12 @@ const PAGE_LABELS = {control:'Control','control-jardineria':'Control › Seguimi
   legajo: 'Control › Legajo de Empleados',
   evaluaciones: 'Control › Evaluaciones de Desempeño',
   liquidacion: 'Control › Liquidación Horas Extra',
-  'precio-comparacion': 'Compras › Comparar Precios'
+  'precio-comparacion': 'Compras › Comparar Precios',
+  'presupuestos': 'Comercial › Presupuestos Enviados',
+  'cotizaciones-ext': 'Comercial › Cotizaciones Externas',
+  'cierre-mensual': 'Finanzas › Cierre Mensual',
+  'dashboard-gerencia': 'Gerencia › Dashboard Unificado',
+  'tv-dashboard': 'Pantalla TV / Dashboard'
 };
 const COMPRAS_PAGES=['compras','compras-floreria','compras-jardineria','stock-admin'];
 const CONTROL_PAGES=['control','control-jardineria','control-habitaciones','control-horarios','recordatorios-jardineria'];
@@ -281,6 +286,11 @@ function navigate(pageId, navEl){
   if(pageId==='evaluaciones') renderEvaluaciones();
   if(pageId==='liquidacion') renderLiquidacion();
   if(pageId==='precio-comparacion') renderPrecioComparacion();
+  if(pageId==='presupuestos') renderPresupuestos();
+  if(pageId==='cotizaciones-ext') renderCotizacionesExt();
+  if(pageId==='cierre-mensual'){ const sel=document.getElementById('cierre-mes-sel'); if(sel&&!sel.value) sel.value=CURR_MONTH; renderCierreMensual(); }
+  if(pageId==='dashboard-gerencia') renderDashboardGerencia();
+  if(pageId==='tv-dashboard') renderTVDashboard();
 
   // En mobile, cerrar el sidebar automáticamente al navegar
   if(window.innerWidth <= 768) closeSidebar();
@@ -10299,6 +10309,450 @@ function toggleStockSugerencias(){
   if(!visible) renderStockSugerencias();
 }
 
+// ════════════════════════════════════════
+// FEATURE 1: PWA — Install Prompt
+// ════════════════════════════════════════
+let _pwaInstallEvent = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  _pwaInstallEvent = e;
+  const btn = document.getElementById('pwa-install-btn');
+  if(btn) btn.style.display = 'flex';
+});
+window.addEventListener('appinstalled', () => {
+  const btn = document.getElementById('pwa-install-btn');
+  if(btn) btn.style.display = 'none';
+  showToast('✅ App instalada correctamente');
+});
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(()=>{}));
+}
+function installPWA(){
+  if(!_pwaInstallEvent){ showToast('La app ya está instalada o este navegador no lo soporta'); return; }
+  _pwaInstallEvent.prompt();
+  _pwaInstallEvent.userChoice.then(choice => {
+    if(choice.outcome==='accepted') showToast('✅ App instalada');
+    _pwaInstallEvent = null;
+  });
+}
+
+// ════════════════════════════════════════
+// FEATURE 2: PANTALLA TV / MODO DASHBOARD
+// ════════════════════════════════════════
+let _tvInterval = null;
+function toggleTVMode(){
+  const el = document.getElementById('tv-overlay');
+  if(!el) return;
+  const isOn = el.classList.contains('tv-active');
+  if(isOn){
+    el.classList.remove('tv-active');
+    clearInterval(_tvInterval); _tvInterval = null;
+    showToast('Modo TV desactivado');
+  } else {
+    el.classList.add('tv-active');
+    renderTVDashboard();
+    _tvInterval = setInterval(renderTVDashboard, 60000);
+    showToast('Modo TV activado — actualizando cada minuto');
+    if(el.requestFullscreen) el.requestFullscreen().catch(()=>{});
+  }
+}
+
+function renderTVDashboard(){
+  const el = document.getElementById('tv-content');
+  if(!el) return;
+  const today = TODAY_ISO;
+  const evHoy = (eventosData||[]).filter(e=>e.fecha===today).length;
+  const evMes = (eventosData||[]).filter(e=>e.fecha&&e.fecha.startsWith(CURR_MONTH)).length;
+  const ventasMes = (ventasData||[]).filter(v=>v.fecha&&v.fecha.startsWith(CURR_MONTH)).reduce((s,v)=>s+parseMoney(v.monto||v.total||0),0);
+  const stockBajos = (stockData||[]).filter(s=>(s.cantidad||0)<=(s.min||0)).length;
+  const pedidos = (pedidosHabData||[]).filter(p=>p.estado==='pendiente').length;
+  const now = new Date();
+  el.innerHTML = `
+    <div class="tv-header">
+      <div class="tv-logo">🌸 Florería Duhau · Park Hyatt Buenos Aires</div>
+      <div class="tv-clock">${now.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})} · ${now.toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'})}</div>
+    </div>
+    <div class="tv-kpis">
+      <div class="tv-kpi"><div class="tv-kpi-val">${evHoy}</div><div class="tv-kpi-lbl">Eventos hoy</div></div>
+      <div class="tv-kpi"><div class="tv-kpi-val">${evMes}</div><div class="tv-kpi-lbl">Eventos este mes</div></div>
+      <div class="tv-kpi"><div class="tv-kpi-val">$${ventasMes.toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:0})}</div><div class="tv-kpi-lbl">Ventas del mes</div></div>
+      <div class="tv-kpi ${stockBajos>0?'tv-kpi-alert':''}"><div class="tv-kpi-val">${stockBajos}</div><div class="tv-kpi-lbl">Stock bajo mínimo</div></div>
+      <div class="tv-kpi ${pedidos>0?'tv-kpi-alert':''}"><div class="tv-kpi-val">${pedidos}</div><div class="tv-kpi-lbl">Pedidos habitación pendientes</div></div>
+    </div>
+    <div class="tv-eventos">
+      <div class="tv-section-title">📅 Próximos eventos</div>
+      <div class="tv-ev-grid">${(eventosData||[]).filter(e=>e.fecha>=today).sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')).slice(0,6).map(e=>`
+        <div class="tv-ev-card">
+          <div class="tv-ev-date">${fmtDate(e.fecha)}</div>
+          <div class="tv-ev-title">${esc(e.titulo||e.nombre||'Evento')}</div>
+          <div class="tv-ev-zona">${esc(e.zona||e.lugarEvento||'')}</div>
+        </div>`).join('')||'<div style="color:#888;padding:20px">Sin eventos próximos</div>'}
+      </div>
+    </div>
+    <div class="tv-footer">
+      <button onclick="toggleTVMode()" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:8px 20px;border-radius:8px;cursor:pointer;font-size:14px">✕ Salir modo TV</button>
+    </div>`;
+}
+
+// ════════════════════════════════════════
+// FEATURE 3: COTIZACIONES EXTERNAS
+// ════════════════════════════════════════
+let cotizacionesExtData = [];
+window._setCotizacionesExt = arr => { cotizacionesExtData = arr && typeof arr === 'object' ? (Array.isArray(arr)?arr:Object.values(arr)) : []; renderCotizacionesExt(); };
+
+function renderCotizacionesExt(){
+  const el = document.getElementById('cotiz-ext-body');
+  if(!el) return;
+  const sorted = [...cotizacionesExtData].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+  const totales = { nuevo:0, visto:0, presupuestado:0, cerrado:0, perdido:0 };
+  cotizacionesExtData.forEach(c=>{ if(totales[c.estado]!==undefined) totales[c.estado]++; });
+  const stats = document.getElementById('cotiz-ext-stats');
+  if(stats) stats.innerHTML = `
+    <span class="pill" style="background:#e8f0e8">Nuevas: <strong>${totales.nuevo}</strong></span>
+    <span class="pill" style="background:#fff3cd">Vistas: <strong>${totales.visto}</strong></span>
+    <span class="pill" style="background:#d1ecf1">Presupuestadas: <strong>${totales.presupuestado}</strong></span>
+    <span class="pill" style="background:#d4edda">Cerradas: <strong>${totales.cerrado}</strong></span>
+    <span class="pill" style="background:#f8d7da">Perdidas: <strong>${totales.perdido}</strong></span>`;
+  if(!sorted.length){ el.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--mid-gray);padding:24px">Sin cotizaciones externas aún.</td></tr>'; return; }
+  el.innerHTML = sorted.map((c,i)=>{
+    const stateColors = {nuevo:'#6c757d',visto:'#856404',presupuestado:'#0c5460',cerrado:'#155724',perdido:'#721c24'};
+    const stateBg = {nuevo:'#e2e3e5',visto:'#fff3cd',presupuestado:'#d1ecf1',cerrado:'#d4edda',perdido:'#f8d7da'};
+    return `<tr>
+      <td>${fmtDate(c.fecha||c.ts?.slice(0,10))}</td>
+      <td><strong>${esc(c.nombre||'—')}</strong><br><small>${esc(c.contacto||'')}</small></td>
+      <td>${esc(c.tipoEvento||c.tipo||'—')}</td>
+      <td>${esc((c.descripcion||'').slice(0,60))}${(c.descripcion||'').length>60?'…':''}</td>
+      <td><span style="background:${stateBg[c.estado]||'#eee'};color:${stateColors[c.estado]||'#333'};padding:2px 8px;border-radius:10px;font-size:12px">${c.estado||'nuevo'}</span></td>
+      <td>
+        <select onchange="cambiarEstadoCotExt(${i},this.value)" style="font-size:11px;padding:2px 4px">
+          <option value="">Cambiar...</option>
+          <option value="visto">Visto</option>
+          <option value="presupuestado">Presupuestado</option>
+          <option value="cerrado">Cerrado ✓</option>
+          <option value="perdido">Perdido ✗</option>
+        </select>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function cambiarEstadoCotExt(idx, estado){
+  if(!estado) return;
+  const sorted = [...cotizacionesExtData].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+  const item = sorted[idx];
+  const realIdx = cotizacionesExtData.indexOf(item);
+  if(realIdx<0) return;
+  cotizacionesExtData[realIdx].estado = estado;
+  fbSave('cotizacionesExternas', cotizacionesExtData);
+  renderCotizacionesExt();
+  showToast('Estado actualizado');
+}
+
+// ════════════════════════════════════════
+// FEATURE 4: SEGUIMIENTO DE PRESUPUESTOS
+// ════════════════════════════════════════
+let presupuestosData = [];
+window._setPresupuestos = arr => { presupuestosData = arr && typeof arr === 'object' ? (Array.isArray(arr)?arr:Object.values(arr)) : []; renderPresupuestos(); };
+
+function renderPresupuestos(){
+  const el = document.getElementById('presupuestos-body');
+  if(!el) return;
+  const sorted = [...presupuestosData].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+  const total = presupuestosData.length;
+  const cerrados = presupuestosData.filter(p=>p.estado==='aceptado').length;
+  const conversion = total ? Math.round(cerrados/total*100) : 0;
+  const volumen = presupuestosData.filter(p=>p.estado==='aceptado').reduce((s,p)=>s+parseMoney(p.monto||0),0);
+  const stats = document.getElementById('presupuestos-stats');
+  if(stats) stats.innerHTML = `
+    <div class="kpi-card"><div class="kpi-val">${total}</div><div class="kpi-lbl">Total enviados</div></div>
+    <div class="kpi-card"><div class="kpi-val">${cerrados}</div><div class="kpi-lbl">Aceptados</div></div>
+    <div class="kpi-card"><div class="kpi-val">${conversion}%</div><div class="kpi-lbl">Tasa de conversión</div></div>
+    <div class="kpi-card"><div class="kpi-val">$${volumen.toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:0})}</div><div class="kpi-lbl">Volumen aceptado</div></div>`;
+  if(!sorted.length){ el.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--mid-gray);padding:24px">Sin presupuestos aún. Usá el botón + para agregar.</td></tr>'; return; }
+  const stColors = {pendiente:'#856404',aceptado:'#155724',rechazado:'#721c24',vencido:'#6c757d'};
+  const stBg = {pendiente:'#fff3cd',aceptado:'#d4edda',rechazado:'#f8d7da',vencido:'#e2e3e5'};
+  el.innerHTML = sorted.map((p,i)=>`<tr>
+    <td>${fmtDate(p.fecha)}</td>
+    <td><strong>${esc(p.cliente||'—')}</strong></td>
+    <td>${esc(p.concepto||'—')}</td>
+    <td>$${parseMoney(p.monto||0).toLocaleString('es-AR',{minimumFractionDigits:0})}</td>
+    <td><span style="background:${stBg[p.estado]||'#eee'};color:${stColors[p.estado]||'#333'};padding:2px 8px;border-radius:10px;font-size:12px">${p.estado||'pendiente'}</span></td>
+    <td>${p.vencimiento ? fmtDate(p.vencimiento) : '—'}</td>
+    <td style="display:flex;gap:4px;align-items:center">
+      <select onchange="cambiarEstadoPres(${i},this.value)" style="font-size:11px;padding:2px 4px">
+        <option value="">Estado...</option>
+        <option value="aceptado">Aceptado ✓</option>
+        <option value="rechazado">Rechazado ✗</option>
+        <option value="vencido">Vencido</option>
+        <option value="pendiente">Pendiente</option>
+      </select>
+      <button class="btn-icon" onclick="eliminarPresupuesto(${i})">🗑</button>
+    </td>
+  </tr>`).join('');
+}
+
+function openPresupuestoModal(){
+  document.getElementById('pres-form').reset();
+  document.getElementById('pres-fecha').value = TODAY_ISO;
+  document.getElementById('modal-presupuesto').classList.add('open');
+}
+
+function guardarPresupuesto(){
+  const cliente = document.getElementById('pres-cliente').value.trim();
+  const concepto = document.getElementById('pres-concepto').value.trim();
+  const monto = document.getElementById('pres-monto').value;
+  const vencimiento = document.getElementById('pres-vencimiento').value;
+  const notas = document.getElementById('pres-notas').value.trim();
+  if(!cliente||!monto){ showToast('Completá cliente y monto'); return; }
+  presupuestosData.push({ id: Date.now(), fecha: TODAY_ISO, cliente, concepto, monto, vencimiento, notas, estado:'pendiente' });
+  fbSave('presupuestosData', presupuestosData);
+  closeModal('modal-presupuesto');
+  renderPresupuestos();
+  showToast('Presupuesto guardado');
+}
+
+function cambiarEstadoPres(idx, estado){
+  if(!estado) return;
+  const sorted = [...presupuestosData].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+  const item = sorted[idx];
+  const realIdx = presupuestosData.indexOf(item);
+  if(realIdx<0) return;
+  presupuestosData[realIdx].estado = estado;
+  fbSave('presupuestosData', presupuestosData);
+  renderPresupuestos();
+  showToast('Estado actualizado');
+}
+
+function eliminarPresupuesto(idx){
+  const sorted = [...presupuestosData].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+  const item = sorted[idx];
+  const realIdx = presupuestosData.indexOf(item);
+  if(realIdx<0) return;
+  if(!confirm('¿Eliminar este presupuesto?')) return;
+  presupuestosData.splice(realIdx, 1);
+  fbSave('presupuestosData', presupuestosData);
+  renderPresupuestos();
+  showToast('Eliminado');
+}
+
+// ════════════════════════════════════════
+// FEATURE 5: CIERRE MENSUAL AUTOMATIZADO
+// ════════════════════════════════════════
+let cierresMensualesData = [];
+window._setCierresMensuales = arr => { cierresMensualesData = arr && typeof arr === 'object' ? (Array.isArray(arr)?arr:Object.values(arr)) : []; renderCierreMensual(); };
+
+function renderCierreMensual(){
+  const el = document.getElementById('cierre-mensual-body');
+  if(!el) return;
+  const sorted = [...cierresMensualesData].sort((a,b)=>(b.mes||'').localeCompare(a.mes||''));
+  if(!sorted.length){ el.innerHTML = '<div style="color:var(--mid-gray);text-align:center;padding:40px">No hay cierres guardados. Generá el primero con el botón "Generar Cierre".</div>'; return; }
+  el.innerHTML = sorted.map((c,i)=>`
+    <div class="card" style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h3 style="margin:0">${fmtMonth(c.mes)}</h3>
+        <div style="display:flex;gap:8px">
+          <button class="btn-secondary" style="font-size:12px" onclick="verCierreMensual(${i})">👁 Ver detalle</button>
+          <button class="btn-secondary" style="font-size:12px" onclick="exportCierrePDF(${i})">📄 PDF</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">
+        <div class="kpi-card"><div class="kpi-val">$${parseMoney(c.totalVentas||0).toLocaleString('es-AR',{minimumFractionDigits:0})}</div><div class="kpi-lbl">Ventas totales</div></div>
+        <div class="kpi-card"><div class="kpi-val">$${parseMoney(c.totalCompras||0).toLocaleString('es-AR',{minimumFractionDigits:0})}</div><div class="kpi-lbl">Compras totales</div></div>
+        <div class="kpi-card"><div class="kpi-val">${c.cantEventos||0}</div><div class="kpi-lbl">Eventos</div></div>
+        <div class="kpi-card"><div class="kpi-val">$${parseMoney(c.totalCaja||0).toLocaleString('es-AR',{minimumFractionDigits:0})}</div><div class="kpi-lbl">Caja neta</div></div>
+      </div>
+    </div>`).join('');
+}
+
+function generarCierreMensual(){
+  const mes = document.getElementById('cierre-mes-sel')?.value || CURR_MONTH;
+  const ventas = (ventasData||[]).filter(v=>v.fecha&&v.fecha.startsWith(mes));
+  const totalVentas = ventas.reduce((s,v)=>s+parseMoney(v.monto||v.total||0),0);
+  const compras = [...(comprasFlore||[]),...(comprasJard||[])].filter(c=>c.fecha&&c.fecha.startsWith(mes));
+  const totalCompras = compras.reduce((s,c)=>s+parseMoney(c.costo||0),0);
+  const eventos = (eventosData||[]).filter(e=>e.fecha&&e.fecha.startsWith(mes));
+  const cajaMov = (cajaData||[]).filter(m=>m.fecha&&m.fecha.startsWith(mes));
+  const ingresos = cajaMov.filter(m=>m.tipo==='ingreso').reduce((s,m)=>s+parseMoney(m.monto||0),0);
+  const egresos = cajaMov.filter(m=>m.tipo==='egreso').reduce((s,m)=>s+parseMoney(m.monto||0),0);
+  const cierre = {
+    mes, fechaCierre: TODAY_ISO,
+    totalVentas, totalCompras,
+    cantEventos: eventos.length,
+    cantVentas: ventas.length,
+    cantCompras: compras.length,
+    totalCaja: ingresos - egresos,
+    ingresosCaja: ingresos, egresosCaja: egresos,
+    margenBruto: totalVentas - totalCompras,
+    resumen: `Cierre ${fmtMonth(mes)}: ${ventas.length} ventas, ${compras.length} compras, ${eventos.length} eventos`
+  };
+  const existing = cierresMensualesData.findIndex(c=>c.mes===mes);
+  if(existing>=0){
+    if(!confirm(`Ya existe un cierre para ${fmtMonth(mes)}. ¿Reemplazarlo?`)) return;
+    cierresMensualesData[existing] = cierre;
+  } else {
+    cierresMensualesData.push(cierre);
+  }
+  fbSave('cierresMensualesData', cierresMensualesData);
+  renderCierreMensual();
+  showToast(`✅ Cierre de ${fmtMonth(mes)} generado`);
+}
+
+function verCierreMensual(idx){
+  const sorted = [...cierresMensualesData].sort((a,b)=>(b.mes||'').localeCompare(a.mes||''));
+  const c = sorted[idx];
+  if(!c) return;
+  const win = window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Cierre ${fmtMonth(c.mes)}</title>
+  <style>body{font-family:Arial,sans-serif;margin:40px;color:#1a1a1a}h1{font-size:22px}table{width:100%;border-collapse:collapse;margin:20px 0}th,td{border:1px solid #ccc;padding:8px 12px;font-size:13px}th{background:#f5f5f0}.total{font-weight:bold;font-size:16px}</style></head><body>
+  <h1>🌸 Cierre Mensual — ${fmtMonth(c.mes)}</h1>
+  <p style="color:#777">Generado el ${fmtDate(c.fechaCierre)}</p>
+  <table><tbody>
+    <tr><th>Ventas totales</th><td class="total">$${parseMoney(c.totalVentas).toLocaleString('es-AR',{minimumFractionDigits:2})}</td></tr>
+    <tr><th>Compras totales</th><td>$${parseMoney(c.totalCompras).toLocaleString('es-AR',{minimumFractionDigits:2})}</td></tr>
+    <tr><th>Margen bruto</th><td class="total">$${parseMoney(c.margenBruto).toLocaleString('es-AR',{minimumFractionDigits:2})}</td></tr>
+    <tr><th>Ingresos caja</th><td>$${parseMoney(c.ingresosCaja).toLocaleString('es-AR',{minimumFractionDigits:2})}</td></tr>
+    <tr><th>Egresos caja</th><td>$${parseMoney(c.egresosCaja).toLocaleString('es-AR',{minimumFractionDigits:2})}</td></tr>
+    <tr><th>Caja neta</th><td class="total">$${parseMoney(c.totalCaja).toLocaleString('es-AR',{minimumFractionDigits:2})}</td></tr>
+    <tr><th>Cantidad ventas</th><td>${c.cantVentas}</td></tr>
+    <tr><th>Cantidad compras</th><td>${c.cantCompras}</td></tr>
+    <tr><th>Eventos del mes</th><td>${c.cantEventos}</td></tr>
+  </tbody></table>
+  <button onclick="window.print()" style="padding:8px 20px;cursor:pointer">🖨️ Imprimir</button>
+  </body></html>`);
+  win.document.close();
+}
+
+function exportCierrePDF(idx){ verCierreMensual(idx); }
+
+// ════════════════════════════════════════
+// FEATURE 6: DASHBOARD UNIFICADO DE GERENCIA
+// ════════════════════════════════════════
+let _dashGerTimer = null;
+function renderDashboardGerencia(){
+  const el = document.getElementById('dash-ger-body');
+  if(!el) return;
+  const mes = CURR_MONTH;
+  const ventas = (ventasData||[]).filter(v=>v.fecha&&v.fecha.startsWith(mes));
+  const tvMes = ventas.reduce((s,v)=>s+parseMoney(v.monto||v.total||0),0);
+  const compras = [...(comprasFlore||[]),...(comprasJard||[])].filter(c=>c.fecha&&c.fecha.startsWith(mes));
+  const tcMes = compras.reduce((s,c)=>s+parseMoney(c.costo||0),0);
+  const evMes = (eventosData||[]).filter(e=>e.fecha&&e.fecha.startsWith(mes));
+  const evHoy = (eventosData||[]).filter(e=>e.fecha===TODAY_ISO);
+  const stockBajos = (stockData||[]).filter(s=>(s.cantidad||0)<=(s.min||0));
+  const pedPend = (pedidosHabData||[]).filter(p=>p.estado==='pendiente');
+  const clientes = (clientesData||[]).length;
+  const presupuestos = (presupuestosData||[]).filter(p=>p.fecha&&p.fecha.startsWith(mes));
+  const presAceptados = presupuestos.filter(p=>p.estado==='aceptado');
+  const conversion = presupuestos.length ? Math.round(presAceptados.length/presupuestos.length*100) : 0;
+  const margen = tvMes > 0 ? Math.round((tvMes-tcMes)/tvMes*100) : 0;
+  el.innerHTML = `
+    <div class="dash-ger-update">Última actualización: ${new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})} · <button class="btn-secondary" style="font-size:11px" onclick="renderDashboardGerencia()">🔄 Actualizar</button></div>
+    <div class="dash-ger-grid">
+      <div class="dash-ger-section">
+        <div class="dash-ger-title">💰 Finanzas del mes</div>
+        <div class="kpi-grid-mini">
+          <div class="kpi-card"><div class="kpi-val green">$${tvMes.toLocaleString('es-AR',{minimumFractionDigits:0})}</div><div class="kpi-lbl">Ventas del mes</div></div>
+          <div class="kpi-card"><div class="kpi-val">$${tcMes.toLocaleString('es-AR',{minimumFractionDigits:0})}</div><div class="kpi-lbl">Compras del mes</div></div>
+          <div class="kpi-card"><div class="kpi-val ${margen>=30?'green':margen>=15?'amber':'red'}">%${margen}</div><div class="kpi-lbl">Margen bruto</div></div>
+          <div class="kpi-card"><div class="kpi-val">$${(tvMes-tcMes).toLocaleString('es-AR',{minimumFractionDigits:0})}</div><div class="kpi-lbl">Resultado</div></div>
+        </div>
+      </div>
+      <div class="dash-ger-section">
+        <div class="dash-ger-title">📅 Operaciones</div>
+        <div class="kpi-grid-mini">
+          <div class="kpi-card"><div class="kpi-val">${evHoy.length}</div><div class="kpi-lbl">Eventos hoy</div></div>
+          <div class="kpi-card"><div class="kpi-val">${evMes.length}</div><div class="kpi-lbl">Eventos del mes</div></div>
+          <div class="kpi-card ${pedPend.length>0?'kpi-alert':''}"><div class="kpi-val">${pedPend.length}</div><div class="kpi-lbl">Pedidos hab. pendientes</div></div>
+          <div class="kpi-card ${stockBajos.length>0?'kpi-alert':''}"><div class="kpi-val">${stockBajos.length}</div><div class="kpi-lbl">Stock bajo mínimo</div></div>
+        </div>
+      </div>
+      <div class="dash-ger-section">
+        <div class="dash-ger-title">🤝 Comercial</div>
+        <div class="kpi-grid-mini">
+          <div class="kpi-card"><div class="kpi-val">${ventas.length}</div><div class="kpi-lbl">Ventas del mes</div></div>
+          <div class="kpi-card"><div class="kpi-val">${presupuestos.length}</div><div class="kpi-lbl">Presupuestos enviados</div></div>
+          <div class="kpi-card"><div class="kpi-val">${conversion}%</div><div class="kpi-lbl">Tasa conversión</div></div>
+          <div class="kpi-card"><div class="kpi-val">${clientes}</div><div class="kpi-lbl">Clientes en CRM</div></div>
+        </div>
+      </div>
+    </div>
+    ${stockBajos.length>0?`<div class="dash-ger-alert"><strong>⚠️ Stock bajo mínimo:</strong> ${stockBajos.slice(0,5).map(s=>`${esc(s.prod)} (${s.cantidad}/${s.min})`).join(', ')}${stockBajos.length>5?` y ${stockBajos.length-5} más...`:''}</div>`:''}
+    ${pedPend.length>0?`<div class="dash-ger-alert"><strong>🛎 Pedidos pendientes:</strong> ${pedPend.length} pedido(s) de habitación esperando atención.</div>`:''}`;
+  if(_dashGerTimer) clearInterval(_dashGerTimer);
+  _dashGerTimer = setInterval(renderDashboardGerencia, 300000);
+}
+
+// ════════════════════════════════════════
+// FEATURE 7: EXPORTACIÓN A EXCEL (.xlsx)
+// ════════════════════════════════════════
+function _xlsxDownload(wb, filename){
+  const X = window.XLSX;
+  if(!X){ showToast('Error: librería XLSX no disponible'); return; }
+  X.writeFile(wb, filename);
+}
+
+function exportVentasXLSX(){
+  const X = window.XLSX;
+  if(!X){ showToast('Error: XLSX no disponible'); return; }
+  const mes = CURR_MONTH;
+  const rows = (ventasData||[]).filter(v=>v.fecha&&v.fecha.startsWith(mes)).map(v=>({
+    Fecha: v.fecha||'', Producto: v.prod||v.descripcion||'', Cantidad: v.qty||v.cantidad||1,
+    Monto: parseMoney(v.monto||v.total||0), Categoría: v.cat||v.categoria||'', Responsable: v.resp||v.vendedor||''
+  }));
+  if(!rows.length){ showToast('Sin ventas para exportar este mes'); return; }
+  const ws = X.utils.json_to_sheet(rows);
+  const wb = X.utils.book_new();
+  X.utils.book_append_sheet(wb, ws, 'Ventas');
+  _xlsxDownload(wb, `ventas-${mes}.xlsx`);
+  showToast('✅ Exportado: ventas-'+mes+'.xlsx');
+}
+
+function exportComprasXLSX(){
+  const X = window.XLSX;
+  if(!X){ showToast('Error: XLSX no disponible'); return; }
+  const mes = CURR_MONTH;
+  const rows = [...(comprasFlore||[]),...(comprasJard||[])].filter(c=>c.fecha&&c.fecha.startsWith(mes)).map(c=>({
+    Fecha: c.fecha||'', Proveedor: c.prov||'', Producto: c.prod||'', Cantidad: c.qty||1,
+    Costo: parseMoney(c.costo||0), Estado: c.estado||'', Sector: c.sector||'', Notas: c.notas||c.desc||''
+  }));
+  if(!rows.length){ showToast('Sin compras para exportar este mes'); return; }
+  const ws = X.utils.json_to_sheet(rows);
+  const wb = X.utils.book_new();
+  X.utils.book_append_sheet(wb, ws, 'Compras');
+  _xlsxDownload(wb, `compras-${mes}.xlsx`);
+  showToast('✅ Exportado: compras-'+mes+'.xlsx');
+}
+
+function exportStockXLSX(){
+  const X = window.XLSX;
+  if(!X){ showToast('Error: XLSX no disponible'); return; }
+  const rows = (stockData||[]).map(s=>({
+    Producto: s.prod||'', Categoría: s.cat||s.categoria||'', Cantidad: s.cantidad||0,
+    Mínimo: s.min||0, Máximo: s.max||0, Unidad: s.unidad||'', Proveedor: s.prov||''
+  }));
+  if(!rows.length){ showToast('Sin datos de stock para exportar'); return; }
+  const ws = X.utils.json_to_sheet(rows);
+  const wb = X.utils.book_new();
+  X.utils.book_append_sheet(wb, ws, 'Stock');
+  _xlsxDownload(wb, `stock-${TODAY_ISO}.xlsx`);
+  showToast('✅ Exportado: stock-'+TODAY_ISO+'.xlsx');
+}
+
+function exportLegajoXLSX(){
+  const X = window.XLSX;
+  if(!X){ showToast('Error: XLSX no disponible'); return; }
+  const rows = (legajoData||[]).map(e=>({
+    Nombre: e.nombre||'', Cargo: e.cargo||'', Área: e.area||'', Ingreso: e.ingreso||'',
+    'Horas Contrato': e.horasContrato||0, Estado: e.estado||'activo', Email: e.email||'', Tel: e.tel||''
+  }));
+  if(!rows.length){ showToast('Sin empleados para exportar'); return; }
+  const ws = X.utils.json_to_sheet(rows);
+  const wb = X.utils.book_new();
+  X.utils.book_append_sheet(wb, ws, 'Legajo');
+  _xlsxDownload(wb, `legajo-${TODAY_ISO}.xlsx`);
+  showToast('✅ Exportado: legajo-'+TODAY_ISO+'.xlsx');
+}
+
 function applyCompraFiltersExtToArr(type, arr){
   const f = compraFilterExt[type]||{};
   if(f.prov) arr = arr.filter(r=>r.prov===f.prov);
@@ -10388,4 +10842,10 @@ Object.assign(window, {
   renderPrecioComparacion, buscarComparacion,
   calcStockMinInteligente, renderStockSugerencias, aplicarSugerenciaStock,
   renderCompraFiltersPanel, toggleCompraFilters, applyCompraFiltersExt, clearCompraFiltersExt,
+  installPWA, toggleTVMode, renderTVDashboard,
+  renderCotizacionesExt, cambiarEstadoCotExt,
+  renderPresupuestos, openPresupuestoModal, guardarPresupuesto, cambiarEstadoPres, eliminarPresupuesto,
+  renderCierreMensual, generarCierreMensual, verCierreMensual, exportCierrePDF,
+  renderDashboardGerencia,
+  exportVentasXLSX, exportComprasXLSX, exportStockXLSX, exportLegajoXLSX,
 });
