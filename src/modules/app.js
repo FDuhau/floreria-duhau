@@ -158,7 +158,7 @@ const COMERCIAL_PAGES = ['comercial','eventos-comercial','historial-eventos','co
 // ── NAVEGACIÓN INFERIOR MOBILE ──────────────────────────────────────────────
 const BOTTOM_NAV_ITEMS = {
   gerencia:  [{icon:'🏠',label:'Inicio',page:'home'},{icon:'📋',label:'Checklist',page:'checklist'},{icon:'🎉',label:'Eventos',page:'eventos-maison'},{icon:'💰',label:'Caja',page:'caja'}],
-  florista:  [{icon:'🏠',label:'Inicio',page:'home'},{icon:'📋',label:'Checklist',page:'checklist'},{icon:'📦',label:'Stock',page:'stock'},{icon:'🎉',label:'Eventos',page:'eventos-maison'},{icon:'💲',label:'Precios',page:'lista-precios'}],
+  florista:  [{icon:'🏠',label:'Inicio',page:'home'},{icon:'📋',label:'Checklist',page:'checklist'},{icon:'💐',label:'Ramos',page:'ramos-disponibles'},{icon:'📦',label:'Stock',page:'stock'},{icon:'🎉',label:'Eventos',page:'eventos-maison'}],
   operario:  [{icon:'🏠',label:'Inicio',page:'home'},{icon:'🎉',label:'Eventos',page:'eventos-maison'},{icon:'📦',label:'Stock',page:'stock'},{icon:'💲',label:'Precios',page:'lista-precios'}],
   jardinero: [{icon:'🌿',label:'Jardín',page:'jardineria-ops'},{icon:'🏡',label:'Habitac.',page:'hab-ops'},{icon:'🔔',label:'Avisos',page:'recordatorios-jardineria'}],
   compras:   [{icon:'🛒',label:'Compras',page:'compras-floreria'},{icon:'📦',label:'Stock',page:'stock-admin'},{icon:'📬',label:'Recepción',page:'recepcion-pedidos'}],
@@ -5754,7 +5754,7 @@ function renderRamosDisp(){
           <div class="lp-price-input" style="font-weight:700;color:#1A1A1A">${esc(r.precio||'A consultar')}</div>
           <div class="lp-card-actions" style="display:flex;gap:6px">
             <button class="btn-add" style="padding:6px 12px;font-size:12px" onclick="openVentaRamo(${i})">✓ Vender</button>
-            ${userRole!=='ventas' ? `<button class="btn-icon" style="color:var(--red-alert)" onclick="delRamo(${i})" title="Quitar">✕</button>` : ''}
+            ${userRole!=='ventas'&&userRole!=='florista' ? `<button class="btn-icon" style="color:var(--red-alert)" onclick="delRamo(${i})" title="Quitar">✕</button>` : ''}
           </div>
         </div>
       </div>
