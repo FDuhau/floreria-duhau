@@ -1852,29 +1852,59 @@
   <!-- ══════ RENTABILIDAD POR EVENTO ══════ -->
   <div id="page-rentabilidad-eventos" class="content">
     <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px">
-      <div><div class="page-title">Rentabilidad por Evento</div><div class="page-subtitle">Margen bruto · presupuesto vs costo real</div></div>
+      <div><div class="page-title">Rentabilidad</div><div class="page-subtitle">Margen bruto · eventos y arreglos del hotel</div></div>
       <button class="btn-print" onclick="exportPDF()">🖨 Imprimir</button>
     </div>
-    <div id="rent-kpis" class="cards-grid cards-grid-4" style="margin-bottom:24px"></div>
-    <div class="card">
-      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
-        <input class="stock-search" id="rent-search" placeholder="Buscar evento..." oninput="renderRentabilidad()" style="width:200px">
-        <select class="form-select" id="rent-tipo" onchange="renderRentabilidad()" style="width:160px">
-          <option value="">Todos los tipos</option>
-        </select>
+    <!-- Tabs -->
+    <div style="display:flex;gap:0;border-bottom:2px solid var(--light-gray);margin-bottom:20px">
+      <button id="rent-tab-eventos" onclick="rentSetTab('eventos')" style="padding:10px 22px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:var(--sage-dark);border-bottom:2px solid var(--sage-dark);margin-bottom:-2px;font-family:'DM Sans',sans-serif">🎉 Eventos</button>
+      <button id="rent-tab-hotel" onclick="rentSetTab('hotel')" style="padding:10px 22px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:var(--mid-gray);border-bottom:2px solid transparent;margin-bottom:-2px;font-family:'DM Sans',sans-serif">🏨 Arreglos del Hotel</button>
+    </div>
+
+    <!-- Panel Eventos -->
+    <div id="rent-panel-eventos">
+      <div id="rent-kpis" class="cards-grid cards-grid-4" style="margin-bottom:24px"></div>
+      <div class="card">
+        <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+          <input class="stock-search" id="rent-search" placeholder="Buscar evento..." oninput="renderRentabilidad()" style="width:200px">
+          <select class="form-select" id="rent-tipo" onchange="renderRentabilidad()" style="width:160px">
+            <option value="">Todos los tipos</option>
+          </select>
+        </div>
+        <div class="table-wrapper"><table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr>
+            <th style="text-align:left;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Evento</th>
+            <th style="text-align:left;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Fecha</th>
+            <th style="text-align:left;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Tipo</th>
+            <th style="text-align:right;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Presupuesto</th>
+            <th style="text-align:right;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Costo Est.</th>
+            <th style="text-align:right;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Margen</th>
+            <th style="text-align:left;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Estado</th>
+          </tr></thead>
+          <tbody id="rent-body"></tbody>
+        </table></div>
       </div>
-      <div class="table-wrapper"><table style="width:100%;border-collapse:collapse;font-size:13px" id="rent-table">
-        <thead><tr>
-          <th style="text-align:left;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Evento</th>
-          <th style="text-align:left;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Fecha</th>
-          <th style="text-align:left;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Tipo</th>
-          <th style="text-align:right;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Presupuesto</th>
-          <th style="text-align:right;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Costo Est.</th>
-          <th style="text-align:right;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Margen</th>
-          <th style="text-align:left;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Estado</th>
-        </tr></thead>
-        <tbody id="rent-body"></tbody>
-      </table></div>
+    </div>
+
+    <!-- Panel Hotel -->
+    <div id="rent-panel-hotel" style="display:none">
+      <div id="rent-hotel-kpis" class="cards-grid cards-grid-4" style="margin-bottom:24px"></div>
+      <div class="card">
+        <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:14px;font-weight:500">
+          Completá el precio Hyatt y la cantidad mensual de cada arreglo. El costo de producción se calcula automáticamente desde las composiciones.
+        </div>
+        <div class="table-wrapper"><table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr>
+            <th style="text-align:left;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Arreglo</th>
+            <th style="text-align:right;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Costo Producción</th>
+            <th style="text-align:right;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Precio Hyatt</th>
+            <th style="text-align:right;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Margen u.</th>
+            <th style="text-align:right;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Cant./mes</th>
+            <th style="text-align:right;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Facturación mes</th>
+          </tr></thead>
+          <tbody id="rent-hotel-body"></tbody>
+        </table></div>
+      </div>
     </div>
   </div>
 

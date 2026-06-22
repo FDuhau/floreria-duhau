@@ -320,6 +320,12 @@
         if(document.getElementById('page-galeria')?.classList.contains('active') && !window.estaEditando('page-galeria')) window.renderGaleria();
       });
 
+      fbListen('arreglosHotelConfig', val => {
+        if(!val) return;
+        if(window._setArreglosHotelConfig) window._setArreglosHotelConfig(val);
+        if(document.getElementById('page-rentabilidad-eventos')?.classList.contains('active')) window.renderRentabilidadHotel?.();
+      });
+
       fbListen('listaPreciosData', val => {
         if(!val) return;
         const arr = Array.isArray(val) ? val : Object.values(val||{});
