@@ -2,6 +2,7 @@
     import { initializeApp } from "firebase/app";
     import { getDatabase, ref, set, update, onValue, get } from "firebase/database";
     import { getMessaging, getToken, onMessage } from "firebase/messaging";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDU9kLCnXeO7qnINEy121Nktj1K96gJ9Lw",
@@ -15,14 +16,17 @@
 
     const fbApp = initializeApp(firebaseConfig);
     const db    = getDatabase(fbApp);
+    const auth  = getAuth(fbApp);
+
+    // Autenticación anónima — requerida por las reglas de la DB.
+    // Sin este token, Firebase rechaza todos los reads/writes.
+    signInAnonymously(auth).catch(e => console.warn('FB anon auth error:', e));
 
     // ── Helpers ───────────────────────────────────────────────────
     function fbSet(path, data){
       set(ref(db, path), data).catch(e => console.warn('FB write error:', e));
     }
 
-    // Escritura granular: actualiza UNA sub-ruta sin pisar el resto del nodo.
-    // Ej: fbSetPath('checklist/Lunes/checked/3', true) → no toca las otras tareas/días.
     function fbSetPath(path, value){
       set(ref(db, path), value).catch(e => console.warn('FB path write error:', e));
     }
