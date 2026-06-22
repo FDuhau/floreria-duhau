@@ -64,32 +64,7 @@
   <div class="sidebar-nav">
     <div class="nav-section-label">Principal</div>
     <div class="nav-item active" onclick="navigate('home',this)"><span class="nav-icon">🏠</span> Inicio</div>
-    <div class="nav-section-label">Operaciones</div>
-    <div class="nav-item nav-group-hdr" data-group-id="grp-ops" onclick="navToggleGroup('grp-ops');navigate('operaciones',this)"><span class="nav-icon">⚙️</span> Operaciones<span class="nav-chevron">›</span></div>
-    <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('checklist',this)">Checklist Diaria</div>
-    <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('stock',this)">Stock Florería</div>
-    <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('eventos-maison',this)">Eventos / Maison</div>
-    <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('cotizador-ops',this)">Cotizador</div>
-    <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('jardineria-ops',this)">Tareas Jardinería</div>
-    <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('hab-ops',this)">Habitaciones con Plantas</div>
-    <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('recepcion-pedidos',this)">📦 Recepción de Pedidos</div>
-    <div class="nav-sub-item nav-jard-only" data-group="grp-ops" style="display:none" onclick="navigate('recordatorios-jardineria',this)">🔔 Recordatorios Jardín</div>
-    <div class="nav-section-label nav-gerencia-only" style="display:none">Reportes</div>
-    <div class="nav-item nav-group-hdr nav-gerencia-only" data-group-id="grp-rep" style="display:none" onclick="navToggleGroup('grp-rep');navigate('reportes',this)"><span class="nav-icon">📊</span> Reportes<span class="nav-chevron">›</span></div>
-    <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('reportes-equipo',this)">Equipo & Horarios</div>
-    <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('reportes-ventas',this)">Ventas & Comercial</div>
-    <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('reportes-stock',this)">Stock & Compras</div>
-    <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('reportes-margen',this)">💹 Dashboard de Margen</div>
-    <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('auditoria',this)">🔍 Auditoría de Cambios</div>
-    <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('rentabilidad-eventos',this)">💰 Rentabilidad</div>
-    <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('dashboard-gerencia',this)">📊 Dashboard Gerencia</div>
-    <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('cierre-mensual',this)">📋 Cierre Mensual</div>
-    <div class="nav-section-label nav-gerencia-only" style="display:none">Clientes</div>
-    <div class="nav-item nav-gerencia-only" style="display:none" onclick="navigate('crm-clientes',this)"><span class="nav-icon">👥</span> CRM Clientes</div>
-    <div class="nav-section-label nav-gerencia-only" style="display:none">Multi-Sucursal</div>
-    <div class="nav-item nav-group-hdr nav-gerencia-only" data-group-id="grp-suc" style="display:none" onclick="navToggleGroup('grp-suc');navigate('dashboard-consolidado',this)"><span class="nav-icon">🏢</span> Sucursales<span class="nav-chevron">›</span></div>
-    <div class="nav-sub-item nav-gerencia-only" data-group="grp-suc" style="display:none" onclick="navigate('dashboard-consolidado',this)">📊 Dashboard Consolidado</div>
-    <div class="nav-sub-item nav-gerencia-only" data-group="grp-suc" style="display:none" onclick="navigate('sucursales',this)">⚙️ Administrar Sucursales</div>
+
     <div class="nav-section-label">Control</div>
     <div class="nav-item nav-group-hdr" data-group-id="grp-ctrl" onclick="navToggleGroup('grp-ctrl');navigate('control',this)"><span class="nav-icon">🌿</span> Control<span class="nav-chevron">›</span></div>
     <div class="nav-sub-item" data-group="grp-ctrl" onclick="navigate('control-jardineria',this)">Seguimiento Jardinería</div>
@@ -99,6 +74,7 @@
     <div class="nav-sub-item" data-group="grp-ctrl" onclick="navigate('legajo',this)">Legajo de Empleados</div>
     <div class="nav-sub-item" data-group="grp-ctrl" onclick="navigate('evaluaciones',this)">Evaluaciones</div>
     <div class="nav-sub-item" data-group="grp-ctrl" onclick="navigate('liquidacion',this)">Liquidación Horas Extra</div>
+
     <div class="nav-section-label">Compras</div>
     <div class="nav-item nav-group-hdr" data-group-id="grp-compras" onclick="navToggleGroup('grp-compras');navigate('compras',this)"><span class="nav-icon">🛒</span> Compras<span class="nav-chevron">›</span></div>
     <div class="nav-sub-item" data-group="grp-compras" onclick="navigate('compras-floreria',this)">Compras Florería</div>
@@ -106,6 +82,7 @@
     <div class="nav-sub-item" data-group="grp-compras" onclick="navigate('stock-admin',this)">Gestión de Stock</div>
     <div class="nav-sub-item" data-group="grp-compras" onclick="navigate('proveedores',this)">🏭 Proveedores</div>
     <div class="nav-sub-item" data-group="grp-compras" onclick="navigate('precio-comparacion',this)">Comparar Precios</div>
+
     <div class="nav-section-label">Comercial</div>
     <div class="nav-item nav-group-hdr" data-group-id="grp-com" onclick="navToggleGroup('grp-com');navigate('comercial',this)"><span class="nav-icon">💼</span> Área Comercial<span class="nav-chevron">›</span></div>
     <div class="nav-sub-item" data-group="grp-com" onclick="navigate('eventos-comercial',this)">Eventos</div>
@@ -122,6 +99,29 @@
     <div class="nav-sub-item" data-group="grp-com" onclick="navigate('recetas-arreglos',this)">Composiciones</div>
     <div class="nav-sub-item" data-group="grp-com" onclick="navigate('calendario',this)">📅 Calendario</div>
     <div class="nav-sub-item" data-group="grp-com" onclick="navigate('presupuestos',this)">📄 Presupuestos</div>
+    <div class="nav-sub-item nav-gerencia-only" data-group="grp-com" style="display:none" onclick="navigate('crm-clientes',this)">👥 CRM Clientes</div>
+
+    <div class="nav-section-label nav-gerencia-only" style="display:none">Reportes</div>
+    <div class="nav-item nav-group-hdr nav-gerencia-only" data-group-id="grp-rep" style="display:none" onclick="navToggleGroup('grp-rep');navigate('reportes',this)"><span class="nav-icon">📊</span> Reportes<span class="nav-chevron">›</span></div>
+    <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('reportes-equipo',this)">Equipo & Horarios</div>
+    <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('reportes-ventas',this)">Ventas & Comercial</div>
+    <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('reportes-stock',this)">Stock & Compras</div>
+    <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('reportes-margen',this)">💹 Dashboard de Margen</div>
+    <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('auditoria',this)">🔍 Auditoría de Cambios</div>
+    <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('rentabilidad-eventos',this)">💰 Rentabilidad</div>
+    <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('dashboard-gerencia',this)">📊 Dashboard Gerencia</div>
+    <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('cierre-mensual',this)">📋 Cierre Mensual</div>
+
+    <div class="nav-section-label">Operaciones</div>
+    <div class="nav-item nav-group-hdr" data-group-id="grp-ops" onclick="navToggleGroup('grp-ops');navigate('operaciones',this)"><span class="nav-icon">⚙️</span> Operaciones<span class="nav-chevron">›</span></div>
+    <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('checklist',this)">Checklist Diaria</div>
+    <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('stock',this)">Stock Florería</div>
+    <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('eventos-maison',this)">Eventos / Maison</div>
+    <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('cotizador-ops',this)">Cotizador</div>
+    <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('jardineria-ops',this)">Tareas Jardinería</div>
+    <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('hab-ops',this)">Habitaciones con Plantas</div>
+    <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('recepcion-pedidos',this)">📦 Recepción de Pedidos</div>
+    <div class="nav-sub-item nav-jard-only" data-group="grp-ops" style="display:none" onclick="navigate('recordatorios-jardineria',this)">🔔 Recordatorios Jardín</div>
   </div>
   <div style="padding:12px 24px;border-top:1px solid rgba(255,255,255,.07)">
     <button onclick="cambiarContrasena()" style="width:100%;padding:8px 12px;font-size:11px;letter-spacing:.5px;background:rgba(255,255,255,.06);color:rgba(247,245,242,.6);border:1px solid rgba(255,255,255,.1);border-radius:6px;cursor:pointer;font-family:inherit;margin-bottom:6px">🔑 Cambiar contraseña</button>
