@@ -9814,7 +9814,7 @@ function renderLegajo(){
       <div style="font-size:16px;font-weight:600;margin-bottom:4px">${esc(e.nombre)} ${esc(e.apellido)}</div>
       <div style="font-size:12px;color:var(--mid-gray);margin-bottom:8px;text-transform:capitalize">${esc(e.cargo||'')} · ${esc(e.sucursal||'')}</div>
       <div style="font-size:12px;margin-bottom:4px">📅 Ingreso: <strong>${e.fechaIngreso ? fmtDate(e.fechaIngreso) : '—'}</strong></div>
-      <div style="font-size:12px;margin-bottom:4px">💰 Sueldo: <strong>$${(+e.sueldoBase||0).toLocaleString('es-AR')}</strong></div>
+      <div style="font-size:12px;margin-bottom:4px">⏱ Horas contrato: <strong>${(+e.horasContrato||0)}h/mes</strong></div>
       <div style="font-size:12px;margin-bottom:12px">🏖️ Vacaciones restantes: <strong>${vac}</strong> días</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         <button class="btn-secondary" style="font-size:11px" onclick="verDetalleLegajo(${i})">Ver detalle</button>
@@ -9835,7 +9835,7 @@ function openLegajoModal(idx){
   document.getElementById('leg-fechaIngreso').value = e.fechaIngreso||'';
   document.getElementById('leg-cargo').value = e.cargo||'florista';
   document.getElementById('leg-sucursal').value = e.sucursal||'';
-  document.getElementById('leg-sueldoBase').value = e.sueldoBase||'';
+  document.getElementById('leg-horasContrato').value = e.horasContrato||'';
   document.getElementById('leg-vacacionesAnuales').value = e.vacacionesAnuales||14;
   document.getElementById('leg-vacacionesTomadas').value = e.vacacionesTomadas||0;
   document.getElementById('leg-notas').value = e.notas||'';
@@ -9854,7 +9854,7 @@ function guardarLegajo(){
     fechaIngreso: document.getElementById('leg-fechaIngreso').value,
     cargo: document.getElementById('leg-cargo').value,
     sucursal: document.getElementById('leg-sucursal').value.trim(),
-    sueldoBase: +document.getElementById('leg-sueldoBase').value||0,
+    horasContrato: +document.getElementById('leg-horasContrato').value||0,
     vacacionesAnuales: +document.getElementById('leg-vacacionesAnuales').value||14,
     vacacionesTomadas: +document.getElementById('leg-vacacionesTomadas').value||0,
     notas: document.getElementById('leg-notas').value.trim(),
@@ -9885,7 +9885,7 @@ function verDetalleLegajo(idx){
       <div><div class="card-label">Cargo</div><div style="text-transform:capitalize">${esc(e.cargo||'—')}</div></div>
       <div><div class="card-label">Sucursal</div><div>${esc(e.sucursal||'—')}</div></div>
       <div><div class="card-label">Fecha Ingreso</div><div>${e.fechaIngreso ? fmtDate(e.fechaIngreso) : '—'}</div></div>
-      <div><div class="card-label">Sueldo Base</div><div>$${(+e.sueldoBase||0).toLocaleString('es-AR')}</div></div>
+      <div><div class="card-label">Horas por contrato</div><div>${(+e.horasContrato||0)}h/mes</div></div>
       <div><div class="card-label">Vacaciones Restantes</div><div>${vac} días (${e.vacacionesAnuales||14} anuales / ${e.vacacionesTomadas||0} tomadas)</div></div>
     </div>
     ${e.notas ? `<div class="card-label">Notas</div><div style="white-space:pre-wrap;font-size:13px">${esc(e.notas)}</div>` : ''}
@@ -10016,25 +10016,24 @@ function renderLiquidacion(){
     tbody.innerHTML = `<tr><td colspan="8" style="padding:20px;text-align:center;color:var(--mid-gray)">Sin empleados en el legajo.</td></tr>`;
     return;
   }
-  const mesHoras = (liquidacionConfig.horas||{})[mes]||{};
+  const mesData = (liquidacionConfig.horas||{})[mes]||{};
   let totalExtra = 0, totalPesos = 0;
-  tbody.innerHTML = empleados.map((e,i)=>{
-    const realIdx = legajoData.indexOf(e);
-    const hTrab = +(mesHoras[e.id]||0);
-    const hExtra = Math.max(0, hTrab - horasEsp);
-    const valHora = (e.sueldoBase||0) / 192 * 1.5;
-    const totalAdicional = +(hExtra * valHora).toFixed(2);
+  tbody.innerHTML = empleados.map((e)=>{
+    const hContrato = +(e.horasContrato||0);
+    const hTrab = +(mesData[e.id]?.trabajadas||0);
+    const valHora = +(mesData[e.id]?.valorHora||0);
+    const hExtra = Math.max(0, hTrab - hContrato);
+    const totalAdicional = +(hExtra * valHora * 1.5).toFixed(2);
     totalExtra += hExtra;
     totalPesos += totalAdicional;
     return `<tr>
       <td>${esc(e.nombre)} ${esc(e.apellido)}</td>
       <td style="text-transform:capitalize">${esc(e.cargo||'')}</td>
-      <td>$${(+e.sueldoBase||0).toLocaleString('es-AR')}</td>
-      <td><input class="form-input" type="number" min="0" value="${hTrab}" style="width:80px;padding:4px 8px" onchange="saveLiquidacionHoras(${e.id},'${mes}',+this.value)"></td>
-      <td>${horasEsp}</td>
-      <td><strong>${hExtra}</strong></td>
-      <td>$${valHora.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
-      <td><strong>$${totalAdicional.toLocaleString('es-AR',{minimumFractionDigits:2})}</strong></td>
+      <td style="text-align:center">${hContrato}h</td>
+      <td><input class="form-input" type="number" min="0" value="${hTrab||''}" placeholder="0" style="width:75px;padding:4px 8px;text-align:center" onchange="saveLiquidacionHoras(${e.id},'${mes}','trabajadas',+this.value)"></td>
+      <td style="text-align:center;font-weight:600;color:${hExtra>0?'var(--sage-dark)':'var(--mid-gray)'}">${hExtra}</td>
+      <td><input class="form-input" type="number" min="0" value="${valHora||''}" placeholder="$" style="width:90px;padding:4px 8px;text-align:right" onchange="saveLiquidacionHoras(${e.id},'${mes}','valorHora',+this.value)"></td>
+      <td style="text-align:right;font-weight:600">${totalAdicional ? '$'+totalAdicional.toLocaleString('es-AR',{minimumFractionDigits:2}) : '<span style="color:var(--mid-gray)">—</span>'}</td>
     </tr>`;
   }).join('');
   if(summary) summary.innerHTML = `
@@ -10045,10 +10044,11 @@ function renderLiquidacion(){
     </div>`;
 }
 
-function saveLiquidacionHoras(empleadoId, mes, horas){
+function saveLiquidacionHoras(empleadoId, mes, field, val){
   if(!liquidacionConfig.horas) liquidacionConfig.horas = {};
   if(!liquidacionConfig.horas[mes]) liquidacionConfig.horas[mes] = {};
-  liquidacionConfig.horas[mes][empleadoId] = horas;
+  if(!liquidacionConfig.horas[mes][empleadoId]) liquidacionConfig.horas[mes][empleadoId] = {};
+  liquidacionConfig.horas[mes][empleadoId][field] = val;
   fbSave('liquidacionConfig', liquidacionConfig);
   renderLiquidacion();
 }
@@ -10060,12 +10060,13 @@ function exportLiquidacion(){
   let txt = `LIQUIDACIÓN HORAS EXTRA — ${mes}\n${'='.repeat(50)}\n`;
   let total = 0;
   legajoData.forEach(e=>{
-    const hTrab = +(mesHoras[e.id]||0);
-    const hExtra = Math.max(0, hTrab - horasEsp);
-    const valHora = (e.sueldoBase||0)/192*1.5;
-    const adicional = +(hExtra*valHora).toFixed(2);
+    const mesData = (liquidacionConfig.horas||{})[mes]||{};
+    const hTrab = +(mesData[e.id]?.trabajadas||0);
+    const valHora = +(mesData[e.id]?.valorHora||0);
+    const hExtra = Math.max(0, hTrab - +(e.horasContrato||0));
+    const adicional = +(hExtra*valHora*1.5).toFixed(2);
     total += adicional;
-    txt += `${e.nombre} ${e.apellido} (${e.cargo}): ${hExtra} hs extra = $${adicional.toLocaleString('es-AR')}\n`;
+    txt += `${e.nombre} ${e.apellido} (${e.cargo}): contrato ${e.horasContrato||0}h, trabajadas ${hTrab}h, extra ${hExtra}h = $${adicional.toLocaleString('es-AR')}\n`;
   });
   txt += `${'='.repeat(50)}\nTOTAL: $${total.toLocaleString('es-AR',{minimumFractionDigits:2})}`;
   const blob = new Blob([txt],{type:'text/plain'});
