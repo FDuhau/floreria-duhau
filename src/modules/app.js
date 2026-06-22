@@ -9624,6 +9624,84 @@ function eliminarProveedor(idx){
 }
 
 // ── RENTABILIDAD POR EVENTO ───────────────────────────────────────────────────
+// ── RENTABILIDAD TABS ─────────────────────────────────────────────────────────
+let _rentTab = 'eventos';
+let arreglosHotelConfig = {}; // { nombreArreglo: { precioHyatt, cantMensual } }
+
+window._setArreglosHotelConfig = v => { arreglosHotelConfig = v || {}; };
+
+function rentSetTab(tab){
+  _rentTab = tab;
+  document.getElementById('rent-panel-eventos').style.display = tab === 'eventos' ? '' : 'none';
+  document.getElementById('rent-panel-hotel').style.display  = tab === 'hotel'   ? '' : 'none';
+  const btnEv    = document.getElementById('rent-tab-eventos');
+  const btnHotel = document.getElementById('rent-tab-hotel');
+  if(btnEv){
+    btnEv.style.color       = tab === 'eventos' ? 'var(--sage-dark)' : 'var(--mid-gray)';
+    btnEv.style.borderBottomColor = tab === 'eventos' ? 'var(--sage-dark)' : 'transparent';
+  }
+  if(btnHotel){
+    btnHotel.style.color       = tab === 'hotel' ? 'var(--sage-dark)' : 'var(--mid-gray)';
+    btnHotel.style.borderBottomColor = tab === 'hotel' ? 'var(--sage-dark)' : 'transparent';
+  }
+  if(tab === 'hotel') renderRentabilidadHotel();
+}
+
+function saveArregloHotelConfig(nombre, field, val){
+  if(!arreglosHotelConfig[nombre]) arreglosHotelConfig[nombre] = {};
+  arreglosHotelConfig[nombre][field] = +val || 0;
+  fbSave('arreglosHotelConfig', arreglosHotelConfig);
+  renderRentabilidadHotel();
+}
+
+function renderRentabilidadHotel(){
+  const tbody   = document.getElementById('rent-hotel-body');
+  const kpisEl  = document.getElementById('rent-hotel-kpis');
+  if(!tbody) return;
+
+  const rows = recetasData.map(r => {
+    const costo     = calcCostoComposicion(r);
+    const cfg       = arreglosHotelConfig[r.nombre] || {};
+    const precioHyatt = cfg.precioHyatt || 0;
+    const cant      = cfg.cantMensual   || 0;
+    const margenU   = precioHyatt - costo;
+    const margenPct = precioHyatt > 0 ? (margenU / precioHyatt * 100).toFixed(1) : null;
+    const facturacion = precioHyatt * cant;
+    return { nombre: r.nombre, costo, precioHyatt, cant, margenU, margenPct, facturacion };
+  });
+
+  const totalFact  = rows.reduce((s,r) => s + r.facturacion, 0);
+  const totalCosto = rows.reduce((s,r) => s + r.costo * r.cant, 0);
+  const margenGlobal = totalFact > 0 ? ((totalFact - totalCosto) / totalFact * 100).toFixed(1) : '—';
+
+  if(kpisEl) kpisEl.innerHTML = `
+    <div class="card"><div class="card-label">Tipos de arreglo</div><div class="card-value" style="font-size:32px">${rows.length}</div></div>
+    <div class="card"><div class="card-label">Facturación mensual est.</div><div class="card-value" style="font-size:26px">$${totalFact.toLocaleString('es-AR')}</div></div>
+    <div class="card"><div class="card-label">Costo mensual est.</div><div class="card-value" style="font-size:26px">$${totalCosto.toLocaleString('es-AR')}</div></div>
+    <div class="card"><div class="card-label">Margen global hotel</div><div class="card-value ${+margenGlobal>40?'green':+margenGlobal>20?'amber':'red'}" style="font-size:32px">${margenGlobal}%</div></div>`;
+
+  const th = 'padding:9px 14px;border-bottom:1px solid var(--light-gray)';
+  tbody.innerHTML = rows.map(r => {
+    const mc = r.margenPct != null ? (+r.margenPct > 40 ? 'var(--green-ok)' : +r.margenPct > 20 ? 'var(--amber)' : 'var(--red-alert)') : 'var(--mid-gray)';
+    return `<tr>
+      <td style="${th};font-weight:500">${arregloEmoji(r.nombre)} ${esc(r.nombre)}</td>
+      <td style="${th};text-align:right;color:var(--mid-gray)">$${r.costo.toLocaleString('es-AR',{maximumFractionDigits:0})}</td>
+      <td style="${th};text-align:right">
+        <input type="number" min="0" value="${r.precioHyatt||''}" placeholder="$"
+          style="width:110px;text-align:right;border:1px solid var(--light-gray);border-radius:6px;padding:4px 8px;font-size:13px;outline:none;background:var(--warm-white);color:var(--charcoal)"
+          onchange="saveArregloHotelConfig('${esc(r.nombre)}','precioHyatt',this.value)">
+      </td>
+      <td style="${th};text-align:right;font-weight:700;color:${mc}">${r.margenPct != null ? r.margenPct+'%' : '—'}</td>
+      <td style="${th};text-align:right">
+        <input type="number" min="0" value="${r.cant||''}" placeholder="0"
+          style="width:70px;text-align:right;border:1px solid var(--light-gray);border-radius:6px;padding:4px 8px;font-size:13px;outline:none;background:var(--warm-white);color:var(--charcoal)"
+          onchange="saveArregloHotelConfig('${esc(r.nombre)}','cantMensual',this.value)">
+      </td>
+      <td style="${th};text-align:right;font-weight:600">${r.facturacion ? '$'+r.facturacion.toLocaleString('es-AR',{maximumFractionDigits:0}) : '<span style="color:var(--mid-gray)">—</span>'}</td>
+    </tr>`;
+  }).join('');
+}
+
 function renderRentabilidad(){
   const search = (document.getElementById('rent-search')?.value||'').toLowerCase();
   const tipoSel = document.getElementById('rent-tipo');
@@ -10284,7 +10362,7 @@ Object.assign(window, {
   openPushNotifModal, enviarPushNotif, initPushForUser,
   renderCalendario, calPrevMonth, calNextMonth,
   renderProveedores, openProveedorModal, guardarProveedor, eliminarProveedor,
-  renderRentabilidad, alertasAutomaticas,
+  renderRentabilidad, renderRentabilidadHotel, rentSetTab, saveArregloHotelConfig, alertasAutomaticas,
   renderStock, renderStockAdmin, renderVentaHoraCell, renderVentas, renderZonasPicker,
   resetHora, resetWeekState, resetearPassword, resetearTodasPasswords, saleAutoFillPrice,
   saveEvent, saveInsumosCustom, saveKanbanTask, saveLpItem, saveRamo, saveReceta, saveUrgenciaConfig,
