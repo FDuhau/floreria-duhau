@@ -145,7 +145,11 @@ const PAGE_LABELS = {control:'Control','control-jardineria':'Control › Seguimi
   'dashboard-consolidado':'Dashboard Consolidado',
   'calendario': 'Calendario de Eventos',
   'proveedores': 'Proveedores',
-  'rentabilidad-eventos': 'Rentabilidad por Evento'
+  'rentabilidad-eventos': 'Rentabilidad por Evento',
+  legajo: 'Control › Legajo de Empleados',
+  evaluaciones: 'Control › Evaluaciones de Desempeño',
+  liquidacion: 'Control › Liquidación Horas Extra',
+  'precio-comparacion': 'Compras › Comparar Precios'
 };
 const COMPRAS_PAGES=['compras','compras-floreria','compras-jardineria','stock-admin'];
 const CONTROL_PAGES=['control','control-jardineria','control-habitaciones','control-horarios','recordatorios-jardineria'];
@@ -273,6 +277,10 @@ function navigate(pageId, navEl){
   if(pageId==='calendario') renderCalendario();
   if(pageId==='proveedores') renderProveedores();
   if(pageId==='rentabilidad-eventos') renderRentabilidad();
+  if(pageId==='legajo') renderLegajo();
+  if(pageId==='evaluaciones') renderEvaluaciones();
+  if(pageId==='liquidacion') renderLiquidacion();
+  if(pageId==='precio-comparacion') renderPrecioComparacion();
 
   // En mobile, cerrar el sidebar automáticamente al navegar
   if(window.innerWidth <= 768) closeSidebar();
@@ -1724,6 +1732,8 @@ function renderCompras(type){
   if(fArea)  filtered = filtered.filter(r => r.sector === fArea);
   if(fFecha) filtered = filtered.filter(r => r.fecha === fFecha);
 
+  filtered = applyCompraFiltersExtToArr(type, filtered);
+  renderCompraFiltersPanel(type);
   renderCompraSummary(type, filtered);
 
   // Para la tabla: solo mostrar pedidos en curso (los recibidos se van automáticamente)
@@ -1784,7 +1794,10 @@ function renderCompras(type){
         </select>
       </td>
       <td style="vertical-align:middle">${getStockBadge(r.prod)}</td>
-      <td><button class="btn-icon" style="color:var(--red-alert)" onclick="delC('${type}',${i})">✕</button></td>
+      <td style="white-space:nowrap">
+        <button class="btn-secondary" style="font-size:10px;padding:3px 7px;margin-right:4px" onclick="generarOrdenCompra(${i},'${type==='floreria'?'flore':'jard'}')" title="Generar Orden de Compra">📄 OC</button>
+        <button class="btn-icon" style="color:var(--red-alert)" onclick="delC('${type}',${i})">✕</button>
+      </td>
     </tr>`;
     });
   });
@@ -9704,6 +9717,521 @@ function alertasAutomaticas(){
   }
 }
 
+// ════════════════════════════════════════
+// FEATURE 1: LEGAJO DIGITAL DE EMPLEADOS
+// ════════════════════════════════════════
+let legajoData = [];
+window._setLegajoData = arr => { legajoData = arr; };
+
+function renderLegajo(){
+  const grid = document.getElementById('legajo-grid');
+  if(!grid) return;
+  if(!legajoData.length){
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--mid-gray)">Sin empleados registrados. Agregá el primero.</div>';
+    return;
+  }
+  grid.innerHTML = legajoData.map((e,i)=>{
+    const vac = (e.vacacionesAnuales||14) - (e.vacacionesTomadas||0);
+    return `<div class="card">
+      <div style="font-size:16px;font-weight:600;margin-bottom:4px">${esc(e.nombre)} ${esc(e.apellido)}</div>
+      <div style="font-size:12px;color:var(--mid-gray);margin-bottom:8px;text-transform:capitalize">${esc(e.cargo||'')} · ${esc(e.sucursal||'')}</div>
+      <div style="font-size:12px;margin-bottom:4px">📅 Ingreso: <strong>${e.fechaIngreso ? fmtDate(e.fechaIngreso) : '—'}</strong></div>
+      <div style="font-size:12px;margin-bottom:4px">💰 Sueldo: <strong>$${(+e.sueldoBase||0).toLocaleString('es-AR')}</strong></div>
+      <div style="font-size:12px;margin-bottom:12px">🏖️ Vacaciones restantes: <strong>${vac}</strong> días</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn-secondary" style="font-size:11px" onclick="verDetalleLegajo(${i})">Ver detalle</button>
+        <button class="btn-secondary" style="font-size:11px" onclick="openLegajoModal(${i})">Editar</button>
+        <button class="btn-icon" style="color:var(--red-alert)" onclick="eliminarLegajo(${i})">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openLegajoModal(idx){
+  const e = idx >= 0 ? legajoData[idx] : {};
+  document.getElementById('legajo-modal-title').textContent = idx >= 0 ? 'Editar Empleado' : 'Nuevo Empleado';
+  document.getElementById('leg-idx').value = idx;
+  document.getElementById('leg-nombre').value = e.nombre||'';
+  document.getElementById('leg-apellido').value = e.apellido||'';
+  document.getElementById('leg-dni').value = e.dni||'';
+  document.getElementById('leg-fechaIngreso').value = e.fechaIngreso||'';
+  document.getElementById('leg-cargo').value = e.cargo||'florista';
+  document.getElementById('leg-sucursal').value = e.sucursal||'';
+  document.getElementById('leg-sueldoBase').value = e.sueldoBase||'';
+  document.getElementById('leg-vacacionesAnuales').value = e.vacacionesAnuales||14;
+  document.getElementById('leg-vacacionesTomadas').value = e.vacacionesTomadas||0;
+  document.getElementById('leg-notas').value = e.notas||'';
+  document.getElementById('legajo-modal').classList.add('open');
+}
+
+function guardarLegajo(){
+  const idx = +document.getElementById('leg-idx').value;
+  const nombre = document.getElementById('leg-nombre').value.trim();
+  const apellido = document.getElementById('leg-apellido').value.trim();
+  if(!nombre || !apellido){ alert('Nombre y apellido son requeridos.'); return; }
+  const obj = {
+    id: idx >= 0 ? legajoData[idx].id : Date.now(),
+    nombre, apellido,
+    dni: document.getElementById('leg-dni').value.trim(),
+    fechaIngreso: document.getElementById('leg-fechaIngreso').value,
+    cargo: document.getElementById('leg-cargo').value,
+    sucursal: document.getElementById('leg-sucursal').value.trim(),
+    sueldoBase: +document.getElementById('leg-sueldoBase').value||0,
+    vacacionesAnuales: +document.getElementById('leg-vacacionesAnuales').value||14,
+    vacacionesTomadas: +document.getElementById('leg-vacacionesTomadas').value||0,
+    notas: document.getElementById('leg-notas').value.trim(),
+    documentos: idx >= 0 ? (legajoData[idx].documentos||[]) : []
+  };
+  if(idx >= 0) legajoData[idx] = obj; else legajoData.push(obj);
+  fbSave('legajoData', legajoData);
+  closeModal('legajo-modal');
+  renderLegajo();
+  showToast('Empleado guardado');
+}
+
+function eliminarLegajo(idx){
+  if(!confirm('¿Eliminar este empleado del legajo?')) return;
+  legajoData.splice(idx,1);
+  fbSave('legajoData', legajoData);
+  renderLegajo();
+}
+
+function verDetalleLegajo(idx){
+  const e = legajoData[idx];
+  if(!e) return;
+  const vac = (e.vacacionesAnuales||14) - (e.vacacionesTomadas||0);
+  document.getElementById('leg-det-titulo').textContent = `${e.nombre} ${e.apellido}`;
+  document.getElementById('leg-det-body').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      <div><div class="card-label">DNI</div><div>${esc(e.dni||'—')}</div></div>
+      <div><div class="card-label">Cargo</div><div style="text-transform:capitalize">${esc(e.cargo||'—')}</div></div>
+      <div><div class="card-label">Sucursal</div><div>${esc(e.sucursal||'—')}</div></div>
+      <div><div class="card-label">Fecha Ingreso</div><div>${e.fechaIngreso ? fmtDate(e.fechaIngreso) : '—'}</div></div>
+      <div><div class="card-label">Sueldo Base</div><div>$${(+e.sueldoBase||0).toLocaleString('es-AR')}</div></div>
+      <div><div class="card-label">Vacaciones Restantes</div><div>${vac} días (${e.vacacionesAnuales||14} anuales / ${e.vacacionesTomadas||0} tomadas)</div></div>
+    </div>
+    ${e.notas ? `<div class="card-label">Notas</div><div style="white-space:pre-wrap;font-size:13px">${esc(e.notas)}</div>` : ''}
+    ${(e.documentos||[]).length ? `<div class="card-label" style="margin-top:12px">Documentos</div>${e.documentos.map(d=>`<div><a href="${esc(d.url)}" target="_blank">${esc(d.nombre)}</a></div>`).join('')}` : ''}
+  `;
+  document.getElementById('legajo-detalle-modal').classList.add('open');
+}
+
+// ════════════════════════════════════════
+// FEATURE 2: EVALUACIONES DE DESEMPEÑO
+// ════════════════════════════════════════
+let evaluacionesData = [];
+window._setEvaluacionesData = arr => { evaluacionesData = arr; };
+
+function renderEvaluaciones(){
+  const tbody = document.getElementById('eval-tbody');
+  if(!tbody) return;
+  const search = (document.getElementById('ev-search')?.value||'').toLowerCase();
+  const filterTrim = document.getElementById('ev-filter-trim')?.value||'';
+  const trimSel = document.getElementById('ev-filter-trim');
+  if(trimSel){
+    const trimActual = trimSel.value;
+    const trims = [...new Set(evaluacionesData.map(e=>e.trimestre).filter(Boolean))].sort().reverse();
+    trimSel.innerHTML = '<option value="">— Todos los trimestres —</option>' + trims.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');
+    trimSel.value = trimActual;
+  }
+  let data = evaluacionesData;
+  if(search) data = data.filter(e=>(e.empleadoNombre||'').toLowerCase().includes(search));
+  if(filterTrim) data = data.filter(e=>e.trimestre===filterTrim);
+  if(!data.length){
+    tbody.innerHTML = `<tr><td colspan="9" style="padding:20px;text-align:center;color:var(--mid-gray)">Sin evaluaciones.</td></tr>`;
+    return;
+  }
+  const stars = n => '★'.repeat(Math.round(n||0))+'☆'.repeat(5-Math.round(n||0));
+  const badge = p => {
+    const cls = p>=4?'green':p>=3?'amber':'red';
+    return `<span class="card-value ${cls}" style="font-size:13px">${p.toFixed(1)}</span>`;
+  };
+  tbody.innerHTML = data.map((e,i)=>{
+    const realIdx = evaluacionesData.indexOf(e);
+    const prom = ((+e.puntualidad||0)+(+e.calidad||0)+(+e.actitud||0)+(+e.productividad||0))/4;
+    return `<tr>
+      <td>${esc(e.empleadoNombre||'')}</td>
+      <td>${esc(e.trimestre||'')}</td>
+      <td title="${e.puntualidad}/5">${stars(e.puntualidad)}</td>
+      <td title="${e.calidad}/5">${stars(e.calidad)}</td>
+      <td title="${e.actitud}/5">${stars(e.actitud)}</td>
+      <td title="${e.productividad}/5">${stars(e.productividad)}</td>
+      <td>${badge(prom)}</td>
+      <td>${esc(e.evaluador||'')}</td>
+      <td>
+        <button class="btn-secondary" style="font-size:11px" onclick="openEvaluacionModal(${realIdx})">Editar</button>
+        <button class="btn-icon" style="color:var(--red-alert)" onclick="eliminarEvaluacion(${realIdx})">✕</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function openEvaluacionModal(idx){
+  const e = idx >= 0 ? evaluacionesData[idx] : {};
+  document.getElementById('evaluacion-modal-title').textContent = idx >= 0 ? 'Editar Evaluación' : 'Nueva Evaluación';
+  document.getElementById('eval-idx').value = idx;
+  const empSel = document.getElementById('eval-empleado');
+  empSel.innerHTML = '<option value="">— Seleccionar empleado —</option>' +
+    legajoData.map(l=>`<option value="${l.id}" data-nombre="${esc(l.nombre+' '+l.apellido)}">${esc(l.nombre+' '+l.apellido)}</option>`).join('');
+  if(e.empleadoId) empSel.value = e.empleadoId;
+  document.getElementById('eval-trimestre').value = e.trimestre||'';
+  document.getElementById('eval-puntualidad').value = e.puntualidad||3;
+  document.getElementById('eval-calidad').value = e.calidad||3;
+  document.getElementById('eval-actitud').value = e.actitud||3;
+  document.getElementById('eval-productividad').value = e.productividad||3;
+  document.getElementById('eval-comentarios').value = e.comentarios||'';
+  document.getElementById('eval-evaluador').value = e.evaluador||'';
+  document.getElementById('evaluacion-modal').classList.add('open');
+}
+
+function guardarEvaluacion(){
+  const idx = +document.getElementById('eval-idx').value;
+  const empSel = document.getElementById('eval-empleado');
+  const empleadoId = empSel.value;
+  const empleadoNombre = empSel.options[empSel.selectedIndex]?.dataset?.nombre||'';
+  const trimestre = document.getElementById('eval-trimestre').value.trim();
+  if(!empleadoId || !trimestre){ alert('Empleado y trimestre son requeridos.'); return; }
+  const obj = {
+    id: idx >= 0 ? evaluacionesData[idx].id : Date.now(),
+    empleadoId, empleadoNombre, trimestre,
+    puntualidad: +document.getElementById('eval-puntualidad').value||3,
+    calidad: +document.getElementById('eval-calidad').value||3,
+    actitud: +document.getElementById('eval-actitud').value||3,
+    productividad: +document.getElementById('eval-productividad').value||3,
+    comentarios: document.getElementById('eval-comentarios').value.trim(),
+    evaluador: document.getElementById('eval-evaluador').value.trim(),
+    fecha: TODAY_ISO
+  };
+  if(idx >= 0) evaluacionesData[idx] = obj; else evaluacionesData.push(obj);
+  fbSave('evaluacionesData', evaluacionesData);
+  closeModal('evaluacion-modal');
+  renderEvaluaciones();
+  showToast('Evaluación guardada');
+}
+
+function eliminarEvaluacion(idx){
+  if(!confirm('¿Eliminar esta evaluación?')) return;
+  evaluacionesData.splice(idx,1);
+  fbSave('evaluacionesData', evaluacionesData);
+  renderEvaluaciones();
+}
+
+// ════════════════════════════════════════
+// FEATURE 3: LIQUIDACIÓN HORAS EXTRA
+// ════════════════════════════════════════
+let liquidacionConfig = { horasEsperadas: 192, horas: {} };
+window._setLiquidacionConfig = v => { if(v) liquidacionConfig = v; };
+
+function renderLiquidacion(){
+  const tbody = document.getElementById('liq-tbody');
+  const summary = document.getElementById('liq-summary');
+  if(!tbody) return;
+  const mesEl = document.getElementById('liq-mes');
+  if(!mesEl.value){
+    const now = new Date();
+    mesEl.value = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  }
+  const mes = mesEl.value;
+  const horasEsp = +document.getElementById('liq-horas-esp').value || 192;
+  const empleados = legajoData.filter(e=>e.cargo !== '__inactivo__');
+  if(!empleados.length){
+    tbody.innerHTML = `<tr><td colspan="8" style="padding:20px;text-align:center;color:var(--mid-gray)">Sin empleados en el legajo.</td></tr>`;
+    return;
+  }
+  const mesHoras = (liquidacionConfig.horas||{})[mes]||{};
+  let totalExtra = 0, totalPesos = 0;
+  tbody.innerHTML = empleados.map((e,i)=>{
+    const realIdx = legajoData.indexOf(e);
+    const hTrab = +(mesHoras[e.id]||0);
+    const hExtra = Math.max(0, hTrab - horasEsp);
+    const valHora = (e.sueldoBase||0) / 192 * 1.5;
+    const totalAdicional = +(hExtra * valHora).toFixed(2);
+    totalExtra += hExtra;
+    totalPesos += totalAdicional;
+    return `<tr>
+      <td>${esc(e.nombre)} ${esc(e.apellido)}</td>
+      <td style="text-transform:capitalize">${esc(e.cargo||'')}</td>
+      <td>$${(+e.sueldoBase||0).toLocaleString('es-AR')}</td>
+      <td><input class="form-input" type="number" min="0" value="${hTrab}" style="width:80px;padding:4px 8px" onchange="saveLiquidacionHoras(${e.id},'${mes}',+this.value)"></td>
+      <td>${horasEsp}</td>
+      <td><strong>${hExtra}</strong></td>
+      <td>$${valHora.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+      <td><strong>$${totalAdicional.toLocaleString('es-AR',{minimumFractionDigits:2})}</strong></td>
+    </tr>`;
+  }).join('');
+  if(summary) summary.innerHTML = `
+    <div class="cards-grid cards-grid-3">
+      <div class="card"><div class="card-label">Total Horas Extra del Equipo</div><div class="card-value">${totalExtra.toFixed(1)} hs</div></div>
+      <div class="card"><div class="card-label">Total a Liquidar</div><div class="card-value green">$${totalPesos.toLocaleString('es-AR',{minimumFractionDigits:2})}</div></div>
+      <div class="card"><div class="card-label">Empleados</div><div class="card-value">${empleados.length}</div></div>
+    </div>`;
+}
+
+function saveLiquidacionHoras(empleadoId, mes, horas){
+  if(!liquidacionConfig.horas) liquidacionConfig.horas = {};
+  if(!liquidacionConfig.horas[mes]) liquidacionConfig.horas[mes] = {};
+  liquidacionConfig.horas[mes][empleadoId] = horas;
+  fbSave('liquidacionConfig', liquidacionConfig);
+  renderLiquidacion();
+}
+
+function exportLiquidacion(){
+  const mes = document.getElementById('liq-mes')?.value || '';
+  const horasEsp = +document.getElementById('liq-horas-esp')?.value || 192;
+  const mesHoras = (liquidacionConfig.horas||{})[mes]||{};
+  let txt = `LIQUIDACIÓN HORAS EXTRA — ${mes}\n${'='.repeat(50)}\n`;
+  let total = 0;
+  legajoData.forEach(e=>{
+    const hTrab = +(mesHoras[e.id]||0);
+    const hExtra = Math.max(0, hTrab - horasEsp);
+    const valHora = (e.sueldoBase||0)/192*1.5;
+    const adicional = +(hExtra*valHora).toFixed(2);
+    total += adicional;
+    txt += `${e.nombre} ${e.apellido} (${e.cargo}): ${hExtra} hs extra = $${adicional.toLocaleString('es-AR')}\n`;
+  });
+  txt += `${'='.repeat(50)}\nTOTAL: $${total.toLocaleString('es-AR',{minimumFractionDigits:2})}`;
+  const blob = new Blob([txt],{type:'text/plain'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `liquidacion-${mes}.txt`;
+  a.click();
+}
+
+// ════════════════════════════════════════
+// FEATURE 4: ORDEN DE COMPRA EN PDF
+// ════════════════════════════════════════
+function generarOrdenCompra(idx, tipo='flore'){
+  const data = tipo==='flore' ? comprasFlore : comprasJard;
+  const c = data[idx];
+  if(!c){ showToast('Orden no encontrada'); return; }
+  const win = window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>OC #${idx+1}</title><style>
+    body{font-family:Arial,sans-serif;margin:40px;color:#1a1a1a}
+    h1{font-size:22px;margin-bottom:4px}
+    .sub{color:#7a7a72;font-size:13px;margin-bottom:24px}
+    table{width:100%;border-collapse:collapse;margin-bottom:20px}
+    th,td{border:1px solid #ccc;padding:8px 12px;text-align:left;font-size:13px}
+    th{background:#f5f5f0}
+    .total{font-size:16px;font-weight:bold;text-align:right;margin-bottom:32px}
+    .firma{margin-top:60px;display:flex;gap:60px}
+    .firma-box{border-top:1px solid #333;padding-top:8px;min-width:180px;font-size:12px}
+    @media print{button{display:none}}
+  </style></head><body>
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:8px">
+      <div style="font-size:32px">🌸</div>
+      <div><h1>Florería Duhau · Park Hyatt Buenos Aires</h1><div class="sub">Orden de Compra #${idx+1} — Emitida el ${fmtDate(TODAY_ISO)}</div></div>
+    </div>
+    <div style="margin-bottom:20px;font-size:13px">
+      <strong>Fecha del pedido:</strong> ${c.fecha ? fmtDate(c.fecha) : '—'}<br>
+      <strong>Proveedor:</strong> ${esc(c.prov||'—')}<br>
+      <strong>Pedido por:</strong> ${esc(c.pedidopor||'—')}<br>
+      <strong>Área / Sector:</strong> ${esc(c.sector||'—')}
+    </div>
+    <table>
+      <thead><tr><th>Producto</th><th>Descripción</th><th>Cantidad</th><th>Precio Unit.</th><th>Subtotal</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>${esc(c.prod||'—')}</td>
+          <td>${esc(c.desc||'—')}</td>
+          <td>${esc(String(c.qty||1))}</td>
+          <td>${c.costo ? '$'+parseMoney(c.costo).toLocaleString('es-AR') : '—'}</td>
+          <td>${c.costo ? '$'+parseMoney(c.costo).toLocaleString('es-AR') : '—'}</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="total">Total: ${c.costo ? '$'+parseMoney(c.costo).toLocaleString('es-AR') : '—'}</div>
+    ${c.notas ? `<div style="font-size:13px;margin-bottom:20px"><strong>Notas:</strong> ${esc(c.notas)}</div>` : ''}
+    <div class="firma">
+      <div class="firma-box">Firma Solicitante</div>
+      <div class="firma-box">Firma Aprobación</div>
+      <div class="firma-box">Firma Proveedor</div>
+    </div>
+    <button onclick="window.print()" style="margin-top:24px;padding:8px 20px;cursor:pointer">🖨️ Imprimir</button>
+  </body></html>`);
+  win.document.close();
+}
+
+// ════════════════════════════════════════
+// FEATURE 5: COMPARACIÓN DE PRECIOS
+// ════════════════════════════════════════
+function renderPrecioComparacion(){
+  const inp = document.getElementById('precio-search');
+  if(inp) inp.value = '';
+  const res = document.getElementById('precio-result');
+  if(res) res.innerHTML = '<div style="color:var(--mid-gray);text-align:center;padding:40px">Escribí un producto para comparar precios entre proveedores.</div>';
+}
+
+function buscarComparacion(query){
+  const res = document.getElementById('precio-result');
+  if(!res) return;
+  const q = (query||'').toLowerCase().trim();
+  if(!q){ res.innerHTML = '<div style="color:var(--mid-gray);text-align:center;padding:40px">Escribí un producto para comparar precios entre proveedores.</div>'; return; }
+  const allCompras = [...comprasFlore, ...comprasJard].filter(c => c.prod && c.prod.toLowerCase().includes(q) && c.prov && c.costo);
+  if(!allCompras.length){ res.innerHTML = '<div style="color:var(--mid-gray);text-align:center;padding:40px">Sin datos de precio para este producto.</div>'; return; }
+  const byProv = {};
+  allCompras.forEach(c=>{
+    if(!byProv[c.prov]) byProv[c.prov] = [];
+    byProv[c.prov].push({ precio: parseMoney(c.costo), fecha: c.fecha });
+  });
+  const rows = Object.entries(byProv).map(([prov,items])=>{
+    const prices = items.map(i=>i.precio);
+    const ultimo = items.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''))[0];
+    return { prov, ultimo: ultimo.precio, ultimaFecha: ultimo.fecha, promedio: prices.reduce((s,p)=>s+p,0)/prices.length, veces: prices.length };
+  }).sort((a,b)=>a.ultimo-b.ultimo);
+  const minPrecio = rows[0]?.ultimo;
+  res.innerHTML = `<div class="table-wrapper"><table class="stock-table">
+    <thead><tr><th>Proveedor</th><th>Último Precio</th><th>Fecha</th><th>Precio Promedio</th><th>Veces Comprado</th></tr></thead>
+    <tbody>${rows.map(r=>`<tr style="${r.ultimo===minPrecio?'background:rgba(100,160,100,0.1)':''}">
+      <td><strong>${esc(r.prov)}</strong>${r.ultimo===minPrecio?' <span style="color:var(--sage-dark);font-size:11px">✓ más barato</span>':''}</td>
+      <td><strong>$${r.ultimo.toLocaleString('es-AR')}</strong></td>
+      <td>${r.ultimaFecha ? fmtDate(r.ultimaFecha) : '—'}</td>
+      <td>$${r.promedio.toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:0})}</td>
+      <td>${r.veces}</td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+}
+
+// ════════════════════════════════════════
+// FEATURE 6: STOCK MÍNIMO INTELIGENTE
+// ════════════════════════════════════════
+function calcStockMinInteligente(){
+  const DAYS = 90;
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-DAYS);
+  const cutoffISO = cutoff.toISOString().slice(0,10);
+  const consumo = {};
+  const addConsumo = (prod, qty) => {
+    if(!prod) return;
+    const k = prod.toLowerCase();
+    consumo[k] = (consumo[k]||0) + (+qty||0);
+  };
+  (ventasData||[]).filter(v=>v.fecha>=cutoffISO).forEach(v=>{
+    addConsumo(v.prod||v.producto, v.qty||v.cantidad||1);
+  });
+  (eventosData||[]).filter(e=>e.fecha>=cutoffISO && e.arreglos?.length).forEach(ev=>{
+    const impact = calcStockImpact(ev.arreglos||[]);
+    Object.entries(impact).forEach(([prod,qty])=>addConsumo(prod,qty));
+  });
+  return stockData.map((s,i)=>{
+    const k = s.prod.toLowerCase();
+    const totalUsado = consumo[k]||0;
+    const promDia = totalUsado/DAYS;
+    const minSugerido = +(promDia*7).toFixed(1);
+    const diff = +(minSugerido - (s.min||0)).toFixed(1);
+    return { idx: i, prod: s.prod, promDia: +promDia.toFixed(3), minSugerido, minActual: s.min||0, diff };
+  }).filter(r=>r.promDia>0||r.minActual>0);
+}
+
+function renderStockSugerencias(){
+  const wrap = document.getElementById('stock-sugerencias-wrap');
+  if(!wrap) return;
+  const rows = calcStockMinInteligente();
+  if(!rows.length){ wrap.innerHTML = '<div style="color:var(--mid-gray);padding:12px">Sin datos suficientes para sugerencias.</div>'; return; }
+  wrap.innerHTML = `<div class="table-wrapper"><table class="stock-table">
+    <thead><tr><th>Insumo</th><th>Consumo prom/día</th><th>Mínimo Sugerido</th><th>Mínimo Actual</th><th>Diferencia</th><th>Acción</th></tr></thead>
+    <tbody>${rows.map(r=>`<tr>
+      <td>${esc(r.prod)}</td>
+      <td>${r.promDia}</td>
+      <td>${r.minSugerido}</td>
+      <td>${r.minActual}</td>
+      <td><span class="${r.diff>0?'card-value amber':r.diff<0?'card-value green':''}" style="font-size:13px">${r.diff>0?'+':''}${r.diff}</span></td>
+      <td>${r.diff!==0?`<button class="btn-secondary" style="font-size:11px" onclick="aplicarSugerenciaStock(${r.idx},${r.minSugerido})">Actualizar</button>`:''}</td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+}
+
+function aplicarSugerenciaStock(stockIdx, nuevoMin){
+  stockData[stockIdx].min = nuevoMin;
+  fbSave('stockData', stockData);
+  renderStockSugerencias();
+  showToast('Mínimo actualizado');
+}
+
+// ════════════════════════════════════════
+// FEATURE 7: FILTROS MEJORADOS COMPRAS
+// ════════════════════════════════════════
+let compraFilterExt = { floreria: {}, jardineria: {} };
+
+function renderCompraFiltersPanel(type){
+  const p = type==='floreria'?'cf':'cj';
+  const wrap = document.getElementById(p+'-ext-filters');
+  if(!wrap) return;
+  const arr = type==='floreria'?comprasFlore:comprasJard;
+  const provs = [...new Set(arr.filter(r=>r.prov).map(r=>r.prov))].sort((a,b)=>a.localeCompare(b,'es'));
+  const f = compraFilterExt[type]||{};
+  const activeCount = [f.prov,f.estado,f.desde,f.hasta,f.montoMin,f.montoMax,f.producto].filter(Boolean).length;
+  const badge = activeCount > 0 ? `<span style="background:var(--sage);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:6px">${activeCount}</span>` : '';
+  wrap.innerHTML = `
+    <div style="margin-bottom:12px">
+      <button class="btn-secondary" style="font-size:12px" onclick="toggleCompraFilters('${type}')">🔍 Filtros avanzados${badge}</button>
+      ${activeCount>0?`<button class="btn-secondary" style="font-size:12px;margin-left:6px" onclick="clearCompraFiltersExt('${type}')">✕ Limpiar filtros</button>`:''}
+    </div>
+    <div id="${p}-ext-panel" style="display:none;background:var(--light-gray);border-radius:10px;padding:14px;margin-bottom:14px">
+      <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end">
+        <div><label class="form-label">Proveedor</label>
+          <select class="form-input" id="${p}-fext-prov" onchange="applyCompraFiltersExt('${type}')" style="min-width:150px;padding:6px 8px;font-size:12px">
+            <option value="">Todos</option>${provs.map(v=>`<option value="${esc(v)}" ${f.prov===v?'selected':''}>${esc(v)}</option>`).join('')}
+          </select></div>
+        <div><label class="form-label">Estado</label>
+          <select class="form-input" id="${p}-fext-estado" onchange="applyCompraFiltersExt('${type}')" style="min-width:130px;padding:6px 8px;font-size:12px">
+            <option value="">Todos</option>
+            <option value="pedido" ${f.estado==='pedido'?'selected':''}>Pedido</option>
+            <option value="recibido" ${f.estado==='recibido'?'selected':''}>Recibido</option>
+          </select></div>
+        <div><label class="form-label">Desde</label><input class="form-input" type="date" id="${p}-fext-desde" value="${f.desde||''}" onchange="applyCompraFiltersExt('${type}')" style="padding:6px 8px;font-size:12px"></div>
+        <div><label class="form-label">Hasta</label><input class="form-input" type="date" id="${p}-fext-hasta" value="${f.hasta||''}" onchange="applyCompraFiltersExt('${type}')" style="padding:6px 8px;font-size:12px"></div>
+        <div><label class="form-label">Monto mín ($)</label><input class="form-input" type="number" id="${p}-fext-mmin" value="${f.montoMin||''}" placeholder="0" onchange="applyCompraFiltersExt('${type}')" style="width:100px;padding:6px 8px;font-size:12px"></div>
+        <div><label class="form-label">Monto máx ($)</label><input class="form-input" type="number" id="${p}-fext-mmax" value="${f.montoMax||''}" placeholder="∞" onchange="applyCompraFiltersExt('${type}')" style="width:100px;padding:6px 8px;font-size:12px"></div>
+        <div style="flex:1;min-width:140px"><label class="form-label">Buscar producto</label><input class="form-input" id="${p}-fext-prod" value="${f.producto||''}" placeholder="Nombre producto..." oninput="applyCompraFiltersExt('${type}')" style="width:100%;padding:6px 8px;font-size:12px"></div>
+      </div>
+    </div>`;
+  if(activeCount>0) document.getElementById(p+'-ext-panel').style.display = '';
+}
+
+function toggleCompraFilters(type){
+  const p = type==='floreria'?'cf':'cj';
+  const panel = document.getElementById(p+'-ext-panel');
+  if(panel) panel.style.display = panel.style.display==='none'?'':'none';
+}
+
+function applyCompraFiltersExt(type){
+  const p = type==='floreria'?'cf':'cj';
+  compraFilterExt[type] = {
+    prov: document.getElementById(p+'-fext-prov')?.value||'',
+    estado: document.getElementById(p+'-fext-estado')?.value||'',
+    desde: document.getElementById(p+'-fext-desde')?.value||'',
+    hasta: document.getElementById(p+'-fext-hasta')?.value||'',
+    montoMin: document.getElementById(p+'-fext-mmin')?.value||'',
+    montoMax: document.getElementById(p+'-fext-mmax')?.value||'',
+    producto: document.getElementById(p+'-fext-prod')?.value||''
+  };
+  renderCompras(type);
+}
+
+function clearCompraFiltersExt(type){
+  compraFilterExt[type] = {};
+  renderCompras(type);
+}
+
+function toggleStockSugerencias(){
+  const panel = document.getElementById('stock-sugerencias-panel');
+  if(!panel) return;
+  const visible = panel.style.display !== 'none';
+  panel.style.display = visible ? 'none' : '';
+  if(!visible) renderStockSugerencias();
+}
+
+function applyCompraFiltersExtToArr(type, arr){
+  const f = compraFilterExt[type]||{};
+  if(f.prov) arr = arr.filter(r=>r.prov===f.prov);
+  if(f.estado) arr = arr.filter(r=>r.estado===f.estado);
+  if(f.desde) arr = arr.filter(r=>r.fecha>=f.desde);
+  if(f.hasta) arr = arr.filter(r=>r.fecha<=f.hasta);
+  if(f.montoMin) arr = arr.filter(r=>parseMoney(r.costo)>=+f.montoMin);
+  if(f.montoMax) arr = arr.filter(r=>parseMoney(r.costo)<=+f.montoMax);
+  if(f.producto) arr = arr.filter(r=>(r.prod||'').toLowerCase().includes(f.producto.toLowerCase()));
+  return arr;
+}
+
 Object.assign(window, {
   _downloadCSV, addCajaMovimiento, addCompra, addEvArregloRow, addEvArregloRowWithData,
   addInsumoToBase, addLpCat, addProveedor, addRecetaIngRow,
@@ -9773,4 +10301,12 @@ Object.assign(window, {
   toggleProvManager, toggleSidebar, toggleTask, updC, updCL, updCaja, updCajaMonto, updCajaTipo,
   updPedidoHabEstado, updTipoEvento, updV, updateInsumoCount, updateInsumoRow,
   updateKpiCompras, urgenciaPanelHTML, vdAutoPrice, zonaHoraBtn, zonaResetHora, zonaSetHora,
+  toggleStockSugerencias,
+  renderLegajo, openLegajoModal, guardarLegajo, eliminarLegajo, verDetalleLegajo,
+  renderEvaluaciones, openEvaluacionModal, guardarEvaluacion, eliminarEvaluacion,
+  renderLiquidacion, saveLiquidacionHoras, exportLiquidacion,
+  generarOrdenCompra,
+  renderPrecioComparacion, buscarComparacion,
+  calcStockMinInteligente, renderStockSugerencias, aplicarSugerenciaStock,
+  renderCompraFiltersPanel, toggleCompraFilters, applyCompraFiltersExt, clearCompraFiltersExt,
 });

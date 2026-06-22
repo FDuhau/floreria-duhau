@@ -385,4 +385,21 @@
         if(window._setCierresCaja) window._setCierresCaja(arr);
       });
 
+      fbListen('legajoData', val => {
+        const arr = !val ? [] : (Array.isArray(val) ? val : Object.values(val||{}));
+        if(window._setLegajoData) window._setLegajoData(arr);
+        if(document.getElementById('page-legajo')?.classList.contains('active')) window.renderLegajo?.();
+      });
+
+      fbListen('evaluacionesData', val => {
+        const arr = !val ? [] : (Array.isArray(val) ? val : Object.values(val||{}));
+        if(window._setEvaluacionesData) window._setEvaluacionesData(arr);
+        if(document.getElementById('page-evaluaciones')?.classList.contains('active')) window.renderEvaluaciones?.();
+      });
+
+      fbListen('liquidacionConfig', val => {
+        if(window._setLiquidacionConfig) window._setLiquidacionConfig(val||{ horasEsperadas: 192, horas: {} });
+        if(document.getElementById('page-liquidacion')?.classList.contains('active')) window.renderLiquidacion?.();
+      });
+
     });

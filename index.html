@@ -94,12 +94,16 @@
     <div class="nav-sub-item" data-group="grp-ctrl" onclick="navigate('control-horarios',this)">Horarios y Productividad</div>
     <div class="nav-sub-item" data-group="grp-ctrl" onclick="navigate('control-habitaciones',this)">Habitaciones con Plantas</div>
     <div class="nav-sub-item" data-group="grp-ctrl" onclick="navigate('recordatorios-jardineria',this)">Recordatorios Jardín</div>
+    <div class="nav-sub-item" data-group="grp-ctrl" onclick="navigate('legajo',this)">Legajo de Empleados</div>
+    <div class="nav-sub-item" data-group="grp-ctrl" onclick="navigate('evaluaciones',this)">Evaluaciones</div>
+    <div class="nav-sub-item" data-group="grp-ctrl" onclick="navigate('liquidacion',this)">Liquidación Horas Extra</div>
     <div class="nav-section-label">Compras</div>
     <div class="nav-item nav-group-hdr" data-group-id="grp-compras" onclick="navToggleGroup('grp-compras');navigate('compras',this)"><span class="nav-icon">🛒</span> Compras<span class="nav-chevron">›</span></div>
     <div class="nav-sub-item" data-group="grp-compras" onclick="navigate('compras-floreria',this)">Compras Florería</div>
     <div class="nav-sub-item" data-group="grp-compras" onclick="navigate('compras-jardineria',this)">Compras Jardinería</div>
     <div class="nav-sub-item" data-group="grp-compras" onclick="navigate('stock-admin',this)">Gestión de Stock</div>
     <div class="nav-sub-item" data-group="grp-compras" onclick="navigate('proveedores',this)">🏭 Proveedores</div>
+    <div class="nav-sub-item" data-group="grp-compras" onclick="navigate('precio-comparacion',this)">Comparar Precios</div>
     <div class="nav-section-label">Comercial</div>
     <div class="nav-item nav-group-hdr" data-group-id="grp-com" onclick="navToggleGroup('grp-com');navigate('comercial',this)"><span class="nav-icon">💼</span> Área Comercial<span class="nav-chevron">›</span></div>
     <div class="nav-sub-item" data-group="grp-com" onclick="navigate('eventos-comercial',this)">Eventos</div>
@@ -333,6 +337,15 @@
         <tbody id="stock-body"></tbody>
       </table>
     </div>
+    <!-- Sugerencias inteligentes -->
+    <div style="margin-top:24px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <button class="btn-secondary" onclick="toggleStockSugerencias()">💡 Sugerencias Inteligentes</button>
+      </div>
+      <div id="stock-sugerencias-panel" style="display:none">
+        <div id="stock-sugerencias-wrap"></div>
+      </div>
+    </div>
   </div>
 
   <!-- ══════ EVENTOS / MAISON KANBAN ══════ -->
@@ -509,6 +522,7 @@
       </div>
       <div class="compras-hist-summary" id="compras-flore-summary"></div>
     </div>
+    <div id="cf-ext-filters" style="margin-bottom:12px"></div>
     <div class="compras-list-wrap"><table class="compras-table"><thead><tr>
       <th>Fecha</th><th>Pedido por</th><th>Flor / Follaje</th><th>Descripción</th>
       <th>Cant.</th><th>Precio</th><th>Proveedor</th><th>Área / Uso</th><th>Estado</th><th>Stock actual</th><th></th>
@@ -573,6 +587,7 @@
       </div>
       <div class="compras-hist-summary" id="compras-jard-summary"></div>
     </div>
+    <div id="cj-ext-filters" style="margin-bottom:12px"></div>
     <div class="compras-list-wrap"><table class="compras-table"><thead><tr>
       <th>Fecha</th><th>Pedido por</th><th>Producto</th><th>Descripción</th>
       <th>Cant.</th><th>Precio</th><th>Proveedor</th><th>Área / Uso</th><th>Estado</th><th>Stock actual</th><th></th>
@@ -2102,6 +2117,144 @@
         <div id="ficha-body"></div>
       </div>
     </div>
+  </div>
+
+  <!-- ══════ LEGAJO DIGITAL DE EMPLEADOS ══════ -->
+  <div id="page-legajo" class="content">
+    <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px">
+      <div><div class="page-title">Legajo de Empleados</div><div class="page-subtitle">Información personal, laboral y documentación del equipo</div></div>
+      <button class="btn-add" onclick="openLegajoModal(-1)">+ Nuevo Empleado</button>
+    </div>
+    <div id="legajo-grid" class="cards-grid cards-grid-3"></div>
+    <!-- Modal legajo -->
+    <div class="modal-overlay" id="legajo-modal">
+      <div class="modal">
+        <button class="modal-close" onclick="closeModal('legajo-modal')">✕</button>
+        <div class="modal-title" id="legajo-modal-title">Nuevo Empleado</div>
+        <input type="hidden" id="leg-idx" value="-1">
+        <div class="modal-row">
+          <div><label class="form-label">Nombre *</label><input class="form-input-modal" id="leg-nombre" placeholder="Nombre"></div>
+          <div><label class="form-label">Apellido *</label><input class="form-input-modal" id="leg-apellido" placeholder="Apellido"></div>
+        </div>
+        <div class="modal-row">
+          <div><label class="form-label">DNI</label><input class="form-input-modal" id="leg-dni" placeholder="DNI"></div>
+          <div><label class="form-label">Fecha Ingreso</label><input class="form-input-modal" type="date" id="leg-fechaIngreso"></div>
+        </div>
+        <div class="modal-row">
+          <div>
+            <label class="form-label">Cargo</label>
+            <select class="form-input-modal" id="leg-cargo">
+              <option value="florista">Florista</option>
+              <option value="jardinero">Jardinero</option>
+              <option value="ventas">Ventas</option>
+              <option value="administrativo">Administrativo</option>
+              <option value="gerencia">Gerencia</option>
+            </select>
+          </div>
+          <div><label class="form-label">Sucursal</label><input class="form-input-modal" id="leg-sucursal" placeholder="Sucursal"></div>
+        </div>
+        <div class="modal-row">
+          <div><label class="form-label">Sueldo Base ($)</label><input class="form-input-modal" type="number" id="leg-sueldoBase" placeholder="0"></div>
+          <div><label class="form-label">Vacaciones Anuales (días)</label><input class="form-input-modal" type="number" id="leg-vacacionesAnuales" value="14"></div>
+        </div>
+        <div class="modal-row">
+          <div><label class="form-label">Vacaciones Tomadas (días)</label><input class="form-input-modal" type="number" id="leg-vacacionesTomadas" value="0"></div>
+        </div>
+        <label class="form-label">Notas</label>
+        <textarea class="form-input-modal" id="leg-notas" rows="3" placeholder="Notas adicionales..."></textarea>
+        <button class="btn-add" style="width:100%;margin-top:16px" onclick="guardarLegajo()">Guardar</button>
+      </div>
+    </div>
+    <!-- Modal detalle -->
+    <div class="modal-overlay" id="legajo-detalle-modal">
+      <div class="modal">
+        <button class="modal-close" onclick="closeModal('legajo-detalle-modal')">✕</button>
+        <div class="modal-title" id="leg-det-titulo"></div>
+        <div id="leg-det-body"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ EVALUACIONES DE DESEMPEÑO ══════ -->
+  <div id="page-evaluaciones" class="content">
+    <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px">
+      <div><div class="page-title">Evaluaciones de Desempeño</div><div class="page-subtitle">Evaluaciones trimestrales del equipo</div></div>
+      <button class="btn-add" onclick="openEvaluacionModal(-1)">+ Nueva Evaluación</button>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;align-items:center">
+      <input class="form-input" id="ev-search" placeholder="Buscar empleado..." oninput="renderEvaluaciones()" style="flex:1;min-width:160px;padding:8px 12px;font-size:13px">
+      <select class="form-input" id="ev-filter-trim" onchange="renderEvaluaciones()" style="width:160px;padding:8px 10px;font-size:13px">
+        <option value="">— Todos los trimestres —</option>
+      </select>
+    </div>
+    <div class="table-wrapper">
+      <table class="stock-table">
+        <thead><tr><th>Empleado</th><th>Trimestre</th><th>Puntualidad</th><th>Calidad</th><th>Actitud</th><th>Productividad</th><th>Promedio</th><th>Evaluador</th><th>Acciones</th></tr></thead>
+        <tbody id="eval-tbody"></tbody>
+      </table>
+    </div>
+    <!-- Modal evaluacion -->
+    <div class="modal-overlay" id="evaluacion-modal">
+      <div class="modal">
+        <button class="modal-close" onclick="closeModal('evaluacion-modal')">✕</button>
+        <div class="modal-title" id="evaluacion-modal-title">Nueva Evaluación</div>
+        <input type="hidden" id="eval-idx" value="-1">
+        <div class="modal-row">
+          <div>
+            <label class="form-label">Empleado *</label>
+            <select class="form-input-modal" id="eval-empleado"></select>
+          </div>
+          <div><label class="form-label">Trimestre *</label><input class="form-input-modal" id="eval-trimestre" placeholder="Q2 2026"></div>
+        </div>
+        <div class="modal-row">
+          <div><label class="form-label">Puntualidad (1-5)</label><input class="form-input-modal" type="number" id="eval-puntualidad" min="1" max="5" value="3"></div>
+          <div><label class="form-label">Calidad (1-5)</label><input class="form-input-modal" type="number" id="eval-calidad" min="1" max="5" value="3"></div>
+        </div>
+        <div class="modal-row">
+          <div><label class="form-label">Actitud (1-5)</label><input class="form-input-modal" type="number" id="eval-actitud" min="1" max="5" value="3"></div>
+          <div><label class="form-label">Productividad (1-5)</label><input class="form-input-modal" type="number" id="eval-productividad" min="1" max="5" value="3"></div>
+        </div>
+        <label class="form-label">Comentarios</label>
+        <textarea class="form-input-modal" id="eval-comentarios" rows="3" placeholder="Comentarios..."></textarea>
+        <label class="form-label">Evaluador</label>
+        <input class="form-input-modal" id="eval-evaluador" placeholder="Nombre del evaluador">
+        <button class="btn-add" style="width:100%;margin-top:16px" onclick="guardarEvaluacion()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ LIQUIDACIÓN HORAS EXTRA ══════ -->
+  <div id="page-liquidacion" class="content">
+    <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px">
+      <div><div class="page-title">Liquidación Horas Extra</div><div class="page-subtitle">Cálculo automático de horas extra por empleado</div></div>
+      <button class="btn-secondary" onclick="exportLiquidacion()">📄 Exportar resumen</button>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;align-items:center">
+      <input class="form-input" type="month" id="liq-mes" oninput="renderLiquidacion()" style="padding:8px 12px;font-size:13px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <label class="form-label" style="margin:0">Horas esperadas/mes:</label>
+        <input class="form-input" type="number" id="liq-horas-esp" value="192" style="width:90px;padding:8px;font-size:13px" oninput="renderLiquidacion()">
+      </div>
+    </div>
+    <div class="table-wrapper">
+      <table class="stock-table">
+        <thead><tr><th>Empleado</th><th>Cargo</th><th>Sueldo Base</th><th>Hs Trabajadas</th><th>Hs Esperadas</th><th>Hs Extra</th><th>Valor Hora Extra</th><th>Total Extra</th></tr></thead>
+        <tbody id="liq-tbody"></tbody>
+      </table>
+    </div>
+    <div id="liq-summary" style="margin-top:20px"></div>
+  </div>
+
+  <!-- ══════ COMPARACIÓN DE PRECIOS ══════ -->
+  <div id="page-precio-comparacion" class="content">
+    <div class="page-header">
+      <div class="page-title">Comparar Precios entre Proveedores</div>
+      <div class="page-subtitle">Análisis de precios por insumo/producto a través del historial de compras</div>
+    </div>
+    <div style="margin-bottom:20px">
+      <input class="form-input" id="precio-search" placeholder="🔍  Buscar insumo o producto..." oninput="buscarComparacion(this.value)" style="max-width:400px;padding:10px 14px;font-size:14px;width:100%">
+    </div>
+    <div id="precio-result"></div>
   </div>
 
 </div><!-- end .main -->
