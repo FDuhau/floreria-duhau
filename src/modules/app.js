@@ -10311,26 +10311,83 @@ function toggleStockSugerencias(){
 // FEATURE 1: PWA — Install Prompt
 // ════════════════════════════════════════
 let _pwaInstallEvent = null;
-window.addEventListener('beforeinstallprompt', e => {
-  e.preventDefault();
-  _pwaInstallEvent = e;
-  const btn = document.getElementById('pwa-install-btn');
-  if(btn) btn.style.display = 'flex';
-});
-window.addEventListener('appinstalled', () => {
-  const btn = document.getElementById('pwa-install-btn');
-  if(btn) btn.style.display = 'none';
-  showToast('✅ App instalada correctamente');
-});
+const _isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+const _isAndroid = /Android/.test(navigator.userAgent);
+const _isInStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+
 if('serviceWorker' in navigator){
   window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(()=>{}));
 }
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  _pwaInstallEvent = e;
+  _showPWABtn();
+});
+
+window.addEventListener('appinstalled', () => {
+  document.getElementById('pwa-install-btn')?.remove();
+  document.getElementById('pwa-ios-banner')?.remove();
+  showToast('✅ App instalada correctamente');
+});
+
+function _showPWABtn(){
+  const btn = document.getElementById('pwa-install-btn');
+  if(btn) btn.style.display = 'flex';
+  const topBtn = document.getElementById('pwa-topbar-btn');
+  if(topBtn) topBtn.style.display = '';
+}
+
+function _initPWAPrompt(){
+  if(_isInStandalone) return; // ya instalada
+  if(_isIOS){
+    // iOS no soporta beforeinstallprompt — mostrar banner con instrucciones manuales
+    if(document.getElementById('pwa-ios-banner')) return;
+    const banner = document.createElement('div');
+    banner.id = 'pwa-ios-banner';
+    banner.innerHTML = `
+      <div style="display:flex;align-items:flex-start;gap:12px">
+        <div style="font-size:24px;flex-shrink:0">📲</div>
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:13px;margin-bottom:4px">Instalar app en iPhone / iPad</div>
+          <div style="font-size:12px;line-height:1.5">Tocá <strong>⎙ Compartir</strong> en la barra de Safari y luego <strong>"Agregar a pantalla de inicio"</strong></div>
+        </div>
+        <button onclick="document.getElementById('pwa-ios-banner').remove()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#fff;padding:0;line-height:1">✕</button>
+      </div>`;
+    banner.style.cssText = 'position:fixed;bottom:80px;left:16px;right:16px;background:#1a1a18;color:#fff;border-radius:14px;padding:14px 16px;z-index:9000;box-shadow:0 8px 24px rgba(0,0,0,0.3);font-family:inherit';
+    document.body.appendChild(banner);
+  } else if(!_pwaInstallEvent){
+    // Chrome/Edge en PC: el evento aún no llegó — mostrar igual el botón
+    // cuando llegue beforeinstallprompt se activa automáticamente
+    // Si ya está instalada como PWA no se muestra nada
+  }
+}
+
 function installPWA(){
-  if(!_pwaInstallEvent){ showToast('La app ya está instalada o este navegador no lo soporta'); return; }
+  if(_isIOS){
+    _initPWAPrompt();
+    return;
+  }
+  if(!_pwaInstallEvent){
+    showToast('Abrí la app en Chrome o Edge para instalarla en tu PC/Android');
+    return;
+  }
   _pwaInstallEvent.prompt();
   _pwaInstallEvent.userChoice.then(choice => {
     if(choice.outcome==='accepted') showToast('✅ App instalada');
     _pwaInstallEvent = null;
+    document.getElementById('pwa-install-btn')?.remove();
+  });
+}
+
+// En iOS: mostrar botón en topbar siempre (no hay beforeinstallprompt)
+if(_isIOS && !_isInStandalone){
+  window.addEventListener('load', () => {
+    _showPWABtn();
+    if(!sessionStorage.getItem('pwa-ios-shown')){
+      sessionStorage.setItem('pwa-ios-shown','1');
+      setTimeout(_initPWAPrompt, 3000);
+    }
   });
 }
 
