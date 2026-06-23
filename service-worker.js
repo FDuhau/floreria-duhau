@@ -1,4 +1,4 @@
-const CACHE = 'floreria-duhau-v4';
+const CACHE = 'floreria-duhau-v5';
 const ASSETS = [
   '/',
   '/index.html',
@@ -32,6 +32,18 @@ self.addEventListener('fetch', e => {
   if(url.hostname.includes('firebase') || url.hostname.includes('google') ||
      url.hostname.includes('jsdelivr') || url.hostname.includes('googleapis')){
     e.respondWith(fetch(e.request).catch(() => new Response('', { status: 503 })));
+    return;
+  }
+
+  // Navegación / documento HTML: network-first (la app siempre baja la última versión)
+  if(e.request.mode === 'navigate'){
+    e.respondWith(
+      fetch(e.request).then(resp => {
+        const copy = resp.clone();
+        caches.open(CACHE).then(c => c.put('/index.html', copy));
+        return resp;
+      }).catch(() => caches.match('/index.html').then(r => r || caches.match('/')))
+    );
     return;
   }
 
