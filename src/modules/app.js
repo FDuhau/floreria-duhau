@@ -742,6 +742,10 @@ function renderChecklistTable(){
           <td style="font-size:12px;color:var(--sage-dark);font-weight:600">${esc(ev.asignado||'')}</td>
           <td></td>`;
       }
+      // Tap en el evento → abrir el detalle (excepto al tocar los botones inicio/fin)
+      evTr.style.cursor = 'pointer';
+      evTr.title = 'Ver detalle del evento';
+      evTr.addEventListener('click', e => { if(e.target.closest('button')) return; openEventoDetail(evIdx); });
       tbody.appendChild(evTr);
     });
   }
@@ -7714,13 +7718,24 @@ function registrarHoraEvento(evIdx, campo){
   const now = new Date();
   const hh = String(now.getHours()).padStart(2,'0');
   const mm = String(now.getMinutes()).padStart(2,'0');
-  eventosData[evIdx][campo] = hh+':'+mm;
+  const ev = eventosData[evIdx];
+  ev[campo] = hh+':'+mm;
   if(campo === 'fin'){
-    eventosData[evIdx].estado = 'Pedidos Finalizados';
+    // Inicio+Fin = armado terminado → queda pendiente de colocación
+    ev.estado = 'Pendiente de Colocacion';
+    fbSave('eventosData', eventosData);
+    renderChecklistTable();
+    if(document.getElementById('page-eventos-comercial')?.classList.contains('active')) renderEventos();
+    if(document.getElementById('page-eventos-maison')?.classList.contains('active')) renderKanban();
+    renderHome();
+    // Aviso a gerencia para que asigne la colocación
+    window.pushSend?.('🌸 Evento listo para colocación', `"${ev.nombre}" fue armado por ${ev.asignado||'el equipo'}. Asigná la colocación.`, 'colocacion');
+    showToast(`⏹ Armado finalizado: "${ev.nombre}". Avisamos a gerencia para la colocación.`);
+    return;
   }
   fbSave('eventosData', eventosData);
   renderChecklistTable();
-  showToast(`${campo==='inicio'?'▶':'⏹'} ${campo} registrado para "${eventosData[evIdx].nombre}": ${hh}:${mm}`);
+  showToast(`▶ Inicio registrado para "${ev.nombre}": ${hh}:${mm}`);
 }
 
 // Inicio/Fin para ventas
@@ -7788,6 +7803,7 @@ function doLogin(){
     setTimeout(()=>initPushForUser?.(), 2000);
     setTimeout(()=>alertasAutomaticas(), 4000);
     setTimeout(()=>checkOnboarding(entry.role), 800);
+    setTimeout(()=>mostrarEventosDelDia(), 2500);
   } else {
     err.textContent = 'Contraseña incorrecta';
     inp.classList.add('error');
@@ -8548,13 +8564,68 @@ function openEventoDetail(i){
     arreglosWrap.style.display = 'block';
   } else { arreglosWrap.style.display = 'none'; }
 
-  // Edit button
-  document.getElementById('evento-detail-edit-btn').onclick = () => {
-    closeModal('evento-detail-modal');
-    openEventModal(i);
-  };
+  // Edit button — solo gerencia/comercial puede editar; floristas solo visualizan
+  const editBtn = document.getElementById('evento-detail-edit-btn');
+  if(editBtn){
+    editBtn.style.display = (userRole==='gerencia'||userRole==='comercial') ? '' : 'none';
+    editBtn.onclick = () => {
+      closeModal('evento-detail-modal');
+      openEventModal(i);
+    };
+  }
 
   document.getElementById('evento-detail-modal').classList.add('open');
+}
+
+// ── Popup automático de eventos del día (al abrir la app) ──
+let _eventosDelDiaShown = false;
+function mostrarEventosDelDia(retry = 0){
+  if(_eventosDelDiaShown) return;
+  // Roles que reciben el aviso: floristas (con evento asignado), gerencia, operario y comercial
+  if(!['florista','gerencia','operario','comercial'].includes(userRole)) return;
+  // Esperar a que Firebase cargue los eventos
+  if((!eventosData || !eventosData.length) && retry < 5){
+    setTimeout(()=>mostrarEventosDelDia(retry+1), 1500);
+    return;
+  }
+  const isFlor = userRole === 'florista';
+  const hoy = (eventosData||[]).filter(ev =>
+    ev.fecha === TODAY_ISO &&
+    ev.estado !== 'Pedidos Finalizados' &&
+    (!isFlor || ev.asignado === floristaNombre)
+  );
+  if(!hoy.length) return; // floristas sin evento asignado hoy: no molestar
+  _eventosDelDiaShown = true;
+
+  const estadoBadge = est => {
+    const map = {
+      'Pedidos Pendientes':'background:#F5F0E8;color:#8B7355',
+      'En Proceso':'background:#E8F0F8;color:#2C5A80',
+      'Pendiente de Colocacion':'background:#FFF3E0;color:#E65100',
+      'Confirmado':'background:#E8F5E9;color:#2E7D32'
+    };
+    return `<span style="${map[est]||'background:#eee;color:#666'};padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;white-space:nowrap">${esc(est||'')}</span>`;
+  };
+
+  const sorted = [...hoy].sort((a,b)=>(a.hora||'').localeCompare(b.hora||''));
+  let ov = document.getElementById('eventos-dia-modal');
+  if(!ov){ ov = document.createElement('div'); ov.id='eventos-dia-modal'; ov.className='modal-overlay'; document.body.appendChild(ov); }
+  ov.innerHTML = `<div class="modal" style="max-width:540px">
+    <div class="modal-header"><h2>🎉 Eventos de hoy</h2><button class="modal-close" onclick="closeModal('eventos-dia-modal')">✕</button></div>
+    <div style="font-size:12.5px;color:var(--mid-gray);margin-bottom:16px">${isFlor?'Tus eventos asignados para hoy. Tocá uno para ver el detalle.':'Eventos del día — priorizá la colocación de los que ya estén armados.'}</div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      ${sorted.map(ev=>{ const i = eventosData.indexOf(ev); return `
+        <div onclick="closeModal('eventos-dia-modal');openEventoDetail(${i})" style="cursor:pointer;border:1px solid var(--light-gray);border-radius:10px;padding:14px 16px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;transition:border-color .2s,box-shadow .2s" onmouseover="this.style.borderColor='#1A1A1A';this.style.boxShadow='var(--shadow-sm)'" onmouseout="this.style.borderColor='var(--light-gray)';this.style.boxShadow='none'">
+          <div style="min-width:0">
+            <div style="font-weight:600;font-size:14px;color:var(--charcoal)">${esc(ev.nombre||'')}</div>
+            <div style="font-size:12px;color:var(--mid-gray);margin-top:3px">${esc(ev.tipo||'')}${ev.salon?' · '+esc(ev.salon):''}${ev.hora?' · '+esc(ev.hora)+'h':''}${(!isFlor&&ev.asignado)?' · 👤 '+esc(ev.asignado):''}</div>
+          </div>
+          ${estadoBadge(ev.estado)}
+        </div>`; }).join('')}
+    </div>
+    <div class="modal-footer"><button class="btn-primary" onclick="closeModal('eventos-dia-modal');navigate('${isFlor?'checklist':'eventos-comercial'}')">Ver todos</button></div>
+  </div>`;
+  ov.classList.add('open');
 }
 
 function saveEvent(){
