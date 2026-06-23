@@ -10662,6 +10662,73 @@ function eliminarEsf(idx){
   showToast('Eliminado');
 }
 
+// Genera un documento de reclamo formal e imprimible (PDF) para el hotel.
+function exportEsfReclamo(){
+  if(!eventosSinFloreria.length){ showToast('No hay eventos registrados para reclamar'); return; }
+  // Por defecto, el reclamo incluye los casos abiertos (no compensados).
+  const abiertos = eventosSinFloreria.filter(e=>e.estado!=='compensado');
+  const lista = (abiertos.length ? abiertos : eventosSinFloreria)
+    .slice().sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||''));
+  const total = lista.reduce((s,e)=>s+parseMoney(e.monto||0),0);
+  const hoy = fmtDate(TODAY_ISO);
+  const fmtMon = n => '$'+parseMoney(n||0).toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:0});
+
+  const rows = lista.map(e=>`
+    <tr>
+      <td>${e.fecha?fmtDate(e.fecha):'—'}</td>
+      <td><strong>${esc(e.nombre||'—')}</strong>${e.tipo?`<br><span class="muted">${esc(e.tipo)}</span>`:''}</td>
+      <td>${esc(e.salon||'—')}</td>
+      <td>${esc(e.marca||'—')}</td>
+      <td>${esc(e.arregloCorr||'—')}</td>
+      <td class="num">${e.monto?fmtMon(e.monto):'—'}</td>
+    </tr>`).join('');
+
+  const win = window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
+  <title>Reclamo de eventos — Florería del Duhau</title>
+  <style>
+    *{box-sizing:border-box}
+    body{font-family:'Georgia','Times New Roman',serif;margin:48px;color:#1a1a1a;line-height:1.6}
+    .head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #1a1a1a;padding-bottom:16px;margin-bottom:24px}
+    .brand{font-size:24px;letter-spacing:.5px}
+    .brand small{display:block;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#777;margin-top:4px;font-family:Arial,sans-serif}
+    .meta{text-align:right;font-size:12px;color:#555;font-family:Arial,sans-serif}
+    h1{font-size:18px;margin:8px 0 4px}
+    p.intro{font-size:13.5px;color:#333}
+    table{width:100%;border-collapse:collapse;margin:22px 0;font-family:Arial,sans-serif}
+    th,td{border:1px solid #ccc;padding:8px 10px;font-size:12px;vertical-align:top;text-align:left}
+    th{background:#f2f0eb;text-transform:uppercase;letter-spacing:.5px;font-size:10px;color:#444}
+    td.num,th.num{text-align:right;white-space:nowrap}
+    .muted{color:#888;font-size:11px}
+    tfoot td{font-weight:bold;font-size:14px;background:#faf8f4}
+    .firma{margin-top:48px;font-size:12px;color:#555;font-family:Arial,sans-serif}
+    .firma .line{margin-top:40px;border-top:1px solid #999;width:240px;padding-top:6px}
+    .actions{margin-top:32px}
+    button{padding:10px 22px;cursor:pointer;font-size:13px;border:1px solid #1a1a1a;background:#1a1a1a;color:#fff;border-radius:6px;font-family:Arial,sans-serif}
+    @media print{.actions{display:none}body{margin:0}}
+  </style></head><body>
+    <div class="head">
+      <div class="brand">Florería del Duhau<small>Park Hyatt Buenos Aires</small></div>
+      <div class="meta">Fecha: ${hoy}<br>Detalle de reclamo</div>
+    </div>
+    <h1>Reclamo — Eventos sin asignación de servicio floral</h1>
+    <p class="intro">Por la presente dejamos constancia de los eventos detallados a continuación, en los cuales —conforme al acuerdo vigente— correspondía la asignación del servicio floral a Florería del Duhau y la misma no fue otorgada, habiéndose contratado a un proveedor externo. Se solicita la regularización / compensación correspondiente.</p>
+    <table>
+      <thead><tr>
+        <th>Fecha</th><th>Evento</th><th>Salón / Zona</th><th>Marca externa</th><th>Arreglo que correspondía</th><th class="num">Monto</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr><td colspan="5" style="text-align:right">TOTAL A RECLAMAR</td><td class="num">${fmtMon(total)}</td></tr></tfoot>
+    </table>
+    <p class="intro" style="font-size:12px;color:#666">Cantidad de eventos incluidos: ${lista.length}.</p>
+    <div class="firma">
+      <div class="line">Florería del Duhau</div>
+    </div>
+    <div class="actions"><button onclick="window.print()">🖨️ Imprimir / Guardar PDF</button></div>
+  </body></html>`);
+  win.document.close();
+}
+
 // ════════════════════════════════════════
 // FEATURE 5: CIERRE MENSUAL AUTOMATIZADO
 // ════════════════════════════════════════
@@ -10971,7 +11038,7 @@ Object.assign(window, {
   renderCompraFiltersPanel, toggleCompraFilters, applyCompraFiltersExt, clearCompraFiltersExt,
   installPWA, toggleTVMode, renderTVDashboard,
   renderPresupuestos, openPresupuestoModal, guardarPresupuesto, cambiarEstadoPres, eliminarPresupuesto,
-  renderEventosSinFloreria, openEsfModal, guardarEsf, eliminarEsf,
+  renderEventosSinFloreria, openEsfModal, guardarEsf, eliminarEsf, exportEsfReclamo,
   renderCierreMensual, generarCierreMensual, verCierreMensual, exportCierrePDF,
   renderDashboardGerencia,
   exportVentasXLSX, exportComprasXLSX, exportStockXLSX, exportLegajoXLSX,

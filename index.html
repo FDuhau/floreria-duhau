@@ -2332,7 +2332,10 @@
         <div class="page-title">Eventos sin Florería</div>
         <div class="page-subtitle">Eventos en los que el hotel no nos asignó la parte floral · registro para reclamar según contrato</div>
       </div>
-      <button class="btn-primary" onclick="openEsfModal(-1)">+ Registrar evento</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-print" onclick="exportEsfReclamo()">📄 Exportar reclamo</button>
+        <button class="btn-primary" onclick="openEsfModal(-1)">+ Registrar evento</button>
+      </div>
     </div>
     <div id="esf-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:20px"></div>
     <div class="table-wrapper">
