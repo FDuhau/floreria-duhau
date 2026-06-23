@@ -89,7 +89,6 @@
     <div class="nav-sub-item" data-group="grp-com" onclick="navigate('ramos-disponibles',this)">Ramos Disponibles</div>
     <div class="nav-sub-item" data-group="grp-com" onclick="navigate('pedidos-habitacion',this)">Pedidos de Habitación</div>
     <div class="nav-sub-item" data-group="grp-com" onclick="navigate('recetas-arreglos',this)">Composiciones</div>
-    <div class="nav-sub-item" data-group="grp-com" onclick="navigate('calendario',this)">📅 Calendario</div>
     <div class="nav-sub-item" data-group="grp-com" onclick="navigate('presupuestos',this)">📄 Presupuestos</div>
     <div class="nav-sub-item nav-gerencia-only" data-group="grp-com" style="display:none" onclick="navigate('crm-clientes',this)">👥 CRM Clientes</div>
 
@@ -670,35 +669,33 @@
         <div class="quick-link-title">Pedidos Habitación</div>
         <div class="quick-link-sub">Amenities y pedidos</div>
       </div>
-      <div class="quick-link" onclick="navigate('calendario',this)">
-        <span class="quick-link-icon">📅</span>
-        <div class="quick-link-title">Calendario</div>
-        <div class="quick-link-sub">Vista mensual de eventos</div>
-      </div>
     </div>
-  </div>
-
-  <!-- ══════ CALENDARIO ══════ -->
-  <div id="page-calendario" class="content">
-    <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px">
-      <div><div class="page-title">Calendario de Eventos</div><div class="page-subtitle">Vista mensual · todos los eventos programados</div></div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <button class="btn-secondary" onclick="calPrevMonth()">‹ Anterior</button>
-        <span id="cal-mes-label" style="font-size:13px;font-weight:600;min-width:140px;text-align:center"></span>
-        <button class="btn-secondary" onclick="calNextMonth()">Siguiente ›</button>
-      </div>
-    </div>
-    <div id="cal-grid"></div>
   </div>
 
   <!-- ══════ EVENTOS COMERCIAL ══════ -->
   <div id="page-eventos-comercial" class="content">
     <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px">
       <div><div class="page-title">Eventos</div><div class="page-subtitle">Registro completo · sincronizado con Operaciones · cambios de estado reflejados en ambos lados</div></div>
-      <button class="btn-add" onclick="openEventModal(-1)">+ Nuevo Evento</button>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <div class="day-tabs" style="margin-bottom:0">
+          <div class="day-tab active" id="ev-view-tab-lista" onclick="setEventosView('lista')">📋 Lista</div>
+          <div class="day-tab" id="ev-view-tab-cal" onclick="setEventosView('calendario')">📅 Calendario</div>
+        </div>
+        <button class="btn-add" onclick="openEventModal(-1)">+ Nuevo Evento</button>
+      </div>
     </div>
     <div id="eventos-kanban-banner"></div>
-    <div class="events-grid" id="eventos-grid"></div>
+    <div id="eventos-lista-view">
+      <div class="events-grid" id="eventos-grid"></div>
+    </div>
+    <div id="eventos-cal-view" style="display:none">
+      <div style="display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-bottom:16px">
+        <button class="btn-secondary" onclick="calPrevMonth()">‹ Anterior</button>
+        <span id="cal-mes-label" style="font-size:13px;font-weight:600;min-width:140px;text-align:center"></span>
+        <button class="btn-secondary" onclick="calNextMonth()">Siguiente ›</button>
+      </div>
+      <div id="cal-grid"></div>
+    </div>
   </div>
 
   <!-- ══════ EVENT EDIT MODAL (global) ══════ -->
@@ -1402,6 +1399,7 @@
       <div class="page-title">Panel Hyatt</div>
       <div class="page-subtitle">Florería Duhau · gestión de pedidos, cotización y catálogo</div>
     </div>
+    <div id="hyatt-home-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:24px"></div>
     <div class="quick-links-grid" style="margin-bottom:28px">
       <div class="quick-link" onclick="navigate('pedidos-habitacion')"><span class="quick-link-icon">🏨</span><div class="quick-link-title">Pedidos de Habitación</div><div class="quick-link-sub">Cargar arreglos para huéspedes</div></div>
       <div class="quick-link" onclick="navigate('cotizador-eventos-hyatt')"><span class="quick-link-icon">🎉</span><div class="quick-link-title">Cotizador de Eventos</div><div class="quick-link-sub">Armar propuesta de arreglos</div></div>
