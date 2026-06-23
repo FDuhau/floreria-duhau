@@ -19,22 +19,13 @@
   <script type="module" src="/src/main.js"></script>
   <script>
     // ── Service Worker ─────────────────────────────────────────────
+      <script>
     if('serviceWorker' in navigator){
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/service-worker.js')
-          .then(reg => {
-            window._swReg = reg;
-            reg.addEventListener('updatefound', () => {
-              const w = reg.installing;
-              w.addEventListener('statechange', () => {
-                if(w.state === 'installed' && navigator.serviceWorker.controller){
-                  window.showToast?.('🔄 Nueva versión disponible — recargá para actualizar');
-                }
-              });
-            });
-          }).catch(()=>{});
+        navigator.serviceWorker.register('/service-worker.js').catch(()=>{});
       });
     }
+  </script>
   </script>
 </head>
 <body>
