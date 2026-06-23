@@ -175,27 +175,29 @@
       });
 
       fbListen('cotizadorPrecios', val => {
-        cotizadorPrecios = val && typeof val === 'object' && !Array.isArray(val) ? val : {};
+        window._setCotizadorPrecios?.(val && typeof val === 'object' && !Array.isArray(val) ? val : {});
         if(document.getElementById('page-cotizador')?.classList.contains('active')){
-          if(cotCurTab==='cotizar') renderCotizador();
-          else renderPreciosList();
+          if(window.cotCurTab==='cotizar') window.renderCotizador?.();
+          else window.renderPreciosList?.();
         }
-        if(document.getElementById('page-cotizador-ops')?.classList.contains('active')) renderCotizadorOps();
+        if(document.getElementById('page-cotizador-ops')?.classList.contains('active')) window.renderCotizadorOps?.();
       });
 
       fbListen('cotizadorConfig', val => {
-        cotizadorConfig = val && typeof val === 'object' ? val : {margen:30};
+        const cfg = val && typeof val === 'object' ? val : {margen:30};
+        window._setCotizadorConfig?.(cfg);
         const cfgInput = document.getElementById('cot-config-margen');
-        if(cfgInput) cfgInput.value = cotizadorConfig.margen ?? 30;
-        if(document.getElementById('page-cotizador-ops')?.classList.contains('active')) renderCotizadorOps();
+        if(cfgInput) cfgInput.value = cfg.margen ?? 30;
+        if(document.getElementById('page-cotizador-ops')?.classList.contains('active')) window.renderCotizadorOps?.();
       });
 
       fbListen('eventoPricing', val => {
         if(val && typeof val === 'object'){
-          eventoPricing = val;
-          if(!Array.isArray(eventoPricing.tipos)) eventoPricing.tipos = eventoPricing.tipos ? Object.values(eventoPricing.tipos) : [];
+          const ep = val;
+          if(!Array.isArray(ep.tipos)) ep.tipos = ep.tipos ? Object.values(ep.tipos) : [];
+          window._setEventoPricing?.(ep);
         }
-        if(document.getElementById('page-cotizador')?.classList.contains('active') && cotCurTab==='eventos') renderEvTipos();
+        if(document.getElementById('page-cotizador')?.classList.contains('active') && window.cotCurTab==='eventos') window.renderEvTipos?.();
       });
 
       fbListen('stockData', val => {
@@ -208,7 +210,7 @@
 
       fbListen('urgenciaConfig', val => {
         if(val && typeof val === 'object' && val.okMax!=null && val.warnMax!=null){
-          urgenciaConfig = { okMax:+val.okMax, warnMax:+val.warnMax };
+          window._setUrgenciaConfig?.({ okMax:+val.okMax, warnMax:+val.warnMax });
         }
         if(document.getElementById('page-control-jardineria')?.classList.contains('active')) window.renderCtrlJard?.();
         if(document.getElementById('page-control-habitaciones')?.classList.contains('active')) window.renderCtrlHab?.();

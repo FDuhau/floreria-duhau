@@ -2160,6 +2160,8 @@ const COT_ALL = [
 
 let cotizadorPrecios = {};
 let cotizadorConfig  = {margen: 30};
+window._setCotizadorPrecios = v => { cotizadorPrecios = v; };
+window._setCotizadorConfig  = v => { cotizadorConfig = v; };
 let cotizadorCarrito = [];
 let cotCarritoOps    = [];
 let cotCurTab = 'cotizar';
@@ -2531,6 +2533,7 @@ function copiarCotizacion(){
 // COTIZACIÓN POR EVENTO (gerencia)
 // ══════════════════════════════════════════════════════════════════════════════
 let eventoPricing = { tipos: [] };
+window._setEventoPricing = v => { eventoPricing = v; };
 let evCarrito = [];
 
 function renderEvTipos(){
@@ -4439,6 +4442,7 @@ function daysSince(isoDate){
 // Umbrales de urgencia configurables por gerencia (regulables por estación).
 // okMax: hasta N días = 🟢 Al día · warnMax: hasta N días = 🟡 Próxima · más allá = 🔴 Urgente
 let urgenciaConfig = { okMax:3, warnMax:7 };
+window._setUrgenciaConfig = v => { urgenciaConfig = v; };
 const URGENCIA_PRESETS = {
   verano:   { okMax:2, warnMax:4 },
   primavera:{ okMax:3, warnMax:6 },
@@ -6974,6 +6978,7 @@ document.querySelectorAll('.nav-item, .nav-sub-item').forEach(el => {
     get comprasFlore()       { return comprasFlore; },       set comprasFlore(v)      { comprasFlore=v; },
     get comprasJard()        { return comprasJard; },        set comprasJard(v)       { comprasJard=v; },
     get recetasData()        { return recetasData; },        set recetasData(v)       { recetasData=v; },
+    get cotCurTab()          { return cotCurTab; },          set cotCurTab(v)         { cotCurTab=v; },
   };
   const fns = [
     'renderChecklist','renderEventos','renderKanban','renderStock',
