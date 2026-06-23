@@ -126,6 +126,7 @@ const PAGE_LABELS = {control:'Control','control-jardineria':'Control › Seguimi
   'stock-admin':'Compras › Gestión de Stock',
   comercial:'Área Comercial', 'eventos-comercial':'Comercial › Eventos',
   'historial-eventos':'Comercial › Historial de Eventos',
+  'eventos-sin-floreria':'Comercial › Eventos sin Florería',
   cotizador:'Comercial › Cotizador',
   'cotizador-ops':'Cotizador',
   'ventas-externas':'Comercial › Ventas', caja:'Comercial › Caja',
@@ -158,7 +159,7 @@ const PAGE_LABELS = {control:'Control','control-jardineria':'Control › Seguimi
 };
 const COMPRAS_PAGES=['compras','compras-floreria','compras-jardineria','stock-admin'];
 const CONTROL_PAGES=['control','control-jardineria','control-habitaciones','control-horarios','recordatorios-jardineria'];
-const COMERCIAL_PAGES = ['comercial','eventos-comercial','historial-eventos','cotizador-ops','ventas-externas','caja','galeria','lista-precios','ramos-disponibles','pedidos-habitacion','recetas-arreglos','recepcion-pedidos'];
+const COMERCIAL_PAGES = ['comercial','eventos-comercial','historial-eventos','eventos-sin-floreria','cotizador-ops','ventas-externas','caja','galeria','lista-precios','ramos-disponibles','pedidos-habitacion','recetas-arreglos','recepcion-pedidos'];
 
 // ── NAVEGACIÓN INFERIOR MOBILE ──────────────────────────────────────────────
 const BOTTOM_NAV_ITEMS = {
@@ -253,6 +254,7 @@ function navigate(pageId, navEl){
   if(pageId==='stock-admin')        renderStockAdmin();
   if(pageId==='eventos-comercial')  renderEventos();
   if(pageId==='historial-eventos')   renderHistorialEventos();
+  if(pageId==='eventos-sin-floreria') renderEventosSinFloreria();
   if(pageId==='ventas-externas')    renderVentas();
   if(pageId==='caja')               renderCaja();
   if(pageId==='galeria')            renderGaleria();
@@ -10538,6 +10540,129 @@ function eliminarPresupuesto(idx){
 }
 
 // ════════════════════════════════════════
+// EVENTOS SIN FLORERÍA — eventos en los que el hotel NO nos asignó
+// la parte floral (trajo otra marca/ambientador). Sirve para llevar
+// registro y reclamarle al hotel según contrato.
+// ════════════════════════════════════════
+let eventosSinFloreria = [];
+window._setEventosSinFloreria = arr => { eventosSinFloreria = arr && typeof arr === 'object' ? (Array.isArray(arr)?arr:Object.values(arr)) : []; renderEventosSinFloreria(); };
+
+const ESF_ESTADOS = {
+  pendiente:       {lbl:'Pendiente de reclamar', bg:'#fff3cd', col:'#856404'},
+  reclamado:       {lbl:'Reclamado al hotel',    bg:'#cce5ff', col:'#004085'},
+  compensado:      {lbl:'Compensado',            bg:'#d4edda', col:'#155724'},
+  'sin-respuesta': {lbl:'Sin respuesta',         bg:'#f8d7da', col:'#721c24'}
+};
+
+function renderEventosSinFloreria(){
+  const el = document.getElementById('esf-body');
+  if(!el) return;
+  const sorted = [...eventosSinFloreria].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+
+  // KPIs
+  const total       = eventosSinFloreria.length;
+  const pendientes  = eventosSinFloreria.filter(e=>e.estado!=='compensado').length;
+  const aReclamar   = eventosSinFloreria.filter(e=>e.estado!=='compensado').reduce((s,e)=>s+parseMoney(e.monto||0),0);
+  const compensado  = eventosSinFloreria.filter(e=>e.estado==='compensado').reduce((s,e)=>s+parseMoney(e.monto||0),0);
+  const stats = document.getElementById('esf-stats');
+  if(stats) stats.innerHTML = `
+    <div class="kpi-card"><div class="kpi-val">${total}</div><div class="kpi-lbl">Eventos sin florería</div></div>
+    <div class="kpi-card"><div class="kpi-val">${pendientes}</div><div class="kpi-lbl">Pendientes / abiertos</div></div>
+    <div class="kpi-card"><div class="kpi-val">$${aReclamar.toLocaleString('es-AR',{maximumFractionDigits:0})}</div><div class="kpi-lbl">Monto a reclamar</div></div>
+    <div class="kpi-card"><div class="kpi-val">$${compensado.toLocaleString('es-AR',{maximumFractionDigits:0})}</div><div class="kpi-lbl">Compensado</div></div>`;
+
+  if(!sorted.length){
+    el.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--mid-gray);padding:28px">'+
+      'Sin eventos registrados todavía. Tocá «+ Registrar evento» cuando el hotel no nos asigne la parte floral.</td></tr>';
+    return;
+  }
+
+  el.innerHTML = sorted.map(ev=>{
+    const realIdx = eventosSinFloreria.indexOf(ev);
+    const st = ESF_ESTADOS[ev.estado] || ESF_ESTADOS.pendiente;
+    return `<tr style="cursor:pointer" onclick="openEsfModal(${realIdx})">
+      <td style="white-space:nowrap">${ev.fecha?fmtDate(ev.fecha):'—'}</td>
+      <td><strong>${esc(ev.nombre||'—')}</strong>${ev.tipo?`<div style="font-size:11px;color:var(--mid-gray)">${esc(ev.tipo)}</div>`:''}</td>
+      <td>${esc(ev.salon||'—')}</td>
+      <td>${esc(ev.marca||'—')}</td>
+      <td style="font-size:12px;color:var(--charcoal);max-width:220px">${esc(ev.arregloCorr||'—')}</td>
+      <td style="white-space:nowrap;font-weight:600;color:#B03020">${ev.monto?('$'+parseMoney(ev.monto).toLocaleString('es-AR',{maximumFractionDigits:0})):'—'}</td>
+      <td><span style="background:${st.bg};color:${st.col};padding:2px 8px;border-radius:10px;font-size:11px;white-space:nowrap">${st.lbl}</span></td>
+      <td onclick="event.stopPropagation()" style="white-space:nowrap">
+        <button class="btn-icon" title="Editar" onclick="openEsfModal(${realIdx})">✏️</button>
+        <button class="btn-icon" title="Eliminar" onclick="eliminarEsf(${realIdx})">🗑</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function openEsfModal(idx){
+  const f = document.getElementById('esf-form'); if(f) f.reset();
+  document.getElementById('esf-idx').value = idx;
+  const titleEl = document.getElementById('esf-modal-title');
+  if(idx>=0 && eventosSinFloreria[idx]){
+    const ev = eventosSinFloreria[idx];
+    titleEl.textContent = 'Editar evento sin florería';
+    document.getElementById('esf-nombre').value        = ev.nombre||'';
+    document.getElementById('esf-tipo').value          = ev.tipo||'';
+    document.getElementById('esf-fecha').value         = ev.fecha||'';
+    document.getElementById('esf-salon').value         = ev.salon||'';
+    document.getElementById('esf-pax').value           = ev.pax||'';
+    document.getElementById('esf-marca').value         = ev.marca||'';
+    document.getElementById('esf-arreglo').value       = ev.arregloCorr||'';
+    document.getElementById('esf-monto').value         = ev.monto||'';
+    document.getElementById('esf-estado').value        = ev.estado||'pendiente';
+    document.getElementById('esf-fecha-reclamo').value = ev.fechaReclamo||'';
+    document.getElementById('esf-detalle').value       = ev.detalle||'';
+  } else {
+    titleEl.textContent = 'Registrar evento sin florería';
+    document.getElementById('esf-fecha').value  = TODAY_ISO;
+    document.getElementById('esf-estado').value = 'pendiente';
+  }
+  document.getElementById('modal-esf').classList.add('open');
+}
+
+function guardarEsf(){
+  const nombre = document.getElementById('esf-nombre').value.trim();
+  if(!nombre){ showToast('Poné al menos el nombre del evento'); return; }
+  const obj = {
+    nombre,
+    tipo:         document.getElementById('esf-tipo').value.trim(),
+    fecha:        document.getElementById('esf-fecha').value,
+    salon:        document.getElementById('esf-salon').value.trim(),
+    pax:          document.getElementById('esf-pax').value,
+    marca:        document.getElementById('esf-marca').value.trim(),
+    arregloCorr:  document.getElementById('esf-arreglo').value.trim(),
+    monto:        document.getElementById('esf-monto').value,
+    estado:       document.getElementById('esf-estado').value || 'pendiente',
+    fechaReclamo: document.getElementById('esf-fecha-reclamo').value,
+    detalle:      document.getElementById('esf-detalle').value.trim(),
+    sucursal:     getSucursalId()
+  };
+  const idx = parseInt(document.getElementById('esf-idx').value, 10);
+  if(idx>=0 && eventosSinFloreria[idx]){
+    obj.id = eventosSinFloreria[idx].id || Date.now();
+    eventosSinFloreria[idx] = obj;
+  } else {
+    obj.id = Date.now();
+    eventosSinFloreria.push(obj);
+  }
+  fbSave('eventosSinFloreria', eventosSinFloreria);
+  closeModal('modal-esf');
+  renderEventosSinFloreria();
+  showToast('✅ Evento guardado');
+}
+
+function eliminarEsf(idx){
+  if(idx<0 || !eventosSinFloreria[idx]) return;
+  if(!confirm('¿Eliminar este registro de evento sin florería?')) return;
+  eventosSinFloreria.splice(idx,1);
+  fbSave('eventosSinFloreria', eventosSinFloreria);
+  renderEventosSinFloreria();
+  showToast('Eliminado');
+}
+
+// ════════════════════════════════════════
 // FEATURE 5: CIERRE MENSUAL AUTOMATIZADO
 // ════════════════════════════════════════
 let cierresMensualesData = [];
@@ -10846,6 +10971,7 @@ Object.assign(window, {
   renderCompraFiltersPanel, toggleCompraFilters, applyCompraFiltersExt, clearCompraFiltersExt,
   installPWA, toggleTVMode, renderTVDashboard,
   renderPresupuestos, openPresupuestoModal, guardarPresupuesto, cambiarEstadoPres, eliminarPresupuesto,
+  renderEventosSinFloreria, openEsfModal, guardarEsf, eliminarEsf,
   renderCierreMensual, generarCierreMensual, verCierreMensual, exportCierrePDF,
   renderDashboardGerencia,
   exportVentasXLSX, exportComprasXLSX, exportStockXLSX, exportLegajoXLSX,
