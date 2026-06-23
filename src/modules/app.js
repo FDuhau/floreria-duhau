@@ -10622,7 +10622,7 @@ function verPresupuesto(idx){
         ${vto?`<div class="valid">Presupuesto válido hasta el ${vto}.</div>`:''}
         ${p.notas?`<div class="notas">${esc(p.notas)}</div>`:''}
       </div>
-      <div class="footer">Florería del Duhau · Park Hyatt Buenos Aires · Av. Alvear 1661, CABA<br>Gracias por confiar en nosotros 💐</div>
+      <div class="footer">Florería del Duhau · Park Hyatt Buenos Aires · Av. Alvear 1661, CABA<br>Tel / WhatsApp: +54 9 11 7050-1615<br>Gracias por confiar en nosotros 💐</div>
     </div>
     <div class="actions">
       <button class="b-print" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
