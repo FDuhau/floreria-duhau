@@ -940,6 +940,38 @@
   .crm-badge.blue { background: #EEF0F8; color: #4A5FA6; }
 
   /* ═══════════════════════════════════════════════════════
+     COMPONENTES BASE FALTANTES (KPI, botón primario, modal v2)
+     ═══════════════════════════════════════════════════════ */
+
+  /* ── KPI cards (paneles de métricas) ── */
+  .kpi-card { background:#FDFCFB; border:1px solid rgba(228,226,220,.8); border-radius:var(--radius-md); padding:18px 20px; box-shadow:var(--shadow-sm); transition:var(--transition); }
+  .kpi-card:hover { box-shadow:var(--shadow-md); transform:translateY(-1px); }
+  .kpi-val { font-family:'Cormorant Garamond',serif; font-size:34px; font-weight:400; color:var(--charcoal); line-height:1.05; }
+  .kpi-lbl { font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--mid-gray); margin-top:6px; font-weight:500; }
+
+  /* ── Botón primario ── */
+  .btn-primary { background:#1A1A1A; color:#F7F5F2; border:none; border-radius:var(--radius-sm); padding:10px 22px; font-family:'DM Sans',sans-serif; font-size:12.5px; letter-spacing:.5px; font-weight:500; cursor:pointer; transition:var(--transition); white-space:nowrap; box-shadow:0 2px 8px rgba(0,0,0,.15); display:inline-flex; align-items:center; gap:7px; }
+  .btn-primary:hover { background:#2C2C2A; box-shadow:0 4px 14px rgba(0,0,0,.22); transform:translateY(-1px); }
+  .btn-primary:active { transform:translateY(0); box-shadow:0 1px 4px rgba(0,0,0,.15); }
+  [data-theme="dark"] .btn-primary { background:#F0EDE8; color:#1A1A1A; }
+  [data-theme="dark"] .btn-primary:hover { background:#FFFFFF; }
+
+  /* ── Modal v2: header / body / footer ── */
+  .modal-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; padding-bottom:14px; border-bottom:1px solid var(--light-gray); }
+  .modal-header h2 { font-family:'Cormorant Garamond',serif; font-size:24px; font-weight:500; color:var(--charcoal); margin:0; }
+  .modal-footer { display:flex; gap:10px; justify-content:flex-end; margin-top:22px; padding-top:16px; border-top:1px solid var(--light-gray); }
+  .modal .form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; align-items:end; }
+  .modal .form-group { margin-bottom:12px; }
+
+  /* ── Botón mini de acción en tablas ── */
+  .btn-mini { background:#FDFCFB; border:1px solid var(--light-gray); border-radius:var(--radius-sm); padding:5px 11px; font-family:'DM Sans',sans-serif; font-size:11.5px; font-weight:500; color:var(--charcoal); cursor:pointer; transition:var(--transition); display:inline-flex; align-items:center; gap:5px; white-space:nowrap; line-height:1.2; }
+  .btn-mini:hover { border-color:#1A1A1A; box-shadow:var(--shadow-sm); transform:translateY(-1px); }
+  .btn-mini.wa { background:#25D366; border-color:#1da851; color:#fff; }
+  .btn-mini.wa:hover { background:#1ebe5a; border-color:#1ebe5a; }
+  .table-actions { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+  [data-theme="dark"] .btn-mini { background:#252523; color:#F0EDE8; border-color:#3A3A38; }
+
+  /* ═══════════════════════════════════════════════════════
      PRO POLISH LAYER — refinamientos estéticos globales
      ═══════════════════════════════════════════════════════ */
 

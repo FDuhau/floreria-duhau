@@ -10472,27 +10472,36 @@ function renderPresupuestos(){
     <div class="kpi-card"><div class="kpi-val">${cerrados}</div><div class="kpi-lbl">Aceptados</div></div>
     <div class="kpi-card"><div class="kpi-val">${conversion}%</div><div class="kpi-lbl">Tasa de conversión</div></div>
     <div class="kpi-card"><div class="kpi-val">$${volumen.toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:0})}</div><div class="kpi-lbl">Volumen aceptado</div></div>`;
-  if(!sorted.length){ el.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--mid-gray);padding:24px">Sin presupuestos aún. Usá el botón + para agregar.</td></tr>'; return; }
+  if(!sorted.length){ el.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--mid-gray);padding:24px">Sin presupuestos aún. Usá «+ Nuevo presupuesto» para agregar.</td></tr>'; return; }
   const stColors = {pendiente:'#856404',aceptado:'#155724',rechazado:'#721c24',vencido:'#6c757d'};
   const stBg = {pendiente:'#fff3cd',aceptado:'#d4edda',rechazado:'#f8d7da',vencido:'#e2e3e5'};
-  el.innerHTML = sorted.map((p,i)=>`<tr>
-    <td>${fmtDate(p.fecha)}</td>
+  const stLbl = {pendiente:'Pendiente',aceptado:'Aceptado',rechazado:'Rechazado',vencido:'Vencido'};
+  el.innerHTML = sorted.map(p=>{
+    const i = presupuestosData.indexOf(p);
+    const est = p.estado||'pendiente';
+    return `<tr style="cursor:pointer" onclick="verPresupuesto(${i})">
+    <td style="white-space:nowrap">${fmtDate(p.fecha)}</td>
     <td><strong>${esc(p.cliente||'—')}</strong></td>
     <td>${esc(p.concepto||'—')}</td>
-    <td>$${parseMoney(p.monto||0).toLocaleString('es-AR',{minimumFractionDigits:0})}</td>
-    <td><span style="background:${stBg[p.estado]||'#eee'};color:${stColors[p.estado]||'#333'};padding:2px 8px;border-radius:10px;font-size:12px">${p.estado||'pendiente'}</span></td>
-    <td>${p.vencimiento ? fmtDate(p.vencimiento) : '—'}</td>
-    <td style="display:flex;gap:4px;align-items:center">
-      <select onchange="cambiarEstadoPres(${i},this.value)" style="font-size:11px;padding:2px 4px">
-        <option value="">Estado...</option>
-        <option value="aceptado">Aceptado ✓</option>
-        <option value="rechazado">Rechazado ✗</option>
-        <option value="vencido">Vencido</option>
-        <option value="pendiente">Pendiente</option>
-      </select>
-      <button class="btn-icon" onclick="eliminarPresupuesto(${i})">🗑</button>
+    <td style="white-space:nowrap;font-weight:600">$${parseMoney(p.monto||0).toLocaleString('es-AR',{minimumFractionDigits:0})}</td>
+    <td><span style="background:${stBg[est]||'#eee'};color:${stColors[est]||'#333'};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap">${stLbl[est]||est}</span></td>
+    <td style="white-space:nowrap">${p.vencimiento ? fmtDate(p.vencimiento) : '—'}</td>
+    <td onclick="event.stopPropagation()">
+      <div class="table-actions">
+        <button class="btn-mini" onclick="verPresupuesto(${i})">👁 Ver</button>
+        <button class="btn-mini wa" title="Enviar por WhatsApp" onclick="enviarPresupuestoWhatsApp(${i})">💬 WhatsApp</button>
+        <select class="cl-select" onchange="cambiarEstadoPres(${i},this.value)">
+          <option value="">Estado…</option>
+          <option value="aceptado">Aceptado ✓</option>
+          <option value="rechazado">Rechazado ✗</option>
+          <option value="vencido">Vencido</option>
+          <option value="pendiente">Pendiente</option>
+        </select>
+        <button class="btn-icon" title="Eliminar" onclick="eliminarPresupuesto(${i})">🗑</button>
+      </div>
     </td>
-  </tr>`).join('');
+  </tr>`;
+  }).join('');
 }
 
 function openPresupuestoModal(){
@@ -10504,11 +10513,12 @@ function openPresupuestoModal(){
 function guardarPresupuesto(){
   const cliente = document.getElementById('pres-cliente').value.trim();
   const concepto = document.getElementById('pres-concepto').value.trim();
+  const telefono = document.getElementById('pres-telefono')?.value.trim() || '';
   const monto = document.getElementById('pres-monto').value;
   const vencimiento = document.getElementById('pres-vencimiento').value;
   const notas = document.getElementById('pres-notas').value.trim();
   if(!cliente||!monto){ showToast('Completá cliente y monto'); return; }
-  presupuestosData.push({ id: Date.now(), fecha: TODAY_ISO, cliente, concepto, monto, vencimiento, notas, estado:'pendiente' });
+  presupuestosData.push({ id: Date.now(), fecha: TODAY_ISO, cliente, concepto, telefono, monto, vencimiento, notas, estado:'pendiente' });
   fbSave('presupuestosData', presupuestosData);
   closeModal('modal-presupuesto');
   renderPresupuestos();
@@ -10516,27 +10526,110 @@ function guardarPresupuesto(){
 }
 
 function cambiarEstadoPres(idx, estado){
-  if(!estado) return;
-  const sorted = [...presupuestosData].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
-  const item = sorted[idx];
-  const realIdx = presupuestosData.indexOf(item);
-  if(realIdx<0) return;
-  presupuestosData[realIdx].estado = estado;
+  if(!estado || idx<0 || !presupuestosData[idx]) return;
+  presupuestosData[idx].estado = estado;
   fbSave('presupuestosData', presupuestosData);
   renderPresupuestos();
   showToast('Estado actualizado');
 }
 
 function eliminarPresupuesto(idx){
-  const sorted = [...presupuestosData].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
-  const item = sorted[idx];
-  const realIdx = presupuestosData.indexOf(item);
-  if(realIdx<0) return;
+  if(idx<0 || !presupuestosData[idx]) return;
   if(!confirm('¿Eliminar este presupuesto?')) return;
-  presupuestosData.splice(realIdx, 1);
+  presupuestosData.splice(idx, 1);
   fbSave('presupuestosData', presupuestosData);
   renderPresupuestos();
   showToast('Eliminado');
+}
+
+// ── Texto y enlace de WhatsApp para un presupuesto ──
+function presupuestoWaURL(p){
+  const tel = (p.telefono||'').replace(/[^\d]/g,'');
+  const monto = '$'+parseMoney(p.monto||0).toLocaleString('es-AR',{maximumFractionDigits:0});
+  const lineas = [
+    '🌸 *Florería del Duhau* — Park Hyatt Buenos Aires',
+    '',
+    `Estimado/a ${p.cliente||''},`,
+    'Le compartimos el presupuesto solicitado:',
+    ''
+  ];
+  if(p.concepto) lineas.push(`• ${p.concepto}`);
+  lineas.push(`*Total: ${monto}*`);
+  if(p.vencimiento) lineas.push(`Válido hasta: ${fmtDate(p.vencimiento)}`);
+  if(p.notas){ lineas.push(''); lineas.push(p.notas); }
+  lineas.push('', '¡Gracias por elegirnos! 💐');
+  const text = encodeURIComponent(lineas.join('\n'));
+  return tel ? `https://wa.me/${tel}?text=${text}` : `https://wa.me/?text=${text}`;
+}
+
+function enviarPresupuestoWhatsApp(idx){
+  const p = presupuestosData[idx];
+  if(!p) return;
+  window.open(presupuestoWaURL(p), '_blank');
+}
+
+// ── Documento de presupuesto con diseño de marca (ver / imprimir / PDF) ──
+function verPresupuesto(idx){
+  const p = presupuestosData[idx];
+  if(!p) return;
+  const monto = '$'+parseMoney(p.monto||0).toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:0});
+  const fecha = p.fecha ? fmtDate(p.fecha) : fmtDate(TODAY_ISO);
+  const vto = p.vencimiento ? fmtDate(p.vencimiento) : '';
+  const waURL = presupuestoWaURL(p);
+  const win = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Presupuesto — ${esc(p.cliente||'')}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'DM Sans',sans-serif;color:#1A1A1A;background:#EFEDE9;padding:32px 16px}
+    .sheet{max-width:760px;margin:0 auto;background:#FDFCFB;border-radius:16px;overflow:hidden;box-shadow:0 12px 44px rgba(0,0,0,.14)}
+    .hero{background:#111110;color:#F7F5F2;padding:40px 48px;display:flex;align-items:center;justify-content:space-between;gap:20px}
+    .hero .brand{font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:400;letter-spacing:.5px;line-height:1.1}
+    .hero .brand small{display:block;font-family:'DM Sans',sans-serif;font-size:9.5px;letter-spacing:3px;text-transform:uppercase;color:rgba(247,245,242,.55);margin-top:10px}
+    .hero img{width:62px;height:62px;opacity:.92;flex-shrink:0}
+    .body{padding:40px 48px}
+    .doc-title{font-size:11px;letter-spacing:4px;text-transform:uppercase;color:#9A8F7A;margin-bottom:8px;font-weight:600}
+    .cliente{font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:500;margin-bottom:4px;line-height:1.1}
+    .meta{font-size:12.5px;color:#7A7A72;margin-bottom:28px}
+    .concepto-box{background:#F4F2ED;border:1px solid #E8E6E0;border-radius:12px;padding:22px 24px;margin-bottom:24px}
+    .concepto-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#9A8F7A;margin-bottom:9px;font-weight:600}
+    .concepto-text{font-size:15px;line-height:1.7;color:#1A1A1A;white-space:pre-wrap}
+    .total-row{display:flex;justify-content:space-between;align-items:flex-end;border-top:2px solid #1A1A1A;padding-top:18px;margin-bottom:10px}
+    .total-label{font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:#7A7A72;font-weight:600;padding-bottom:8px}
+    .total-val{font-family:'Cormorant Garamond',serif;font-size:42px;font-weight:600;color:#1A1A1A;line-height:1}
+    .valid{font-size:12px;color:#7A7A72;margin-bottom:22px}
+    .notas{font-size:13.5px;color:#5A5A52;line-height:1.7;border-left:3px solid #C8BEA8;padding-left:16px;white-space:pre-wrap}
+    .footer{border-top:1px solid #E8E6E0;padding:22px 48px;font-size:11px;color:#9A8F7A;text-align:center;letter-spacing:.3px;line-height:1.9}
+    .actions{max-width:760px;margin:22px auto 0;display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+    .actions a,.actions button{font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;padding:13px 26px;border-radius:10px;cursor:pointer;border:none;text-decoration:none;display:inline-flex;align-items:center;gap:8px}
+    .b-print{background:#1A1A1A;color:#fff}
+    .b-wa{background:#25D366;color:#fff}
+    @media print{ body{background:#fff;padding:0} .sheet{box-shadow:none;border-radius:0;max-width:100%} .actions{display:none} }
+  </style></head><body>
+    <div class="sheet">
+      <div class="hero">
+        <div class="brand">Florería del Duhau<small>Park Hyatt Buenos Aires</small></div>
+        <img src="/icon-512.png" alt="">
+      </div>
+      <div class="body">
+        <div class="doc-title">Presupuesto</div>
+        <div class="cliente">${esc(p.cliente||'')}</div>
+        <div class="meta">Fecha: ${fecha}${vto?' · Válido hasta '+vto:''}</div>
+        ${p.concepto?`<div class="concepto-box"><div class="concepto-label">Detalle</div><div class="concepto-text">${esc(p.concepto)}</div></div>`:''}
+        <div class="total-row"><div class="total-label">Total</div><div class="total-val">${monto}</div></div>
+        ${vto?`<div class="valid">Presupuesto válido hasta el ${vto}.</div>`:''}
+        ${p.notas?`<div class="notas">${esc(p.notas)}</div>`:''}
+      </div>
+      <div class="footer">Florería del Duhau · Park Hyatt Buenos Aires · Av. Alvear 1661, CABA<br>Gracias por confiar en nosotros 💐</div>
+    </div>
+    <div class="actions">
+      <button class="b-print" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
+      <a class="b-wa" href="${waURL}" target="_blank" rel="noopener">💬 Enviar por WhatsApp</a>
+    </div>
+  </body></html>`);
+  win.document.close();
 }
 
 // ════════════════════════════════════════
@@ -11038,6 +11131,7 @@ Object.assign(window, {
   renderCompraFiltersPanel, toggleCompraFilters, applyCompraFiltersExt, clearCompraFiltersExt,
   installPWA, toggleTVMode, renderTVDashboard,
   renderPresupuestos, openPresupuestoModal, guardarPresupuesto, cambiarEstadoPres, eliminarPresupuesto,
+  verPresupuesto, enviarPresupuestoWhatsApp,
   renderEventosSinFloreria, openEsfModal, guardarEsf, eliminarEsf, exportEsfReclamo,
   renderCierreMensual, generarCierreMensual, verCierreMensual, exportCierrePDF,
   renderDashboardGerencia,
