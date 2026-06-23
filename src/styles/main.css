@@ -15,20 +15,22 @@
     --red-alert:   #B03020;
     --amber:       #9A6A10;
     --green-ok:    #3A6A30;
-    --shadow-sm:   0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
-    --shadow-md:   0 4px 16px rgba(0,0,0,.08), 0 2px 6px rgba(0,0,0,.05);
-    --shadow-lg:   0 12px 40px rgba(0,0,0,.12), 0 4px 12px rgba(0,0,0,.06);
-    --radius-sm:   4px;
-    --radius-md:   8px;
-    --radius-lg:   12px;
-    --radius-xl:   16px;
+    --shadow-xs:   0 1px 2px rgba(17,17,16,.05);
+    --shadow-sm:   0 1px 2px rgba(17,17,16,.04), 0 1px 3px rgba(17,17,16,.06);
+    --shadow-md:   0 2px 4px rgba(17,17,16,.04), 0 8px 20px rgba(17,17,16,.08);
+    --shadow-lg:   0 4px 12px rgba(17,17,16,.06), 0 18px 50px rgba(17,17,16,.14);
+    --ring:        0 0 0 3px rgba(26,26,26,.12);
+    --radius-sm:   6px;
+    --radius-md:   10px;
+    --radius-lg:   14px;
+    --radius-xl:   18px;
     --transition:  all .2s cubic-bezier(.4,0,.2,1);
     /* Checklist sections */
     --sec-a: #EDE8DE; --sec-b: #D8E4F0; --sec-c: #F0DAE0; --sec-d: #EDEADA;
   }
 
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
-  body { font-family:'DM Sans',sans-serif; background:#EFEDE9; color:#1A1A1A; min-height:100vh; overflow-x:hidden; -webkit-text-size-adjust:100%; }
+  body { font-family:'DM Sans',sans-serif; background:#EFEDE9; color:#1A1A1A; min-height:100vh; overflow-x:hidden; -webkit-text-size-adjust:100%; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; text-rendering:optimizeLegibility; font-feature-settings:'kern' 1, 'liga' 1, 'calt' 1; letter-spacing:.1px; }
   button, [onclick] { touch-action: manipulation; }
   body:not(.role-gerencia) .gerencia-only { display: none !important; }
 
@@ -936,3 +938,108 @@
   }
   .crm-badge.green { background: #EBF5E8; color: var(--green-ok); }
   .crm-badge.blue { background: #EEF0F8; color: #4A5FA6; }
+
+  /* ═══════════════════════════════════════════════════════
+     PRO POLISH LAYER — refinamientos estéticos globales
+     ═══════════════════════════════════════════════════════ */
+
+  /* ── Scrollbars finas y discretas ── */
+  * { scrollbar-width: thin; scrollbar-color: rgba(26,26,26,.18) transparent; }
+  ::-webkit-scrollbar { width: 9px; height: 9px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(26,26,26,.16); border-radius: 10px; border: 2px solid transparent; background-clip: padding-box; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(26,26,26,.30); border: 2px solid transparent; background-clip: padding-box; }
+  .sidebar { scrollbar-color: rgba(255,255,255,.14) transparent; }
+  .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); }
+  .sidebar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.24); }
+  [data-theme="dark"] * { scrollbar-color: rgba(240,237,232,.16) transparent; }
+  [data-theme="dark"] ::-webkit-scrollbar-thumb { background: rgba(240,237,232,.14); }
+  [data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: rgba(240,237,232,.28); }
+
+  /* ── Color de selección de texto ── */
+  ::selection { background: rgba(196,147,122,.28); color: var(--charcoal); }
+  [data-theme="dark"] ::selection { background: rgba(196,147,122,.40); color: #F0EDE8; }
+
+  /* ── Foco accesible y elegante (solo teclado) ── */
+  a:focus-visible, button:focus-visible, input:focus-visible,
+  select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible,
+  [onclick]:focus-visible, .nav-item:focus-visible, .nav-sub-item:focus-visible {
+    outline: none;
+    box-shadow: var(--ring);
+    border-radius: var(--radius-sm);
+  }
+  .sidebar .nav-item:focus-visible, .sidebar .nav-sub-item:focus-visible {
+    box-shadow: 0 0 0 2px rgba(247,245,242,.35) inset;
+  }
+
+  /* ── Números tabulares: alinean cifras en datos, precios y tablas ── */
+  .card-value, .price-tag, .saldo-pos, .saldo-neg, .qty-val, .potencial-val,
+  .home-ventas-stat-val, .home-venta-precio, .event-price, .hab-num,
+  .home-cl-pct, .prod-bar-pct, .days-badge, .kanban-date, .date-badge,
+  .tv-kpi-val, .tv-clock, .kpi-card, .ctrl-summary-card,
+  .checklist-table td, .stock-table td, .ventas-table td, .caja-table td,
+  .compras-table td, .ctrl-table td, .history-table td, .recep-qty-input,
+  input[type="number"] {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
+  }
+
+  /* ── Sidebar: textura sutil y marcador activo más definido ── */
+  .sidebar { background: linear-gradient(180deg, #15151300 0%, #15151300 100%), #111110; box-shadow: inset -1px 0 0 rgba(255,255,255,.04); }
+  .nav-item { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; margin-right: 8px; }
+  .nav-item.active { background: linear-gradient(90deg, rgba(255,255,255,.12), rgba(255,255,255,.04)); }
+  .nav-item.active .nav-icon { opacity: 1; }
+  .nav-sub-item { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; margin-right: 8px; }
+
+  /* ── Topbar: borde y blur más nítidos ── */
+  .topbar { backdrop-filter: blur(14px) saturate(1.4); -webkit-backdrop-filter: blur(14px) saturate(1.4); }
+
+  /* ── Cards: elevación y transición más refinadas ── */
+  .card, .home-dash-card, .event-card, .receta-card, .glosario-item,
+  .quick-link, .kanban-card, .crm-card {
+    transition: transform .22s cubic-bezier(.4,0,.2,1), box-shadow .22s cubic-bezier(.4,0,.2,1), border-color .22s ease;
+  }
+
+  /* ── Botones primarios: brillo sutil y feedback ── */
+  .btn-add, .login-btn, .mark-done-btn, .btn-recep-confirm, .btn-print {
+    position: relative;
+    letter-spacing: .4px;
+  }
+  .btn-add:active, .mark-done-btn:active, .btn-recep-confirm:active,
+  .filter-btn:active, .ctrl-tab:active, .day-tab:active, .hist-filter-btn:active,
+  .history-week-btn:active, .qty-btn:active, .btn-secondary:active { transform: translateY(.5px) scale(.99); }
+
+  /* ── Tablas: encabezado sticky para listados largos ── */
+  .table-wrapper, .compras-list-wrap { position: relative; }
+  .checklist-table thead th, .stock-table thead th, .ventas-table thead th,
+  .caja-table thead th, .compras-table thead th, .ctrl-table thead th,
+  .history-table thead th { position: sticky; top: 0; z-index: 2; }
+
+  /* ── Fila de tabla con transición de hover suave ── */
+  .stock-table td, .ventas-table td, .caja-table td, .compras-table td,
+  .ctrl-table td, .checklist-table td { transition: background .15s ease; }
+
+  /* ── Modales: entrada más pulida ── */
+  .modal { animation: modalIn .28s cubic-bezier(.16,1,.3,1); }
+  @keyframes modalIn { from { opacity:0; transform: translateY(16px) scale(.985); } to { opacity:1; transform: translateY(0) scale(1); } }
+  .modal-overlay { transition: opacity .2s ease; }
+
+  /* ── Inputs: transición consistente del anillo de foco ── */
+  .form-input:focus, .form-select:focus, .form-input-modal:focus,
+  .stock-search:focus, .ctrl-search:focus, .lock-input:focus { box-shadow: var(--ring); }
+
+  /* ── Imágenes y media sin saltos ── */
+  img { display: block; max-width: 100%; }
+
+  /* ── Respeto a usuarios con movimiento reducido ── */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: .001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: .001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* ── Scroll suave global ── */
+  html { scroll-behavior: smooth; }
