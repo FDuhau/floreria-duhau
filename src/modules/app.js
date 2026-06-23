@@ -10649,7 +10649,7 @@ function presupuestoWaURL(p){
   const tel = (p.telefono||'').replace(/[^\d]/g,'');
   const monto = '$'+parseMoney(p.monto||0).toLocaleString('es-AR',{maximumFractionDigits:0});
   const lineas = [
-    '🌸 *Florería del Duhau* — Park Hyatt Buenos Aires',
+    '🌸 *Florería Duhau* — Park Hyatt Buenos Aires',
     '',
     `Estimado/a ${p.cliente||''},`,
     'Le compartimos el presupuesto solicitado:',
@@ -10712,7 +10712,7 @@ function verPresupuesto(idx){
   </style></head><body>
     <div class="sheet">
       <div class="hero">
-        <div class="brand">Florería del Duhau<small>Park Hyatt Buenos Aires</small></div>
+        <div class="brand">Florería Duhau<small>Park Hyatt Buenos Aires</small></div>
         <img src="/icon-512.png" alt="">
       </div>
       <div class="body">
@@ -10724,7 +10724,7 @@ function verPresupuesto(idx){
         ${vto?`<div class="valid">Presupuesto válido hasta el ${vto}.</div>`:''}
         ${p.notas?`<div class="notas">${esc(p.notas)}</div>`:''}
       </div>
-      <div class="footer">Florería del Duhau · Park Hyatt Buenos Aires · Av. Alvear 1661, CABA<br>Tel / WhatsApp: +54 9 11 7050-1615<br>Gracias por confiar en nosotros 💐</div>
+      <div class="footer">Florería Duhau · Park Hyatt Buenos Aires · Av. Alvear 1661, CABA<br>Tel / WhatsApp: +54 9 11 7050-1615</div>
     </div>
     <div class="actions">
       <button class="b-print" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
@@ -10880,7 +10880,7 @@ function exportEsfReclamo(){
 
   const win = window.open('','_blank');
   win.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
-  <title>Reclamo de eventos — Florería del Duhau</title>
+  <title>Reclamo de eventos — Florería Duhau</title>
   <style>
     *{box-sizing:border-box}
     body{font-family:'Georgia','Times New Roman',serif;margin:48px;color:#1a1a1a;line-height:1.6}
@@ -10903,11 +10903,11 @@ function exportEsfReclamo(){
     @media print{.actions{display:none}body{margin:0}}
   </style></head><body>
     <div class="head">
-      <div class="brand">Florería del Duhau<small>Park Hyatt Buenos Aires</small></div>
+      <div class="brand">Florería Duhau<small>Park Hyatt Buenos Aires</small></div>
       <div class="meta">Fecha: ${hoy}<br>Detalle de reclamo</div>
     </div>
     <h1>Reclamo — Eventos sin asignación de servicio floral</h1>
-    <p class="intro">Por la presente dejamos constancia de los eventos detallados a continuación, en los cuales —conforme al acuerdo vigente— correspondía la asignación del servicio floral a Florería del Duhau y la misma no fue otorgada, habiéndose contratado a un proveedor externo. Se solicita la regularización / compensación correspondiente.</p>
+    <p class="intro">Por la presente dejamos constancia de los eventos detallados a continuación, en los cuales —conforme al acuerdo vigente— correspondía la asignación del servicio floral a Florería Duhau y la misma no fue otorgada, habiéndose contratado a un proveedor externo. Se solicita la regularización / compensación correspondiente.</p>
     <table>
       <thead><tr>
         <th>Fecha</th><th>Evento</th><th>Salón / Zona</th><th>Marca externa</th><th>Arreglo que correspondía</th><th class="num">Monto</th>
@@ -10917,7 +10917,7 @@ function exportEsfReclamo(){
     </table>
     <p class="intro" style="font-size:12px;color:#666">Cantidad de eventos incluidos: ${lista.length}.</p>
     <div class="firma">
-      <div class="line">Florería del Duhau</div>
+      <div class="line">Florería Duhau</div>
     </div>
     <div class="actions"><button onclick="window.print()">🖨️ Imprimir / Guardar PDF</button></div>
   </body></html>`);
