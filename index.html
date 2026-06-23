@@ -78,6 +78,7 @@
     <div class="nav-item nav-group-hdr" data-group-id="grp-com" onclick="navToggleGroup('grp-com');navigate('comercial',this)"><span class="nav-icon">💼</span> Área Comercial<span class="nav-chevron">›</span></div>
     <div class="nav-sub-item" data-group="grp-com" onclick="navigate('eventos-comercial',this)">Eventos</div>
     <div class="nav-sub-item" data-group="grp-com" onclick="navigate('historial-eventos',this)">Historial de Eventos</div>
+    <div class="nav-sub-item" data-group="grp-com" onclick="navigate('eventos-sin-floreria',this)">🚫 Eventos sin Florería</div>
     <div class="nav-sub-item" data-group="grp-com" onclick="navigate('cotizador',this)">Cotizador</div>
     <div class="nav-sub-item nav-floreria-only" data-group="grp-com" style="display:none" onclick="navigate('cotizador-ops',this)">Cotizador</div>
     <div class="nav-sub-item nav-ventas-only" data-group="grp-com" style="display:none" onclick="navigate('cotizador-eventos-hyatt',this)">Cotizador de Eventos</div>
@@ -2319,6 +2320,64 @@
           <div class="form-group"><label class="form-label">Vencimiento</label><input class="form-input" id="pres-vencimiento" type="date"></div>
           <div class="form-group"><label class="form-label">Notas</label><textarea class="form-input" id="pres-notas" rows="2" placeholder="Observaciones adicionales"></textarea></div>
           <div class="modal-footer"><button type="submit" class="btn-primary">Guardar presupuesto</button><button type="button" class="btn-secondary" onclick="closeModal('modal-presupuesto')">Cancelar</button></div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════ EVENTOS SIN FLORERÍA ════════ -->
+  <div id="page-eventos-sin-floreria" class="content">
+    <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
+      <div>
+        <div class="page-title">Eventos sin Florería</div>
+        <div class="page-subtitle">Eventos en los que el hotel no nos asignó la parte floral · registro para reclamar según contrato</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-print" onclick="exportEsfReclamo()">📄 Exportar reclamo</button>
+        <button class="btn-primary" onclick="openEsfModal(-1)">+ Registrar evento</button>
+      </div>
+    </div>
+    <div id="esf-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:20px"></div>
+    <div class="table-wrapper">
+      <table class="stock-table">
+        <thead><tr><th>Fecha</th><th>Evento</th><th>Salón / Zona</th><th>Marca externa</th><th>Arreglo que correspondía</th><th>Monto a reclamar</th><th>Estado</th><th>Acciones</th></tr></thead>
+        <tbody id="esf-body"><tr><td colspan="8" style="text-align:center;color:var(--mid-gray);padding:24px">Cargando...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal Evento sin Florería -->
+  <div class="modal-overlay" id="modal-esf">
+    <div class="modal" style="max-width:560px">
+      <div class="modal-header"><h2 id="esf-modal-title">Registrar evento sin florería</h2><button class="modal-close" onclick="closeModal('modal-esf')">✕</button></div>
+      <div class="modal-body">
+        <form id="esf-form" onsubmit="event.preventDefault();guardarEsf()">
+          <input type="hidden" id="esf-idx" value="-1">
+          <div class="form-group"><label class="form-label">Nombre del evento *</label><input class="form-input" id="esf-nombre" placeholder="Ej. Casamiento Salón Federal" required></div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">Tipo de evento</label><input class="form-input" id="esf-tipo" placeholder="Casamiento, corporativo..."></div>
+            <div class="form-group"><label class="form-label">Fecha</label><input class="form-input" id="esf-fecha" type="date"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">Salón / Zona</label><input class="form-input" id="esf-salon" placeholder="Salón / ubicación en el hotel"></div>
+            <div class="form-group"><label class="form-label">Pax</label><input class="form-input" id="esf-pax" type="number" min="0" placeholder="Cantidad de invitados"></div>
+          </div>
+          <div class="form-group"><label class="form-label">Marca / ambientador externo</label><input class="form-input" id="esf-marca" placeholder="¿Qué marca trajo el hotel en nuestro lugar?"></div>
+          <div class="form-group"><label class="form-label">Arreglo que nos correspondía por contrato</label><textarea class="form-input" id="esf-arreglo" rows="2" placeholder="Arreglo standard / extra que el hotel debía asignarnos"></textarea></div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">Monto a reclamar ($)</label><input class="form-input" id="esf-monto" type="number" min="0" step="0.01" placeholder="Valor del arreglo no facturado"></div>
+            <div class="form-group"><label class="form-label">Estado</label>
+              <select class="form-input" id="esf-estado">
+                <option value="pendiente">Pendiente de reclamar</option>
+                <option value="reclamado">Reclamado al hotel</option>
+                <option value="compensado">Compensado</option>
+                <option value="sin-respuesta">Sin respuesta</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group"><label class="form-label">Fecha de reclamo</label><input class="form-input" id="esf-fecha-reclamo" type="date"></div>
+          <div class="form-group"><label class="form-label">Detalle / observaciones</label><textarea class="form-input" id="esf-detalle" rows="2" placeholder="Contexto del reclamo, con quién se habló, etc."></textarea></div>
+          <div class="modal-footer"><button type="submit" class="btn-primary">Guardar</button><button type="button" class="btn-secondary" onclick="closeModal('modal-esf')">Cancelar</button></div>
         </form>
       </div>
     </div>

@@ -126,6 +126,7 @@ const PAGE_LABELS = {control:'Control','control-jardineria':'Control › Seguimi
   'stock-admin':'Compras › Gestión de Stock',
   comercial:'Área Comercial', 'eventos-comercial':'Comercial › Eventos',
   'historial-eventos':'Comercial › Historial de Eventos',
+  'eventos-sin-floreria':'Comercial › Eventos sin Florería',
   cotizador:'Comercial › Cotizador',
   'cotizador-ops':'Cotizador',
   'ventas-externas':'Comercial › Ventas', caja:'Comercial › Caja',
@@ -158,7 +159,7 @@ const PAGE_LABELS = {control:'Control','control-jardineria':'Control › Seguimi
 };
 const COMPRAS_PAGES=['compras','compras-floreria','compras-jardineria','stock-admin'];
 const CONTROL_PAGES=['control','control-jardineria','control-habitaciones','control-horarios','recordatorios-jardineria'];
-const COMERCIAL_PAGES = ['comercial','eventos-comercial','historial-eventos','cotizador-ops','ventas-externas','caja','galeria','lista-precios','ramos-disponibles','pedidos-habitacion','recetas-arreglos','recepcion-pedidos'];
+const COMERCIAL_PAGES = ['comercial','eventos-comercial','historial-eventos','eventos-sin-floreria','cotizador-ops','ventas-externas','caja','galeria','lista-precios','ramos-disponibles','pedidos-habitacion','recetas-arreglos','recepcion-pedidos'];
 
 // ── NAVEGACIÓN INFERIOR MOBILE ──────────────────────────────────────────────
 const BOTTOM_NAV_ITEMS = {
@@ -253,6 +254,7 @@ function navigate(pageId, navEl){
   if(pageId==='stock-admin')        renderStockAdmin();
   if(pageId==='eventos-comercial')  renderEventos();
   if(pageId==='historial-eventos')   renderHistorialEventos();
+  if(pageId==='eventos-sin-floreria') renderEventosSinFloreria();
   if(pageId==='ventas-externas')    renderVentas();
   if(pageId==='caja')               renderCaja();
   if(pageId==='galeria')            renderGaleria();
@@ -10538,6 +10540,196 @@ function eliminarPresupuesto(idx){
 }
 
 // ════════════════════════════════════════
+// EVENTOS SIN FLORERÍA — eventos en los que el hotel NO nos asignó
+// la parte floral (trajo otra marca/ambientador). Sirve para llevar
+// registro y reclamarle al hotel según contrato.
+// ════════════════════════════════════════
+let eventosSinFloreria = [];
+window._setEventosSinFloreria = arr => { eventosSinFloreria = arr && typeof arr === 'object' ? (Array.isArray(arr)?arr:Object.values(arr)) : []; renderEventosSinFloreria(); };
+
+const ESF_ESTADOS = {
+  pendiente:       {lbl:'Pendiente de reclamar', bg:'#fff3cd', col:'#856404'},
+  reclamado:       {lbl:'Reclamado al hotel',    bg:'#cce5ff', col:'#004085'},
+  compensado:      {lbl:'Compensado',            bg:'#d4edda', col:'#155724'},
+  'sin-respuesta': {lbl:'Sin respuesta',         bg:'#f8d7da', col:'#721c24'}
+};
+
+function renderEventosSinFloreria(){
+  const el = document.getElementById('esf-body');
+  if(!el) return;
+  const sorted = [...eventosSinFloreria].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+
+  // KPIs
+  const total       = eventosSinFloreria.length;
+  const pendientes  = eventosSinFloreria.filter(e=>e.estado!=='compensado').length;
+  const aReclamar   = eventosSinFloreria.filter(e=>e.estado!=='compensado').reduce((s,e)=>s+parseMoney(e.monto||0),0);
+  const compensado  = eventosSinFloreria.filter(e=>e.estado==='compensado').reduce((s,e)=>s+parseMoney(e.monto||0),0);
+  const stats = document.getElementById('esf-stats');
+  if(stats) stats.innerHTML = `
+    <div class="kpi-card"><div class="kpi-val">${total}</div><div class="kpi-lbl">Eventos sin florería</div></div>
+    <div class="kpi-card"><div class="kpi-val">${pendientes}</div><div class="kpi-lbl">Pendientes / abiertos</div></div>
+    <div class="kpi-card"><div class="kpi-val">$${aReclamar.toLocaleString('es-AR',{maximumFractionDigits:0})}</div><div class="kpi-lbl">Monto a reclamar</div></div>
+    <div class="kpi-card"><div class="kpi-val">$${compensado.toLocaleString('es-AR',{maximumFractionDigits:0})}</div><div class="kpi-lbl">Compensado</div></div>`;
+
+  if(!sorted.length){
+    el.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--mid-gray);padding:28px">'+
+      'Sin eventos registrados todavía. Tocá «+ Registrar evento» cuando el hotel no nos asigne la parte floral.</td></tr>';
+    return;
+  }
+
+  el.innerHTML = sorted.map(ev=>{
+    const realIdx = eventosSinFloreria.indexOf(ev);
+    const st = ESF_ESTADOS[ev.estado] || ESF_ESTADOS.pendiente;
+    return `<tr style="cursor:pointer" onclick="openEsfModal(${realIdx})">
+      <td style="white-space:nowrap">${ev.fecha?fmtDate(ev.fecha):'—'}</td>
+      <td><strong>${esc(ev.nombre||'—')}</strong>${ev.tipo?`<div style="font-size:11px;color:var(--mid-gray)">${esc(ev.tipo)}</div>`:''}</td>
+      <td>${esc(ev.salon||'—')}</td>
+      <td>${esc(ev.marca||'—')}</td>
+      <td style="font-size:12px;color:var(--charcoal);max-width:220px">${esc(ev.arregloCorr||'—')}</td>
+      <td style="white-space:nowrap;font-weight:600;color:#B03020">${ev.monto?('$'+parseMoney(ev.monto).toLocaleString('es-AR',{maximumFractionDigits:0})):'—'}</td>
+      <td><span style="background:${st.bg};color:${st.col};padding:2px 8px;border-radius:10px;font-size:11px;white-space:nowrap">${st.lbl}</span></td>
+      <td onclick="event.stopPropagation()" style="white-space:nowrap">
+        <button class="btn-icon" title="Editar" onclick="openEsfModal(${realIdx})">✏️</button>
+        <button class="btn-icon" title="Eliminar" onclick="eliminarEsf(${realIdx})">🗑</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function openEsfModal(idx){
+  const f = document.getElementById('esf-form'); if(f) f.reset();
+  document.getElementById('esf-idx').value = idx;
+  const titleEl = document.getElementById('esf-modal-title');
+  if(idx>=0 && eventosSinFloreria[idx]){
+    const ev = eventosSinFloreria[idx];
+    titleEl.textContent = 'Editar evento sin florería';
+    document.getElementById('esf-nombre').value        = ev.nombre||'';
+    document.getElementById('esf-tipo').value          = ev.tipo||'';
+    document.getElementById('esf-fecha').value         = ev.fecha||'';
+    document.getElementById('esf-salon').value         = ev.salon||'';
+    document.getElementById('esf-pax').value           = ev.pax||'';
+    document.getElementById('esf-marca').value         = ev.marca||'';
+    document.getElementById('esf-arreglo').value       = ev.arregloCorr||'';
+    document.getElementById('esf-monto').value         = ev.monto||'';
+    document.getElementById('esf-estado').value        = ev.estado||'pendiente';
+    document.getElementById('esf-fecha-reclamo').value = ev.fechaReclamo||'';
+    document.getElementById('esf-detalle').value       = ev.detalle||'';
+  } else {
+    titleEl.textContent = 'Registrar evento sin florería';
+    document.getElementById('esf-fecha').value  = TODAY_ISO;
+    document.getElementById('esf-estado').value = 'pendiente';
+  }
+  document.getElementById('modal-esf').classList.add('open');
+}
+
+function guardarEsf(){
+  const nombre = document.getElementById('esf-nombre').value.trim();
+  if(!nombre){ showToast('Poné al menos el nombre del evento'); return; }
+  const obj = {
+    nombre,
+    tipo:         document.getElementById('esf-tipo').value.trim(),
+    fecha:        document.getElementById('esf-fecha').value,
+    salon:        document.getElementById('esf-salon').value.trim(),
+    pax:          document.getElementById('esf-pax').value,
+    marca:        document.getElementById('esf-marca').value.trim(),
+    arregloCorr:  document.getElementById('esf-arreglo').value.trim(),
+    monto:        document.getElementById('esf-monto').value,
+    estado:       document.getElementById('esf-estado').value || 'pendiente',
+    fechaReclamo: document.getElementById('esf-fecha-reclamo').value,
+    detalle:      document.getElementById('esf-detalle').value.trim(),
+    sucursal:     getSucursalId()
+  };
+  const idx = parseInt(document.getElementById('esf-idx').value, 10);
+  if(idx>=0 && eventosSinFloreria[idx]){
+    obj.id = eventosSinFloreria[idx].id || Date.now();
+    eventosSinFloreria[idx] = obj;
+  } else {
+    obj.id = Date.now();
+    eventosSinFloreria.push(obj);
+  }
+  fbSave('eventosSinFloreria', eventosSinFloreria);
+  closeModal('modal-esf');
+  renderEventosSinFloreria();
+  showToast('✅ Evento guardado');
+}
+
+function eliminarEsf(idx){
+  if(idx<0 || !eventosSinFloreria[idx]) return;
+  if(!confirm('¿Eliminar este registro de evento sin florería?')) return;
+  eventosSinFloreria.splice(idx,1);
+  fbSave('eventosSinFloreria', eventosSinFloreria);
+  renderEventosSinFloreria();
+  showToast('Eliminado');
+}
+
+// Genera un documento de reclamo formal e imprimible (PDF) para el hotel.
+function exportEsfReclamo(){
+  if(!eventosSinFloreria.length){ showToast('No hay eventos registrados para reclamar'); return; }
+  // Por defecto, el reclamo incluye los casos abiertos (no compensados).
+  const abiertos = eventosSinFloreria.filter(e=>e.estado!=='compensado');
+  const lista = (abiertos.length ? abiertos : eventosSinFloreria)
+    .slice().sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||''));
+  const total = lista.reduce((s,e)=>s+parseMoney(e.monto||0),0);
+  const hoy = fmtDate(TODAY_ISO);
+  const fmtMon = n => '$'+parseMoney(n||0).toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:0});
+
+  const rows = lista.map(e=>`
+    <tr>
+      <td>${e.fecha?fmtDate(e.fecha):'—'}</td>
+      <td><strong>${esc(e.nombre||'—')}</strong>${e.tipo?`<br><span class="muted">${esc(e.tipo)}</span>`:''}</td>
+      <td>${esc(e.salon||'—')}</td>
+      <td>${esc(e.marca||'—')}</td>
+      <td>${esc(e.arregloCorr||'—')}</td>
+      <td class="num">${e.monto?fmtMon(e.monto):'—'}</td>
+    </tr>`).join('');
+
+  const win = window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
+  <title>Reclamo de eventos — Florería del Duhau</title>
+  <style>
+    *{box-sizing:border-box}
+    body{font-family:'Georgia','Times New Roman',serif;margin:48px;color:#1a1a1a;line-height:1.6}
+    .head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #1a1a1a;padding-bottom:16px;margin-bottom:24px}
+    .brand{font-size:24px;letter-spacing:.5px}
+    .brand small{display:block;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#777;margin-top:4px;font-family:Arial,sans-serif}
+    .meta{text-align:right;font-size:12px;color:#555;font-family:Arial,sans-serif}
+    h1{font-size:18px;margin:8px 0 4px}
+    p.intro{font-size:13.5px;color:#333}
+    table{width:100%;border-collapse:collapse;margin:22px 0;font-family:Arial,sans-serif}
+    th,td{border:1px solid #ccc;padding:8px 10px;font-size:12px;vertical-align:top;text-align:left}
+    th{background:#f2f0eb;text-transform:uppercase;letter-spacing:.5px;font-size:10px;color:#444}
+    td.num,th.num{text-align:right;white-space:nowrap}
+    .muted{color:#888;font-size:11px}
+    tfoot td{font-weight:bold;font-size:14px;background:#faf8f4}
+    .firma{margin-top:48px;font-size:12px;color:#555;font-family:Arial,sans-serif}
+    .firma .line{margin-top:40px;border-top:1px solid #999;width:240px;padding-top:6px}
+    .actions{margin-top:32px}
+    button{padding:10px 22px;cursor:pointer;font-size:13px;border:1px solid #1a1a1a;background:#1a1a1a;color:#fff;border-radius:6px;font-family:Arial,sans-serif}
+    @media print{.actions{display:none}body{margin:0}}
+  </style></head><body>
+    <div class="head">
+      <div class="brand">Florería del Duhau<small>Park Hyatt Buenos Aires</small></div>
+      <div class="meta">Fecha: ${hoy}<br>Detalle de reclamo</div>
+    </div>
+    <h1>Reclamo — Eventos sin asignación de servicio floral</h1>
+    <p class="intro">Por la presente dejamos constancia de los eventos detallados a continuación, en los cuales —conforme al acuerdo vigente— correspondía la asignación del servicio floral a Florería del Duhau y la misma no fue otorgada, habiéndose contratado a un proveedor externo. Se solicita la regularización / compensación correspondiente.</p>
+    <table>
+      <thead><tr>
+        <th>Fecha</th><th>Evento</th><th>Salón / Zona</th><th>Marca externa</th><th>Arreglo que correspondía</th><th class="num">Monto</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr><td colspan="5" style="text-align:right">TOTAL A RECLAMAR</td><td class="num">${fmtMon(total)}</td></tr></tfoot>
+    </table>
+    <p class="intro" style="font-size:12px;color:#666">Cantidad de eventos incluidos: ${lista.length}.</p>
+    <div class="firma">
+      <div class="line">Florería del Duhau</div>
+    </div>
+    <div class="actions"><button onclick="window.print()">🖨️ Imprimir / Guardar PDF</button></div>
+  </body></html>`);
+  win.document.close();
+}
+
+// ════════════════════════════════════════
 // FEATURE 5: CIERRE MENSUAL AUTOMATIZADO
 // ════════════════════════════════════════
 let cierresMensualesData = [];
@@ -10846,6 +11038,7 @@ Object.assign(window, {
   renderCompraFiltersPanel, toggleCompraFilters, applyCompraFiltersExt, clearCompraFiltersExt,
   installPWA, toggleTVMode, renderTVDashboard,
   renderPresupuestos, openPresupuestoModal, guardarPresupuesto, cambiarEstadoPres, eliminarPresupuesto,
+  renderEventosSinFloreria, openEsfModal, guardarEsf, eliminarEsf, exportEsfReclamo,
   renderCierreMensual, generarCierreMensual, verCierreMensual, exportCierrePDF,
   renderDashboardGerencia,
   exportVentasXLSX, exportComprasXLSX, exportStockXLSX, exportLegajoXLSX,

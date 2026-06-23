@@ -418,6 +418,12 @@
         if(window._setPresupuestos) window._setPresupuestos(arr);
       });
 
+      fbListen('eventosSinFloreria', val => {
+        const arr = !val ? [] : (Array.isArray(val) ? val : Object.values(val||{}));
+        if(window._setEventosSinFloreria) window._setEventosSinFloreria(arr);
+        if(document.getElementById('page-eventos-sin-floreria')?.classList.contains('active') && !window.estaEditando('page-eventos-sin-floreria')) window.renderEventosSinFloreria?.();
+      });
+
       fbListen('cierresMensualesData', val => {
         const arr = !val ? [] : (Array.isArray(val) ? val : Object.values(val||{}));
         if(window._setCierresMensuales) window._setCierresMensuales(arr);
