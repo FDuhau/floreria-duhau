@@ -4,7 +4,7 @@
 // Cuando un dispositivo detecta una versión distinta a la guardada,
 // limpia el localStorage viejo UNA sola vez y recarga. Sin borrar caché a mano.
 // ════════════════════════════════════════
-const APP_VERSION = '2026-06-15-a';
+const APP_VERSION = '2026-06-23-a';
 (function checkAppVersion(){
   try {
     const stored = localStorage.getItem('app_version');
