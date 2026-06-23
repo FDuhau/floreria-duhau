@@ -252,7 +252,7 @@ function navigate(pageId, navEl){
   if(pageId==='compras-floreria')   renderCompras('floreria');
   if(pageId==='compras-jardineria') renderCompras('jardineria');
   if(pageId==='stock-admin')        renderStockAdmin();
-  if(pageId==='eventos-comercial')  renderEventos();
+  if(pageId==='eventos-comercial'){ if(eventosView==='calendario') renderCalendario(); else renderEventos(); }
   if(pageId==='historial-eventos')   renderHistorialEventos();
   if(pageId==='eventos-sin-floreria') renderEventosSinFloreria();
   if(pageId==='ventas-externas')    renderVentas();
@@ -6496,6 +6496,21 @@ async function initPushForUser(){
 let pedidosHabData = [];
 
 function renderHomeHyatt(){
+  // KPIs del panel
+  const statsEl = document.getElementById('hyatt-home-stats');
+  if(statsEl){
+    const data = pedidosHabData || [];
+    const pend = data.filter(p=>p.estado==='pendiente').length;
+    const prep = data.filter(p=>p.estado==='preparando').length;
+    const listos = data.filter(p=>p.estado==='listo').length;
+    const mes = data.filter(p=>(p.fecha||'').startsWith(CURR_MONTH)).length;
+    statsEl.innerHTML = `
+      <div class="kpi-card"><div class="kpi-val">${pend}</div><div class="kpi-lbl">Pedidos pendientes</div></div>
+      <div class="kpi-card"><div class="kpi-val">${prep}</div><div class="kpi-lbl">En preparación</div></div>
+      <div class="kpi-card"><div class="kpi-val">${listos}</div><div class="kpi-lbl">Listos para entregar</div></div>
+      <div class="kpi-card"><div class="kpi-val">${mes}</div><div class="kpi-lbl">Pedidos del mes</div></div>`;
+  }
+
   const el = document.getElementById('hyatt-home-pedidos');
   if(!el) return;
   const ultimos = pedidosHabData.slice(0,5);
@@ -9546,6 +9561,22 @@ function exportPDF(title){
 
 // ── CALENDARIO ────────────────────────────────────────────────────────────────
 let calMes = CURR_MONTH;
+
+// Cambio de vista en la sección Eventos: Lista ↔ Calendario
+let eventosView = 'lista';
+function setEventosView(v){
+  eventosView = v;
+  const lt = document.getElementById('ev-view-tab-lista');
+  const ct = document.getElementById('ev-view-tab-cal');
+  if(lt) lt.classList.toggle('active', v==='lista');
+  if(ct) ct.classList.toggle('active', v==='calendario');
+  const lv = document.getElementById('eventos-lista-view');
+  const cv = document.getElementById('eventos-cal-view');
+  if(lv) lv.style.display = v==='lista' ? '' : 'none';
+  if(cv) cv.style.display = v==='calendario' ? '' : 'none';
+  if(v==='calendario') renderCalendario(); else renderEventos();
+}
+window.setEventosView = setEventosView;
 
 function renderCalendario(){
   const [y, m] = calMes.split('-').map(Number);

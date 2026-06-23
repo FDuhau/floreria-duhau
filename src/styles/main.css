@@ -113,6 +113,7 @@
 
   /* ── QUICK LINKS ── */
   .quick-links { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:28px; }
+  .quick-links-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:12px; }
   .quick-link { background:#FDFCFB; border:1px solid rgba(228,226,220,.8); border-radius:var(--radius-md); padding:18px 20px; cursor:pointer; transition:var(--transition); text-align:left; box-shadow:var(--shadow-sm); }
   .quick-link:hover { border-color:#1A1A1A; box-shadow:var(--shadow-md); transform:translateY(-2px); }
   .quick-link-icon { font-size:22px; margin-bottom:10px; display:block; }

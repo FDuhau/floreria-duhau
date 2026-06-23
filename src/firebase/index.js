@@ -166,7 +166,11 @@
         const arr = Array.isArray(val) ? val : Object.values(val||{});
         if(JSON.stringify(arr) === JSON.stringify(window.eventosData)) return;
         window.eventosData = arr;
-        if(document.getElementById('page-eventos-comercial')?.classList.contains('active')) window.renderEventos();
+        if(document.getElementById('page-eventos-comercial')?.classList.contains('active')){
+          const calView = document.getElementById('eventos-cal-view');
+          if(calView && calView.style.display !== 'none') window.renderCalendario?.();
+          else window.renderEventos();
+        }
         if(document.getElementById('page-eventos-maison')?.classList.contains('active')) window.renderKanban();
       });
 
@@ -349,6 +353,8 @@
         if(document.getElementById('page-pedidos-habitacion')?.classList.contains('active')) window.renderPedidosHab?.();
         // También refrescar en la vista de operarios si la tienen abierta
         if(document.getElementById('page-recepcion-pedidos-hab')?.classList.contains('active')) window.renderPedidosHabOps?.();
+        // Refrescar KPIs del Panel Hyatt
+        if(document.getElementById('page-home-hyatt')?.classList.contains('active')) window.renderHomeHyatt?.();
       });
 
       fbListen('horariosData', val => {
