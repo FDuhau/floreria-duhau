@@ -85,6 +85,7 @@
     <div class="nav-item nav-group-hdr" data-group-id="grp-com-vt" onclick="navToggleGroup('grp-com-vt')"><span class="nav-icon">💐</span> Ventas<span class="nav-chevron">›</span></div>
     <div class="nav-sub-item" data-group="grp-com-vt" onclick="navigate('ventas-externas',this)">Ventas Externas</div>
     <div class="nav-sub-item" data-group="grp-com-vt" onclick="navigate('ramos-disponibles',this)">Ramos Disponibles</div>
+    <div class="nav-sub-item" data-group="grp-com-vt" onclick="navigate('pedidos-ramos',this)">📋 Pedidos de Ramos</div>
     <div class="nav-sub-item" data-group="grp-com-vt" onclick="navigate('lista-precios',this)">Lista de Precios</div>
     <div class="nav-sub-item" data-group="grp-com-vt" onclick="navigate('pedidos-habitacion',this)">Pedidos de Habitación</div>
     <div class="nav-sub-item" data-group="grp-com-vt" onclick="navigate('galeria',this)">Galería de Trabajos</div>
@@ -2326,6 +2327,61 @@
           </div>
           <div class="form-group"><label class="form-label">Notas</label><textarea class="form-input" id="pres-notas" rows="2" placeholder="Observaciones adicionales"></textarea></div>
           <div class="modal-footer"><button type="submit" class="btn-primary">Guardar presupuesto</button><button type="button" class="btn-secondary" onclick="closeModal('modal-presupuesto')">Cancelar</button></div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════ PEDIDOS DE RAMOS ════════ -->
+  <div id="page-pedidos-ramos" class="content">
+    <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
+      <div>
+        <div class="page-title">Pedidos de Ramos</div>
+        <div class="page-subtitle">Encargá un ramo para hacer y asignáselo a un florista · aparece en su checklist</div>
+      </div>
+      <button class="btn-primary" onclick="openPedidoRamoModal()">+ Nuevo Pedido</button>
+    </div>
+    <div class="table-wrapper">
+      <table class="stock-table">
+        <thead><tr><th>Para cuándo</th><th>Arreglo</th><th>Cliente</th><th>Colores</th><th>Florista</th><th>Precio</th><th>Estado</th><th>Acciones</th></tr></thead>
+        <tbody id="pedidos-ramos-body"><tr><td colspan="8" style="text-align:center;color:var(--mid-gray);padding:24px">Cargando...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal Pedido de Ramo -->
+  <div class="modal-overlay" id="modal-pedido-ramo">
+    <div class="modal" style="max-width:560px">
+      <div class="modal-header"><h2>Nuevo Pedido de Ramo</h2><button class="modal-close" onclick="closeModal('modal-pedido-ramo')">✕</button></div>
+      <div class="modal-body">
+        <form id="pedido-ramo-form" onsubmit="event.preventDefault();guardarPedidoRamo()">
+          <div class="form-group"><label class="form-label">Arreglo *</label>
+            <select class="form-input" id="pr-arreglo" onchange="pedidoRamoAutoPrice()"><option value="">— Seleccionar —</option></select>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">Cliente *</label><input class="form-input" id="pr-cliente" placeholder="Nombre del cliente" required></div>
+            <div class="form-group"><label class="form-label">Forma de pago</label>
+              <select class="form-input" id="pr-pago">
+                <option value="">— Seleccionar —</option>
+                <option value="Efectivo">💵 Efectivo</option>
+                <option value="Tarjeta">💳 Tarjeta</option>
+                <option value="Transferencia">🏦 Transferencia</option>
+                <option value="Cargo a rooms">🏨 Cargo a rooms</option>
+                <option value="Cuenta corriente">📋 Cuenta corriente</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">Precio</label><input class="form-input" id="pr-precio" placeholder="$ (automático, editable)"></div>
+            <div class="form-group"><label class="form-label">Para cuándo</label><input class="form-input" id="pr-fecha" type="date"></div>
+          </div>
+          <div class="form-group"><label class="form-label">Asignar a florista *</label>
+            <select class="form-input" id="pr-asignado"><option value="">— Sin asignar —</option></select>
+          </div>
+          <div class="form-group"><label class="form-label">Tonalidades / colores</label><input class="form-input" id="pr-colores" placeholder="Ej. tonos pastel · blanco y verde"></div>
+          <div class="form-group"><label class="form-label">Dirección</label><input class="form-input" id="pr-dir" placeholder="Dirección de entrega"></div>
+          <div class="form-group"><label class="form-label">Dedicatoria (opcional)</label><textarea class="form-input" id="pr-dedicatoria" rows="2" placeholder="Mensaje de la tarjeta"></textarea></div>
+          <div class="modal-footer"><button type="submit" class="btn-primary">Crear pedido</button><button type="button" class="btn-secondary" onclick="closeModal('modal-pedido-ramo')">Cancelar</button></div>
         </form>
       </div>
     </div>
