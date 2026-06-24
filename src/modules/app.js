@@ -11059,7 +11059,6 @@ function initRamosToggle(){
   if(tp && !tp.dataset.wired){ tp.dataset.wired = '1'; tp.addEventListener('click', () => setRamosView('pedidos')); }
 }
 window.initRamosToggle = initRamosToggle;
-
 window.openPedidoRamoModal = openPedidoRamoModal;
 window.pedidoRamoAutoPrice = pedidoRamoAutoPrice;
 window.guardarPedidoRamo = guardarPedidoRamo;
