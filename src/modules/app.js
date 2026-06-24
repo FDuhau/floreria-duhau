@@ -3260,7 +3260,7 @@ function renderVentas(){
       : '';
   }
   const tbody=document.getElementById('ventas-body');
-  tbody.innerHTML = ventasData.map((v,i)=>`<tr${v.fromKanban?' style="background:rgba(122,154,184,.07)"':''}>
+  tbody.innerHTML = ventasData.map((v,i)=>({v,i})).filter(o=>!(o.v.esPedidoRamo && o.v.estado!=='entregado')).map(({v,i})=>`<tr${v.fromKanban?' style="background:rgba(122,154,184,.07)"':''}>
     <td><input class="form-input" value="${esc(v.prod)}" onchange="updV(${i},'prod',this.value)" style="min-width:140px"></td>
     <td><input class="form-input" value="${esc(v.desc)}" onchange="updV(${i},'desc',this.value)" style="min-width:150px" placeholder="Flores, colores..."></td>
     <td><input class="form-input" type="date" value="${esc(v.fecha)}" onchange="updV(${i},'fecha',this.value)" style="min-width:130px"></td>
@@ -10876,7 +10876,8 @@ function guardarPedidoRamo(){
 function renderPedidosRamos(){
   const el = document.getElementById('pedidos-ramos-body');
   if(!el) return;
-  const pedidos = (ventasData||[]).filter(v => v.esPedidoRamo);
+  // Solo pedidos en curso; los entregados ya pasaron a Ventas Externas
+  const pedidos = (ventasData||[]).filter(v => v.esPedidoRamo && v.estado !== 'entregado' && !v.fin);
   const sorted = [...pedidos].sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||''));
   if(!sorted.length){ el.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--mid-gray);padding:24px">Sin pedidos. Tocá «+ Nuevo Pedido» para encargar un ramo y asignarlo a un florista.</td></tr>'; return; }
   const estLbl = {pendiente:'⏳ Pendiente', confirmado:'✅ Confirmado', entregado:'🚚 Entregado'};
