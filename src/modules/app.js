@@ -149,6 +149,7 @@ const PAGE_LABELS = {control:'Control','control-jardineria':'Control › Seguimi
   galeria:'Comercial › Galería de Trabajos',
   'lista-precios':'Comercial › Lista de Precios',
   'ramos-disponibles':'Comercial › Ramos Disponibles',
+  'pedidos-ramos':'Comercial › Pedidos de Ramos',
   'pedidos-habitacion':'Comercial › Pedidos de Habitación',
   'home-hyatt':'Panel Hyatt',
   'cotizador-eventos-hyatt':'Cotizador de Eventos',
@@ -276,6 +277,7 @@ function navigate(pageId, navEl){
   if(pageId==='galeria')            renderGaleria();
   if(pageId==='lista-precios')      renderListaPrecios();
   if(pageId==='ramos-disponibles')  renderRamosDisp();
+  if(pageId==='pedidos-ramos')      renderPedidosRamos();
   if(pageId==='pedidos-habitacion') renderPedidosHab();
   if(pageId==='home-hyatt') renderHomeHyatt();
   if(pageId==='cotizador-eventos-hyatt') initCotizadorEventosHyatt();
@@ -766,9 +768,10 @@ function renderChecklistTable(){
     });
   }
 
-  // ── Ventas pendientes (solo visible para gerencia/operario, no florista) ──
-  const ventasHoy = isFlorista ? [] : (ventasData||[]).filter(v =>
-    v.asignado && v.estado === 'pendiente' && !v.fin
+  // ── Ventas / pedidos asignados pendientes (gerencia/operario ven todos; el florista ve los suyos) ──
+  const ventasHoy = (ventasData||[]).filter(v =>
+    v.asignado && v.estado === 'pendiente' && !v.fin &&
+    (!isFlorista || v.asignado === floristaNombre)
   );
   if(ventasHoy.length > 0){
     const vtHeader = document.createElement('tr');
@@ -782,7 +785,7 @@ function renderChecklistTable(){
       const vtTr = document.createElement('tr');
       vtTr.style.cssText = 'background:#F5F7FC';
 
-      const detalle = [v.desc, v.dedicatoria ? '✉️ "'+v.dedicatoria+'"' : '', v.dir ? '📍 '+v.dir : ''].filter(Boolean).join(' · ');
+      const detalle = [v.desc, v.colores ? '🎨 '+v.colores : '', v.dedicatoria ? '✉️ "'+v.dedicatoria+'"' : '', v.dir ? '📍 '+v.dir : '', v.fecha ? '📅 '+fmtDate(v.fecha) : ''].filter(Boolean).join(' · ');
 
       if(isFlorista){
         vtTr.innerHTML = `
@@ -10787,6 +10790,126 @@ function verPresupuesto(idx){
   </body></html>`);
   win.document.close();
 }
+
+// ════════════════════════════════════════
+// PEDIDOS DE RAMOS — gerencia/comercial encarga un ramo y lo asigna a un florista.
+// Se guarda como venta pendiente en ventasData → aparece en el checklist del florista.
+// ════════════════════════════════════════
+function buildArregloOptions(){
+  let opts = '<option value="">— Seleccionar —</option>';
+  if((recetasData||[]).length){
+    opts += '<optgroup label="🫙 Composiciones">';
+    recetasData.forEach(r => {
+      const costo = calcCostoComposicion(r);
+      const margen = cotizadorConfig?.margen ?? 30;
+      const precio = Math.round(costo*(1+margen/100));
+      opts += `<option value="${esc(r.nombre)}" data-precio="${precio}">${arregloEmoji(r.nombre)} ${esc(r.nombre)} — $${precio.toLocaleString('es-AR')}</option>`;
+    });
+    opts += '</optgroup>';
+  }
+  (listaPreciosData||[]).forEach(cat => {
+    if(!(cat.items||[]).length) return;
+    opts += `<optgroup label="${cat.emoji||'📦'} ${esc(cat.cat)}">`;
+    cat.items.forEach(it => {
+      opts += `<option value="${esc(it.nombre)}" data-precio="${parseMoney(it.precio)}">${esc(it.nombre)} — ${esc(it.precio||'')}</option>`;
+    });
+    opts += '</optgroup>';
+  });
+  opts += '<option value="__otro__">+ Otro</option>';
+  return opts;
+}
+
+function openPedidoRamoModal(){
+  const f = document.getElementById('pedido-ramo-form'); if(f) f.reset();
+  document.getElementById('pr-arreglo').innerHTML = buildArregloOptions();
+  const floristas = typeof getFloristasActivos === 'function' ? getFloristasActivos() : CL_RESP_OPTS.filter(n=>n!=='Jardineria');
+  document.getElementById('pr-asignado').innerHTML = '<option value="">— Sin asignar —</option>' + floristas.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  document.getElementById('pr-fecha').value = TODAY_ISO;
+  document.getElementById('modal-pedido-ramo').classList.add('open');
+}
+
+function pedidoRamoAutoPrice(){
+  const sel = document.getElementById('pr-arreglo');
+  if(sel.value === '__otro__'){
+    const custom = prompt('Nombre del arreglo o ramo:');
+    if(custom && custom.trim()){
+      const opt = document.createElement('option');
+      opt.value = custom.trim(); opt.textContent = custom.trim(); opt.selected = true;
+      sel.insertBefore(opt, sel.lastElementChild);
+    } else { sel.value = ''; }
+    return;
+  }
+  const o = sel.options[sel.selectedIndex];
+  const precio = o?.dataset?.precio;
+  if(precio && +precio > 0) document.getElementById('pr-precio').value = '$' + (+precio).toLocaleString('es-AR');
+}
+
+function guardarPedidoRamo(){
+  const prod = document.getElementById('pr-arreglo').value.trim();
+  const cliente = document.getElementById('pr-cliente').value.trim();
+  const asignado = document.getElementById('pr-asignado').value;
+  if(!prod || prod==='__otro__'){ showToast('Elegí el arreglo'); return; }
+  if(!cliente){ showToast('Completá el cliente'); return; }
+  if(!asignado){ showToast('Asigná un florista'); return; }
+  ventasData.push({
+    prod,
+    desc: '',
+    cliente,
+    fecha: document.getElementById('pr-fecha').value || TODAY_ISO,
+    dedicatoria: document.getElementById('pr-dedicatoria').value.trim(),
+    precio: document.getElementById('pr-precio').value || '—',
+    formaPago: document.getElementById('pr-pago').value,
+    estado: 'pendiente',
+    dir: document.getElementById('pr-dir').value.trim(),
+    colores: document.getElementById('pr-colores').value.trim(),
+    asignado,
+    esPedidoRamo: true,
+    sucursal: getSucursalId()
+  });
+  fbSave('ventasData', ventasData);
+  closeModal('modal-pedido-ramo');
+  renderPedidosRamos();
+  if(document.getElementById('page-ventas-externas')?.classList.contains('active')) renderVentas();
+  showToast(`💐 Pedido asignado a ${asignado} — aparece en su checklist`);
+}
+
+function renderPedidosRamos(){
+  const el = document.getElementById('pedidos-ramos-body');
+  if(!el) return;
+  const pedidos = (ventasData||[]).filter(v => v.esPedidoRamo);
+  const sorted = [...pedidos].sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||''));
+  if(!sorted.length){ el.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--mid-gray);padding:24px">Sin pedidos. Tocá «+ Nuevo Pedido» para encargar un ramo y asignarlo a un florista.</td></tr>'; return; }
+  const estLbl = {pendiente:'⏳ Pendiente', confirmado:'✅ Confirmado', entregado:'🚚 Entregado'};
+  el.innerHTML = sorted.map(v=>{
+    const i = ventasData.indexOf(v);
+    const hecho = v.estado==='entregado' || v.fin;
+    return `<tr${hecho?' style="opacity:.55"':''}>
+      <td style="white-space:nowrap">${v.fecha?fmtDate(v.fecha):'—'}</td>
+      <td><strong>${esc(v.prod||'—')}</strong></td>
+      <td>${esc(v.cliente||'—')}</td>
+      <td style="font-size:12px">${esc(v.colores||'—')}</td>
+      <td style="font-weight:600;color:var(--sage-dark)">${esc(v.asignado||'—')}</td>
+      <td style="white-space:nowrap;font-weight:600">${esc(v.precio||'—')}</td>
+      <td><span style="font-size:11px">${estLbl[v.estado]||esc(v.estado||'')}${v.fin?' · '+esc(v.fin):''}</span></td>
+      <td style="white-space:nowrap"><button class="btn-icon" title="Eliminar" onclick="eliminarPedidoRamo(${i})">🗑</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function eliminarPedidoRamo(i){
+  if(i<0 || !ventasData[i]) return;
+  if(!confirm('¿Eliminar este pedido?')) return;
+  ventasData.splice(i,1);
+  fbSave('ventasData', ventasData);
+  renderPedidosRamos();
+  showToast('Pedido eliminado');
+}
+
+window.openPedidoRamoModal = openPedidoRamoModal;
+window.pedidoRamoAutoPrice = pedidoRamoAutoPrice;
+window.guardarPedidoRamo = guardarPedidoRamo;
+window.renderPedidosRamos = renderPedidosRamos;
+window.eliminarPedidoRamo = eliminarPedidoRamo;
 
 // ════════════════════════════════════════
 // EVENTOS SIN FLORERÍA — eventos en los que el hotel NO nos asignó
