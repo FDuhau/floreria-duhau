@@ -806,6 +806,10 @@ function renderChecklistTable(){
           <td style="font-size:12px;color:var(--sage-dark);font-weight:600">${esc(v.asignado||'')}</td>
           <td></td>`;
       }
+      // Tap en el pedido/venta → abrir detalle (excepto al tocar los botones inicio/fin)
+      vtTr.style.cursor = 'pointer';
+      vtTr.title = 'Ver detalle del pedido';
+      vtTr.addEventListener('click', e => { if(e.target.closest('button')) return; openVentaDetail(vIdx); });
       tbody.appendChild(vtTr);
     });
   }
@@ -10923,6 +10927,33 @@ function eliminarPedidoRamo(i){
   renderPedidosRamos();
   showToast('Pedido eliminado');
 }
+
+// Detalle de un pedido/venta — se abre al tocarlo en el checklist, igual que los eventos
+function openVentaDetail(vIdx){
+  const v = ventasData[vIdx]; if(!v) return;
+  const estados = {pendiente:'⏳ Pendiente', confirmado:'✅ Confirmado', entregado:'🚚 Entregado'};
+  const row = (label, val) => val ? `<div><div class="detail-field-label">${label}</div><div class="detail-field-value">${esc(String(val))}</div></div>` : '';
+  let ov = document.getElementById('venta-detail-modal');
+  if(!ov){ ov = document.createElement('div'); ov.id='venta-detail-modal'; ov.className='modal-overlay'; document.body.appendChild(ov); }
+  ov.innerHTML = `<div class="modal" style="max-width:480px">
+    <div class="modal-header"><h2>💐 ${esc(v.prod||'Pedido')}</h2><button class="modal-close" onclick="closeModal('venta-detail-modal')">✕</button></div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 16px">
+        ${row('Cliente', v.cliente)}
+        ${row('Para cuándo', v.fecha ? fmtDate(v.fecha) : '')}
+        ${row('Tonalidades / colores', v.colores)}
+        ${row('Forma de pago', v.formaPago)}
+        ${row('Precio', v.precio)}
+        ${row('Estado', estados[v.estado] || v.estado)}
+      </div>
+      ${v.dir ? `<div style="margin-top:14px"><div class="detail-field-label">Dirección de entrega</div><div class="detail-field-value">📍 ${esc(v.dir)}</div></div>` : ''}
+      ${v.dedicatoria ? `<div style="margin-top:14px;background:var(--cream);border-radius:8px;padding:12px 14px"><div class="detail-field-label">Dedicatoria</div><div style="font-style:italic;font-size:14px;color:var(--charcoal);margin-top:4px">"${esc(v.dedicatoria)}"</div></div>` : ''}
+      ${v.desc ? `<div style="margin-top:14px"><div class="detail-field-label">Detalle</div><div class="detail-field-value">${esc(v.desc)}</div></div>` : ''}
+    </div>
+  </div>`;
+  ov.classList.add('open');
+}
+window.openVentaDetail = openVentaDetail;
 
 window.openPedidoRamoModal = openPedidoRamoModal;
 window.pedidoRamoAutoPrice = pedidoRamoAutoPrice;
