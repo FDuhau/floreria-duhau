@@ -97,6 +97,30 @@ document.addEventListener('keydown', e => {
 
 function fmtDate(iso){ if(!iso) return '—'; const p=iso.split('-'); return `${p[2]}/${p[1]}/${p[0]}`; }
 function fmtDateTime(iso, hora){ return fmtDate(iso) + (hora?' · '+hora:''); }
+// Etiqueta relativa de fecha: HOY / MAÑANA / PASADO / AYER (o '' para el resto)
+function etiquetaDiaRelativa(iso){
+  if(!iso) return '';
+  const hoy = new Date(TODAY_ISO + 'T00:00:00');
+  const f = new Date(iso + 'T00:00:00');
+  if(isNaN(f)) return '';
+  const diff = Math.round((f - hoy) / 86400000);
+  if(diff === 0) return 'HOY';
+  if(diff === 1) return 'MAÑANA';
+  if(diff === 2) return 'PASADO';
+  if(diff === -1) return 'AYER';
+  return '';
+}
+function badgeDiaRelativa(iso){
+  const t = etiquetaDiaRelativa(iso);
+  if(!t) return '';
+  const colores = {
+    'HOY':'background:#1A1A1A;color:#F7F5F2',
+    'MAÑANA':'background:#B8602A;color:#fff',
+    'PASADO':'background:#9A8F7A;color:#fff',
+    'AYER':'background:#B03020;color:#fff'
+  };
+  return `<span style="${colores[t]};font-size:9px;font-weight:700;letter-spacing:.6px;padding:2px 7px;border-radius:5px;margin-left:6px;vertical-align:middle;white-space:nowrap">${t}</span>`;
+}
 function fmtMonth(ym){ const [y,m]=ym.split('-'); const n=MONTHS_ES[+m-1]; return n.charAt(0).toUpperCase()+n.slice(1)+' '+y; }
 function getMonthVisits(r, ym){ return (r.monthlyVisits||{})[ym||CURR_MONTH]||0; }
 function getAllMonths(dataArr){ const s=new Set(); dataArr.forEach(r=>Object.keys(r.monthlyVisits||{}).forEach(m=>s.add(m))); return [...s].sort().reverse(); }
@@ -722,12 +746,16 @@ function renderChecklistTable(){
     tbody.appendChild(tr);
   });
 
-  // ── Eventos asignados al florista para hoy ──
-  const eventosHoy = eventosData.filter(ev =>
-    ev.asignado &&
-    ev.estado !== 'Pedidos Finalizados' &&
-    (!isFlorista || ev.asignado === floristaNombre)
-  );
+  // ── Eventos del día (fase armado o colocación según el estado) ──
+  // Armado → florista 'asignado'; Colocación (Pendiente de Colocacion) → florista 'colocacionAsignado'
+  const eventosHoy = eventosData.filter(ev => {
+    if(ev.estado === 'Pedidos Finalizados') return false;
+    const fase = ev.estado === 'Pendiente de Colocacion' ? 'colocacion' : 'armado';
+    const flor = fase === 'colocacion' ? (ev.colocacionAsignado||'') : (ev.asignado||'');
+    if(isFlorista) return flor === floristaNombre;
+    // gerencia/operario: ven los activos que tengan armador o colocador asignado
+    return ev.asignado || ev.colocacionAsignado;
+  });
   if(eventosHoy.length > 0){
     const evHeader = document.createElement('tr');
     evHeader.className = 'cl-section-row';
@@ -739,25 +767,31 @@ function renderChecklistTable(){
       const evIdx = eventosData.indexOf(ev);
       const evTr = document.createElement('tr');
       evTr.style.cssText = 'background:#FEFAF6';
-      const canOperate = !isFlorista || ev.asignado === floristaNombre;
+      const fase = ev.estado === 'Pendiente de Colocacion' ? 'colocacion' : 'armado';
+      const flor = fase === 'colocacion' ? (ev.colocacionAsignado||'') : (ev.asignado||'');
+      const faseTag = fase === 'colocacion'
+        ? '<span style="font-size:9px;font-weight:700;background:#E65100;color:#fff;padding:2px 6px;border-radius:5px;margin-left:6px">📍 COLOCACIÓN</span>'
+        : '<span style="font-size:9px;font-weight:700;background:#5A8C3A;color:#fff;padding:2px 6px;border-radius:5px;margin-left:6px">🔨 ARMADO</span>';
+      const iniVal = fase === 'colocacion' ? ev.colocacionInicio : ev.inicio;
+      const finVal = fase === 'colocacion' ? ev.colocacionFin : ev.fin;
 
       if(isFlorista){
         evTr.innerHTML = `
-          <td style="font-weight:600;font-size:12.5px;color:#B8602A">🎉 ${esc(ev.nombre)}</td>
+          <td style="font-weight:600;font-size:12.5px;color:#B8602A">🎉 ${esc(ev.nombre)}${badgeDiaRelativa(ev.fecha)}${faseTag}</td>
           <td style="font-size:12px">${esc(ev.tipo)} · ${esc(ev.salon||'')}</td>
           <td style="font-size:11px;color:var(--mid-gray)">${ev.pax?ev.pax+' pax':''} ${ev.hora?'· '+ev.hora:''}</td>
-          <td style="width:90px;text-align:center;padding:4px 6px">${renderEvHoraCell(evIdx,'inicio',ev)}</td>
-          <td style="width:90px;text-align:center;padding:4px 6px">${renderEvHoraCell(evIdx,'fin',ev)}</td>`;
+          <td style="width:90px;text-align:center;padding:4px 6px">${renderEvHoraCell(evIdx,'inicio',ev,fase)}</td>
+          <td style="width:90px;text-align:center;padding:4px 6px">${renderEvHoraCell(evIdx,'fin',ev,fase)}</td>`;
       } else {
         evTr.innerHTML = `
           <td style="width:32px"></td>
-          <td style="font-weight:600;font-size:12.5px;color:#B8602A">🎉 ${esc(ev.nombre)}</td>
+          <td style="font-weight:600;font-size:12.5px;color:#B8602A">🎉 ${esc(ev.nombre)}${badgeDiaRelativa(ev.fecha)}${faseTag}</td>
           <td style="font-size:12px">${esc(ev.tipo)}</td>
           <td style="font-size:11px;color:var(--mid-gray)">${esc(ev.salon||'')} · ${ev.pax?ev.pax+' pax':''} ${ev.hora?'· '+ev.hora:''}</td>
-          <td style="width:90px;text-align:center;padding:4px 6px">${renderEvHoraCell(evIdx,'inicio',ev)}</td>
-          <td style="width:90px;text-align:center;padding:4px 6px">${renderEvHoraCell(evIdx,'fin',ev)}</td>
-          <td style="width:80px;text-align:center">${durBadge(ev.inicio, ev.fin)}</td>
-          <td style="font-size:12px;color:var(--sage-dark);font-weight:600">${esc(ev.asignado||'')}</td>
+          <td style="width:90px;text-align:center;padding:4px 6px">${renderEvHoraCell(evIdx,'inicio',ev,fase)}</td>
+          <td style="width:90px;text-align:center;padding:4px 6px">${renderEvHoraCell(evIdx,'fin',ev,fase)}</td>
+          <td style="width:80px;text-align:center">${durBadge(iniVal, finVal)}</td>
+          <td style="font-size:12px;color:var(--sage-dark);font-weight:600">${flor ? esc(flor) : '<span style="color:var(--mid-gray)">sin asignar</span>'}</td>
           <td></td>`;
       }
       // Tap en el evento → abrir el detalle (excepto al tocar los botones inicio/fin)
@@ -2886,7 +2920,7 @@ function renderEventos(){
     const fromOpsTag = ev.fromKanban ? '<span style="font-size:10px;background:#E8F0F8;color:#2C5A80;padding:2px 7px;border-radius:4px;font-weight:600;letter-spacing:.5px">DESDE OPERACIONES</span>' : '';
     return `<div class="event-card"${ev.fromKanban?' style="border-left:3px solid #2C5A80"':''}>
       <div class="event-card-header">
-        <div style="display:flex;flex-direction:column;gap:4px"><div class="event-name">${esc(ev.nombre)}</div>${fromOpsTag}</div>
+        <div style="display:flex;flex-direction:column;gap:4px"><div class="event-name">${esc(ev.nombre)}${badgeDiaRelativa(ev.fecha)}</div>${fromOpsTag}</div>
         <span class="event-type">${esc(ev.tipo)}</span>
       </div>
       <div class="event-details">
@@ -7703,13 +7737,17 @@ function renderProductividadHorarios(empleados){
         });
       }
       eventosData.forEach(ev => {
-        if(ev.asignado === nombre && ev.fecha === TODAY_ISO && ev.inicio && ev.fin){
-          const [h1,m1] = ev.inicio.split(':').map(Number);
-          const [h2,m2] = ev.fin.split(':').map(Number);
-          const diff = (h2*60+m2) - (h1*60+m1);
-          if(diff > 0){ minsTrabjados += diff; tareasHechas++; tareasAsignadas++; }
-        } else if(ev.asignado === nombre && ev.fecha === TODAY_ISO){
-          tareasAsignadas++;
+        if(ev.fecha !== TODAY_ISO) return;
+        const mins = (a,b) => { const [h1,m1]=a.split(':').map(Number); const [h2,m2]=b.split(':').map(Number); return (h2*60+m2)-(h1*60+m1); };
+        // Armado → al florista que armó (asignado)
+        if(ev.asignado === nombre){
+          if(ev.inicio && ev.fin){ const d = mins(ev.inicio, ev.fin); if(d>0){ minsTrabjados += d; tareasHechas++; tareasAsignadas++; } }
+          else tareasAsignadas++;
+        }
+        // Colocación → al florista que colocó (colocacionAsignado)
+        if(ev.colocacionAsignado === nombre){
+          if(ev.colocacionInicio && ev.colocacionFin){ const d = mins(ev.colocacionInicio, ev.colocacionFin); if(d>0){ minsTrabjados += d; tareasHechas++; tareasAsignadas++; } }
+          else tareasAsignadas++;
         }
       });
       (ventasData||[]).forEach(v => {
@@ -7775,23 +7813,50 @@ function renderProductividadHorarios(empleados){
 // ── SISTEMA DE LOGIN CON CONTRASEÑAS EDITABLES ───────────────────────────────
 
 // Inicio/Fin para eventos (se muestra en checklist y computa en productividad)
-function renderEvHoraCell(evIdx, campo, ev){
-  const val = ev[campo] || '';
+function renderEvHoraCell(evIdx, campo, ev, fase){
+  fase = fase || 'armado';
+  const iniField = fase === 'colocacion' ? 'colocacionInicio' : 'inicio';
+  const finField = fase === 'colocacion' ? 'colocacionFin' : 'fin';
+  const field = campo === 'inicio' ? iniField : finField;
+  const val = ev[field] || '';
   if(val){
     return `<span style="font-size:13px;font-weight:600;color:var(--green-ok)">${val}</span>`;
   }
-  if(campo === 'inicio' || (campo === 'fin' && ev.inicio)){
-    return `<button onclick="registrarHoraEvento(${evIdx},'${campo}')" style="background:${campo==='inicio'?'var(--green-ok)':'var(--amber)'};color:white;border:none;border-radius:4px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:inherit">${campo==='inicio'?'▶ Inicio':'⏹ Fin'}</button>`;
+  if(campo === 'inicio' || (campo === 'fin' && ev[iniField])){
+    return `<button onclick="registrarHoraEvento(${evIdx},'${campo}','${fase}')" style="background:${campo==='inicio'?'var(--green-ok)':'var(--amber)'};color:white;border:none;border-radius:4px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:inherit">${campo==='inicio'?'▶ Inicio':'⏹ Fin'}</button>`;
   }
   return '<span style="color:var(--mid-gray);font-size:11px">—</span>';
 }
 
-function registrarHoraEvento(evIdx, campo){
+function registrarHoraEvento(evIdx, campo, fase){
+  fase = fase || 'armado';
   const now = new Date();
   const hh = String(now.getHours()).padStart(2,'0');
   const mm = String(now.getMinutes()).padStart(2,'0');
+  const hhmm = hh+':'+mm;
   const ev = eventosData[evIdx];
-  ev[campo] = hh+':'+mm;
+
+  if(fase === 'colocacion'){
+    ev[campo === 'inicio' ? 'colocacionInicio' : 'colocacionFin'] = hhmm;
+    if(campo === 'fin'){
+      // Colocación terminada → evento finalizado
+      ev.estado = 'Pedidos Finalizados';
+      fbSave('eventosData', eventosData);
+      renderChecklistTable();
+      if(document.getElementById('page-eventos-comercial')?.classList.contains('active')) renderEventos();
+      if(document.getElementById('page-eventos-maison')?.classList.contains('active')) renderKanban();
+      renderHome();
+      showToast(`✅ Colocación finalizada: "${ev.nombre}". Evento completo.`);
+      return;
+    }
+    fbSave('eventosData', eventosData);
+    renderChecklistTable();
+    showToast(`▶ Inicio de colocación: "${ev.nombre}" · ${hhmm}`);
+    return;
+  }
+
+  // Armado
+  ev[campo] = hhmm;
   if(campo === 'fin'){
     // Inicio+Fin = armado terminado → queda pendiente de colocación
     ev.estado = 'Pendiente de Colocacion';
@@ -7807,7 +7872,7 @@ function registrarHoraEvento(evIdx, campo){
   }
   fbSave('eventosData', eventosData);
   renderChecklistTable();
-  showToast(`▶ Inicio registrado para "${ev.nombre}": ${hh}:${mm}`);
+  showToast(`▶ Inicio de armado: "${ev.nombre}" · ${hhmm}`);
 }
 
 // Inicio/Fin para ventas
@@ -8588,11 +8653,15 @@ function openEventoDetail(i){
   estadoEl.style.cssText = (estadoColors[ev.estado]||'background:#eee;color:#666') + ';padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.5px';
 
   // Body grid fields
+  const armadoTxt = ev.asignado ? ev.asignado + (ev.inicio && ev.fin ? ` (${ev.inicio}–${ev.fin})` : ev.inicio ? ` (desde ${ev.inicio})` : '') : null;
+  const colocTxt  = ev.colocacionAsignado ? ev.colocacionAsignado + (ev.colocacionInicio && ev.colocacionFin ? ` (${ev.colocacionInicio}–${ev.colocacionFin})` : ev.colocacionInicio ? ` (desde ${ev.colocacionInicio})` : '') : null;
   const fields = [
-    ev.fecha ? ['Fecha', fmtDate(ev.fecha) + (ev.hora ? ' · ' + ev.hora : '')] : null,
+    ev.fecha ? ['Fecha', fmtDate(ev.fecha) + (ev.hora ? ' · ' + ev.hora : '') + (etiquetaDiaRelativa(ev.fecha) ? ' · ' + etiquetaDiaRelativa(ev.fecha) : '')] : null,
     evZonasLabel(ev) !== '—' ? ['Salón / Zona', evZonasLabel(ev)] : null,
     ev.pax   ? ['Pax', ev.pax + ' personas'] : null,
     ev.precio && ev.precio !== 'A confirmar' ? ['Precio', ev.precio] : null,
+    armadoTxt ? ['🔨 Armado', armadoTxt] : null,
+    colocTxt ? ['📍 Colocación', colocTxt] : null,
   ].filter(Boolean);
   document.getElementById('evento-detail-body').innerHTML = fields.map(([label, val]) =>
     `<div><div class="detail-field-label">${label}</div><div class="detail-field-value">${esc(String(val))}</div></div>`
@@ -8665,7 +8734,7 @@ function mostrarEventosDelDia(retry = 0){
   const hoy = (eventosData||[]).filter(ev =>
     ev.fecha === TODAY_ISO &&
     ev.estado !== 'Pedidos Finalizados' &&
-    (!isFlor || ev.asignado === floristaNombre)
+    (!isFlor || ev.asignado === floristaNombre || ev.colocacionAsignado === floristaNombre)
   );
   if(!hoy.length) return; // floristas sin evento asignado hoy: no molestar
   _eventosDelDiaShown = true;
@@ -8718,10 +8787,13 @@ function saveEvent(){
     precio:document.getElementById('ev-precio').value||'A confirmar',
     estado:document.getElementById('ev-estado').value,
     asignado:document.getElementById('ev-asignado').value||'',
+    colocacionAsignado:document.getElementById('ev-colocacion')?.value||'',
     arreglos: evArreglosRows.filter(r=>r.arreglo&&r.qty>0),
     img: document.getElementById('ev-img-data').value||'',
     inicio: eventosData[+document.getElementById('ev-idx').value]?.inicio || '',
-    fin: eventosData[+document.getElementById('ev-idx').value]?.fin || ''
+    fin: eventosData[+document.getElementById('ev-idx').value]?.fin || '',
+    colocacionInicio: eventosData[+document.getElementById('ev-idx').value]?.colocacionInicio || '',
+    colocacionFin: eventosData[+document.getElementById('ev-idx').value]?.colocacionFin || ''
   };
 
   // Descontar stock si el evento se confirma directamente
@@ -8741,13 +8813,17 @@ function saveEvent(){
 
   const idx=+document.getElementById('ev-idx').value;
   const prevAsignadoEv = idx >= 0 ? (eventosData[idx]?.asignado || '') : '';
+  const prevColocEv = idx >= 0 ? (eventosData[idx]?.colocacionAsignado || '') : '';
   if(idx===-1) eventosData.push(ev);
   else eventosData[idx]=ev;
 
   closeModal('event-modal');
   fbSave('eventosData', eventosData);
   if(ev.asignado && ev.asignado !== prevAsignadoEv){
-    notificarAsignacion(ev.asignado, '🎉 Nuevo evento asignado', `Se te asignó "${ev.nombre}"${ev.fecha ? ' · ' + fmtDate(ev.fecha) : ''}`);
+    notificarAsignacion(ev.asignado, '🎉 Nuevo evento asignado (armado)', `Se te asignó el armado de "${ev.nombre}"${ev.fecha ? ' · ' + fmtDate(ev.fecha) : ''}`);
+  }
+  if(ev.colocacionAsignado && ev.colocacionAsignado !== prevColocEv){
+    notificarAsignacion(ev.colocacionAsignado, '📍 Colocación asignada', `Te asignaron la colocación de "${ev.nombre}"${ev.fecha ? ' · ' + fmtDate(ev.fecha) : ''}`);
   }
   syncEventosToKanban();
   fbSave('kanbanData', kanbanData);
@@ -8790,11 +8866,15 @@ function openEventModal(i){
     tipoSel.value = ev.tipo || '';
   }
 
-  // Poblar selector de floristas
+  // Poblar selectores de floristas (armado y colocación)
+  const floristasEv = typeof getFloristasActivos === 'function' ? getFloristasActivos() : CL_RESP_OPTS.filter(n=>n!=='Jardineria');
   const asigSel = document.getElementById('ev-asignado');
   if(asigSel){
-    const floristas = typeof getFloristasActivos === 'function' ? getFloristasActivos() : CL_RESP_OPTS.filter(n=>n!=='Jardineria');
-    asigSel.innerHTML = '<option value="">— Sin asignar —</option>' + floristas.map(n => `<option value="${esc(n)}"${n===(ev.asignado||'')?' selected':''}>${esc(n)}</option>`).join('');
+    asigSel.innerHTML = '<option value="">— Sin asignar —</option>' + floristasEv.map(n => `<option value="${esc(n)}"${n===(ev.asignado||'')?' selected':''}>${esc(n)}</option>`).join('');
+  }
+  const colocSel = document.getElementById('ev-colocacion');
+  if(colocSel){
+    colocSel.innerHTML = '<option value="">— Sin asignar —</option>' + floristasEv.map(n => `<option value="${esc(n)}"${n===(ev.colocacionAsignado||'')?' selected':''}>${esc(n)}</option>`).join('');
   }
 
   // Inicializar zonas — compatibilidad con eventos viejos que solo tienen 'salon'
