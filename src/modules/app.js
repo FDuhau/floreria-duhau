@@ -300,7 +300,7 @@ function navigate(pageId, navEl){
   if(pageId==='caja')               renderCaja();
   if(pageId==='galeria')            renderGaleria();
   if(pageId==='lista-precios')      renderListaPrecios();
-  if(pageId==='ramos-disponibles')  setRamosView(ramosView);
+  if(pageId==='ramos-disponibles'){ initRamosToggle(); setRamosView(ramosView); }
   if(pageId==='pedidos-ramos'){ navigate('ramos-disponibles'); setRamosView('pedidos'); return; }
   if(pageId==='pedidos-habitacion') renderPedidosHab();
   if(pageId==='home-hyatt') renderHomeHyatt();
@@ -11051,6 +11051,14 @@ function setRamosView(v){
 }
 window.setRamosView = setRamosView;
 
+// Cableado robusto de los botones de vista (por si el onclick inline no dispara)
+function initRamosToggle(){
+  const td = document.getElementById('rd-tab-disp');
+  const tp = document.getElementById('rd-tab-ped');
+  if(td && !td.dataset.wired){ td.dataset.wired = '1'; td.addEventListener('click', () => setRamosView('disponibles')); }
+  if(tp && !tp.dataset.wired){ tp.dataset.wired = '1'; tp.addEventListener('click', () => setRamosView('pedidos')); }
+}
+window.initRamosToggle = initRamosToggle;
 window.openPedidoRamoModal = openPedidoRamoModal;
 window.pedidoRamoAutoPrice = pedidoRamoAutoPrice;
 window.guardarPedidoRamo = guardarPedidoRamo;
