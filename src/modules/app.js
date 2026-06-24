@@ -145,7 +145,7 @@ const PAGE_LABELS = {control:'Control','control-jardineria':'Control › Seguimi
   'eventos-sin-floreria':'Comercial › Eventos sin Florería',
   cotizador:'Comercial › Cotizador',
   'cotizador-ops':'Cotizador',
-  'ventas-externas':'Comercial › Ventas', caja:'Comercial › Caja',
+  'ventas-externas':'Comercial › Ventas', caja:'Contable › Control de Caja',
   galeria:'Comercial › Galería de Trabajos',
   'lista-precios':'Comercial › Lista de Precios',
   'ramos-disponibles':'Comercial › Ramos Disponibles',
@@ -163,13 +163,13 @@ const PAGE_LABELS = {control:'Control','control-jardineria':'Control › Seguimi
   'dashboard-consolidado':'Dashboard Consolidado',
   'calendario': 'Calendario de Eventos',
   'proveedores': 'Proveedores',
-  'rentabilidad-eventos': 'Rentabilidad por Evento',
+  'rentabilidad-eventos': 'Contable › Rentabilidad',
   legajo: 'Recursos Humanos › Legajo de Empleados',
   evaluaciones: 'Recursos Humanos › Evaluaciones de Desempeño',
   liquidacion: 'Recursos Humanos › Liquidación Horas Extra',
   'precio-comparacion': 'Compras › Comparar Precios',
   'presupuestos': 'Comercial › Presupuestos Enviados',
-  'cierre-mensual': 'Finanzas › Cierre Mensual',
+  'cierre-mensual': 'Contable › Cierre Mensual',
   'dashboard-gerencia': 'Gerencia › Dashboard Unificado',
   'tv-dashboard': 'Pantalla TV / Dashboard'
 };
@@ -7182,8 +7182,8 @@ function applyRole(role){
       }
     });
     document.querySelector('[data-group-id="grp-ops"]').style.display = '';
-    document.querySelector('[data-group-id="grp-com"]').style.display = '';
-    setTimeout(() => { navExpandGroup('grp-ops'); navExpandGroup('grp-com'); }, 50);
+    document.querySelector('[data-group-id="grp-com-vt"]').style.display = '';
+    setTimeout(() => { navExpandGroup('grp-ops'); navExpandGroup('grp-com-vt'); }, 50);
     const FL_QL = ['Checklist','Stock','Eventos','Cotizador','Recepción','Ramos','Lista de Precios'];
     document.querySelectorAll('.quick-link').forEach(ql => {
       const title = ql.querySelector('.quick-link-title')?.textContent || '';
@@ -7224,9 +7224,9 @@ function applyRole(role){
     });
     // Ocultar quick-links
     document.querySelectorAll('.quick-link').forEach(ql => ql.style.display = 'none');
-    const grpComC = document.querySelector('[data-group-id="grp-com"]');
+    const grpComC = document.querySelector('[data-group-id="grp-com-vt"]');
     if(grpComC) grpComC.style.display = '';
-    setTimeout(() => navExpandGroup('grp-com'), 50);
+    setTimeout(() => navExpandGroup('grp-com-vt'), 50);
     showToast('👋 Hola Euge!');
   }
 
@@ -7262,9 +7262,9 @@ function applyRole(role){
     });
     // Quick links: ocultar todos
     document.querySelectorAll('.quick-link').forEach(ql => ql.style.display = 'none');
-    const grpComV = document.querySelector('[data-group-id="grp-com"]');
+    const grpComV = document.querySelector('[data-group-id="grp-com-vt"]');
     if(grpComV) grpComV.style.display = '';
-    setTimeout(() => navExpandGroup('grp-com'), 50);
+    setTimeout(() => navExpandGroup('grp-com-vt'), 50);
     // Navegar al Panel Hyatt
     setTimeout(()=> navigate('home-hyatt'), 100);
     // Ocultar botón de cargar ramo (ventas solo ve y vende)
