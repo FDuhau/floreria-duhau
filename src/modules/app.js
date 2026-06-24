@@ -3271,7 +3271,33 @@ function renderVentas(){
   </tr>`).join('');
 }
 
-function updV(i,field,val){ ventasData[i][field]=val; fbSave('ventasData',ventasData); }
+function updV(i,field,val){ ventasData[i][field]=val; fbSave('ventasData',ventasData); sincronizarVentaCaja(i); }
+
+// Si una venta en EFECTIVO queda ENTREGADA, sumarla automáticamente a Control de Caja (una sola vez).
+function sincronizarVentaCaja(i){
+  const v = ventasData[i];
+  if(!v) return;
+  if(v.estado === 'entregado' && v.formaPago === 'Efectivo' && !v.cajaRegistrado){
+    const monto = parseMoney(v.precio);
+    if(monto > 0){
+      cajaData.push({
+        fecha: v.fecha || TODAY_ISO,
+        desc: `Venta: ${v.prod}${v.cliente ? ' — ' + v.cliente : ''}`,
+        ticket: '',
+        tipo: 'ingreso',
+        monto,
+        sucursal: v.sucursal || getSucursalId(),
+        ventaAuto: true
+      });
+      v.cajaRegistrado = true;
+      fbSave('ventasData', ventasData);
+      fbSave('cajaData', cajaData);
+      if(document.getElementById('page-caja')?.classList.contains('active')) renderCaja();
+      showToast(`💵 $${monto.toLocaleString('es-AR')} sumado a Control de Caja (efectivo)`);
+    }
+  }
+}
+window.sincronizarVentaCaja = sincronizarVentaCaja;
 function openSaleModal(){
   document.getElementById('sale-modal-title').textContent = 'Nueva Venta';
   document.getElementById('sale-edit-idx').value = '-1';
@@ -3378,16 +3404,19 @@ function addSale(){
   };
 
   if(editIdx >= 0){
-    // Edición: preservar inicio/fin si existen
+    // Edición: preservar inicio/fin y el flag de caja si existen
     venta.inicio = ventasData[editIdx].inicio || '';
     venta.fin = ventasData[editIdx].fin || '';
+    venta.cajaRegistrado = ventasData[editIdx].cajaRegistrado || false;
     ventasData[editIdx] = venta;
     fbSave('ventasData', ventasData);
+    sincronizarVentaCaja(editIdx);
     showToast('✅ Venta actualizada');
   } else {
     // Nueva venta
     ventasData.push(venta);
     fbSave('ventasData', ventasData);
+    sincronizarVentaCaja(ventasData.length - 1);
 
     // Si está pendiente, crear tarea en kanban
     if(estado === 'pendiente'){
@@ -7779,6 +7808,7 @@ function registrarHoraVenta(vIdx, campo){
     ventasData[vIdx].estado = 'entregado';
   }
   fbSave('ventasData', ventasData);
+  if(campo === 'fin') sincronizarVentaCaja(vIdx);
   renderChecklistTable();
   showToast(`${campo==='inicio'?'▶':'⏹'} ${campo} registrado para "${ventasData[vIdx].prod}": ${hh}:${mm}`);
 }
