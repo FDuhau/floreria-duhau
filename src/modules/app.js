@@ -252,7 +252,7 @@ function navigate(pageId, navEl){
   if(pageId==='compras-floreria')   renderCompras('floreria');
   if(pageId==='compras-jardineria') renderCompras('jardineria');
   if(pageId==='stock-admin')        renderStockAdmin();
-  if(pageId==='eventos-comercial'){ if(eventosView==='calendario') renderCalendario(); else renderEventos(); }
+  if(pageId==='eventos-comercial'){ initEventosToggle(); if(eventosView==='calendario') renderCalendario(); else renderEventos(); }
   if(pageId==='historial-eventos')   renderHistorialEventos();
   if(pageId==='eventos-sin-floreria') renderEventosSinFloreria();
   if(pageId==='ventas-externas')    renderVentas();
@@ -9582,6 +9582,15 @@ function setEventosView(v){
   if(v==='calendario') renderCalendario(); else renderEventos();
 }
 window.setEventosView = setEventosView;
+
+// Cableado robusto de los botones de vista (por si el onclick inline no dispara)
+function initEventosToggle(){
+  const lt = document.getElementById('ev-view-tab-lista');
+  const ct = document.getElementById('ev-view-tab-cal');
+  if(lt && !lt.dataset.wired){ lt.dataset.wired = '1'; lt.addEventListener('click', () => setEventosView('lista')); }
+  if(ct && !ct.dataset.wired){ ct.dataset.wired = '1'; ct.addEventListener('click', () => setEventosView('calendario')); }
+}
+window.initEventosToggle = initEventosToggle;
 
 function renderCalendario(){
   const [y, m] = calMes.split('-').map(Number);
