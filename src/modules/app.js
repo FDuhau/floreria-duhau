@@ -3298,7 +3298,7 @@ function renderVentas(){
       : '';
   }
   const tbody=document.getElementById('ventas-body');
-  tbody.innerHTML = ventasData.map((v,i)=>({v,i})).filter(o=>!(o.v.esPedidoRamo && o.v.estado!=='entregado')).map(({v,i})=>`<tr${v.fromKanban?' style="background:rgba(122,154,184,.07)"':''}>
+  tbody.innerHTML = ventasData.map((v,i)=>({v,i})).filter(o=>!(o.v.esPedidoRamo && o.v.estado!=='entregado')).sort((a,b)=>(b.v.fecha||'').localeCompare(a.v.fecha||'')).map(({v,i})=>`<tr${v.fromKanban?' style="background:rgba(122,154,184,.07)"':''}>
     <td><input class="form-input" value="${esc(v.prod)}" onchange="updV(${i},'prod',this.value)" style="min-width:140px"></td>
     <td><input class="form-input" value="${esc(v.desc)}" onchange="updV(${i},'desc',this.value)" style="min-width:150px" placeholder="Flores, colores..."></td>
     <td><input class="form-input" type="date" value="${esc(v.fecha)}" onchange="updV(${i},'fecha',this.value)" style="min-width:130px"></td>
