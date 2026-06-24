@@ -74,22 +74,30 @@
     <div class="nav-sub-item" data-group="grp-compras" onclick="navigate('precio-comparacion',this)">Comparar Precios</div>
 
     <div class="nav-section-label">Comercial</div>
-    <div class="nav-item nav-group-hdr" data-group-id="grp-com" onclick="navToggleGroup('grp-com');navigate('comercial',this)"><span class="nav-icon">💼</span> Área Comercial<span class="nav-chevron">›</span></div>
-    <div class="nav-sub-item" data-group="grp-com" onclick="navigate('eventos-comercial',this)">Eventos</div>
-    <div class="nav-sub-item" data-group="grp-com" onclick="navigate('historial-eventos',this)">Historial de Eventos</div>
-    <div class="nav-sub-item" data-group="grp-com" onclick="navigate('eventos-sin-floreria',this)">🚫 Eventos sin Florería</div>
-    <div class="nav-sub-item" data-group="grp-com" onclick="navigate('cotizador',this)">Cotizador</div>
-    <div class="nav-sub-item nav-floreria-only" data-group="grp-com" style="display:none" onclick="navigate('cotizador-ops',this)">Cotizador</div>
-    <div class="nav-sub-item nav-ventas-only" data-group="grp-com" style="display:none" onclick="navigate('cotizador-eventos-hyatt',this)">Cotizador de Eventos</div>
-    <div class="nav-sub-item" data-group="grp-com" onclick="navigate('ventas-externas',this)">Ventas Externas</div>
-    <div class="nav-sub-item" data-group="grp-com" onclick="navigate('caja',this)">Control de Caja</div>
-    <div class="nav-sub-item" data-group="grp-com" onclick="navigate('galeria',this)">Galería de Trabajos</div>
-    <div class="nav-sub-item" data-group="grp-com" onclick="navigate('lista-precios',this)">Lista de Precios</div>
-    <div class="nav-sub-item" data-group="grp-com" onclick="navigate('ramos-disponibles',this)">Ramos Disponibles</div>
-    <div class="nav-sub-item" data-group="grp-com" onclick="navigate('pedidos-habitacion',this)">Pedidos de Habitación</div>
-    <div class="nav-sub-item" data-group="grp-com" onclick="navigate('recetas-arreglos',this)">Composiciones</div>
-    <div class="nav-sub-item" data-group="grp-com" onclick="navigate('presupuestos',this)">📄 Presupuestos</div>
-    <div class="nav-sub-item nav-gerencia-only" data-group="grp-com" style="display:none" onclick="navigate('crm-clientes',this)">👥 CRM Clientes</div>
+    <div class="nav-item" onclick="navigate('comercial',this)"><span class="nav-icon">💼</span> Área Comercial</div>
+
+    <div class="nav-item nav-group-hdr" data-group-id="grp-com-ev" onclick="navToggleGroup('grp-com-ev')"><span class="nav-icon">🎉</span> Eventos<span class="nav-chevron">›</span></div>
+    <div class="nav-sub-item" data-group="grp-com-ev" onclick="navigate('eventos-comercial',this)">Eventos</div>
+    <div class="nav-sub-item" data-group="grp-com-ev" onclick="navigate('historial-eventos',this)">Historial de Eventos</div>
+    <div class="nav-sub-item" data-group="grp-com-ev" onclick="navigate('eventos-sin-floreria',this)">🚫 Eventos sin Florería</div>
+    <div class="nav-sub-item" data-group="grp-com-ev" onclick="navigate('recetas-arreglos',this)">Composiciones</div>
+
+    <div class="nav-item nav-group-hdr" data-group-id="grp-com-vt" onclick="navToggleGroup('grp-com-vt')"><span class="nav-icon">💐</span> Ventas<span class="nav-chevron">›</span></div>
+    <div class="nav-sub-item" data-group="grp-com-vt" onclick="navigate('ventas-externas',this)">Ventas Externas</div>
+    <div class="nav-sub-item" data-group="grp-com-vt" onclick="navigate('ramos-disponibles',this)">Ramos Disponibles</div>
+    <div class="nav-sub-item" data-group="grp-com-vt" onclick="navigate('lista-precios',this)">Lista de Precios</div>
+    <div class="nav-sub-item" data-group="grp-com-vt" onclick="navigate('pedidos-habitacion',this)">Pedidos de Habitación</div>
+    <div class="nav-sub-item" data-group="grp-com-vt" onclick="navigate('galeria',this)">Galería de Trabajos</div>
+    <div class="nav-sub-item" data-group="grp-com-vt" onclick="navigate('cotizador',this)">Cotizador</div>
+    <div class="nav-sub-item nav-floreria-only" data-group="grp-com-vt" style="display:none" onclick="navigate('cotizador-ops',this)">Cotizador</div>
+    <div class="nav-sub-item nav-ventas-only" data-group="grp-com-vt" style="display:none" onclick="navigate('cotizador-eventos-hyatt',this)">Cotizador de Eventos</div>
+    <div class="nav-sub-item" data-group="grp-com-vt" onclick="navigate('presupuestos',this)">📄 Presupuestos</div>
+    <div class="nav-sub-item nav-gerencia-only" data-group="grp-com-vt" style="display:none" onclick="navigate('crm-clientes',this)">👥 CRM Clientes</div>
+
+    <div class="nav-item nav-group-hdr nav-gerencia-only" data-group-id="grp-com-cont" style="display:none" onclick="navToggleGroup('grp-com-cont')"><span class="nav-icon">🧾</span> Contable<span class="nav-chevron">›</span></div>
+    <div class="nav-sub-item nav-gerencia-only" data-group="grp-com-cont" style="display:none" onclick="navigate('caja',this)">Control de Caja</div>
+    <div class="nav-sub-item nav-gerencia-only" data-group="grp-com-cont" style="display:none" onclick="navigate('rentabilidad-eventos',this)">💰 Rentabilidad</div>
+    <div class="nav-sub-item nav-gerencia-only" data-group="grp-com-cont" style="display:none" onclick="navigate('cierre-mensual',this)">📋 Cierre Mensual</div>
 
     <div class="nav-section-label nav-gerencia-only" style="display:none">Reportes</div>
     <div class="nav-item nav-group-hdr nav-gerencia-only" data-group-id="grp-rep" style="display:none" onclick="navToggleGroup('grp-rep');navigate('reportes',this)"><span class="nav-icon">📊</span> Reportes<span class="nav-chevron">›</span></div>
@@ -98,9 +106,7 @@
     <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('reportes-stock',this)">Stock & Compras</div>
     <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('reportes-margen',this)">💹 Dashboard de Margen</div>
     <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('auditoria',this)">🔍 Auditoría de Cambios</div>
-    <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('rentabilidad-eventos',this)">💰 Rentabilidad</div>
     <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('dashboard-gerencia',this)">📊 Dashboard Gerencia</div>
-    <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('cierre-mensual',this)">📋 Cierre Mensual</div>
 
     <div class="nav-section-label">Operaciones</div>
     <div class="nav-item nav-group-hdr" data-group-id="grp-ops" onclick="navToggleGroup('grp-ops');navigate('operaciones',this)"><span class="nav-icon">⚙️</span> Operaciones<span class="nav-chevron">›</span></div>
