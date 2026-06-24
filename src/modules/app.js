@@ -300,8 +300,8 @@ function navigate(pageId, navEl){
   if(pageId==='caja')               renderCaja();
   if(pageId==='galeria')            renderGaleria();
   if(pageId==='lista-precios')      renderListaPrecios();
-  if(pageId==='ramos-disponibles')  renderRamosDisp();
-  if(pageId==='pedidos-ramos')      renderPedidosRamos();
+  if(pageId==='ramos-disponibles')  setRamosView(ramosView);
+  if(pageId==='pedidos-ramos'){ navigate('ramos-disponibles'); setRamosView('pedidos'); return; }
   if(pageId==='pedidos-habitacion') renderPedidosHab();
   if(pageId==='home-hyatt') renderHomeHyatt();
   if(pageId==='cotizador-eventos-hyatt') initCotizadorEventosHyatt();
@@ -11034,6 +11034,22 @@ function openVentaDetail(vIdx){
   ov.classList.add('open');
 }
 window.openVentaDetail = openVentaDetail;
+
+// Cambio de vista dentro de Ramos Disponibles: Disponibles ↔ Pedidos
+let ramosView = 'disponibles';
+function setRamosView(v){
+  ramosView = v;
+  const td = document.getElementById('rd-tab-disp');
+  const tp = document.getElementById('rd-tab-ped');
+  if(td) td.classList.toggle('active', v==='disponibles');
+  if(tp) tp.classList.toggle('active', v==='pedidos');
+  const vd = document.getElementById('rd-view-disponibles');
+  const vp = document.getElementById('rd-view-pedidos');
+  if(vd) vd.style.display = v==='disponibles' ? '' : 'none';
+  if(vp) vp.style.display = v==='pedidos' ? '' : 'none';
+  if(v==='pedidos') renderPedidosRamos(); else renderRamosDisp();
+}
+window.setRamosView = setRamosView;
 
 window.openPedidoRamoModal = openPedidoRamoModal;
 window.pedidoRamoAutoPrice = pedidoRamoAutoPrice;
