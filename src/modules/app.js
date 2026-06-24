@@ -109,7 +109,23 @@ function getWeekLabel(date=new Date()){
 }
 function getMonthLabel(iso){ if(!iso) return ''; const p=iso.split('-'); return MONTHS_ES[+p[1]-1]+' '+p[0]; }
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function parseMoney(s){ return parseFloat(String(s||'').replace(/[^0-9.]/g,''))||0; }
+function parseMoney(s){
+  if(typeof s === 'number') return isFinite(s) ? s : 0;
+  let str = String(s ?? '').trim();
+  const neg = str.startsWith('-');
+  str = str.replace(/[^0-9.,]/g, '');
+  if(!str) return 0;
+  if(str.includes(',')){
+    // Formato AR: punto = miles, coma = decimal  ("1.150.000,50")
+    str = str.replace(/\./g, '').replace(',', '.');
+  } else {
+    // Solo puntos: si son grupos de miles (3 dígitos) los quitamos ("150.000" -> 150000)
+    const parts = str.split('.');
+    if(parts.length > 1 && parts.slice(1).every(p => p.length === 3)) str = parts.join('');
+  }
+  const n = parseFloat(str) || 0;
+  return neg ? -n : n;
+}
 
 // ════════════════════════════════════════
 // NAVIGATION
@@ -6423,7 +6439,7 @@ function renderDashboardMargen(){
     ...(window.comprasJard||[])
   ].filter(c => (c.fecha||'').slice(0,7) === mesISO);
 
-  const parseMon = v => { if(!v) return 0; const n = parseFloat(String(v).replace(/[^0-9.-]/g,'')); return isNaN(n)?0:n; };
+  const parseMon = parseMoney;
 
   const totalVentas = ventas.reduce((s,v) => s + parseMon(v.monto||v.total), 0);
   const totalCompras = compras.reduce((s,c) => s + parseMon(c.costo), 0);
@@ -9119,7 +9135,7 @@ function renderDashboardConsolidado(){
   const mesISO = document.getElementById('cons-mes')?.value || TODAY_ISO.slice(0,7);
   _repMeses('cons-mes');
 
-  const parseMon = v => { if(!v) return 0; const n=parseFloat(String(v).replace(/[^0-9.-]/g,'')); return isNaN(n)?0:n; };
+  const parseMon = parseMoney;
 
   const sucursalesAMostrar = sucFiltro
     ? sucursalesConfig.filter(s=>s.id===sucFiltro)
