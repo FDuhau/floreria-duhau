@@ -7208,19 +7208,13 @@ function applyRole(role){
         }
       }
     });
-    // Mostrar bajo Comercial: las secciones permitidas
+    // Mostrar bajo Comercial: SOLO el grupo Ventas, completo (ni más ni menos)
     document.querySelectorAll('.nav-section-label').forEach(label => {
-      if(label.textContent.trim() === 'Comercial'){
-        label.style.display = '';
-        let sib = label.nextElementSibling;
-        while(sib && !sib.classList.contains('nav-section-label')){
-          const t = sib.textContent.trim();
-          if(['Ventas Externas','Glosario & Muestrario','Lista de Precios','Ramos Disponibles'].includes(t) || sib.classList.contains('nav-floreria-only')){
-            sib.style.display = '';
-          }
-          sib = sib.nextElementSibling;
-        }
-      }
+      if(label.textContent.trim() === 'Comercial') label.style.display = '';
+    });
+    document.querySelectorAll('.nav-sub-item[data-group="grp-com-vt"]').forEach(el => {
+      // Mostrar todos los ítems de Ventas salvo las variantes propias de otros roles
+      if(!el.classList.contains('nav-floreria-only') && !el.classList.contains('nav-ventas-only')) el.style.display = '';
     });
     // Ocultar quick-links
     document.querySelectorAll('.quick-link').forEach(ql => ql.style.display = 'none');
