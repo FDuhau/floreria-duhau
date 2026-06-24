@@ -73,8 +73,8 @@
       return false;
     }
 
-    async function pushSend(title, body, tag='general'){
-      fbSet('pushBroadcast/' + Date.now(), { title, body, tag, ts: Date.now() });
+    async function pushSend(title, body, tag='general', target=''){
+      fbSet('pushBroadcast/' + Date.now(), { title, body, tag, target, ts: Date.now() });
     }
 
     window.pushRequestPermission = pushRequestPermission;
@@ -83,12 +83,20 @@
     // Listen for broadcasts — show notification on all connected devices
     let _pushSessionStart = Date.now();
     fbListen('pushBroadcast', val => {
-      if(!val || Notification.permission !== 'granted') return;
+      if(!val) return;
+      const me = (window.currentUserLabel || '').toLowerCase();
       const entries = Object.values(val);
       const recientes = entries.filter(e => e.ts > _pushSessionStart);
+      if(recientes.length) _pushSessionStart = Math.max(_pushSessionStart, ...recientes.map(e => e.ts + 1));
       recientes.forEach(e => {
-        new Notification(e.title||'Florería Duhau', { body: e.body||'', icon: '/icon-192.png', tag: e.tag||'general' });
-        _pushSessionStart = Math.max(_pushSessionStart, e.ts + 1);
+        // Si la notificación es dirigida a alguien, mostrarla solo a esa persona
+        if(e.target && String(e.target).toLowerCase() !== me) return;
+        // Aviso in-app (visible aunque no haya permiso de notificaciones del navegador)
+        window.showToast?.('🔔 ' + (e.title || '') + (e.body ? ' — ' + e.body : ''));
+        // Notificación del navegador si hay permiso
+        if(typeof Notification !== 'undefined' && Notification.permission === 'granted'){
+          try { new Notification(e.title || 'Florería Duhau', { body: e.body || '', icon: '/icon-192.png', tag: e.tag || 'general' }); } catch(err){}
+        }
       });
     });
 
