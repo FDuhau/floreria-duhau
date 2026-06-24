@@ -3139,7 +3139,7 @@ function renderHome(){
   const recAlerts = jardRecordatorios.filter(r=>recEstado(r)==='vencido'||recEstado(r)==='proximo');
 
   // ── KPIs ──
-  const isFlorHome = userRole === 'florista';
+  const isFlorHome = userRole !== 'gerencia'; // solo gerencia ve el panel completo (ventas, recordatorios, etc.)
   document.getElementById('home-kpis').innerHTML = `
     <div class="cards-grid cards-grid-4" style="margin-bottom:24px">
       <div class="card card-clickable" onclick="navigate('eventos-maison')">
@@ -7337,6 +7337,8 @@ function applyRole(role){
   finalizeNavGroups();
   // Renderizar barra de navegación inferior mobile
   renderBottomNav(role);
+  // Re-renderizar el Inicio ya con el rol aplicado (evita mostrar el panel completo a no-gerencia)
+  if(document.getElementById('home-kpis')) renderHome();
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
