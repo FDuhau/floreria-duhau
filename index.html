@@ -85,7 +85,6 @@
     <div class="nav-item nav-group-hdr" data-group-id="grp-com-vt" onclick="navToggleGroup('grp-com-vt')"><span class="nav-icon">💐</span> Ventas<span class="nav-chevron">›</span></div>
     <div class="nav-sub-item" data-group="grp-com-vt" onclick="navigate('ventas-externas',this)">Ventas Externas</div>
     <div class="nav-sub-item" data-group="grp-com-vt" onclick="navigate('ramos-disponibles',this)">Ramos Disponibles</div>
-    <div class="nav-sub-item" data-group="grp-com-vt" onclick="navigate('pedidos-ramos',this)">📋 Pedidos de Ramos</div>
     <div class="nav-sub-item" data-group="grp-com-vt" onclick="navigate('lista-precios',this)">Lista de Precios</div>
     <div class="nav-sub-item" data-group="grp-com-vt" onclick="navigate('pedidos-habitacion',this)">Pedidos de Habitación</div>
     <div class="nav-sub-item" data-group="grp-com-vt" onclick="navigate('galeria',this)">Galería de Trabajos</div>
@@ -1300,14 +1299,20 @@
     <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px">
       <div>
         <div class="page-title">Ramos Disponibles</div>
-        <div class="page-subtitle">Ramos armados listos para vender ahora · al vender se registra solo en Ventas Externas</div>
+        <div class="page-subtitle">Ramos armados para vender · y pedidos de ramos para hacer</div>
       </div>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <div class="day-tabs" style="margin-bottom:0">
+        <div class="day-tab active" id="rd-tab-disp" onclick="setRamosView('disponibles')">💐 Disponibles</div>
+        <div class="day-tab" id="rd-tab-ped" onclick="setRamosView('pedidos')">📋 Pedidos</div>
+      </div>
+    </div>
+
+    <div id="rd-view-disponibles">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end;margin-bottom:4px">
         <input type="text" id="rd-search" class="stock-search" placeholder="🔍 Buscar ramo..." oninput="renderRamosDisp()" style="width:200px">
         <button class="btn-add" onclick="openRamoModal()" id="btn-add-ramo">+ Cargar ramo armado</button>
       </div>
-    </div>
-    <div id="rd-grid" class="lp-items-grid" style="margin-top:8px"></div>
+      <div id="rd-grid" class="lp-items-grid" style="margin-top:8px"></div>
 
     <!-- Venta directa -->
     <div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;padding:20px;margin-top:20px">
@@ -1344,6 +1349,20 @@
         </div>
       </div>
       <button class="btn-add" onclick="registrarVentaDirecta()" style="padding:10px 24px">💰 Registrar venta</button>
+    </div>
+    </div><!-- /rd-view-disponibles -->
+
+    <div id="rd-view-pedidos" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+        <div style="font-size:12.5px;color:var(--mid-gray)">Encargá un ramo para hacer y asignáselo a un florista · aparece en su checklist</div>
+        <button class="btn-primary" onclick="openPedidoRamoModal()">+ Nuevo Pedido</button>
+      </div>
+      <div class="table-wrapper">
+        <table class="stock-table">
+          <thead><tr><th>Para cuándo</th><th>Arreglo</th><th>Cliente</th><th>Colores</th><th>Florista</th><th>Precio</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <tbody id="pedidos-ramos-body"><tr><td colspan="8" style="text-align:center;color:var(--mid-gray);padding:24px">Cargando...</td></tr></tbody>
+        </table>
+      </div>
     </div>
 
     <!-- Modal cargar ramo -->
@@ -2333,23 +2352,6 @@
           <div class="modal-footer"><button type="submit" class="btn-primary">Guardar presupuesto</button><button type="button" class="btn-secondary" onclick="closeModal('modal-presupuesto')">Cancelar</button></div>
         </form>
       </div>
-    </div>
-  </div>
-
-  <!-- ════════ PEDIDOS DE RAMOS ════════ -->
-  <div id="page-pedidos-ramos" class="content">
-    <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
-      <div>
-        <div class="page-title">Pedidos de Ramos</div>
-        <div class="page-subtitle">Encargá un ramo para hacer y asignáselo a un florista · aparece en su checklist</div>
-      </div>
-      <button class="btn-primary" onclick="openPedidoRamoModal()">+ Nuevo Pedido</button>
-    </div>
-    <div class="table-wrapper">
-      <table class="stock-table">
-        <thead><tr><th>Para cuándo</th><th>Arreglo</th><th>Cliente</th><th>Colores</th><th>Florista</th><th>Precio</th><th>Estado</th><th>Acciones</th></tr></thead>
-        <tbody id="pedidos-ramos-body"><tr><td colspan="8" style="text-align:center;color:var(--mid-gray);padding:24px">Cargando...</td></tr></tbody>
-      </table>
     </div>
   </div>
 

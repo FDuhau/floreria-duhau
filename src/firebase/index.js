@@ -322,7 +322,7 @@
         const arr = Array.isArray(val) ? val : Object.values(val||{});
         if(window._setVentasData) window._setVentasData(arr);
         if(document.getElementById('page-ventas-externas')?.classList.contains('active') && !window.estaEditando('page-ventas-externas')) window.renderVentas();
-        if(document.getElementById('page-pedidos-ramos')?.classList.contains('active')) window.renderPedidosRamos?.();
+        if(document.getElementById('page-ramos-disponibles')?.classList.contains('active')) window.renderPedidosRamos?.();
         if(document.getElementById('page-checklist')?.classList.contains('active') && !window.estaEditando('page-checklist')) window.renderChecklistTable?.();
       });
 
