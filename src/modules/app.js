@@ -3422,6 +3422,7 @@ function addSale(){
     sucursal: getSucursalId(),
   };
 
+  const prevAsignadoVenta = editIdx >= 0 ? (ventasData[editIdx]?.asignado || '') : '';
   if(editIdx >= 0){
     // Edición: preservar inicio/fin y el flag de caja si existen
     venta.inicio = ventasData[editIdx].inicio || '';
@@ -3460,6 +3461,9 @@ function addSale(){
     }
   }
 
+  if(asignado && asignado !== prevAsignadoVenta && estado === 'pendiente'){
+    notificarAsignacion(asignado, '💐 Nueva venta asignada', `${venta.prod}${venta.cliente ? ' · ' + venta.cliente : ''}`);
+  }
   closeModal('sale-modal');
   renderVentas();
 }
@@ -8730,11 +8734,15 @@ function saveEvent(){
   }
 
   const idx=+document.getElementById('ev-idx').value;
+  const prevAsignadoEv = idx >= 0 ? (eventosData[idx]?.asignado || '') : '';
   if(idx===-1) eventosData.push(ev);
   else eventosData[idx]=ev;
 
   closeModal('event-modal');
   fbSave('eventosData', eventosData);
+  if(ev.asignado && ev.asignado !== prevAsignadoEv){
+    notificarAsignacion(ev.asignado, '🎉 Nuevo evento asignado', `Se te asignó "${ev.nombre}"${ev.fecha ? ' · ' + fmtDate(ev.fecha) : ''}`);
+  }
   syncEventosToKanban();
   fbSave('kanbanData', kanbanData);
   renderEventos();
@@ -10844,6 +10852,13 @@ function pedidoRamoAutoPrice(){
   if(precio && +precio > 0) document.getElementById('pr-precio').value = '$' + (+precio).toLocaleString('es-AR');
 }
 
+// Aviso dirigido a un florista cuando se le asigna algo (evento, pedido o venta)
+function notificarAsignacion(florista, title, body){
+  if(!florista) return;
+  window.pushSend?.(title, body, 'asignacion', florista);
+}
+window.notificarAsignacion = notificarAsignacion;
+
 function guardarPedidoRamo(){
   const prod = document.getElementById('pr-arreglo').value.trim();
   const cliente = document.getElementById('pr-cliente').value.trim();
@@ -10870,6 +10885,7 @@ function guardarPedidoRamo(){
   closeModal('modal-pedido-ramo');
   renderPedidosRamos();
   if(document.getElementById('page-ventas-externas')?.classList.contains('active')) renderVentas();
+  notificarAsignacion(asignado, '💐 Nuevo pedido asignado', `Ramo para ${cliente}${document.getElementById('pr-fecha').value ? ' · ' + fmtDate(document.getElementById('pr-fecha').value) : ''}`);
   showToast(`💐 Pedido asignado a ${asignado} — aparece en su checklist`);
 }
 
