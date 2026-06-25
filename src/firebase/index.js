@@ -208,6 +208,8 @@
     // Cargar contraseñas personalizadas ANTES del login
     fbListen('loginPasswords', val => {
       if(val && typeof val === 'object' && Object.keys(val).length > 0){
+        // Actualizar la variable real que usa el login (no una copia en window)
+        if(window._setLoginPasswords) window._setLoginPasswords(val);
         window.loginPasswords = val;
         // Sincronizar floristas con la lista de responsables del checklist
         Object.values(val).forEach(e => {

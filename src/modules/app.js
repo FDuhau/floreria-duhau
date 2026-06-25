@@ -8096,6 +8096,10 @@ const LOGIN_DEFAULTS = {
 };
 let loginPasswords = JSON.parse(JSON.stringify(LOGIN_DEFAULTS));
 let currentLoginKey = null; // la contraseña con la que se logueó
+// Puente para que el listener de Firebase actualice ESTA variable (la que usa el
+// login), no una copia separada en window. Sin esto, los cambios de contraseña
+// se guardaban en Firebase pero el login seguía usando los valores por defecto.
+window._setLoginPasswords = (v) => { if(v && typeof v === 'object') loginPasswords = v; };
 
 function doLogin(){
   const val = document.getElementById('login-input').value.trim();
@@ -10752,7 +10756,9 @@ const _isAndroid = /Android/.test(navigator.userAgent);
 const _isInStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
 
 if('serviceWorker' in navigator){
-  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(()=>{}));
+  // Registrar el MISMO SW que index.html para no tener dos en conflicto en el
+  // mismo scope (lo que puede romper la instalabilidad / beforeinstallprompt).
+  window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js').catch(()=>{}));
 }
 
 window.addEventListener('beforeinstallprompt', e => {
@@ -10764,6 +10770,9 @@ window.addEventListener('beforeinstallprompt', e => {
 window.addEventListener('appinstalled', () => {
   document.getElementById('pwa-install-btn')?.remove();
   document.getElementById('pwa-ios-banner')?.remove();
+  document.getElementById('pwa-android-banner')?.remove();
+  const topBtn = document.getElementById('pwa-topbar-btn');
+  if(topBtn) topBtn.style.display = 'none';
   showToast('✅ App instalada correctamente');
 });
 
@@ -10792,37 +10801,52 @@ function _initPWAPrompt(){
       </div>`;
     banner.style.cssText = 'position:fixed;bottom:80px;left:16px;right:16px;background:#1a1a18;color:#fff;border-radius:14px;padding:14px 16px;z-index:9000;box-shadow:0 8px 24px rgba(0,0,0,0.3);font-family:inherit';
     document.body.appendChild(banner);
-  } else if(!_pwaInstallEvent){
-    // Chrome/Edge en PC: el evento aún no llegó — mostrar igual el botón
-    // cuando llegue beforeinstallprompt se activa automáticamente
-    // Si ya está instalada como PWA no se muestra nada
+  } else if(_isAndroid){
+    // Android sin beforeinstallprompt (común al abrir desde el navegador in-app
+    // de WhatsApp/Instagram, o por heurística de Chrome): instrucciones manuales.
+    if(document.getElementById('pwa-android-banner')) return;
+    const banner = document.createElement('div');
+    banner.id = 'pwa-android-banner';
+    banner.innerHTML = `
+      <div style="display:flex;align-items:flex-start;gap:12px">
+        <div style="font-size:24px;flex-shrink:0">📲</div>
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:13px;margin-bottom:4px">Instalar app en Android</div>
+          <div style="font-size:12px;line-height:1.5">Tocá el menú <strong>⋮</strong> de Chrome (arriba a la derecha) y elegí <strong>"Instalar aplicación"</strong> o <strong>"Agregar a la pantalla principal"</strong>.<br><span style="opacity:.8">Si abriste el link desde WhatsApp, abrilo primero en Chrome.</span></div>
+        </div>
+        <button onclick="document.getElementById('pwa-android-banner').remove()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#fff;padding:0;line-height:1">✕</button>
+      </div>`;
+    banner.style.cssText = 'position:fixed;bottom:80px;left:16px;right:16px;background:#1a1a18;color:#fff;border-radius:14px;padding:14px 16px;z-index:9000;box-shadow:0 8px 24px rgba(0,0,0,0.3);font-family:inherit';
+    document.body.appendChild(banner);
   }
 }
 
 function installPWA(){
-  if(_isIOS){
-    _initPWAPrompt();
+  // Si el navegador ofrece la instalación nativa (Android/Chrome/Edge), usarla.
+  if(_pwaInstallEvent){
+    _pwaInstallEvent.prompt();
+    _pwaInstallEvent.userChoice.then(choice => {
+      if(choice.outcome==='accepted') showToast('✅ App instalada');
+      _pwaInstallEvent = null;
+      document.getElementById('pwa-install-btn')?.remove();
+    });
     return;
   }
-  if(!_pwaInstallEvent){
-    showToast('Abrí la app en Chrome o Edge para instalarla en tu PC/Android');
-    return;
-  }
-  _pwaInstallEvent.prompt();
-  _pwaInstallEvent.userChoice.then(choice => {
-    if(choice.outcome==='accepted') showToast('✅ App instalada');
-    _pwaInstallEvent = null;
-    document.getElementById('pwa-install-btn')?.remove();
-  });
+  // Sin evento nativo (iOS siempre; Android cuando Chrome no lo dispara):
+  // mostrar instrucciones manuales según la plataforma.
+  _initPWAPrompt();
 }
 
-// En iOS: mostrar botón en topbar siempre (no hay beforeinstallprompt)
-if(_isIOS && !_isInStandalone){
+// Mostrar el botón de instalar siempre que no esté ya instalada, tanto en iOS
+// como en Android (en Android beforeinstallprompt no siempre dispara).
+if((_isIOS || _isAndroid) && !_isInStandalone){
   window.addEventListener('load', () => {
     _showPWABtn();
-    if(!sessionStorage.getItem('pwa-ios-shown')){
-      sessionStorage.setItem('pwa-ios-shown','1');
-      setTimeout(_initPWAPrompt, 3000);
+    if(!sessionStorage.getItem('pwa-hint-shown')){
+      sessionStorage.setItem('pwa-hint-shown','1');
+      // iOS: no hay prompt nativo. Android: esperar unos segundos por
+      // beforeinstallprompt; si no llegó, mostrar instrucciones manuales.
+      setTimeout(() => { if(!_pwaInstallEvent) _initPWAPrompt(); }, _isIOS ? 3000 : 5000);
     }
   });
 }
