@@ -5128,7 +5128,7 @@ function florRegistrarTurno(campo){
   const now = new Date();
   const hh = String(now.getHours()).padStart(2,'0');
   const mm = String(now.getMinutes()).padStart(2,'0');
-  fbSetPath('florTurnos/'+floristaNombre+'/'+TODAY_ISO+'/'+campo, hh+':'+mm);
+  window.fbSetPath?.('florTurnos/'+floristaNombre+'/'+TODAY_ISO+'/'+campo, hh+':'+mm);
   if(!window.florTurnos) window.florTurnos = {};
   if(!window.florTurnos[floristaNombre]) window.florTurnos[floristaNombre] = {};
   if(!window.florTurnos[floristaNombre][TODAY_ISO]) window.florTurnos[floristaNombre][TODAY_ISO] = {};
@@ -5140,7 +5140,7 @@ function florRegistrarTurno(campo){
 function florResetTurno(campo){
   if(!floristaNombre || !window.florTurnos?.[floristaNombre]?.[TODAY_ISO]) return;
   window.florTurnos[floristaNombre][TODAY_ISO][campo] = '';
-  fbSetPath('florTurnos/'+floristaNombre+'/'+TODAY_ISO+'/'+campo, '');
+  window.fbSetPath?.('florTurnos/'+floristaNombre+'/'+TODAY_ISO+'/'+campo, '');
   renderFlorTurnoCard();
 }
 
@@ -7261,11 +7261,13 @@ document.querySelectorAll('.nav-item, .nav-sub-item').forEach(el => {
     get recetasData()        { return recetasData; },        set recetasData(v)       { recetasData=v; },
     get cotCurTab()          { return cotCurTab; },          set cotCurTab(v)         { cotCurTab=v; },
   };
-  const fns = [
-    'renderChecklist','renderEventos','renderKanban','renderStock',
-    'renderJardOps','renderHabOps','renderCtrlJard','renderCtrlHab',
-    'renderCompras','renderRecetas','renderRamosDisp'
-  ];
+  // Funciones de render expuestas como referencias directas (sin eval).
+  // 'renderChecklist' no existe (la real es renderChecklistTable); se omite.
+  const renderFns = {
+    renderEventos, renderKanban, renderStock,
+    renderJardOps, renderHabOps, renderCtrlJard, renderCtrlHab,
+    renderCompras, renderRecetas, renderRamosDisp,
+  };
   // Assign data vars via defineProperty (getters/setters need it)
   Object.keys(vars).forEach(k => {
     try {
@@ -7276,9 +7278,8 @@ document.querySelectorAll('.nav-item, .nav-sub-item').forEach(el => {
       });
     } catch(e) { /* already defined, skip */ }
   });
-  // Expose render functions as simple references (no redefine needed, just alias)
-  fns.forEach(fn => {
-    try { if(!(fn in window)) window[fn] = eval(fn); } catch(e){}
+  Object.keys(renderFns).forEach(fn => {
+    if(!(fn in window)) window[fn] = renderFns[fn];
   });
 })();
 
@@ -11724,7 +11725,7 @@ Object.assign(window, {
   renderCaja, renderCarrito, renderCarritoOps, renderChecklistTable,
   renderComposicionesCot, renderCompraAlert, renderCompraSummary, renderCompras, renderCotEventos,
   renderCotizador, renderCotizadorOps, renderCtrlHab, renderCtrlJard, renderEvCarrito,
-  renderGaleria, abrirLightbox, openGaleriaModal, galeriaAddFotos, galeriaAddUrl, galeriaQuitarFoto, guardarGaleria, editarGaleria, eliminarGaleria,
+  renderGaleria, abrirLightbox, galeriaAddFotos, galeriaAddUrl, galeriaQuitarFoto, guardarGaleria, editarGaleria, eliminarGaleria,
   renderEvHoraCell, renderEvTipos, renderEventos, renderHabLog, renderHabOps,
   renderHabReporte, renderHistorialCompras, renderHistorialEventos, renderHistoryPanel, renderHome,
   renderHomeHyatt, renderHoraCell, renderHorarios, renderInsumosGrid, renderJardLog, renderJardOps,
