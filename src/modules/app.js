@@ -216,7 +216,17 @@ const BOTTOM_NAV_ITEMS = {
 function renderBottomNav(role) {
   const nav = document.getElementById('bottom-nav');
   if(!nav) return;
-  const items = BOTTOM_NAV_ITEMS[role] || [];
+  let items = BOTTOM_NAV_ITEMS[role] || [];
+  // Florista que también es jardinero (ej. Ivan): barra combinada de ambos mundos
+  if(role === 'florista' && jardineroNombre){
+    items = [
+      {icon:'🏠',label:'Inicio',page:'home'},
+      {icon:'📋',label:'Checklist',page:'checklist'},
+      {icon:'🎉',label:'Eventos',page:'eventos-maison'},
+      {icon:'🌿',label:'Jardín',page:'jardineria-ops'},
+      {icon:'🏡',label:'Habitac.',page:'hab-ops'},
+    ];
+  }
   nav.innerHTML = items.map(it =>
     `<div class="bottom-nav-item" data-page="${it.page}" onclick="navigate('${it.page}',null);updateBottomNav('${it.page}')">
       <span class="bottom-nav-icon">${it.icon}</span>
@@ -7379,7 +7389,10 @@ function applyRole(role){
 
   if(role === 'florista'){
     document.querySelectorAll('.nav-section-label, .nav-item, .nav-sub-item').forEach(el => { el.style.display = 'none'; });
+    // Florista que también es jardinero (ej. Ivan): además de lo de florería, ve jardinería
+    const alsoJardinero = !!jardineroNombre;
     const OPS_ALLOW = ['Checklist Diaria','Stock Florería','Eventos / Maison','Cotizador','📦 Recepción de Pedidos'];
+    if(alsoJardinero) OPS_ALLOW.push('Tareas Jardinería','Habitaciones con Plantas','🔔 Recordatorios Jardín');
     document.querySelectorAll('.nav-section-label').forEach(label => {
       if(label.textContent.trim() === 'Principal'){
         label.style.display = '';
@@ -7411,9 +7424,11 @@ function applyRole(role){
     document.querySelector('[data-group-id="grp-com-vt"]').style.display = '';
     setTimeout(() => { navExpandGroup('grp-ops'); navExpandGroup('grp-com-vt'); }, 50);
     const FL_QL = ['Checklist','Stock','Eventos','Cotizador','Recepción','Ramos','Lista de Precios'];
+    if(alsoJardinero) FL_QL.push('Tareas Jardinería','Habitaciones con Plantas','Recordatorios Jardín');
     document.querySelectorAll('.quick-link').forEach(ql => {
       const title = ql.querySelector('.quick-link-title')?.textContent || '';
-      if(!FL_QL.some(t => title.includes(t))) ql.style.display = 'none';
+      // Mostrar explícitamente los permitidos (revela también los nav-jard-only ocultos por defecto)
+      ql.style.display = FL_QL.some(t => title.includes(t)) ? '' : 'none';
     });
     showToast('👋 Hola ' + floristaNombre + '!');
   }
@@ -7579,7 +7594,8 @@ function getFloristasActivos(){
 }
 
 function getEmpleadosActivos(){
-  return [...getFloristasActivos(), ...JARDINEROS_LIST];
+  // Dedup: alguien puede ser florista y jardinero a la vez (ej. Ivan), no debe aparecer dos veces
+  return [...new Set([...getFloristasActivos(), ...JARDINEROS_LIST])];
 }
 
 function isJardinero(nombre){
@@ -7723,7 +7739,7 @@ function renderHorarios(){
     const cur = sel.value;
     sel.innerHTML = '<option value="">— Todos —</option>'
       + '<optgroup label="Florería">' + floristas.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('') + '</optgroup>'
-      + '<optgroup label="Jardinería">' + JARDINEROS_LIST.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('') + '</optgroup>';
+      + '<optgroup label="Jardinería">' + JARDINEROS_LIST.filter(n=>!floristas.includes(n)).map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('') + '</optgroup>';
     sel.value = cur;
   }
   const filtro = sel?.value || '';
@@ -8086,14 +8102,13 @@ const LOGIN_DEFAULTS = {
   'duhau':      { role:'operario',  label:'Operario General' },
   'sole':       { role:'jardinero', label:'Sole',  jardineroNombre:'Sole' },
   'berni':      { role:'jardinero', label:'Berni', jardineroNombre:'Berni' },
-  'ivan':       { role:'jardinero', label:'Ivan',  jardineroNombre:'Ivan' },
   'compras':    { role:'compras',   label:'Compras' },
   'hyatt':      { role:'ventas',    label:'Hyatt Ventas' },
   'caro':       { role:'florista',  label:'Caro',  floristaNombre:'Caro' },
   'clo':        { role:'florista',  label:'Clo',   floristaNombre:'Clo' },
   'cris':       { role:'florista',  label:'Cris',  floristaNombre:'Cris' },
   'gabi':       { role:'florista',  label:'Gabi',  floristaNombre:'Gabi' },
-  'ivan':       { role:'florista',  label:'Ivan',  floristaNombre:'Ivan' },
+  'ivan':       { role:'florista',  label:'Ivan',  floristaNombre:'Ivan', jardineroNombre:'Ivan' },
   'pao':        { role:'florista',  label:'Pao',   floristaNombre:'Pao' },
   'nora':       { role:'florista',  label:'Nora',  floristaNombre:'Nora' },
   'euge':       { role:'comercial', label:'Euge' },
@@ -8108,6 +8123,12 @@ function doLogin(){
   const key = val.toLowerCase();
   const entry = loginPasswords[key];
   if(entry){
+    // Florista que además es jardinero (figura en JARDINEROS_LIST, ej. Ivan):
+    // habilitar ambos mundos en el mismo usuario. Robusto aunque loginPasswords
+    // venga de Firebase con la entrada vieja (florista sola).
+    if(entry.role === 'florista' && entry.floristaNombre && JARDINEROS_LIST.includes(entry.floristaNombre) && !entry.jardineroNombre){
+      entry.jardineroNombre = entry.floristaNombre;
+    }
     currentLoginKey = key;
     if(entry.floristaNombre) floristaNombre = entry.floristaNombre;
     if(entry.jardineroNombre){ jardineroNombre = entry.jardineroNombre; jardCurrentJardinero = jardineroNombre; try{ localStorage.setItem('jardCurrentJardinero', jardineroNombre); }catch(e){} }
