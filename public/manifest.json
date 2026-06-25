@@ -1,8 +1,10 @@
 {
   "name": "Florería Duhau",
   "short_name": "Florería",
+  "id": "/",
   "description": "Panel de control operativo — Park Hyatt Buenos Aires",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#111110",
   "theme_color": "#111110",
@@ -19,6 +21,12 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
