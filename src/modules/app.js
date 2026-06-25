@@ -343,6 +343,75 @@ function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 document.querySelectorAll('.modal-overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');}));
 
 // ════════════════════════════════════════
+// CONFIRMACIÓN ESTILADA (reemplaza a confirm() nativo)
+// Devuelve una Promesa<boolean>. Uso: if(!await confirmModal('¿Borrar?')) return;
+// Respeta \n en el mensaje (white-space:pre-line). Si el texto sugiere una
+// acción destructiva (Eliminar/Borrar/Quitar/Limpiar/Resetear), el botón
+// principal se pinta en rojo.
+// ════════════════════════════════════════
+function confirmModal(message, opts){
+  opts = opts || {};
+  const danger = opts.danger != null
+    ? opts.danger
+    : /eliminar|borrar|quitar|limpiar|resetear|reemplaza/i.test(message || '');
+  const title    = opts.title    || (danger ? 'Confirmar' : 'Confirmar');
+  const okText   = opts.okText   || 'Confirmar';
+  const cancelText = opts.cancelText || 'Cancelar';
+
+  return new Promise(resolve => {
+    let ov = document.getElementById('confirm-modal-overlay');
+    if(!ov){
+      ov = document.createElement('div');
+      ov.id = 'confirm-modal-overlay';
+      ov.className = 'modal-overlay';
+      ov.innerHTML =
+        '<div class="modal confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="confirm-modal-title" aria-describedby="confirm-modal-msg">' +
+          '<div class="modal-title" id="confirm-modal-title"></div>' +
+          '<div class="confirm-modal-msg" id="confirm-modal-msg"></div>' +
+          '<div class="modal-actions">' +
+            '<button type="button" class="btn-secondary" id="confirm-modal-cancel"></button>' +
+            '<button type="button" class="btn-add" id="confirm-modal-ok"></button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(ov);
+    }
+    const titleEl  = ov.querySelector('#confirm-modal-title');
+    const msgEl    = ov.querySelector('#confirm-modal-msg');
+    const okBtn    = ov.querySelector('#confirm-modal-ok');
+    const cancelBtn= ov.querySelector('#confirm-modal-cancel');
+
+    titleEl.textContent  = title;
+    msgEl.textContent    = message || '';
+    okBtn.textContent    = okText;
+    cancelBtn.textContent= cancelText;
+    okBtn.classList.toggle('btn-danger', !!danger);
+
+    const prevFocus = document.activeElement;
+    function cleanup(result){
+      ov.classList.remove('open');
+      document.removeEventListener('keydown', onKey, true);
+      okBtn.onclick = cancelBtn.onclick = ov.onclick = null;
+      if(prevFocus && prevFocus.focus){ try{ prevFocus.focus(); }catch(e){} }
+      resolve(result);
+    }
+    function onKey(e){
+      // Escape cancela. Enter actúa sobre el botón con foco (comportamiento nativo),
+      // por eso no lo interceptamos: así evitamos confirmar sin querer.
+      if(e.key === 'Escape'){ e.preventDefault(); cleanup(false); }
+    }
+    okBtn.onclick     = () => cleanup(true);
+    cancelBtn.onclick = () => cleanup(false);
+    ov.onclick        = e => { if(e.target === ov) cleanup(false); };
+    document.addEventListener('keydown', onKey, true);
+
+    ov.classList.add('open');
+    // Foco en "Cancelar" por seguridad (evita borrados accidentales con Enter doble)
+    setTimeout(() => { try{ cancelBtn.focus(); }catch(e){} }, 30);
+  });
+}
+window.confirmModal = confirmModal;
+
+// ════════════════════════════════════════
 // DATA — CHECKLIST
 // Actividad options, Tiempo options, Responsable options are now editable per row
 // ════════════════════════════════════════
@@ -553,9 +622,9 @@ function initChecklist(){
   const _htc = document.getElementById('home-tasks-count'); if(_htc) _htc.textContent = CL_TASKS.length;
 }
 
-function resetWeekState(){
+async function resetWeekState(){
   if(userRole !== 'gerencia'){ showToast('⛔ Solo gerencia puede limpiar la semana'); return; }
-  if(!confirm('¿Limpiar todas las tareas de esta semana? El historial se conserva.')) return;
+  if(!await confirmModal('¿Limpiar todas las tareas de esta semana? El historial se conserva.')) return;
   clStateByDay = {};
   fbSave('checklist', clStateByDay); // Limpiar TODOS los días de Firebase
   clState = getOrCreateDayState(currentDay);
@@ -976,11 +1045,11 @@ function showAlertaHorario(msg){
   overlay.onclick = (e) => { if(e.target === overlay) overlay.remove(); };
 }
 
-function resetHora(i, campo){
+async function resetHora(i, campo){
   if(!clState) return;
   // Si se borra el Inicio y ya hay Fin, también borrar el Fin para mantener consistencia
   if(campo === 'inicio' && clState.fin?.[i]){
-    if(!confirm('¿Borrar el horario de Inicio?\nEsto también borrará el Fin registrado (' + clState.fin[i] + ') para mantener la consistencia.')){
+    if(!await confirmModal('¿Borrar el horario de Inicio?\nEsto también borrará el Fin registrado (' + clState.fin[i] + ') para mantener la consistencia.')){
       return;
     }
     clState.fin[i] = '';
@@ -1045,7 +1114,7 @@ function toggleTask(i, el){
 }
 
 
-function confirmResetWeek(){
+async function confirmResetWeek(){
   if(userRole !== 'gerencia'){ showToast('⛔ Solo gerencia puede realizar esta acción'); return; }
   const toArr = v => Array.isArray(v) ? v : (v ? Object.values(v) : []);
   let done = 0;
@@ -1053,7 +1122,7 @@ function confirmResetWeek(){
   const msg = done>0
     ? `¿Cerrar la semana y empezar nueva?\nSe archivarán ${done} tareas completadas en el historial y la checklist quedará limpia.`
     : '¿Iniciar nueva semana? La checklist quedará limpia.';
-  if(!confirm(msg)) return;
+  if(!await confirmModal(msg)) return;
   // Archive any checked tasks not yet saved to history
   const now = new Date();
   ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'].forEach(day=>{
@@ -1279,10 +1348,10 @@ function setStockMax(i,v){
   fbSave('stockData', stockData);
   renderStockAdmin();
 }
-function delStock(i){
+async function delStock(i){
   const item = stockData[i];
   if(!item) return;
-  if(!confirm('¿Eliminar "'+item.prod+'" del stock?\nEsto lo quita de la lista por completo.')) return;
+  if(!await confirmModal('¿Eliminar "'+item.prod+'" del stock?\nEsto lo quita de la lista por completo.')) return;
   stockData.splice(i,1);
   fbSave('stockData', stockData);
   renderStock();
@@ -1578,8 +1647,8 @@ function saveKanbanTask(){
   renderKanban();
 }
 
-function removeKanbanCard(ci,i){
-  if(!confirm('¿Eliminar esta tarea?')) return;
+async function removeKanbanCard(ci,i){
+  if(!await confirmModal('¿Eliminar esta tarea?')) return;
   kanbanData[ci].cards.splice(i,1);
   fbSave('kanbanData', kanbanData);
   renderKanban();
@@ -1968,12 +2037,12 @@ function renderHistorialCompras(){
   wrap.innerHTML = html;
 }
 
-function copiarBloquePedido(type, fecha){
+async function copiarBloquePedido(type, fecha){
   const arr = getArr(type);
   // Tomar todos los ítems de esa fecha (incluyendo recibidos, para replicar el pedido completo)
   const bloque = arr.filter(r => r.fecha === fecha);
   if(!bloque.length){ showToast('⚠️ No se encontraron ítems para esa fecha'); return; }
-  if(!confirm('¿Copiar el pedido del ' + fmtDate(fecha) + ' (' + bloque.length + ' ítems) con fecha de hoy?\nPodés modificar cantidades después.')) return;
+  if(!await confirmModal('¿Copiar el pedido del ' + fmtDate(fecha) + ' (' + bloque.length + ' ítems) con fecha de hoy?\nPodés modificar cantidades después.')) return;
   // Clonar cada ítem con fecha de hoy y estado 'pedido'
   const nuevos = bloque.map(r => ({
     fecha: TODAY_ISO,
@@ -2022,8 +2091,8 @@ function addProveedor(){
   showToast('✅ Proveedor agregado: ' + val);
 }
 
-function delProveedor(i){
-  if(!confirm('¿Eliminar proveedor "'+proveedoresList[i]+'"?')) return;
+async function delProveedor(i){
+  if(!await confirmModal('¿Eliminar proveedor "'+proveedoresList[i]+'"?')) return;
   proveedoresList.splice(i,1);
   fbSave('proveedoresList', proveedoresList);
   renderProvTags();
@@ -2104,7 +2173,7 @@ function showToast(msg){
   clearTimeout(t._timer);
   t._timer=setTimeout(()=>{ t.style.opacity='0'; },3500);
 }
-function delC(type,i){ if(!confirm('¿Eliminar esta orden?')) return; getArr(type).splice(i,1); renderCompras(type); updateKpiCompras(); }
+async function delC(type,i){ if(!await confirmModal('¿Eliminar esta orden?')) return; getArr(type).splice(i,1); renderCompras(type); updateKpiCompras(); }
 function updateKpiCompras(){
   const pend=[...comprasFlore,...comprasJard].filter(c=>c.estado!=='recibido').length;
   const el=document.getElementById('kpi-compras-pend');
@@ -2433,9 +2502,9 @@ function renderCarritoOps(){
   document.getElementById('cot-ops-total').textContent = '$'+total.toLocaleString('es-AR');
 }
 
-function limpiarCarritoOps(){
+async function limpiarCarritoOps(){
   if(!cotCarritoOps.length) return;
-  if(!confirm('¿Limpiar la selección?')) return;
+  if(!await confirmModal('¿Limpiar la selección?')) return;
   cotCarritoOps = [];
   renderCarritoOps();
 }
@@ -2569,9 +2638,9 @@ function renderCarrito(){
   document.getElementById('cot-precio-final').textContent  = '$'+precioFinal.toLocaleString('es-AR');
 }
 
-function limpiarCarrito(){
+async function limpiarCarrito(){
   if(!cotizadorCarrito.length) return;
-  if(!confirm('¿Limpiar el carrito?')) return;
+  if(!await confirmModal('¿Limpiar el carrito?')) return;
   cotizadorCarrito = [];
   renderCarrito();
 }
@@ -2674,8 +2743,8 @@ function updTipoEvento(i, field, val){
   renderCotEventos();
 }
 
-function delTipoEvento(i){
-  if(!confirm('¿Eliminar tipo "'+eventoPricing.tipos[i].nombre+'"?')) return;
+async function delTipoEvento(i){
+  if(!await confirmModal('¿Eliminar tipo "'+eventoPricing.tipos[i].nombre+'"?')) return;
   eventoPricing.tipos.splice(i,1);
   fbSave('eventoPricing', eventoPricing);
   renderEvTipos();
@@ -2966,7 +3035,7 @@ function changeEventoEstado(i,val){
 // openEventModal defined in recetas section
 // saveEvent defined in recetas section
 
-function deleteEvento(i){ if(!confirm('¿Eliminar este evento?')) return; eventosData.splice(i,1); renderEventos(); renderHome(); }
+async function deleteEvento(i){ if(!await confirmModal('¿Eliminar este evento?')) return; eventosData.splice(i,1); renderEventos(); renderHome(); }
 
 // ── Productividad por operario ────────────────────────────────────────────────
 function fmtMin(min){
@@ -3505,7 +3574,7 @@ function addSale(){
   closeModal('sale-modal');
   renderVentas();
 }
-function delVenta(i){ if(!confirm('¿Eliminar esta venta?')) return; ventasData.splice(i,1); fbSave('ventasData',ventasData); renderVentas(); }
+async function delVenta(i){ if(!await confirmModal('¿Eliminar esta venta?')) return; ventasData.splice(i,1); fbSave('ventasData',ventasData); renderVentas(); }
 
 // ════════════════════════════════════════
 // DATA — CAJA
@@ -3574,7 +3643,7 @@ function addCajaMovimiento(){
   closeModal('caja-modal');
   renderCaja();
 }
-function delCaja(i){ if(!confirm('¿Eliminar este movimiento?')) return; cajaData.splice(i,1); fbSave('cajaData',cajaData); renderCaja(); }
+async function delCaja(i){ if(!await confirmModal('¿Eliminar este movimiento?')) return; cajaData.splice(i,1); fbSave('cajaData',cajaData); renderCaja(); }
 
 // ── CIERRE DE CAJA DIARIO ─────────────────────────────────────────────────────
 let cierresCajaData = [];
@@ -3584,11 +3653,11 @@ function cierresCajaDelDia(fecha){
   return cajaData.filter(r => (r.fecha||'') === fecha);
 }
 
-function cerrarCajaDia(){
+async function cerrarCajaDia(){
   const fecha = document.getElementById('cierre-fecha')?.value || TODAY_ISO;
   const movsDia = cierresCajaDelDia(fecha);
   if(!movsDia.length){ showToast('⚠️ No hay movimientos para esa fecha'); return; }
-  if(!confirm(`¿Cerrar caja del ${fmtDate(fecha)}? Se archivará el resumen del día.`)) return;
+  if(!await confirmModal(`¿Cerrar caja del ${fmtDate(fecha)}? Se archivará el resumen del día.`)) return;
 
   let totalIn = 0, totalEg = 0;
   movsDia.forEach(r => { if(r.tipo==='ingreso') totalIn+=r.monto; else totalEg+=r.monto; });
@@ -3881,8 +3950,8 @@ function guardarGaleria(idx){
 
 function editarGaleria(idx){ openGaleriaModal(idx); }
 
-function eliminarGaleria(idx){
-  if(!confirm('¿Eliminar este trabajo de la galería?')) return;
+async function eliminarGaleria(idx){
+  if(!await confirmModal('¿Eliminar este trabajo de la galería?')) return;
   galeriaData.splice(idx,1);
   fbSave('galeriaData', galeriaData);
   renderGaleria();
@@ -4051,7 +4120,7 @@ function recepUncheckAll(){
   renderRecepcionPedidos();
 }
 
-function recepConfirmarTodo(){
+async function recepConfirmarTodo(){
   const pending = comprasFlore
     .map((c,i) => ({...c, _idx: i}))
     .filter(c => c.estado !== 'recibido');
@@ -4066,7 +4135,7 @@ function recepConfirmarTodo(){
   }, 0);
   msg += `\n\n📊 Total a ingresar al stock: ${totalVarasGlobal} varas.`;
   msg += '\n\nEl stock se actualizará y los ítems desaparecerán de esta lista.';
-  if(!confirm(msg)) return;
+  if(!await confirmModal(msg)) return;
   toConfirm.forEach(o => {
     const st = recepState[o._idx];
     const paqRec = parseFloat(st.paqRecibidos) || 0;
@@ -4512,8 +4581,8 @@ function saveRecordatorio(){
   renderRecordatoriosJard();
 }
 
-function deleteRecordatorio(idx){
-  if(!confirm('¿Eliminar este recordatorio?')) return;
+async function deleteRecordatorio(idx){
+  if(!await confirmModal('¿Eliminar este recordatorio?')) return;
   jardRecordatorios.splice(idx,1);
   fbSave('jardRecordatorios', jardRecordatorios);
   renderRecordatoriosJard();
@@ -5940,8 +6009,8 @@ function saveRamo(){
   reader.readAsDataURL(file);
 }
 
-function delRamo(i){
-  if(!confirm('¿Quitar este ramo de disponibles? (no registra venta)')) return;
+async function delRamo(i){
+  if(!await confirmModal('¿Quitar este ramo de disponibles? (no registra venta)')) return;
   ramosDispData.splice(i,1);
   fbSave('ramosDispData', ramosDispData);
   renderRamosDisp();
@@ -6792,8 +6861,8 @@ function updPedidoHabEstado(i, val){
   renderPedidosHab();
 }
 
-function delPedidoHab(i){
-  if(!confirm('¿Eliminar este pedido?')) return;
+async function delPedidoHab(i){
+  if(!await confirmModal('¿Eliminar este pedido?')) return;
   pedidosHabData.splice(i,1);
   fbSave('pedidosHabData', pedidosHabData);
   renderPedidosHab();
@@ -6903,15 +6972,15 @@ function renderListaPrecios(){
 
 function lpUpdItem(ci,ii,field,val){ listaPreciosData[ci].items[ii][field]=val; fbSave('listaPreciosData',listaPreciosData); }
 
-function lpDelItem(ci,ii){
-  if(!confirm('¿Eliminar este ítem?')) return;
+async function lpDelItem(ci,ii){
+  if(!await confirmModal('¿Eliminar este ítem?')) return;
   listaPreciosData[ci].items.splice(ii,1);
   fbSave('listaPreciosData',listaPreciosData);
   renderListaPrecios();
 }
 
-function lpDelCat(ci){
-  if(!confirm('¿Eliminar la categoría "'+listaPreciosData[ci].cat+'" y todos sus ítems?')) return;
+async function lpDelCat(ci){
+  if(!await confirmModal('¿Eliminar la categoría "'+listaPreciosData[ci].cat+'" y todos sus ítems?')) return;
   listaPreciosData.splice(ci,1);
   fbSave('listaPreciosData',listaPreciosData);
   renderListaPrecios();
@@ -8045,12 +8114,12 @@ function resetearPassword(key){
   openGestionPasswords(); // refrescar modal
 }
 
-function eliminarUsuario(key){
+async function eliminarUsuario(key){
   if(userRole !== 'gerencia') return;
   const entry = loginPasswords[key];
   if(!entry) return;
   if(entry.role !== 'florista'){ showToast('⚠️ Solo se pueden eliminar usuarios floristas'); return; }
-  if(!confirm('¿Eliminar al usuario ' + (entry.label||key) + '?\nYa no podrá ingresar al sistema.')) return;
+  if(!await confirmModal('¿Eliminar al usuario ' + (entry.label||key) + '?\nYa no podrá ingresar al sistema.')) return;
   // Quitar de responsables
   const idx = CL_RESP_OPTS.indexOf(entry.floristaNombre);
   if(idx > -1) CL_RESP_OPTS.splice(idx, 1);
@@ -8060,9 +8129,9 @@ function eliminarUsuario(key){
   openGestionPasswords();
 }
 
-function resetearTodasPasswords(){
+async function resetearTodasPasswords(){
   if(userRole !== 'gerencia') return;
-  if(!confirm('¿Resetear TODAS las contraseñas a los valores originales?\n\nAlvear, Duhau, Caro, etc. volverán a ser las contraseñas.')) return;
+  if(!await confirmModal('¿Resetear TODAS las contraseñas a los valores originales?\n\nAlvear, Duhau, Caro, etc. volverán a ser las contraseñas.')) return;
   loginPasswords = JSON.parse(JSON.stringify(LOGIN_DEFAULTS));
   fbSave('loginPasswords', loginPasswords);
   showToast('🔄 Todas las contraseñas reseteadas a valores originales');
@@ -8491,8 +8560,8 @@ function saveReceta(){
   renderRecetas();
 }
 
-function delReceta(i){
-  if(!confirm('¿Eliminar esta receta?')) return;
+async function delReceta(i){
+  if(!await confirmModal('¿Eliminar esta receta?')) return;
   recetasData.splice(i,1);
   fbSave('recetasData', recetasData);
   renderRecetas();
@@ -9203,8 +9272,8 @@ function toggleSucursalActiva(idx,val){
   renderSucursalSelector();
 }
 
-function eliminarSucursal(idx){
-  if(!confirm('¿Eliminar esta sucursal? Los datos históricos no se borran.')) return;
+async function eliminarSucursal(idx){
+  if(!await confirmModal('¿Eliminar esta sucursal? Los datos históricos no se borran.')) return;
   sucursalesConfig.splice(idx,1);
   fbSave('sucursalesConfig', sucursalesConfig);
   renderSucursales();
@@ -9372,8 +9441,8 @@ function guardarCliente(){
   showToast(idx>=0?'✅ Cliente actualizado':'✅ Cliente registrado');
 }
 
-function eliminarCliente(idx){
-  if(!confirm('¿Eliminar este cliente?')) return;
+async function eliminarCliente(idx){
+  if(!await confirmModal('¿Eliminar este cliente?')) return;
   clientesData.splice(idx,1);
   fbSave('clientesData', clientesData);
   closeModal('ficha-cliente-modal');
@@ -9877,8 +9946,8 @@ function guardarProveedor(idx){
   showToast('✅ Proveedor guardado');
 }
 
-function eliminarProveedor(idx){
-  if(!confirm('¿Eliminar este proveedor?')) return;
+async function eliminarProveedor(idx){
+  if(!await confirmModal('¿Eliminar este proveedor?')) return;
   const list = [...(window.proveedoresList||[])];
   list.splice(idx,1);
   window.proveedoresList = list;
@@ -10131,8 +10200,8 @@ function guardarLegajo(){
   showToast('Empleado guardado');
 }
 
-function eliminarLegajo(idx){
-  if(!confirm('¿Eliminar este empleado del legajo?')) return;
+async function eliminarLegajo(idx){
+  if(!await confirmModal('¿Eliminar este empleado del legajo?')) return;
   legajoData.splice(idx,1);
   fbSave('legajoData', legajoData);
   renderLegajo();
@@ -10251,8 +10320,8 @@ function guardarEvaluacion(){
   showToast('Evaluación guardada');
 }
 
-function eliminarEvaluacion(idx){
-  if(!confirm('¿Eliminar esta evaluación?')) return;
+async function eliminarEvaluacion(idx){
+  if(!await confirmModal('¿Eliminar esta evaluación?')) return;
   evaluacionesData.splice(idx,1);
   fbSave('evaluacionesData', evaluacionesData);
   renderEvaluaciones();
@@ -10786,9 +10855,9 @@ function cambiarEstadoPres(idx, estado){
   showToast('Estado actualizado');
 }
 
-function eliminarPresupuesto(idx){
+async function eliminarPresupuesto(idx){
   if(idx<0 || !presupuestosData[idx]) return;
-  if(!confirm('¿Eliminar este presupuesto?')) return;
+  if(!await confirmModal('¿Eliminar este presupuesto?')) return;
   presupuestosData.splice(idx, 1);
   fbSave('presupuestosData', presupuestosData);
   renderPresupuestos();
@@ -10999,9 +11068,9 @@ function renderPedidosRamos(){
   }).join('');
 }
 
-function eliminarPedidoRamo(i){
+async function eliminarPedidoRamo(i){
   if(i<0 || !ventasData[i]) return;
-  if(!confirm('¿Eliminar este pedido?')) return;
+  if(!await confirmModal('¿Eliminar este pedido?')) return;
   ventasData.splice(i,1);
   fbSave('ventasData', ventasData);
   renderPedidosRamos();
@@ -11179,9 +11248,9 @@ function guardarEsf(){
   showToast('✅ Evento guardado');
 }
 
-function eliminarEsf(idx){
+async function eliminarEsf(idx){
   if(idx<0 || !eventosSinFloreria[idx]) return;
-  if(!confirm('¿Eliminar este registro de evento sin florería?')) return;
+  if(!await confirmModal('¿Eliminar este registro de evento sin florería?')) return;
   eventosSinFloreria.splice(idx,1);
   fbSave('eventosSinFloreria', eventosSinFloreria);
   renderEventosSinFloreria();
@@ -11284,7 +11353,7 @@ function renderCierreMensual(){
     </div>`).join('');
 }
 
-function generarCierreMensual(){
+async function generarCierreMensual(){
   const mes = document.getElementById('cierre-mes-sel')?.value || CURR_MONTH;
   const ventas = (ventasData||[]).filter(v=>v.fecha&&v.fecha.startsWith(mes));
   const totalVentas = ventas.reduce((s,v)=>s+parseMoney(v.monto||v.total||0),0);
@@ -11307,7 +11376,7 @@ function generarCierreMensual(){
   };
   const existing = cierresMensualesData.findIndex(c=>c.mes===mes);
   if(existing>=0){
-    if(!confirm(`Ya existe un cierre para ${fmtMonth(mes)}. ¿Reemplazarlo?`)) return;
+    if(!await confirmModal(`Ya existe un cierre para ${fmtMonth(mes)}. ¿Reemplazarlo?`)) return;
     cierresMensualesData[existing] = cierre;
   } else {
     cierresMensualesData.push(cierre);
