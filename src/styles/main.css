@@ -403,6 +403,13 @@
   .form-label { font-size:9.5px; letter-spacing:1.5px; text-transform:uppercase; color:var(--mid-gray); font-weight:600; margin-bottom:5px; display:block; }
   .modal-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
 
+  /* ── MODAL DE CONFIRMACIÓN ── */
+  .confirm-modal { width:420px; padding:28px 30px; }
+  .confirm-modal .modal-title { margin-bottom:12px; }
+  .confirm-modal-msg { font-family:'DM Sans',sans-serif; font-size:14px; line-height:1.5; color:var(--charcoal); white-space:pre-line; }
+  .btn-add.btn-danger { background:var(--red-alert); box-shadow:0 2px 8px rgba(176,48,32,.25); }
+  .btn-add.btn-danger:hover { background:#9A2818; box-shadow:0 4px 14px rgba(176,48,32,.32); }
+
   /* ── TABLE WRAPPER ── */
   .table-wrapper { overflow-x:auto; border-radius:var(--radius-md); border:1px solid rgba(228,226,220,.8); box-shadow:var(--shadow-sm); }
   .table-wrapper table { border:none; }

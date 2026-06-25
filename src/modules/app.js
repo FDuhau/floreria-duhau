@@ -216,7 +216,17 @@ const BOTTOM_NAV_ITEMS = {
 function renderBottomNav(role) {
   const nav = document.getElementById('bottom-nav');
   if(!nav) return;
-  const items = BOTTOM_NAV_ITEMS[role] || [];
+  let items = BOTTOM_NAV_ITEMS[role] || [];
+  // Florista que también es jardinero (ej. Ivan): barra combinada de ambos mundos
+  if(role === 'florista' && jardineroNombre){
+    items = [
+      {icon:'🏠',label:'Inicio',page:'home'},
+      {icon:'📋',label:'Checklist',page:'checklist'},
+      {icon:'🎉',label:'Eventos',page:'eventos-maison'},
+      {icon:'🌿',label:'Jardín',page:'jardineria-ops'},
+      {icon:'🏡',label:'Habitac.',page:'hab-ops'},
+    ];
+  }
   nav.innerHTML = items.map(it =>
     `<div class="bottom-nav-item" data-page="${it.page}" onclick="navigate('${it.page}',null);updateBottomNav('${it.page}')">
       <span class="bottom-nav-icon">${it.icon}</span>
@@ -341,6 +351,186 @@ function navigate(pageId, navEl){
 
 function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 document.querySelectorAll('.modal-overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');}));
+
+// ════════════════════════════════════════
+// CONFIRMACIÓN ESTILADA (reemplaza a confirm() nativo)
+// Devuelve una Promesa<boolean>. Uso: if(!await confirmModal('¿Borrar?')) return;
+// Respeta \n en el mensaje (white-space:pre-line). Si el texto sugiere una
+// acción destructiva (Eliminar/Borrar/Quitar/Limpiar/Resetear), el botón
+// principal se pinta en rojo.
+// ════════════════════════════════════════
+function confirmModal(message, opts){
+  opts = opts || {};
+  const danger = opts.danger != null
+    ? opts.danger
+    : /eliminar|borrar|quitar|limpiar|resetear|reemplaza/i.test(message || '');
+  const title    = opts.title    || (danger ? 'Confirmar' : 'Confirmar');
+  const okText   = opts.okText   || 'Confirmar';
+  const cancelText = opts.cancelText || 'Cancelar';
+
+  return new Promise(resolve => {
+    let ov = document.getElementById('confirm-modal-overlay');
+    if(!ov){
+      ov = document.createElement('div');
+      ov.id = 'confirm-modal-overlay';
+      ov.className = 'modal-overlay';
+      ov.innerHTML =
+        '<div class="modal confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="confirm-modal-title" aria-describedby="confirm-modal-msg">' +
+          '<div class="modal-title" id="confirm-modal-title"></div>' +
+          '<div class="confirm-modal-msg" id="confirm-modal-msg"></div>' +
+          '<div class="modal-actions">' +
+            '<button type="button" class="btn-secondary" id="confirm-modal-cancel"></button>' +
+            '<button type="button" class="btn-add" id="confirm-modal-ok"></button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(ov);
+    }
+    const titleEl  = ov.querySelector('#confirm-modal-title');
+    const msgEl    = ov.querySelector('#confirm-modal-msg');
+    const okBtn    = ov.querySelector('#confirm-modal-ok');
+    const cancelBtn= ov.querySelector('#confirm-modal-cancel');
+
+    titleEl.textContent  = title;
+    msgEl.textContent    = message || '';
+    okBtn.textContent    = okText;
+    cancelBtn.textContent= cancelText;
+    okBtn.classList.toggle('btn-danger', !!danger);
+
+    const prevFocus = document.activeElement;
+    function cleanup(result){
+      ov.classList.remove('open');
+      document.removeEventListener('keydown', onKey, true);
+      okBtn.onclick = cancelBtn.onclick = ov.onclick = null;
+      if(prevFocus && prevFocus.focus){ try{ prevFocus.focus(); }catch(e){} }
+      resolve(result);
+    }
+    function onKey(e){
+      // Escape cancela. Enter actúa sobre el botón con foco (comportamiento nativo),
+      // por eso no lo interceptamos: así evitamos confirmar sin querer.
+      if(e.key === 'Escape'){ e.preventDefault(); cleanup(false); }
+    }
+    okBtn.onclick     = () => cleanup(true);
+    cancelBtn.onclick = () => cleanup(false);
+    ov.onclick        = e => { if(e.target === ov) cleanup(false); };
+    document.addEventListener('keydown', onKey, true);
+
+    ov.classList.add('open');
+    // Foco en "Cancelar" por seguridad (evita borrados accidentales con Enter doble)
+    setTimeout(() => { try{ cancelBtn.focus(); }catch(e){} }, 30);
+  });
+}
+window.confirmModal = confirmModal;
+
+// ════════════════════════════════════════
+// AVISO ESTILADO (reemplaza a alert() de información)
+// Modal de un solo botón. Devuelve Promise que resuelve al cerrar.
+// Para errores de validación cortos preferí showToast(msg,'error').
+// ════════════════════════════════════════
+function alertModal(message, opts){
+  opts = opts || {};
+  const title  = opts.title  || 'Aviso';
+  const okText = opts.okText || 'Entendido';
+  return new Promise(resolve => {
+    let ov = document.getElementById('alert-modal-overlay');
+    if(!ov){
+      ov = document.createElement('div');
+      ov.id = 'alert-modal-overlay';
+      ov.className = 'modal-overlay';
+      ov.innerHTML =
+        '<div class="modal confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="alert-modal-title" aria-describedby="alert-modal-msg">' +
+          '<div class="modal-title" id="alert-modal-title"></div>' +
+          '<div class="confirm-modal-msg" id="alert-modal-msg"></div>' +
+          '<div class="modal-actions">' +
+            '<button type="button" class="btn-add" id="alert-modal-ok"></button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(ov);
+    }
+    ov.querySelector('#alert-modal-title').textContent = title;
+    ov.querySelector('#alert-modal-msg').textContent   = message || '';
+    const okBtn = ov.querySelector('#alert-modal-ok');
+    okBtn.textContent = okText;
+    const prevFocus = document.activeElement;
+    function cleanup(){
+      ov.classList.remove('open');
+      document.removeEventListener('keydown', onKey, true);
+      okBtn.onclick = ov.onclick = null;
+      if(prevFocus && prevFocus.focus){ try{ prevFocus.focus(); }catch(e){} }
+      resolve();
+    }
+    function onKey(e){ if(e.key === 'Escape' || e.key === 'Enter'){ e.preventDefault(); cleanup(); } }
+    okBtn.onclick = cleanup;
+    ov.onclick = e => { if(e.target === ov) cleanup(); };
+    document.addEventListener('keydown', onKey, true);
+    ov.classList.add('open');
+    setTimeout(() => { try{ okBtn.focus(); }catch(e){} }, 30);
+  });
+}
+window.alertModal = alertModal;
+
+// ════════════════════════════════════════
+// INPUT ESTILADO (reemplaza a prompt() nativo)
+// Devuelve Promise<string|null>: el texto al aceptar, null al cancelar.
+// opts: { title, okText, cancelText, default, password, placeholder }
+// password se autodetecta si el mensaje menciona "contraseña".
+// ════════════════════════════════════════
+function promptModal(message, opts){
+  opts = opts || {};
+  const isPw = opts.password != null ? opts.password : /contraseña|password/i.test(message || '');
+  const title    = opts.title    || 'Ingresá un dato';
+  const okText   = opts.okText   || 'Aceptar';
+  const cancelText = opts.cancelText || 'Cancelar';
+  const def      = opts.default != null ? String(opts.default) : '';
+  return new Promise(resolve => {
+    let ov = document.getElementById('prompt-modal-overlay');
+    if(!ov){
+      ov = document.createElement('div');
+      ov.id = 'prompt-modal-overlay';
+      ov.className = 'modal-overlay';
+      ov.innerHTML =
+        '<div class="modal confirm-modal" role="dialog" aria-modal="true" aria-labelledby="prompt-modal-title">' +
+          '<div class="modal-title" id="prompt-modal-title"></div>' +
+          '<div class="confirm-modal-msg" id="prompt-modal-msg"></div>' +
+          '<input type="text" class="form-input-modal" id="prompt-modal-input" style="margin-top:12px">' +
+          '<div class="modal-actions">' +
+            '<button type="button" class="btn-secondary" id="prompt-modal-cancel"></button>' +
+            '<button type="button" class="btn-add" id="prompt-modal-ok"></button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(ov);
+    }
+    ov.querySelector('#prompt-modal-title').textContent = title;
+    const msgEl = ov.querySelector('#prompt-modal-msg');
+    msgEl.textContent = message || '';
+    msgEl.style.display = message ? '' : 'none';
+    const input    = ov.querySelector('#prompt-modal-input');
+    const okBtn    = ov.querySelector('#prompt-modal-ok');
+    const cancelBtn= ov.querySelector('#prompt-modal-cancel');
+    input.type = isPw ? 'password' : 'text';
+    input.value = def;
+    input.placeholder = opts.placeholder || '';
+    okBtn.textContent = okText;
+    cancelBtn.textContent = cancelText;
+
+    const prevFocus = document.activeElement;
+    function cleanup(result){
+      ov.classList.remove('open');
+      document.removeEventListener('keydown', onKey, true);
+      okBtn.onclick = cancelBtn.onclick = ov.onclick = input.onkeydown = null;
+      if(prevFocus && prevFocus.focus){ try{ prevFocus.focus(); }catch(e){} }
+      resolve(result);
+    }
+    function onKey(e){ if(e.key === 'Escape'){ e.preventDefault(); cleanup(null); } }
+    input.onkeydown = e => { if(e.key === 'Enter'){ e.preventDefault(); cleanup(input.value); } };
+    okBtn.onclick     = () => cleanup(input.value);
+    cancelBtn.onclick = () => cleanup(null);
+    ov.onclick        = e => { if(e.target === ov) cleanup(null); };
+    document.addEventListener('keydown', onKey, true);
+    ov.classList.add('open');
+    setTimeout(() => { try{ input.focus(); input.select(); }catch(e){} }, 30);
+  });
+}
+window.promptModal = promptModal;
 
 // ════════════════════════════════════════
 // DATA — CHECKLIST
@@ -553,9 +743,9 @@ function initChecklist(){
   const _htc = document.getElementById('home-tasks-count'); if(_htc) _htc.textContent = CL_TASKS.length;
 }
 
-function resetWeekState(){
+async function resetWeekState(){
   if(userRole !== 'gerencia'){ showToast('⛔ Solo gerencia puede limpiar la semana'); return; }
-  if(!confirm('¿Limpiar todas las tareas de esta semana? El historial se conserva.')) return;
+  if(!await confirmModal('¿Limpiar todas las tareas de esta semana? El historial se conserva.')) return;
   clStateByDay = {};
   fbSave('checklist', clStateByDay); // Limpiar TODOS los días de Firebase
   clState = getOrCreateDayState(currentDay);
@@ -976,11 +1166,11 @@ function showAlertaHorario(msg){
   overlay.onclick = (e) => { if(e.target === overlay) overlay.remove(); };
 }
 
-function resetHora(i, campo){
+async function resetHora(i, campo){
   if(!clState) return;
   // Si se borra el Inicio y ya hay Fin, también borrar el Fin para mantener consistencia
   if(campo === 'inicio' && clState.fin?.[i]){
-    if(!confirm('¿Borrar el horario de Inicio?\nEsto también borrará el Fin registrado (' + clState.fin[i] + ') para mantener la consistencia.')){
+    if(!await confirmModal('¿Borrar el horario de Inicio?\nEsto también borrará el Fin registrado (' + clState.fin[i] + ') para mantener la consistencia.')){
       return;
     }
     clState.fin[i] = '';
@@ -1045,7 +1235,7 @@ function toggleTask(i, el){
 }
 
 
-function confirmResetWeek(){
+async function confirmResetWeek(){
   if(userRole !== 'gerencia'){ showToast('⛔ Solo gerencia puede realizar esta acción'); return; }
   const toArr = v => Array.isArray(v) ? v : (v ? Object.values(v) : []);
   let done = 0;
@@ -1053,7 +1243,7 @@ function confirmResetWeek(){
   const msg = done>0
     ? `¿Cerrar la semana y empezar nueva?\nSe archivarán ${done} tareas completadas en el historial y la checklist quedará limpia.`
     : '¿Iniciar nueva semana? La checklist quedará limpia.';
-  if(!confirm(msg)) return;
+  if(!await confirmModal(msg)) return;
   // Archive any checked tasks not yet saved to history
   const now = new Date();
   ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'].forEach(day=>{
@@ -1279,10 +1469,10 @@ function setStockMax(i,v){
   fbSave('stockData', stockData);
   renderStockAdmin();
 }
-function delStock(i){
+async function delStock(i){
   const item = stockData[i];
   if(!item) return;
-  if(!confirm('¿Eliminar "'+item.prod+'" del stock?\nEsto lo quita de la lista por completo.')) return;
+  if(!await confirmModal('¿Eliminar "'+item.prod+'" del stock?\nEsto lo quita de la lista por completo.')) return;
   stockData.splice(i,1);
   fbSave('stockData', stockData);
   renderStock();
@@ -1578,8 +1768,8 @@ function saveKanbanTask(){
   renderKanban();
 }
 
-function removeKanbanCard(ci,i){
-  if(!confirm('¿Eliminar esta tarea?')) return;
+async function removeKanbanCard(ci,i){
+  if(!await confirmModal('¿Eliminar esta tarea?')) return;
   kanbanData[ci].cards.splice(i,1);
   fbSave('kanbanData', kanbanData);
   renderKanban();
@@ -1619,9 +1809,9 @@ function populateFloreriaFormHelpers(){
     sec.innerHTML = '<option value="">— Seleccionar área —</option>' +
       HOTEL_SECCIONES.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('') +
       '<option value="__otra__">✏️ Otra (escribir)...</option>';
-    sec.onchange = function(){
+    sec.onchange = async function(){
       if(this.value === '__otra__'){
-        const custom = prompt('Escribí el área / uso:');
+        const custom = await promptModal('Escribí el área / uso:', { title: 'Área / uso' });
         if(custom && custom.trim()){
           const opt = document.createElement('option');
           opt.value = custom.trim(); opt.textContent = custom.trim();
@@ -1671,7 +1861,7 @@ function copiarUltimoPedido(type){
 function addCompra(type){
   const p=type==='floreria'?'cf':'cj';
   const prod=document.getElementById(p+'-producto').value.trim();
-  if(!prod){alert('Ingresá el producto.');return;}
+  if(!prod){showToast('Ingresá el producto.','error');return;}
   getArr(type).unshift({
     fecha:document.getElementById(p+'-fecha').value||TODAY_ISO,
     pedidopor:document.getElementById(p+'-pedidopor').value||'—',
@@ -1968,12 +2158,12 @@ function renderHistorialCompras(){
   wrap.innerHTML = html;
 }
 
-function copiarBloquePedido(type, fecha){
+async function copiarBloquePedido(type, fecha){
   const arr = getArr(type);
   // Tomar todos los ítems de esa fecha (incluyendo recibidos, para replicar el pedido completo)
   const bloque = arr.filter(r => r.fecha === fecha);
   if(!bloque.length){ showToast('⚠️ No se encontraron ítems para esa fecha'); return; }
-  if(!confirm('¿Copiar el pedido del ' + fmtDate(fecha) + ' (' + bloque.length + ' ítems) con fecha de hoy?\nPodés modificar cantidades después.')) return;
+  if(!await confirmModal('¿Copiar el pedido del ' + fmtDate(fecha) + ' (' + bloque.length + ' ítems) con fecha de hoy?\nPodés modificar cantidades después.')) return;
   // Clonar cada ítem con fecha de hoy y estado 'pedido'
   const nuevos = bloque.map(r => ({
     fecha: TODAY_ISO,
@@ -2022,8 +2212,8 @@ function addProveedor(){
   showToast('✅ Proveedor agregado: ' + val);
 }
 
-function delProveedor(i){
-  if(!confirm('¿Eliminar proveedor "'+proveedoresList[i]+'"?')) return;
+async function delProveedor(i){
+  if(!await confirmModal('¿Eliminar proveedor "'+proveedoresList[i]+'"?')) return;
   proveedoresList.splice(i,1);
   fbSave('proveedoresList', proveedoresList);
   renderProvTags();
@@ -2091,20 +2281,21 @@ function updC(type,i,field,val){
   renderCompras(type);
 }
 
-function showToast(msg){
+function showToast(msg, type){
+  const COLORS = { info:'var(--sage-dark)', success:'#4A7A3A', error:'var(--red-alert)', warn:'#9A6A1E' };
   let t = document.getElementById('global-toast');
   if(!t){
     t = document.createElement('div');
     t.id='global-toast';
-    t.style.cssText='position:fixed;bottom:32px;left:50%;transform:translateX(-50%);background:var(--sage-dark);color:white;padding:12px 24px;border-radius:12px;font-size:13px;font-family:"Jost",sans-serif;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,.25);transition:opacity .4s;white-space:nowrap;';
     document.body.appendChild(t);
   }
+  t.style.cssText='position:fixed;bottom:32px;left:50%;transform:translateX(-50%);background:'+(COLORS[type]||COLORS.info)+';color:white;padding:12px 24px;border-radius:12px;font-size:13px;font-family:"Jost",sans-serif;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,.25);transition:opacity .4s;max-width:min(90vw,420px);text-align:center;line-height:1.4;white-space:pre-line;';
   t.textContent=msg;
   t.style.opacity='1';
   clearTimeout(t._timer);
-  t._timer=setTimeout(()=>{ t.style.opacity='0'; },3500);
+  t._timer=setTimeout(()=>{ t.style.opacity='0'; }, type==='error'?5000:3500);
 }
-function delC(type,i){ if(!confirm('¿Eliminar esta orden?')) return; getArr(type).splice(i,1); renderCompras(type); updateKpiCompras(); }
+async function delC(type,i){ if(!await confirmModal('¿Eliminar esta orden?')) return; getArr(type).splice(i,1); renderCompras(type); updateKpiCompras(); }
 function updateKpiCompras(){
   const pend=[...comprasFlore,...comprasJard].filter(c=>c.estado!=='recibido').length;
   const el=document.getElementById('kpi-compras-pend');
@@ -2433,9 +2624,9 @@ function renderCarritoOps(){
   document.getElementById('cot-ops-total').textContent = '$'+total.toLocaleString('es-AR');
 }
 
-function limpiarCarritoOps(){
+async function limpiarCarritoOps(){
   if(!cotCarritoOps.length) return;
-  if(!confirm('¿Limpiar la selección?')) return;
+  if(!await confirmModal('¿Limpiar la selección?')) return;
   cotCarritoOps = [];
   renderCarritoOps();
 }
@@ -2569,9 +2760,9 @@ function renderCarrito(){
   document.getElementById('cot-precio-final').textContent  = '$'+precioFinal.toLocaleString('es-AR');
 }
 
-function limpiarCarrito(){
+async function limpiarCarrito(){
   if(!cotizadorCarrito.length) return;
-  if(!confirm('¿Limpiar el carrito?')) return;
+  if(!await confirmModal('¿Limpiar el carrito?')) return;
   cotizadorCarrito = [];
   renderCarrito();
 }
@@ -2639,11 +2830,11 @@ function renderEvTipos(){
   }
 }
 
-function addReglaTipo(tipoIdx){
+async function addReglaTipo(tipoIdx){
   const nombres = recetasData.map(r=>r.nombre);
-  const arreglo = prompt('Nombre del arreglo (ej. Bochita, Pecera, Cuenco):\n\nDisponibles: ' + nombres.join(', '));
+  const arreglo = await promptModal('Nombre del arreglo (ej. Bochita, Pecera, Cuenco):\n\nDisponibles: ' + nombres.join(', '), { title: 'Agregar regla' });
   if(!arreglo || !arreglo.trim()) return;
-  const cadaPax = prompt('1 ' + arreglo.trim() + ' cada ¿cuántas personas?', '10');
+  const cadaPax = await promptModal('1 ' + arreglo.trim() + ' cada ¿cuántas personas?', { title: 'Agregar regla', default: '10' });
   if(!cadaPax || +cadaPax <= 0) return;
   if(!eventoPricing.tipos[tipoIdx].reglas) eventoPricing.tipos[tipoIdx].reglas = [];
   eventoPricing.tipos[tipoIdx].reglas.push({ arreglo: arreglo.trim(), cadaPax: +cadaPax });
@@ -2657,10 +2848,10 @@ function delReglaTipo(tipoIdx, reglaIdx){
   renderEvTipos();
 }
 
-function addTipoEvento(){
-  const nombre = prompt('Nombre del tipo de evento (ej. Social, Cocktail, Corporativo):');
+async function addTipoEvento(){
+  const nombre = await promptModal('Nombre del tipo de evento (ej. Social, Cocktail, Corporativo):', { title: 'Nuevo tipo de evento' });
   if(!nombre || !nombre.trim()) return;
-  const margen = prompt('Margen de ganancia para este tipo (%):', '40');
+  const margen = await promptModal('Margen de ganancia para este tipo (%):', { title: 'Nuevo tipo de evento', default: '40' });
   eventoPricing.tipos.push({ nombre: nombre.trim(), margen: parseInt(margen)||40 });
   fbSave('eventoPricing', eventoPricing);
   renderEvTipos();
@@ -2674,8 +2865,8 @@ function updTipoEvento(i, field, val){
   renderCotEventos();
 }
 
-function delTipoEvento(i){
-  if(!confirm('¿Eliminar tipo "'+eventoPricing.tipos[i].nombre+'"?')) return;
+async function delTipoEvento(i){
+  if(!await confirmModal('¿Eliminar tipo "'+eventoPricing.tipos[i].nombre+'"?')) return;
   eventoPricing.tipos.splice(i,1);
   fbSave('eventoPricing', eventoPricing);
   renderEvTipos();
@@ -2966,7 +3157,7 @@ function changeEventoEstado(i,val){
 // openEventModal defined in recetas section
 // saveEvent defined in recetas section
 
-function deleteEvento(i){ if(!confirm('¿Eliminar este evento?')) return; eventosData.splice(i,1); renderEventos(); renderHome(); }
+async function deleteEvento(i){ if(!await confirmModal('¿Eliminar este evento?')) return; eventosData.splice(i,1); renderEventos(); renderHome(); }
 
 // ── Productividad por operario ────────────────────────────────────────────────
 function fmtMin(min){
@@ -3421,10 +3612,10 @@ function populateSaleSelects(currentProd, currentAsignado){
   }
 }
 
-function saleAutoFillPrice(){
+async function saleAutoFillPrice(){
   const sel = document.getElementById('sale-prod');
   if(sel.value === '__otro__'){
-    const custom = prompt('Nombre del arreglo o ramo:');
+    const custom = await promptModal('Nombre del arreglo o ramo:', { title: 'Otro producto' });
     if(custom && custom.trim()){
       const opt = document.createElement('option');
       opt.value = custom.trim(); opt.textContent = custom.trim(); opt.selected = true;
@@ -3505,7 +3696,7 @@ function addSale(){
   closeModal('sale-modal');
   renderVentas();
 }
-function delVenta(i){ if(!confirm('¿Eliminar esta venta?')) return; ventasData.splice(i,1); fbSave('ventasData',ventasData); renderVentas(); }
+async function delVenta(i){ if(!await confirmModal('¿Eliminar esta venta?')) return; ventasData.splice(i,1); fbSave('ventasData',ventasData); renderVentas(); }
 
 // ════════════════════════════════════════
 // DATA — CAJA
@@ -3563,7 +3754,7 @@ function openCajaModal(){
 function addCajaMovimiento(){
   const desc=document.getElementById('cj-desc-caja').value.trim();
   const monto=parseFloat(document.getElementById('cj-monto').value)||0;
-  if(!desc||!monto){alert('Completá descripción y monto.');return;}
+  if(!desc||!monto){showToast('Completá descripción y monto.','error');return;}
   cajaData.push({
     fecha:document.getElementById('cj-fecha-caja').value||TODAY_ISO,
     desc, ticket:document.getElementById('cj-ticket').value,
@@ -3574,7 +3765,7 @@ function addCajaMovimiento(){
   closeModal('caja-modal');
   renderCaja();
 }
-function delCaja(i){ if(!confirm('¿Eliminar este movimiento?')) return; cajaData.splice(i,1); fbSave('cajaData',cajaData); renderCaja(); }
+async function delCaja(i){ if(!await confirmModal('¿Eliminar este movimiento?')) return; cajaData.splice(i,1); fbSave('cajaData',cajaData); renderCaja(); }
 
 // ── CIERRE DE CAJA DIARIO ─────────────────────────────────────────────────────
 let cierresCajaData = [];
@@ -3584,11 +3775,11 @@ function cierresCajaDelDia(fecha){
   return cajaData.filter(r => (r.fecha||'') === fecha);
 }
 
-function cerrarCajaDia(){
+async function cerrarCajaDia(){
   const fecha = document.getElementById('cierre-fecha')?.value || TODAY_ISO;
   const movsDia = cierresCajaDelDia(fecha);
   if(!movsDia.length){ showToast('⚠️ No hay movimientos para esa fecha'); return; }
-  if(!confirm(`¿Cerrar caja del ${fmtDate(fecha)}? Se archivará el resumen del día.`)) return;
+  if(!await confirmModal(`¿Cerrar caja del ${fmtDate(fecha)}? Se archivará el resumen del día.`)) return;
 
   let totalIn = 0, totalEg = 0;
   movsDia.forEach(r => { if(r.tipo==='ingreso') totalIn+=r.monto; else totalEg+=r.monto; });
@@ -3644,8 +3835,8 @@ function toggleCierreDetalle(ts){
   // Mostrar detalle de movimientos en un toast/alert simple
   const cierre = cierresCajaData.find(c => c.ts === ts);
   if(!cierre) return;
-  const lines = (cierre.movimientos||[]).map(m => `  ${m.tipo==='ingreso'?'💚':'🔴'} ${m.desc}: $${m.monto.toLocaleString('es-AR')}`).join('\n');
-  alert(`Cierre ${fmtDate(cierre.fecha)}\n\n${lines}\n\nSaldo: $${cierre.saldo.toLocaleString('es-AR')}`);
+  const lines = (cierre.movimientos||[]).map(m => `${m.tipo==='ingreso'?'💚':'🔴'} ${m.desc}: $${m.monto.toLocaleString('es-AR')}`).join('\n');
+  alertModal(`${lines}\n\nSaldo: $${cierre.saldo.toLocaleString('es-AR')}`, { title: 'Cierre ' + fmtDate(cierre.fecha) });
 }
 
 // ════════════════════════════════════════
@@ -3881,8 +4072,8 @@ function guardarGaleria(idx){
 
 function editarGaleria(idx){ openGaleriaModal(idx); }
 
-function eliminarGaleria(idx){
-  if(!confirm('¿Eliminar este trabajo de la galería?')) return;
+async function eliminarGaleria(idx){
+  if(!await confirmModal('¿Eliminar este trabajo de la galería?')) return;
   galeriaData.splice(idx,1);
   fbSave('galeriaData', galeriaData);
   renderGaleria();
@@ -4051,12 +4242,12 @@ function recepUncheckAll(){
   renderRecepcionPedidos();
 }
 
-function recepConfirmarTodo(){
+async function recepConfirmarTodo(){
   const pending = comprasFlore
     .map((c,i) => ({...c, _idx: i}))
     .filter(c => c.estado !== 'recibido');
   const toConfirm = pending.filter(o => recepState[o._idx]?.checked);
-  if(toConfirm.length === 0){ alert('Marcá al menos un ítem.'); return; }
+  if(toConfirm.length === 0){ showToast('Marcá al menos un ítem.','error'); return; }
   const parciales = toConfirm.filter(o => parseFloat(recepState[o._idx].paqRecibidos) < parseFloat(o.qty));
   let msg = `¿Confirmar recepción de ${toConfirm.length} ítem${toConfirm.length>1?'s':''}?`;
   if(parciales.length > 0) msg += `\n\n⚠️ ${parciales.length} ítem${parciales.length>1?'s':''}con faltantes en paquetes — reclamar al proveedor.`;
@@ -4066,7 +4257,7 @@ function recepConfirmarTodo(){
   }, 0);
   msg += `\n\n📊 Total a ingresar al stock: ${totalVarasGlobal} varas.`;
   msg += '\n\nEl stock se actualizará y los ítems desaparecerán de esta lista.';
-  if(!confirm(msg)) return;
+  if(!await confirmModal(msg)) return;
   toConfirm.forEach(o => {
     const st = recepState[o._idx];
     const paqRec = parseFloat(st.paqRecibidos) || 0;
@@ -4512,8 +4703,8 @@ function saveRecordatorio(){
   renderRecordatoriosJard();
 }
 
-function deleteRecordatorio(idx){
-  if(!confirm('¿Eliminar este recordatorio?')) return;
+async function deleteRecordatorio(idx){
+  if(!await confirmModal('¿Eliminar este recordatorio?')) return;
   jardRecordatorios.splice(idx,1);
   fbSave('jardRecordatorios', jardRecordatorios);
   renderRecordatoriosJard();
@@ -5940,8 +6131,8 @@ function saveRamo(){
   reader.readAsDataURL(file);
 }
 
-function delRamo(i){
-  if(!confirm('¿Quitar este ramo de disponibles? (no registra venta)')) return;
+async function delRamo(i){
+  if(!await confirmModal('¿Quitar este ramo de disponibles? (no registra venta)')) return;
   ramosDispData.splice(i,1);
   fbSave('ramosDispData', ramosDispData);
   renderRamosDisp();
@@ -5987,10 +6178,10 @@ function confirmVentaRamo(){
   showToast('✅ Venta registrada en Ventas Externas');
 }
 
-function vdAutoPrice(){
+async function vdAutoPrice(){
   const sel = document.getElementById('vd-prod');
   if(sel.value === '__otro__'){
-    const custom = prompt('Nombre del arreglo o ramo:');
+    const custom = await promptModal('Nombre del arreglo o ramo:', { title: 'Otro producto' });
     if(custom && custom.trim()){
       const opt = document.createElement('option');
       opt.value = custom.trim(); opt.textContent = custom.trim(); opt.selected = true;
@@ -6792,8 +6983,8 @@ function updPedidoHabEstado(i, val){
   renderPedidosHab();
 }
 
-function delPedidoHab(i){
-  if(!confirm('¿Eliminar este pedido?')) return;
+async function delPedidoHab(i){
+  if(!await confirmModal('¿Eliminar este pedido?')) return;
   pedidosHabData.splice(i,1);
   fbSave('pedidosHabData', pedidosHabData);
   renderPedidosHab();
@@ -6903,15 +7094,15 @@ function renderListaPrecios(){
 
 function lpUpdItem(ci,ii,field,val){ listaPreciosData[ci].items[ii][field]=val; fbSave('listaPreciosData',listaPreciosData); }
 
-function lpDelItem(ci,ii){
-  if(!confirm('¿Eliminar este ítem?')) return;
+async function lpDelItem(ci,ii){
+  if(!await confirmModal('¿Eliminar este ítem?')) return;
   listaPreciosData[ci].items.splice(ii,1);
   fbSave('listaPreciosData',listaPreciosData);
   renderListaPrecios();
 }
 
-function lpDelCat(ci){
-  if(!confirm('¿Eliminar la categoría "'+listaPreciosData[ci].cat+'" y todos sus ítems?')) return;
+async function lpDelCat(ci){
+  if(!await confirmModal('¿Eliminar la categoría "'+listaPreciosData[ci].cat+'" y todos sus ítems?')) return;
   listaPreciosData.splice(ci,1);
   fbSave('listaPreciosData',listaPreciosData);
   renderListaPrecios();
@@ -7198,7 +7389,10 @@ function applyRole(role){
 
   if(role === 'florista'){
     document.querySelectorAll('.nav-section-label, .nav-item, .nav-sub-item').forEach(el => { el.style.display = 'none'; });
+    // Florista que también es jardinero (ej. Ivan): además de lo de florería, ve jardinería
+    const alsoJardinero = !!jardineroNombre;
     const OPS_ALLOW = ['Checklist Diaria','Stock Florería','Eventos / Maison','Cotizador','📦 Recepción de Pedidos'];
+    if(alsoJardinero) OPS_ALLOW.push('Tareas Jardinería','Habitaciones con Plantas','🔔 Recordatorios Jardín');
     document.querySelectorAll('.nav-section-label').forEach(label => {
       if(label.textContent.trim() === 'Principal'){
         label.style.display = '';
@@ -7230,9 +7424,11 @@ function applyRole(role){
     document.querySelector('[data-group-id="grp-com-vt"]').style.display = '';
     setTimeout(() => { navExpandGroup('grp-ops'); navExpandGroup('grp-com-vt'); }, 50);
     const FL_QL = ['Checklist','Stock','Eventos','Cotizador','Recepción','Ramos','Lista de Precios'];
+    if(alsoJardinero) FL_QL.push('Tareas Jardinería','Habitaciones con Plantas','Recordatorios Jardín');
     document.querySelectorAll('.quick-link').forEach(ql => {
       const title = ql.querySelector('.quick-link-title')?.textContent || '';
-      if(!FL_QL.some(t => title.includes(t))) ql.style.display = 'none';
+      // Mostrar explícitamente los permitidos (revela también los nav-jard-only ocultos por defecto)
+      ql.style.display = FL_QL.some(t => title.includes(t)) ? '' : 'none';
     });
     showToast('👋 Hola ' + floristaNombre + '!');
   }
@@ -7398,7 +7594,8 @@ function getFloristasActivos(){
 }
 
 function getEmpleadosActivos(){
-  return [...getFloristasActivos(), ...JARDINEROS_LIST];
+  // Dedup: alguien puede ser florista y jardinero a la vez (ej. Ivan), no debe aparecer dos veces
+  return [...new Set([...getFloristasActivos(), ...JARDINEROS_LIST])];
 }
 
 function isJardinero(nombre){
@@ -7542,7 +7739,7 @@ function renderHorarios(){
     const cur = sel.value;
     sel.innerHTML = '<option value="">— Todos —</option>'
       + '<optgroup label="Florería">' + floristas.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('') + '</optgroup>'
-      + '<optgroup label="Jardinería">' + JARDINEROS_LIST.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('') + '</optgroup>';
+      + '<optgroup label="Jardinería">' + JARDINEROS_LIST.filter(n=>!floristas.includes(n)).map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('') + '</optgroup>';
     sel.value = cur;
   }
   const filtro = sel?.value || '';
@@ -7905,14 +8102,13 @@ const LOGIN_DEFAULTS = {
   'duhau':      { role:'operario',  label:'Operario General' },
   'sole':       { role:'jardinero', label:'Sole',  jardineroNombre:'Sole' },
   'berni':      { role:'jardinero', label:'Berni', jardineroNombre:'Berni' },
-  'ivan':       { role:'jardinero', label:'Ivan',  jardineroNombre:'Ivan' },
   'compras':    { role:'compras',   label:'Compras' },
   'hyatt':      { role:'ventas',    label:'Hyatt Ventas' },
   'caro':       { role:'florista',  label:'Caro',  floristaNombre:'Caro' },
   'clo':        { role:'florista',  label:'Clo',   floristaNombre:'Clo' },
   'cris':       { role:'florista',  label:'Cris',  floristaNombre:'Cris' },
   'gabi':       { role:'florista',  label:'Gabi',  floristaNombre:'Gabi' },
-  'ivan':       { role:'florista',  label:'Ivan',  floristaNombre:'Ivan' },
+  'ivan':       { role:'florista',  label:'Ivan',  floristaNombre:'Ivan', jardineroNombre:'Ivan' },
   'pao':        { role:'florista',  label:'Pao',   floristaNombre:'Pao' },
   'nora':       { role:'florista',  label:'Nora',  floristaNombre:'Nora' },
   'euge':       { role:'comercial', label:'Euge' },
@@ -7927,6 +8123,12 @@ function doLogin(){
   const key = val.toLowerCase();
   const entry = loginPasswords[key];
   if(entry){
+    // Florista que además es jardinero (figura en JARDINEROS_LIST, ej. Ivan):
+    // habilitar ambos mundos en el mismo usuario. Robusto aunque loginPasswords
+    // venga de Firebase con la entrada vieja (florista sola).
+    if(entry.role === 'florista' && entry.floristaNombre && JARDINEROS_LIST.includes(entry.floristaNombre) && !entry.jardineroNombre){
+      entry.jardineroNombre = entry.floristaNombre;
+    }
     currentLoginKey = key;
     if(entry.floristaNombre) floristaNombre = entry.floristaNombre;
     if(entry.jardineroNombre){ jardineroNombre = entry.jardineroNombre; jardCurrentJardinero = jardineroNombre; try{ localStorage.setItem('jardCurrentJardinero', jardineroNombre); }catch(e){} }
@@ -7951,15 +8153,15 @@ function doLogin(){
   }
 }
 
-function cambiarContrasena(){
+async function cambiarContrasena(){
   const entry = loginPasswords[currentLoginKey];
   if(!entry){ showToast('⚠️ Error de sesión'); return; }
-  const nueva = prompt('Ingresá tu nueva contraseña (mínimo 3 caracteres):');
+  const nueva = await promptModal('Ingresá tu nueva contraseña (mínimo 3 caracteres):', { title: 'Cambiar contraseña', password: false });
   if(!nueva || nueva.trim().length < 3){ showToast('⚠️ La contraseña debe tener al menos 3 caracteres'); return; }
   const nuevoKey = nueva.trim().toLowerCase();
   if(nuevoKey === currentLoginKey){ showToast('Es la misma contraseña actual'); return; }
   if(loginPasswords[nuevoKey]){ showToast('⚠️ Esa contraseña ya está en uso por otro usuario'); return; }
-  const confirmar = prompt('Confirmá la nueva contraseña:');
+  const confirmar = await promptModal('Confirmá la nueva contraseña:', { title: 'Cambiar contraseña', password: false });
   if(!confirmar || confirmar.trim().toLowerCase() !== nuevoKey){ showToast('⚠️ Las contraseñas no coinciden'); return; }
   loginPasswords[nuevoKey] = {...entry};
   delete loginPasswords[currentLoginKey];
@@ -8006,13 +8208,13 @@ function openGestionPasswords(){
   ov.classList.add('open');
 }
 
-function agregarUsuarioFlorista(){
+async function agregarUsuarioFlorista(){
   if(userRole !== 'gerencia') return;
-  const nombre = prompt('Nombre del/la florista (ej. María):');
+  const nombre = await promptModal('Nombre del/la florista (ej. María):', { title: 'Nuevo usuario florista' });
   if(!nombre || !nombre.trim()) return;
   const nombreClean = nombre.trim();
   const passDefault = nombreClean.toLowerCase();
-  const password = prompt('Contraseña para ' + nombreClean + ':', passDefault);
+  const password = await promptModal('Contraseña para ' + nombreClean + ':', { title: 'Nuevo usuario florista', default: passDefault, password: false });
   if(!password || password.trim().length < 3){ showToast('⚠️ Mínimo 3 caracteres'); return; }
   const key = password.trim().toLowerCase();
   if(loginPasswords[key]){ showToast('⚠️ Esa contraseña ya está en uso'); return; }
@@ -8027,11 +8229,11 @@ function agregarUsuarioFlorista(){
   openGestionPasswords();
 }
 
-function resetearPassword(key){
+async function resetearPassword(key){
   if(userRole !== 'gerencia') return;
   const entry = loginPasswords[key];
   if(!entry){ showToast('Usuario no encontrado'); return; }
-  const nueva = prompt('Nueva contraseña para ' + (entry.label||key) + ':');
+  const nueva = await promptModal('Nueva contraseña para ' + (entry.label||key) + ':', { title: 'Resetear contraseña', password: false });
   if(!nueva || nueva.trim().length < 3){ showToast('⚠️ Mínimo 3 caracteres'); return; }
   const nuevoKey = nueva.trim().toLowerCase();
   if(nuevoKey !== key && loginPasswords[nuevoKey]){ showToast('⚠️ Esa contraseña ya está en uso'); return; }
@@ -8045,12 +8247,12 @@ function resetearPassword(key){
   openGestionPasswords(); // refrescar modal
 }
 
-function eliminarUsuario(key){
+async function eliminarUsuario(key){
   if(userRole !== 'gerencia') return;
   const entry = loginPasswords[key];
   if(!entry) return;
   if(entry.role !== 'florista'){ showToast('⚠️ Solo se pueden eliminar usuarios floristas'); return; }
-  if(!confirm('¿Eliminar al usuario ' + (entry.label||key) + '?\nYa no podrá ingresar al sistema.')) return;
+  if(!await confirmModal('¿Eliminar al usuario ' + (entry.label||key) + '?\nYa no podrá ingresar al sistema.')) return;
   // Quitar de responsables
   const idx = CL_RESP_OPTS.indexOf(entry.floristaNombre);
   if(idx > -1) CL_RESP_OPTS.splice(idx, 1);
@@ -8060,9 +8262,9 @@ function eliminarUsuario(key){
   openGestionPasswords();
 }
 
-function resetearTodasPasswords(){
+async function resetearTodasPasswords(){
   if(userRole !== 'gerencia') return;
-  if(!confirm('¿Resetear TODAS las contraseñas a los valores originales?\n\nAlvear, Duhau, Caro, etc. volverán a ser las contraseñas.')) return;
+  if(!await confirmModal('¿Resetear TODAS las contraseñas a los valores originales?\n\nAlvear, Duhau, Caro, etc. volverán a ser las contraseñas.')) return;
   loginPasswords = JSON.parse(JSON.stringify(LOGIN_DEFAULTS));
   fbSave('loginPasswords', loginPasswords);
   showToast('🔄 Todas las contraseñas reseteadas a valores originales');
@@ -8316,7 +8518,7 @@ function deselectAllInsumos(){
 function agregarNuevoInsumo(){
   const input = document.getElementById('nuevo-insumo-input');
   const nombre = input?.value.trim();
-  if(!nombre){ alert('Ingresá el nombre del insumo.'); return; }
+  if(!nombre){ showToast('Ingresá el nombre del insumo.','error'); return; }
   addInsumoToBase(nombre);
   if(input) input.value='';
   renderInsumosGrid();
@@ -8324,7 +8526,7 @@ function agregarNuevoInsumo(){
 
 function agregarPedidoRapido(){
   const checks = document.querySelectorAll('.insumo-check:checked');
-  if(checks.length===0){ alert('Seleccioná al menos un insumo.'); return; }
+  if(checks.length===0){ showToast('Seleccioná al menos un insumo.','error'); return; }
   const fecha = document.getElementById('cf-fecha')?.value || TODAY_ISO;
   const pedidopor = document.getElementById('cf-pedidopor')?.value || '';
   let added = 0;
@@ -8471,7 +8673,7 @@ function saveReceta(){
   const nombre = nombreSel==='custom'
     ? document.getElementById('rec-nombre-custom').value.trim()
     : nombreSel;
-  if(!nombre){ alert('Ingresá el nombre del arreglo.'); return; }
+  if(!nombre){ showToast('Ingresá el nombre del arreglo.','error'); return; }
 
   const rows = document.getElementById('rec-ings-list').querySelectorAll('.ev-arreglo-row');
   const ings = [];
@@ -8480,7 +8682,7 @@ function saveReceta(){
     const inp = row.querySelector('input[type=number]');
     if(sel?.value) ings.push({ prod: sel.value, qty: +inp?.value||1 });
   });
-  if(ings.length===0){ alert('Agregá al menos un ingrediente.'); return; }
+  if(ings.length===0){ showToast('Agregá al menos un ingrediente.','error'); return; }
 
   const idx = +document.getElementById('rec-idx').value;
   const receta = { nombre, ings, img: document.getElementById('rec-img-data').value||'' };
@@ -8491,8 +8693,8 @@ function saveReceta(){
   renderRecetas();
 }
 
-function delReceta(i){
-  if(!confirm('¿Eliminar esta receta?')) return;
+async function delReceta(i){
+  if(!await confirmModal('¿Eliminar esta receta?')) return;
   recetasData.splice(i,1);
   fbSave('recetasData', recetasData);
   renderRecetas();
@@ -9203,8 +9405,8 @@ function toggleSucursalActiva(idx,val){
   renderSucursalSelector();
 }
 
-function eliminarSucursal(idx){
-  if(!confirm('¿Eliminar esta sucursal? Los datos históricos no se borran.')) return;
+async function eliminarSucursal(idx){
+  if(!await confirmModal('¿Eliminar esta sucursal? Los datos históricos no se borran.')) return;
   sucursalesConfig.splice(idx,1);
   fbSave('sucursalesConfig', sucursalesConfig);
   renderSucursales();
@@ -9372,8 +9574,8 @@ function guardarCliente(){
   showToast(idx>=0?'✅ Cliente actualizado':'✅ Cliente registrado');
 }
 
-function eliminarCliente(idx){
-  if(!confirm('¿Eliminar este cliente?')) return;
+async function eliminarCliente(idx){
+  if(!await confirmModal('¿Eliminar este cliente?')) return;
   clientesData.splice(idx,1);
   fbSave('clientesData', clientesData);
   closeModal('ficha-cliente-modal');
@@ -9877,8 +10079,8 @@ function guardarProveedor(idx){
   showToast('✅ Proveedor guardado');
 }
 
-function eliminarProveedor(idx){
-  if(!confirm('¿Eliminar este proveedor?')) return;
+async function eliminarProveedor(idx){
+  if(!await confirmModal('¿Eliminar este proveedor?')) return;
   const list = [...(window.proveedoresList||[])];
   list.splice(idx,1);
   window.proveedoresList = list;
@@ -10110,7 +10312,7 @@ function guardarLegajo(){
   const idx = +document.getElementById('leg-idx').value;
   const nombre = document.getElementById('leg-nombre').value.trim();
   const apellido = document.getElementById('leg-apellido').value.trim();
-  if(!nombre || !apellido){ alert('Nombre y apellido son requeridos.'); return; }
+  if(!nombre || !apellido){ showToast('Nombre y apellido son requeridos.','error'); return; }
   const obj = {
     id: idx >= 0 ? legajoData[idx].id : Date.now(),
     nombre, apellido,
@@ -10131,8 +10333,8 @@ function guardarLegajo(){
   showToast('Empleado guardado');
 }
 
-function eliminarLegajo(idx){
-  if(!confirm('¿Eliminar este empleado del legajo?')) return;
+async function eliminarLegajo(idx){
+  if(!await confirmModal('¿Eliminar este empleado del legajo?')) return;
   legajoData.splice(idx,1);
   fbSave('legajoData', legajoData);
   renderLegajo();
@@ -10232,7 +10434,7 @@ function guardarEvaluacion(){
   const empleadoId = empSel.value;
   const empleadoNombre = empSel.options[empSel.selectedIndex]?.dataset?.nombre||'';
   const trimestre = document.getElementById('eval-trimestre').value.trim();
-  if(!empleadoId || !trimestre){ alert('Empleado y trimestre son requeridos.'); return; }
+  if(!empleadoId || !trimestre){ showToast('Empleado y trimestre son requeridos.','error'); return; }
   const obj = {
     id: idx >= 0 ? evaluacionesData[idx].id : Date.now(),
     empleadoId, empleadoNombre, trimestre,
@@ -10251,8 +10453,8 @@ function guardarEvaluacion(){
   showToast('Evaluación guardada');
 }
 
-function eliminarEvaluacion(idx){
-  if(!confirm('¿Eliminar esta evaluación?')) return;
+async function eliminarEvaluacion(idx){
+  if(!await confirmModal('¿Eliminar esta evaluación?')) return;
   evaluacionesData.splice(idx,1);
   fbSave('evaluacionesData', evaluacionesData);
   renderEvaluaciones();
@@ -10786,9 +10988,9 @@ function cambiarEstadoPres(idx, estado){
   showToast('Estado actualizado');
 }
 
-function eliminarPresupuesto(idx){
+async function eliminarPresupuesto(idx){
   if(idx<0 || !presupuestosData[idx]) return;
-  if(!confirm('¿Eliminar este presupuesto?')) return;
+  if(!await confirmModal('¿Eliminar este presupuesto?')) return;
   presupuestosData.splice(idx, 1);
   fbSave('presupuestosData', presupuestosData);
   renderPresupuestos();
@@ -10922,10 +11124,10 @@ function openPedidoRamoModal(){
   document.getElementById('modal-pedido-ramo').classList.add('open');
 }
 
-function pedidoRamoAutoPrice(){
+async function pedidoRamoAutoPrice(){
   const sel = document.getElementById('pr-arreglo');
   if(sel.value === '__otro__'){
-    const custom = prompt('Nombre del arreglo o ramo:');
+    const custom = await promptModal('Nombre del arreglo o ramo:', { title: 'Otro producto' });
     if(custom && custom.trim()){
       const opt = document.createElement('option');
       opt.value = custom.trim(); opt.textContent = custom.trim(); opt.selected = true;
@@ -10999,9 +11201,9 @@ function renderPedidosRamos(){
   }).join('');
 }
 
-function eliminarPedidoRamo(i){
+async function eliminarPedidoRamo(i){
   if(i<0 || !ventasData[i]) return;
-  if(!confirm('¿Eliminar este pedido?')) return;
+  if(!await confirmModal('¿Eliminar este pedido?')) return;
   ventasData.splice(i,1);
   fbSave('ventasData', ventasData);
   renderPedidosRamos();
@@ -11179,9 +11381,9 @@ function guardarEsf(){
   showToast('✅ Evento guardado');
 }
 
-function eliminarEsf(idx){
+async function eliminarEsf(idx){
   if(idx<0 || !eventosSinFloreria[idx]) return;
-  if(!confirm('¿Eliminar este registro de evento sin florería?')) return;
+  if(!await confirmModal('¿Eliminar este registro de evento sin florería?')) return;
   eventosSinFloreria.splice(idx,1);
   fbSave('eventosSinFloreria', eventosSinFloreria);
   renderEventosSinFloreria();
@@ -11284,7 +11486,7 @@ function renderCierreMensual(){
     </div>`).join('');
 }
 
-function generarCierreMensual(){
+async function generarCierreMensual(){
   const mes = document.getElementById('cierre-mes-sel')?.value || CURR_MONTH;
   const ventas = (ventasData||[]).filter(v=>v.fecha&&v.fecha.startsWith(mes));
   const totalVentas = ventas.reduce((s,v)=>s+parseMoney(v.monto||v.total||0),0);
@@ -11307,7 +11509,7 @@ function generarCierreMensual(){
   };
   const existing = cierresMensualesData.findIndex(c=>c.mes===mes);
   if(existing>=0){
-    if(!confirm(`Ya existe un cierre para ${fmtMonth(mes)}. ¿Reemplazarlo?`)) return;
+    if(!await confirmModal(`Ya existe un cierre para ${fmtMonth(mes)}. ¿Reemplazarlo?`)) return;
     cierresMensualesData[existing] = cierre;
   } else {
     cierresMensualesData.push(cierre);
