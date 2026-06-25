@@ -1,11 +1,19 @@
 {
   "rules": {
+    // ⚠️ DEUDA DE SEGURIDAD CONOCIDA — ver SECURITY.md
+    // Hoy la app entra con autenticación ANÓNIMA, por lo que "auth != null" es
+    // verdadero para cualquier persona que abra la página. Con este modelo las
+    // reglas NO pueden distinguir usuarios ni proteger datos por rol: toda la
+    // base queda legible/escribible por cualquiera que tenga la URL.
+    //
+    // Además, en Firebase RTDB los permisos CASCADEAN: si se concede ".write"
+    // en la raíz, no se puede restringir en nodos hijos. Por eso endurecer esto
+    // de verdad requiere migrar a autenticación REAL (Firebase Auth) y recién
+    // ahí escribir reglas por rol (ej. caja/liquidación/legajos solo gerencia).
+    //
+    // Mitigación pragmática activa mientras tanto: Firebase App Check
+    // (reCAPTCHA v3), que frena el abuso desde fuera de la app real.
     ".read": "auth != null",
-    ".write": "auth != null",
-
-    "loginPasswords": {
-      ".read": "auth != null",
-      ".write": "auth != null"
-    }
+    ".write": "auth != null"
   }
 }

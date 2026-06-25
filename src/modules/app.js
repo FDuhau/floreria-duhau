@@ -198,9 +198,6 @@ const PAGE_LABELS = {control:'Control','control-jardineria':'Control › Seguimi
   'dashboard-gerencia': 'Gerencia › Dashboard Unificado',
   'tv-dashboard': 'Pantalla TV / Dashboard'
 };
-const COMPRAS_PAGES=['compras','compras-floreria','compras-jardineria','stock-admin'];
-const CONTROL_PAGES=['control','control-jardineria','control-habitaciones','control-horarios','recordatorios-jardineria'];
-const COMERCIAL_PAGES = ['comercial','eventos-comercial','historial-eventos','eventos-sin-floreria','cotizador-ops','ventas-externas','caja','galeria','lista-precios','ramos-disponibles','pedidos-habitacion','recetas-arreglos','recepcion-pedidos'];
 
 // ── NAVEGACIÓN INFERIOR MOBILE ──────────────────────────────────────────────
 const BOTTOM_NAV_ITEMS = {
@@ -537,7 +534,6 @@ window.promptModal = promptModal;
 // Actividad options, Tiempo options, Responsable options are now editable per row
 // ════════════════════════════════════════
 const CL_ACTIVIDAD_OPTS = ['Nuevo','Retoque','Riego'];
-const CL_TIEMPO_OPTS    = ['','5 min','10 min','15 min','20 min','25 min','30 min','40 min','45 min','60 min','90 min','120 min','180 min','15/20 min','20/15 min','25/15 min','30/15 min','30/20 min','40/20 min','45/20 min','45/30 min','60/30 min'];
 let CL_RESP_OPTS = ['Caro','Clo','Cris','Gabi','Ivan','Jardineria','Pao','Nora'];
 
 
@@ -713,7 +709,6 @@ function initChecklist(){
       return s + arr.filter(Boolean).length;
     }, 0);
   } catch(e){ totalDone = 0; }
-  const totalPoss = Object.keys(clStateByDay).length * CL_TASKS.length || CL_TASKS.length;
   weekBanner.innerHTML = `
     <div style="font-size:12px;color:var(--mid-gray)">
       📅 <strong style="color:var(--charcoal)">${CURRENT_WEEK_KEY.replace('-W',' · Semana ')}</strong>
@@ -784,7 +779,6 @@ function renderChecklistTable(){
   const n = CL_TASKS.length;
   ['checked','actividad','obs','tiempo','inicio','fin','responsable'].forEach(k => {
     if(!Array.isArray(clState[k]) || clState[k].length < n){
-      const def = k==='checked' ? false : k==='actividad' ? '' : '';
       clState[k] = CL_TASKS.map((t,i) => {
         const existing = clState[k]?.[i];
         if(existing !== undefined && existing !== null) return existing;
@@ -863,10 +857,6 @@ function renderChecklistTable(){
 
   // Para floristas: determinar qué secciones tienen tareas asignadas
   const isFlorista = userRole === 'florista';
-  const floristaSections = isFlorista
-    ? new Set(CL_TASKS.filter((_,i) => clState.responsable[i] === floristaNombre).map(t => t.sec))
-    : null;
-
   CL_TASKS.forEach((t,i)=>{
     const curResp = clState.responsable[i] || t.responsable || '';
 
@@ -1487,8 +1477,6 @@ function renderStockAdmin(){
   if(!tbody) return;
   tbody.innerHTML = '';
   const comprometidos = stockData.map(item => getStockComprometido(item));
-  let alertHtml = '';
-
   stockData.forEach((item,i)=>{
     const comp = comprometidos[i];
     const al = getAlerta(item, comp);
@@ -2538,7 +2526,7 @@ function renderLPenCotizador(){
     wrap.innerHTML = '';
     return;
   }
-  wrap.innerHTML = cats.map((cat, ci) => {
+  wrap.innerHTML = cats.map((cat) => {
     const realCi = listaPreciosData.indexOf(cat);
     const items = cat.items.map((it, ii) => {
       const precio = parseMoney(it.precio);
@@ -3881,7 +3869,7 @@ function renderGaleria(){
 
   const TEMP_ICON = {Primavera:'🌸',Verano:'☀️',Otoño:'🍂',Invierno:'❄️'};
   el.innerHTML = `<div style="columns:3;column-gap:16px;orphans:1;widows:1">
-    ${filtered.map((g,fi)=>{
+    ${filtered.map((g)=>{
       const realIdx = galeriaData.indexOf(g);
       const foto = (g.fotos&&g.fotos[0]) || g.foto || '';
       const flores = Array.isArray(g.flores) ? g.flores : (g.flores?g.flores.split(',').map(f=>f.trim()):[]);
@@ -4112,7 +4100,7 @@ function renderRecepcionPedidos(){
   const actionBar = document.getElementById('recep-action-bar');
   if(actionBar) actionBar.style.display = 'flex';
 
-  listEl.innerHTML = pending.map((order, localIdx) => {
+  listEl.innerHTML = pending.map((order) => {
     const globalIdx = order._idx;
     if(!recepState[globalIdx]){
       recepState[globalIdx] = { checked: false, paqRecibidos: order.qty, varasPorPaq: 1 };
@@ -4552,7 +4540,6 @@ window._setHabitacionesLog = (arr) => { habitacionesLog.splice(0, habitacionesLo
 // ── RECORDATORIOS JARDINERÍA ─────────────────────────────────────────────────
 window._setJardRecordatorios = (arr) => { jardRecordatorios.splice(0, jardRecordatorios.length, ...arr); };
 
-const JARD_TIPOS = ['Riego','Fertilización','Desmalezado','Poda'];
 const JARD_TIPOS_ICON = { 'Riego':'💧','Fertilización':'🌱','Desmalezado':'🌿','Poda':'✂️' };
 const JARD_TIPO_STYLE = {
   'Riego':        'background:#E8F4FD;color:#1A6B9A',
@@ -5128,7 +5115,7 @@ function florRegistrarTurno(campo){
   const now = new Date();
   const hh = String(now.getHours()).padStart(2,'0');
   const mm = String(now.getMinutes()).padStart(2,'0');
-  fbSetPath('florTurnos/'+floristaNombre+'/'+TODAY_ISO+'/'+campo, hh+':'+mm);
+  window.fbSetPath?.('florTurnos/'+floristaNombre+'/'+TODAY_ISO+'/'+campo, hh+':'+mm);
   if(!window.florTurnos) window.florTurnos = {};
   if(!window.florTurnos[floristaNombre]) window.florTurnos[floristaNombre] = {};
   if(!window.florTurnos[floristaNombre][TODAY_ISO]) window.florTurnos[floristaNombre][TODAY_ISO] = {};
@@ -5140,7 +5127,7 @@ function florRegistrarTurno(campo){
 function florResetTurno(campo){
   if(!floristaNombre || !window.florTurnos?.[floristaNombre]?.[TODAY_ISO]) return;
   window.florTurnos[floristaNombre][TODAY_ISO][campo] = '';
-  fbSetPath('florTurnos/'+floristaNombre+'/'+TODAY_ISO+'/'+campo, '');
+  window.fbSetPath?.('florTurnos/'+floristaNombre+'/'+TODAY_ISO+'/'+campo, '');
   renderFlorTurnoCard();
 }
 
@@ -5323,7 +5310,7 @@ function _jardDiaHTML(nombre, fecha, dd){
   </div>`;
 }
 
-function jardProdDiaClick(nombre, fecha){
+function jardProdDiaClick(nombre, _fecha){
   // Resaltar en el calendario y hacer scroll al día en el detalle
   const actEl = document.getElementById('jard-prod-act-'+nombre.replace(/\s/g,'_'));
   if(!actEl) return;
@@ -5478,7 +5465,7 @@ function toggleCtrlSection(wrapId, chevId){
   if(!open && wrapId === 'jard-prod-wrap') renderJardProdEquipo();
 }
 
-function ctrlJardFilter(mode,btn){
+function ctrlJardFilter(mode,_btn){
   ctrlJardFilterMode=mode;
   ['all','alert','warn','ok','none'].forEach(m=>{
     const b=document.getElementById('ctj-'+m);
@@ -5721,7 +5708,7 @@ function markHabDone(i, quien){
   if(document.getElementById('page-control-habitaciones')?.classList.contains('active')) renderCtrlHab();
 }
 
-function ctrlHabFilter(mode,btn){
+function ctrlHabFilter(mode,_btn){
   ctrlHabFilterMode=mode;
   ['all','alert','warn','ok'].forEach(m=>{
     const b=document.getElementById('cth-'+m);
@@ -7014,7 +7001,7 @@ function renderListaPrecios(){
     );
     if(search && visible.length===0) return '';
 
-    const itemsHtml = (search ? visible : cat.items).map((it, ii) => {
+    const itemsHtml = (search ? visible : cat.items).map((it) => {
       const realIdx = cat.items.indexOf(it);
       const photos = it.photos||[];
 
@@ -7218,8 +7205,6 @@ function lpOpenViewer(ci,ii,pi){
 // ════════════════════════════
 function toggleSidebar(){
   const sidebar  = document.getElementById('sidebar');
-  const overlay  = document.getElementById('sidebar-overlay');
-  const btn      = document.getElementById('hamburger-btn');
   const isOpen   = sidebar.classList.contains('open');
   if(isOpen){ closeSidebar(); } else { openSidebar(); }
 }
@@ -7261,11 +7246,13 @@ document.querySelectorAll('.nav-item, .nav-sub-item').forEach(el => {
     get recetasData()        { return recetasData; },        set recetasData(v)       { recetasData=v; },
     get cotCurTab()          { return cotCurTab; },          set cotCurTab(v)         { cotCurTab=v; },
   };
-  const fns = [
-    'renderChecklist','renderEventos','renderKanban','renderStock',
-    'renderJardOps','renderHabOps','renderCtrlJard','renderCtrlHab',
-    'renderCompras','renderRecetas','renderRamosDisp'
-  ];
+  // Funciones de render expuestas como referencias directas (sin eval).
+  // 'renderChecklist' no existe (la real es renderChecklistTable); se omite.
+  const renderFns = {
+    renderEventos, renderKanban, renderStock,
+    renderJardOps, renderHabOps, renderCtrlJard, renderCtrlHab,
+    renderCompras, renderRecetas, renderRamosDisp,
+  };
   // Assign data vars via defineProperty (getters/setters need it)
   Object.keys(vars).forEach(k => {
     try {
@@ -7276,9 +7263,8 @@ document.querySelectorAll('.nav-item, .nav-sub-item').forEach(el => {
       });
     } catch(e) { /* already defined, skip */ }
   });
-  // Expose render functions as simple references (no redefine needed, just alias)
-  fns.forEach(fn => {
-    try { if(!(fn in window)) window[fn] = eval(fn); } catch(e){}
+  Object.keys(renderFns).forEach(fn => {
+    if(!(fn in window)) window[fn] = renderFns[fn];
   });
 })();
 
@@ -7301,11 +7287,6 @@ function filterBySucursal(arr, campo='sucursal'){
   const target = userRole === 'gerencia' ? _sucursalFiltroGerencia : getSucursalId();
   return arr.filter(r => (r[campo] || 'duhau') === target);
 }
-const FLORISTAS_LOGIN = {
-  'caro':'Caro','clo':'Clo','cris':'Cris','gabi':'Gabi',
-  'ivan':'Ivan','pao':'Pao','nora':'Nora'
-};
-
 function applyRole(role){
   userRole = role;
   // Marcar el body con la clase del rol — el CSS oculta .gerencia-only automáticamente
@@ -9478,7 +9459,7 @@ function renderClientes(){
 
   if(!lista.length){ el.innerHTML='<div style="color:var(--mid-gray);font-size:13px;padding:24px">No hay clientes registrados.</div>'; return; }
 
-  el.innerHTML = lista.map((c,i)=>{
+  el.innerHTML = lista.map((c)=>{
     const idx = clientesData.indexOf(c);
     const eventos = (window.eventosData||[]).filter(e=>(e.clienteId||e.cliente||'')===(c.id||c.nombre));
     const compras = (window.ventasData||[]).filter(v=>(v.clienteId||v.cliente||'')===(c.id||c.nombre));
@@ -10390,7 +10371,7 @@ function renderEvaluaciones(){
     const cls = p>=4?'green':p>=3?'amber':'red';
     return `<span class="card-value ${cls}" style="font-size:13px">${p.toFixed(1)}</span>`;
   };
-  tbody.innerHTML = data.map((e,i)=>{
+  tbody.innerHTML = data.map((e)=>{
     const realIdx = evaluacionesData.indexOf(e);
     const prom = ((+e.puntualidad||0)+(+e.calidad||0)+(+e.actitud||0)+(+e.productividad||0))/4;
     return `<tr>
@@ -10476,7 +10457,6 @@ function renderLiquidacion(){
     mesEl.value = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
   }
   const mes = mesEl.value;
-  const horasEsp = +document.getElementById('liq-horas-esp').value || 192;
   const empleados = legajoData.filter(e=>e.cargo !== '__inactivo__');
   if(!empleados.length){
     tbody.innerHTML = `<tr><td colspan="8" style="padding:20px;text-align:center;color:var(--mid-gray)">Sin empleados en el legajo.</td></tr>`;
@@ -10521,8 +10501,6 @@ function saveLiquidacionHoras(empleadoId, mes, field, val){
 
 function exportLiquidacion(){
   const mes = document.getElementById('liq-mes')?.value || '';
-  const horasEsp = +document.getElementById('liq-horas-esp')?.value || 192;
-  const mesHoras = (liquidacionConfig.horas||{})[mes]||{};
   let txt = `LIQUIDACIÓN HORAS EXTRA — ${mes}\n${'='.repeat(50)}\n`;
   let total = 0;
   legajoData.forEach(e=>{
@@ -11724,7 +11702,7 @@ Object.assign(window, {
   renderCaja, renderCarrito, renderCarritoOps, renderChecklistTable,
   renderComposicionesCot, renderCompraAlert, renderCompraSummary, renderCompras, renderCotEventos,
   renderCotizador, renderCotizadorOps, renderCtrlHab, renderCtrlJard, renderEvCarrito,
-  renderGaleria, abrirLightbox, openGaleriaModal, galeriaAddFotos, galeriaAddUrl, galeriaQuitarFoto, guardarGaleria, editarGaleria, eliminarGaleria,
+  renderGaleria, abrirLightbox, galeriaAddFotos, galeriaAddUrl, galeriaQuitarFoto, guardarGaleria, editarGaleria, eliminarGaleria,
   renderEvHoraCell, renderEvTipos, renderEventos, renderHabLog, renderHabOps,
   renderHabReporte, renderHistorialCompras, renderHistorialEventos, renderHistoryPanel, renderHome,
   renderHomeHyatt, renderHoraCell, renderHorarios, renderInsumosGrid, renderJardLog, renderJardOps,

@@ -1,8 +1,9 @@
     // ════════════ FIREBASE SETUP ════════════
     import { initializeApp } from "firebase/app";
-    import { getDatabase, ref, set, update, onValue, get } from "firebase/database";
+    import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
+    import { getDatabase, ref, set, update, onValue } from "firebase/database";
     import { getMessaging, getToken, onMessage } from "firebase/messaging";
-    import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
+    import { getAuth, signInAnonymously } from "firebase/auth";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDU9kLCnXeO7qnINEy121Nktj1K96gJ9Lw",
@@ -15,6 +16,23 @@
     };
 
     const fbApp = initializeApp(firebaseConfig);
+
+    // ── App Check ─────────────────────────────────────────────────
+    // Mitiga el abuso de la base desde fuera de la app real (scripts que usan
+    // la config pública). No reemplaza a una autenticación real, pero sube
+    // mucho la barrera. Se activa SOLO si hay una clave de sitio reCAPTCHA v3
+    // configurada (VITE_APPCHECK_SITE_KEY); sin clave es un no-op y la app
+    // funciona igual que hoy. Pasos para activarlo: ver SECURITY.md.
+    const APPCHECK_SITE_KEY = import.meta.env.VITE_APPCHECK_SITE_KEY || '';
+    if(APPCHECK_SITE_KEY){
+      try {
+        initializeAppCheck(fbApp, {
+          provider: new ReCaptchaV3Provider(APPCHECK_SITE_KEY),
+          isTokenAutoRefreshEnabled: true,
+        });
+      } catch(e){ console.warn('App Check init error:', e); }
+    }
+
     const db    = getDatabase(fbApp);
     const auth  = getAuth(fbApp);
 
@@ -233,7 +251,6 @@
           } else {
             ['checked','actividad','obs','tiempo','inicio','fin','responsable'].forEach(k => {
               const fb = incoming[day][k] || [];
-              const loc = local[day][k] || [];
               const fbHas = fb.some(v => v !== '' && v !== false && v != null);
               if(fbHas) local[day][k] = fb;
             });
