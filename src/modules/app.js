@@ -412,6 +412,117 @@ function confirmModal(message, opts){
 window.confirmModal = confirmModal;
 
 // ════════════════════════════════════════
+// AVISO ESTILADO (reemplaza a alert() de información)
+// Modal de un solo botón. Devuelve Promise que resuelve al cerrar.
+// Para errores de validación cortos preferí showToast(msg,'error').
+// ════════════════════════════════════════
+function alertModal(message, opts){
+  opts = opts || {};
+  const title  = opts.title  || 'Aviso';
+  const okText = opts.okText || 'Entendido';
+  return new Promise(resolve => {
+    let ov = document.getElementById('alert-modal-overlay');
+    if(!ov){
+      ov = document.createElement('div');
+      ov.id = 'alert-modal-overlay';
+      ov.className = 'modal-overlay';
+      ov.innerHTML =
+        '<div class="modal confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="alert-modal-title" aria-describedby="alert-modal-msg">' +
+          '<div class="modal-title" id="alert-modal-title"></div>' +
+          '<div class="confirm-modal-msg" id="alert-modal-msg"></div>' +
+          '<div class="modal-actions">' +
+            '<button type="button" class="btn-add" id="alert-modal-ok"></button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(ov);
+    }
+    ov.querySelector('#alert-modal-title').textContent = title;
+    ov.querySelector('#alert-modal-msg').textContent   = message || '';
+    const okBtn = ov.querySelector('#alert-modal-ok');
+    okBtn.textContent = okText;
+    const prevFocus = document.activeElement;
+    function cleanup(){
+      ov.classList.remove('open');
+      document.removeEventListener('keydown', onKey, true);
+      okBtn.onclick = ov.onclick = null;
+      if(prevFocus && prevFocus.focus){ try{ prevFocus.focus(); }catch(e){} }
+      resolve();
+    }
+    function onKey(e){ if(e.key === 'Escape' || e.key === 'Enter'){ e.preventDefault(); cleanup(); } }
+    okBtn.onclick = cleanup;
+    ov.onclick = e => { if(e.target === ov) cleanup(); };
+    document.addEventListener('keydown', onKey, true);
+    ov.classList.add('open');
+    setTimeout(() => { try{ okBtn.focus(); }catch(e){} }, 30);
+  });
+}
+window.alertModal = alertModal;
+
+// ════════════════════════════════════════
+// INPUT ESTILADO (reemplaza a prompt() nativo)
+// Devuelve Promise<string|null>: el texto al aceptar, null al cancelar.
+// opts: { title, okText, cancelText, default, password, placeholder }
+// password se autodetecta si el mensaje menciona "contraseña".
+// ════════════════════════════════════════
+function promptModal(message, opts){
+  opts = opts || {};
+  const isPw = opts.password != null ? opts.password : /contraseña|password/i.test(message || '');
+  const title    = opts.title    || 'Ingresá un dato';
+  const okText   = opts.okText   || 'Aceptar';
+  const cancelText = opts.cancelText || 'Cancelar';
+  const def      = opts.default != null ? String(opts.default) : '';
+  return new Promise(resolve => {
+    let ov = document.getElementById('prompt-modal-overlay');
+    if(!ov){
+      ov = document.createElement('div');
+      ov.id = 'prompt-modal-overlay';
+      ov.className = 'modal-overlay';
+      ov.innerHTML =
+        '<div class="modal confirm-modal" role="dialog" aria-modal="true" aria-labelledby="prompt-modal-title">' +
+          '<div class="modal-title" id="prompt-modal-title"></div>' +
+          '<div class="confirm-modal-msg" id="prompt-modal-msg"></div>' +
+          '<input type="text" class="form-input-modal" id="prompt-modal-input" style="margin-top:12px">' +
+          '<div class="modal-actions">' +
+            '<button type="button" class="btn-secondary" id="prompt-modal-cancel"></button>' +
+            '<button type="button" class="btn-add" id="prompt-modal-ok"></button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(ov);
+    }
+    ov.querySelector('#prompt-modal-title').textContent = title;
+    const msgEl = ov.querySelector('#prompt-modal-msg');
+    msgEl.textContent = message || '';
+    msgEl.style.display = message ? '' : 'none';
+    const input    = ov.querySelector('#prompt-modal-input');
+    const okBtn    = ov.querySelector('#prompt-modal-ok');
+    const cancelBtn= ov.querySelector('#prompt-modal-cancel');
+    input.type = isPw ? 'password' : 'text';
+    input.value = def;
+    input.placeholder = opts.placeholder || '';
+    okBtn.textContent = okText;
+    cancelBtn.textContent = cancelText;
+
+    const prevFocus = document.activeElement;
+    function cleanup(result){
+      ov.classList.remove('open');
+      document.removeEventListener('keydown', onKey, true);
+      okBtn.onclick = cancelBtn.onclick = ov.onclick = input.onkeydown = null;
+      if(prevFocus && prevFocus.focus){ try{ prevFocus.focus(); }catch(e){} }
+      resolve(result);
+    }
+    function onKey(e){ if(e.key === 'Escape'){ e.preventDefault(); cleanup(null); } }
+    input.onkeydown = e => { if(e.key === 'Enter'){ e.preventDefault(); cleanup(input.value); } };
+    okBtn.onclick     = () => cleanup(input.value);
+    cancelBtn.onclick = () => cleanup(null);
+    ov.onclick        = e => { if(e.target === ov) cleanup(null); };
+    document.addEventListener('keydown', onKey, true);
+    ov.classList.add('open');
+    setTimeout(() => { try{ input.focus(); input.select(); }catch(e){} }, 30);
+  });
+}
+window.promptModal = promptModal;
+
+// ════════════════════════════════════════
 // DATA — CHECKLIST
 // Actividad options, Tiempo options, Responsable options are now editable per row
 // ════════════════════════════════════════
@@ -1688,9 +1799,9 @@ function populateFloreriaFormHelpers(){
     sec.innerHTML = '<option value="">— Seleccionar área —</option>' +
       HOTEL_SECCIONES.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('') +
       '<option value="__otra__">✏️ Otra (escribir)...</option>';
-    sec.onchange = function(){
+    sec.onchange = async function(){
       if(this.value === '__otra__'){
-        const custom = prompt('Escribí el área / uso:');
+        const custom = await promptModal('Escribí el área / uso:', { title: 'Área / uso' });
         if(custom && custom.trim()){
           const opt = document.createElement('option');
           opt.value = custom.trim(); opt.textContent = custom.trim();
@@ -1740,7 +1851,7 @@ function copiarUltimoPedido(type){
 function addCompra(type){
   const p=type==='floreria'?'cf':'cj';
   const prod=document.getElementById(p+'-producto').value.trim();
-  if(!prod){alert('Ingresá el producto.');return;}
+  if(!prod){showToast('Ingresá el producto.','error');return;}
   getArr(type).unshift({
     fecha:document.getElementById(p+'-fecha').value||TODAY_ISO,
     pedidopor:document.getElementById(p+'-pedidopor').value||'—',
@@ -2160,18 +2271,19 @@ function updC(type,i,field,val){
   renderCompras(type);
 }
 
-function showToast(msg){
+function showToast(msg, type){
+  const COLORS = { info:'var(--sage-dark)', success:'#4A7A3A', error:'var(--red-alert)', warn:'#9A6A1E' };
   let t = document.getElementById('global-toast');
   if(!t){
     t = document.createElement('div');
     t.id='global-toast';
-    t.style.cssText='position:fixed;bottom:32px;left:50%;transform:translateX(-50%);background:var(--sage-dark);color:white;padding:12px 24px;border-radius:12px;font-size:13px;font-family:"Jost",sans-serif;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,.25);transition:opacity .4s;white-space:nowrap;';
     document.body.appendChild(t);
   }
+  t.style.cssText='position:fixed;bottom:32px;left:50%;transform:translateX(-50%);background:'+(COLORS[type]||COLORS.info)+';color:white;padding:12px 24px;border-radius:12px;font-size:13px;font-family:"Jost",sans-serif;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,.25);transition:opacity .4s;max-width:min(90vw,420px);text-align:center;line-height:1.4;white-space:pre-line;';
   t.textContent=msg;
   t.style.opacity='1';
   clearTimeout(t._timer);
-  t._timer=setTimeout(()=>{ t.style.opacity='0'; },3500);
+  t._timer=setTimeout(()=>{ t.style.opacity='0'; }, type==='error'?5000:3500);
 }
 async function delC(type,i){ if(!await confirmModal('¿Eliminar esta orden?')) return; getArr(type).splice(i,1); renderCompras(type); updateKpiCompras(); }
 function updateKpiCompras(){
@@ -2708,11 +2820,11 @@ function renderEvTipos(){
   }
 }
 
-function addReglaTipo(tipoIdx){
+async function addReglaTipo(tipoIdx){
   const nombres = recetasData.map(r=>r.nombre);
-  const arreglo = prompt('Nombre del arreglo (ej. Bochita, Pecera, Cuenco):\n\nDisponibles: ' + nombres.join(', '));
+  const arreglo = await promptModal('Nombre del arreglo (ej. Bochita, Pecera, Cuenco):\n\nDisponibles: ' + nombres.join(', '), { title: 'Agregar regla' });
   if(!arreglo || !arreglo.trim()) return;
-  const cadaPax = prompt('1 ' + arreglo.trim() + ' cada ¿cuántas personas?', '10');
+  const cadaPax = await promptModal('1 ' + arreglo.trim() + ' cada ¿cuántas personas?', { title: 'Agregar regla', default: '10' });
   if(!cadaPax || +cadaPax <= 0) return;
   if(!eventoPricing.tipos[tipoIdx].reglas) eventoPricing.tipos[tipoIdx].reglas = [];
   eventoPricing.tipos[tipoIdx].reglas.push({ arreglo: arreglo.trim(), cadaPax: +cadaPax });
@@ -2726,10 +2838,10 @@ function delReglaTipo(tipoIdx, reglaIdx){
   renderEvTipos();
 }
 
-function addTipoEvento(){
-  const nombre = prompt('Nombre del tipo de evento (ej. Social, Cocktail, Corporativo):');
+async function addTipoEvento(){
+  const nombre = await promptModal('Nombre del tipo de evento (ej. Social, Cocktail, Corporativo):', { title: 'Nuevo tipo de evento' });
   if(!nombre || !nombre.trim()) return;
-  const margen = prompt('Margen de ganancia para este tipo (%):', '40');
+  const margen = await promptModal('Margen de ganancia para este tipo (%):', { title: 'Nuevo tipo de evento', default: '40' });
   eventoPricing.tipos.push({ nombre: nombre.trim(), margen: parseInt(margen)||40 });
   fbSave('eventoPricing', eventoPricing);
   renderEvTipos();
@@ -3490,10 +3602,10 @@ function populateSaleSelects(currentProd, currentAsignado){
   }
 }
 
-function saleAutoFillPrice(){
+async function saleAutoFillPrice(){
   const sel = document.getElementById('sale-prod');
   if(sel.value === '__otro__'){
-    const custom = prompt('Nombre del arreglo o ramo:');
+    const custom = await promptModal('Nombre del arreglo o ramo:', { title: 'Otro producto' });
     if(custom && custom.trim()){
       const opt = document.createElement('option');
       opt.value = custom.trim(); opt.textContent = custom.trim(); opt.selected = true;
@@ -3632,7 +3744,7 @@ function openCajaModal(){
 function addCajaMovimiento(){
   const desc=document.getElementById('cj-desc-caja').value.trim();
   const monto=parseFloat(document.getElementById('cj-monto').value)||0;
-  if(!desc||!monto){alert('Completá descripción y monto.');return;}
+  if(!desc||!monto){showToast('Completá descripción y monto.','error');return;}
   cajaData.push({
     fecha:document.getElementById('cj-fecha-caja').value||TODAY_ISO,
     desc, ticket:document.getElementById('cj-ticket').value,
@@ -3713,8 +3825,8 @@ function toggleCierreDetalle(ts){
   // Mostrar detalle de movimientos en un toast/alert simple
   const cierre = cierresCajaData.find(c => c.ts === ts);
   if(!cierre) return;
-  const lines = (cierre.movimientos||[]).map(m => `  ${m.tipo==='ingreso'?'💚':'🔴'} ${m.desc}: $${m.monto.toLocaleString('es-AR')}`).join('\n');
-  alert(`Cierre ${fmtDate(cierre.fecha)}\n\n${lines}\n\nSaldo: $${cierre.saldo.toLocaleString('es-AR')}`);
+  const lines = (cierre.movimientos||[]).map(m => `${m.tipo==='ingreso'?'💚':'🔴'} ${m.desc}: $${m.monto.toLocaleString('es-AR')}`).join('\n');
+  alertModal(`${lines}\n\nSaldo: $${cierre.saldo.toLocaleString('es-AR')}`, { title: 'Cierre ' + fmtDate(cierre.fecha) });
 }
 
 // ════════════════════════════════════════
@@ -4125,7 +4237,7 @@ async function recepConfirmarTodo(){
     .map((c,i) => ({...c, _idx: i}))
     .filter(c => c.estado !== 'recibido');
   const toConfirm = pending.filter(o => recepState[o._idx]?.checked);
-  if(toConfirm.length === 0){ alert('Marcá al menos un ítem.'); return; }
+  if(toConfirm.length === 0){ showToast('Marcá al menos un ítem.','error'); return; }
   const parciales = toConfirm.filter(o => parseFloat(recepState[o._idx].paqRecibidos) < parseFloat(o.qty));
   let msg = `¿Confirmar recepción de ${toConfirm.length} ítem${toConfirm.length>1?'s':''}?`;
   if(parciales.length > 0) msg += `\n\n⚠️ ${parciales.length} ítem${parciales.length>1?'s':''}con faltantes en paquetes — reclamar al proveedor.`;
@@ -6056,10 +6168,10 @@ function confirmVentaRamo(){
   showToast('✅ Venta registrada en Ventas Externas');
 }
 
-function vdAutoPrice(){
+async function vdAutoPrice(){
   const sel = document.getElementById('vd-prod');
   if(sel.value === '__otro__'){
-    const custom = prompt('Nombre del arreglo o ramo:');
+    const custom = await promptModal('Nombre del arreglo o ramo:', { title: 'Otro producto' });
     if(custom && custom.trim()){
       const opt = document.createElement('option');
       opt.value = custom.trim(); opt.textContent = custom.trim(); opt.selected = true;
@@ -8020,15 +8132,15 @@ function doLogin(){
   }
 }
 
-function cambiarContrasena(){
+async function cambiarContrasena(){
   const entry = loginPasswords[currentLoginKey];
   if(!entry){ showToast('⚠️ Error de sesión'); return; }
-  const nueva = prompt('Ingresá tu nueva contraseña (mínimo 3 caracteres):');
+  const nueva = await promptModal('Ingresá tu nueva contraseña (mínimo 3 caracteres):', { title: 'Cambiar contraseña', password: false });
   if(!nueva || nueva.trim().length < 3){ showToast('⚠️ La contraseña debe tener al menos 3 caracteres'); return; }
   const nuevoKey = nueva.trim().toLowerCase();
   if(nuevoKey === currentLoginKey){ showToast('Es la misma contraseña actual'); return; }
   if(loginPasswords[nuevoKey]){ showToast('⚠️ Esa contraseña ya está en uso por otro usuario'); return; }
-  const confirmar = prompt('Confirmá la nueva contraseña:');
+  const confirmar = await promptModal('Confirmá la nueva contraseña:', { title: 'Cambiar contraseña', password: false });
   if(!confirmar || confirmar.trim().toLowerCase() !== nuevoKey){ showToast('⚠️ Las contraseñas no coinciden'); return; }
   loginPasswords[nuevoKey] = {...entry};
   delete loginPasswords[currentLoginKey];
@@ -8075,13 +8187,13 @@ function openGestionPasswords(){
   ov.classList.add('open');
 }
 
-function agregarUsuarioFlorista(){
+async function agregarUsuarioFlorista(){
   if(userRole !== 'gerencia') return;
-  const nombre = prompt('Nombre del/la florista (ej. María):');
+  const nombre = await promptModal('Nombre del/la florista (ej. María):', { title: 'Nuevo usuario florista' });
   if(!nombre || !nombre.trim()) return;
   const nombreClean = nombre.trim();
   const passDefault = nombreClean.toLowerCase();
-  const password = prompt('Contraseña para ' + nombreClean + ':', passDefault);
+  const password = await promptModal('Contraseña para ' + nombreClean + ':', { title: 'Nuevo usuario florista', default: passDefault, password: false });
   if(!password || password.trim().length < 3){ showToast('⚠️ Mínimo 3 caracteres'); return; }
   const key = password.trim().toLowerCase();
   if(loginPasswords[key]){ showToast('⚠️ Esa contraseña ya está en uso'); return; }
@@ -8096,11 +8208,11 @@ function agregarUsuarioFlorista(){
   openGestionPasswords();
 }
 
-function resetearPassword(key){
+async function resetearPassword(key){
   if(userRole !== 'gerencia') return;
   const entry = loginPasswords[key];
   if(!entry){ showToast('Usuario no encontrado'); return; }
-  const nueva = prompt('Nueva contraseña para ' + (entry.label||key) + ':');
+  const nueva = await promptModal('Nueva contraseña para ' + (entry.label||key) + ':', { title: 'Resetear contraseña', password: false });
   if(!nueva || nueva.trim().length < 3){ showToast('⚠️ Mínimo 3 caracteres'); return; }
   const nuevoKey = nueva.trim().toLowerCase();
   if(nuevoKey !== key && loginPasswords[nuevoKey]){ showToast('⚠️ Esa contraseña ya está en uso'); return; }
@@ -8385,7 +8497,7 @@ function deselectAllInsumos(){
 function agregarNuevoInsumo(){
   const input = document.getElementById('nuevo-insumo-input');
   const nombre = input?.value.trim();
-  if(!nombre){ alert('Ingresá el nombre del insumo.'); return; }
+  if(!nombre){ showToast('Ingresá el nombre del insumo.','error'); return; }
   addInsumoToBase(nombre);
   if(input) input.value='';
   renderInsumosGrid();
@@ -8393,7 +8505,7 @@ function agregarNuevoInsumo(){
 
 function agregarPedidoRapido(){
   const checks = document.querySelectorAll('.insumo-check:checked');
-  if(checks.length===0){ alert('Seleccioná al menos un insumo.'); return; }
+  if(checks.length===0){ showToast('Seleccioná al menos un insumo.','error'); return; }
   const fecha = document.getElementById('cf-fecha')?.value || TODAY_ISO;
   const pedidopor = document.getElementById('cf-pedidopor')?.value || '';
   let added = 0;
@@ -8540,7 +8652,7 @@ function saveReceta(){
   const nombre = nombreSel==='custom'
     ? document.getElementById('rec-nombre-custom').value.trim()
     : nombreSel;
-  if(!nombre){ alert('Ingresá el nombre del arreglo.'); return; }
+  if(!nombre){ showToast('Ingresá el nombre del arreglo.','error'); return; }
 
   const rows = document.getElementById('rec-ings-list').querySelectorAll('.ev-arreglo-row');
   const ings = [];
@@ -8549,7 +8661,7 @@ function saveReceta(){
     const inp = row.querySelector('input[type=number]');
     if(sel?.value) ings.push({ prod: sel.value, qty: +inp?.value||1 });
   });
-  if(ings.length===0){ alert('Agregá al menos un ingrediente.'); return; }
+  if(ings.length===0){ showToast('Agregá al menos un ingrediente.','error'); return; }
 
   const idx = +document.getElementById('rec-idx').value;
   const receta = { nombre, ings, img: document.getElementById('rec-img-data').value||'' };
@@ -10179,7 +10291,7 @@ function guardarLegajo(){
   const idx = +document.getElementById('leg-idx').value;
   const nombre = document.getElementById('leg-nombre').value.trim();
   const apellido = document.getElementById('leg-apellido').value.trim();
-  if(!nombre || !apellido){ alert('Nombre y apellido son requeridos.'); return; }
+  if(!nombre || !apellido){ showToast('Nombre y apellido son requeridos.','error'); return; }
   const obj = {
     id: idx >= 0 ? legajoData[idx].id : Date.now(),
     nombre, apellido,
@@ -10301,7 +10413,7 @@ function guardarEvaluacion(){
   const empleadoId = empSel.value;
   const empleadoNombre = empSel.options[empSel.selectedIndex]?.dataset?.nombre||'';
   const trimestre = document.getElementById('eval-trimestre').value.trim();
-  if(!empleadoId || !trimestre){ alert('Empleado y trimestre son requeridos.'); return; }
+  if(!empleadoId || !trimestre){ showToast('Empleado y trimestre son requeridos.','error'); return; }
   const obj = {
     id: idx >= 0 ? evaluacionesData[idx].id : Date.now(),
     empleadoId, empleadoNombre, trimestre,
@@ -10991,10 +11103,10 @@ function openPedidoRamoModal(){
   document.getElementById('modal-pedido-ramo').classList.add('open');
 }
 
-function pedidoRamoAutoPrice(){
+async function pedidoRamoAutoPrice(){
   const sel = document.getElementById('pr-arreglo');
   if(sel.value === '__otro__'){
-    const custom = prompt('Nombre del arreglo o ramo:');
+    const custom = await promptModal('Nombre del arreglo o ramo:', { title: 'Otro producto' });
     if(custom && custom.trim()){
       const opt = document.createElement('option');
       opt.value = custom.trim(); opt.textContent = custom.trim(); opt.selected = true;
