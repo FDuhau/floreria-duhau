@@ -755,6 +755,44 @@
     .home-hero-title { font-size: 22px; }
   }
 
+  /* ── INDICADOR DE CONEXIÓN / GUARDADO ── */
+  .fb-status {
+    position: fixed;
+    top: calc(env(safe-area-inset-top, 0px) + 66px);
+    left: 50%;
+    transform: translateX(-50%) translateY(-12px);
+    z-index: 150;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    max-width: min(92vw, 420px);
+    padding: 8px 16px;
+    border-radius: 999px;
+    font-family: 'Jost', sans-serif;
+    font-size: 12.5px;
+    font-weight: 500;
+    letter-spacing: .2px;
+    line-height: 1.3;
+    text-align: center;
+    color: #fff;
+    background: var(--sage-dark);
+    box-shadow: var(--shadow-md);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .28s ease, transform .28s ease;
+  }
+  .fb-status.visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  .fb-status[data-state="saving"] { background: var(--sage-dark); }
+  .fb-status[data-state="saved"]  { background: #4A7A3A; }   /* verde sobrio */
+  .fb-status[data-state="error"]  { background: #B0452E; }   /* rojo terracota */
+  .fb-status[data-state="offline"]{ background: #9A6A1E; }   /* ámbar/ocre */
+  @media (max-width: 768px) {
+    .fb-status { top: calc(env(safe-area-inset-top, 0px) + 58px); font-size: 12px; padding: 7px 14px; }
+  }
+
   /* ── DARK MODE ── */
   [data-theme="dark"] {
     --cream: #1E1E1C;
