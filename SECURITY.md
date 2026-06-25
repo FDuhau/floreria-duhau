@@ -29,24 +29,35 @@ corromper la base). Sube mucho la barrera contra el abuso automatizado.
 URL real en el navegador (esa persona ES la app y puede leer todo). Cerrar eso
 requiere **autenticación real** (ver roadmap abajo).
 
-App Check está **desactivado hasta que lo configures** (si no hay clave, es un
-no-op y la app funciona igual). Para activarlo:
+### Estado y checklist
 
-1. **Consola de Firebase → App Check** → registrá la app web con el proveedor
-   **reCAPTCHA v3**. Vas a obtener una **site key** (no es secreta).
-2. Definí la variable de entorno en el build:
-   `VITE_APPCHECK_SITE_KEY=<tu-site-key>` (en el entorno de build de
-   Cloudflare / wrangler, o un archivo `.env` local para `vite build`).
-3. Hacé `npm run deploy` para publicar el sitio con App Check activo.
-4. En **App Check → APIs → Realtime Database**, dejá primero el modo
-   *Monitoreo* unos días; cuando veas que el tráfico legítimo pasa, activá
-   **Enforce** (obligatorio). Recién ahí queda bloqueado el acceso sin token.
+- [x] Código de App Check integrado (`src/firebase/index.js`).
+- [x] Sitio reCAPTCHA v3 creado en `google.com/recaptcha/admin` (etiqueta
+      "Floreria Duhau", dominio `floreria-duhau.operaciones-b40.workers.dev`).
+- [x] **Clave secreta** cargada en la consola de Firebase (App Check → app web).
+- [x] **Site key** (pública) cableada en el código
+      (`APPCHECK_SITE_KEY`, sobreescribible con `VITE_APPCHECK_SITE_KEY`).
+- [x] **Desplegado en producción** (Cloudflare publica solo al mergear a `main`;
+      App Check ya está enviando tokens).
+- [ ] **Monitoreo:** usar la app con normalidad unos días y revisar en
+      **Firebase → App Check → APIs → Realtime Database** la métrica de
+      *Solicitudes verificadas* (debería subir y mantenerse alta).
+- [ ] **Enforce (paso final):** cuando el % verificado sea alto y estable,
+      activar **"Aplicar"** en esa misma pantalla. Recién ahí se bloquea el
+      acceso sin token de App Check.
 
-## Acción pendiente tuya (no se deploya solo)
+> 🚫 **No activar "Aplicar/Enforce" antes de confirmar el monitoreo.** Si se
+> aplica sin tráfico verificado, Firebase rechaza TODO y la app deja de cargar
+> datos. Rollback: volver a "Sin aplicar" en la misma pantalla.
 
-- Las reglas (`database.rules.json`) **no se deployan con el sitio**. Si las
-  cambiás, hay que correr `firebase deploy --only database` o pegarlas en la
-  consola. Hoy no hay CI que lo haga.
+## Reglas de la base (`database.rules.json`)
+
+- Las reglas **no se deployan con el sitio** (el deploy automático de Cloudflare
+  solo publica el frontend). Si se cambian, hay que correr
+  `firebase deploy --only database` o pegarlas en la consola de Firebase.
+- Hoy siguen en `auth != null` (permisivas). Endurecerlas de verdad requiere la
+  autenticación real del roadmap (con login anónimo no se puede restringir por
+  rol, y en RTDB los permisos cascadean desde la raíz).
 
 ## Roadmap del arreglo completo (autenticación real)
 
