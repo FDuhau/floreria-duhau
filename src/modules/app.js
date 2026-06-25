@@ -4,7 +4,7 @@
 // Cuando un dispositivo detecta una versión distinta a la guardada,
 // limpia el localStorage viejo UNA sola vez y recarga. Sin borrar caché a mano.
 // ════════════════════════════════════════
-const APP_VERSION = '2026-06-23-a';
+const APP_VERSION = '2026-06-25-a';
 (function checkAppVersion(){
   try {
     const stored = localStorage.getItem('app_version');
@@ -6041,6 +6041,7 @@ function renderRamosDisp(){
           <div class="lp-price-input" style="font-weight:700;color:#1A1A1A">${esc(r.precio||'A consultar')}</div>
           <div class="lp-card-actions" style="display:flex;gap:6px">
             <button class="btn-add" style="padding:6px 12px;font-size:12px" onclick="openVentaRamo(${i})">✓ Vender</button>
+            ${userRole!=='ventas' ? `<button class="btn-icon" onclick="cambiarFotoRamo(${i})" title="Cambiar foto">📷</button>` : ''}
             ${userRole!=='ventas'&&userRole!=='florista' ? `<button class="btn-icon" style="color:var(--red-alert)" onclick="delRamo(${i})" title="Quitar">✕</button>` : ''}
           </div>
         </div>
@@ -6124,6 +6125,29 @@ async function delRamo(i){
   fbSave('ramosDispData', ramosDispData);
   renderRamosDisp();
 }
+
+// Cambiar la foto de un ramo ya cargado (sin tener que borrarlo y recargarlo).
+function cambiarFotoRamo(i){
+  if(!ramosDispData[i]) return;
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.onchange = () => {
+    const file = input.files?.[0];
+    if(!file){ return; }
+    const reader = new FileReader();
+    reader.onload = e => {
+      if(!ramosDispData[i]) return;
+      ramosDispData[i].foto = e.target.result;
+      fbSave('ramosDispData', ramosDispData);
+      renderRamosDisp();
+      showToast('📷 Foto actualizada');
+    };
+    reader.readAsDataURL(file);
+  };
+  input.click();
+}
+window.cambiarFotoRamo = cambiarFotoRamo;
 
 function openVentaRamo(i){
   const r = ramosDispData[i];
@@ -10768,19 +10792,17 @@ window.addEventListener('beforeinstallprompt', e => {
 });
 
 window.addEventListener('appinstalled', () => {
-  document.getElementById('pwa-install-btn')?.remove();
+  const sb = document.getElementById('pwa-sidebar-btn');
+  if(sb) sb.style.display = 'none';
   document.getElementById('pwa-ios-banner')?.remove();
   document.getElementById('pwa-android-banner')?.remove();
-  const topBtn = document.getElementById('pwa-topbar-btn');
-  if(topBtn) topBtn.style.display = 'none';
   showToast('✅ App instalada correctamente');
 });
 
+// Muestra el botón "Instalar app" en el menú lateral (debajo de Cambiar contraseña).
 function _showPWABtn(){
-  const btn = document.getElementById('pwa-install-btn');
-  if(btn) btn.style.display = 'flex';
-  const topBtn = document.getElementById('pwa-topbar-btn');
-  if(topBtn) topBtn.style.display = '';
+  const sb = document.getElementById('pwa-sidebar-btn');
+  if(sb) sb.style.display = '';
 }
 
 function _initPWAPrompt(){
@@ -10826,9 +10848,8 @@ function installPWA(){
   if(_pwaInstallEvent){
     _pwaInstallEvent.prompt();
     _pwaInstallEvent.userChoice.then(choice => {
-      if(choice.outcome==='accepted') showToast('✅ App instalada');
+      if(choice.outcome==='accepted'){ showToast('✅ App instalada'); const sb=document.getElementById('pwa-sidebar-btn'); if(sb) sb.style.display='none'; }
       _pwaInstallEvent = null;
-      document.getElementById('pwa-install-btn')?.remove();
     });
     return;
   }
@@ -10839,16 +10860,11 @@ function installPWA(){
 
 // Mostrar el botón de instalar siempre que no esté ya instalada, tanto en iOS
 // como en Android (en Android beforeinstallprompt no siempre dispara).
-if((_isIOS || _isAndroid) && !_isInStandalone){
-  window.addEventListener('load', () => {
-    _showPWABtn();
-    if(!sessionStorage.getItem('pwa-hint-shown')){
-      sessionStorage.setItem('pwa-hint-shown','1');
-      // iOS: no hay prompt nativo. Android: esperar unos segundos por
-      // beforeinstallprompt; si no llegó, mostrar instrucciones manuales.
-      setTimeout(() => { if(!_pwaInstallEvent) _initPWAPrompt(); }, _isIOS ? 3000 : 5000);
-    }
-  });
+// Mostrar el botón "Instalar app" en el menú lateral si todavía no está
+// instalada (cualquier plataforma). No se auto-abre ningún banner: las
+// instrucciones aparecen solo cuando el usuario toca el botón.
+if(!_isInStandalone){
+  window.addEventListener('load', _showPWABtn);
 }
 
 // ════════════════════════════════════════
