@@ -1,9 +1,9 @@
     // ════════════ FIREBASE SETUP ════════════
     import { initializeApp } from "firebase/app";
     import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
-    import { getDatabase, ref, set, update, onValue, get } from "firebase/database";
+    import { getDatabase, ref, set, update, onValue } from "firebase/database";
     import { getMessaging, getToken, onMessage } from "firebase/messaging";
-    import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
+    import { getAuth, signInAnonymously } from "firebase/auth";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDU9kLCnXeO7qnINEy121Nktj1K96gJ9Lw",
@@ -251,7 +251,6 @@
           } else {
             ['checked','actividad','obs','tiempo','inicio','fin','responsable'].forEach(k => {
               const fb = incoming[day][k] || [];
-              const loc = local[day][k] || [];
               const fbHas = fb.some(v => v !== '' && v !== false && v != null);
               if(fbHas) local[day][k] = fb;
             });

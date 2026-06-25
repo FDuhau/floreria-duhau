@@ -23,7 +23,12 @@ export default [
     },
     rules: {
       // Ruido de estilo / patrones intencionales del código actual → no frenan.
-      'no-unused-vars': 'warn',
+      'no-unused-vars': ['warn', {
+        args: 'after-used',
+        caughtErrors: 'none',      // catch(e){} sin usar 'e' es idiomático
+        varsIgnorePattern: '^_',   // convención del código: '_' = a propósito sin usar
+        argsIgnorePattern: '^_',
+      }],
       'no-empty': 'off',                  // hay muchos catch(e){} intencionales
       'no-cond-assign': ['error', 'except-parens'],
       'no-prototype-builtins': 'off',
