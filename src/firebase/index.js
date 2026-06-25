@@ -23,7 +23,9 @@
     // mucho la barrera. Se activa SOLO si hay una clave de sitio reCAPTCHA v3
     // configurada (VITE_APPCHECK_SITE_KEY); sin clave es un no-op y la app
     // funciona igual que hoy. Pasos para activarlo: ver SECURITY.md.
-    const APPCHECK_SITE_KEY = import.meta.env.VITE_APPCHECK_SITE_KEY || '';
+    // Clave de sitio reCAPTCHA v3 (pública — la secreta va en la consola de Firebase).
+    // Se puede sobreescribir por entorno con VITE_APPCHECK_SITE_KEY.
+    const APPCHECK_SITE_KEY = import.meta.env.VITE_APPCHECK_SITE_KEY || '6Ld64DQtAAAAAObMaasjrkPECxeUAS4msjA32zmF';
     if(APPCHECK_SITE_KEY){
       try {
         initializeAppCheck(fbApp, {
