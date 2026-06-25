@@ -24,15 +24,15 @@
 
     // ── Helpers ───────────────────────────────────────────────────
     function fbSet(path, data){
-      set(ref(db, path), data).catch(e => console.warn('FB write error:', e));
+      return _trackWrite(set(ref(db, path), data), 'FB write error:');
     }
 
     function fbSetPath(path, value){
-      set(ref(db, path), value).catch(e => console.warn('FB path write error:', e));
+      return _trackWrite(set(ref(db, path), value), 'FB path write error:');
     }
 
     function fbUpdate(path, updates){
-      update(ref(db, path), updates).catch(e => console.warn('FB update error:', e));
+      return _trackWrite(update(ref(db, path), updates), 'FB update error:');
     }
 
     function fbListen(path, cb){
@@ -41,6 +41,93 @@
         if(val !== null) cb(val);
       });
     }
+
+    // ════════════ ESTADO DE CONEXIÓN Y GUARDADO ════════════
+    // Indicador visible arriba al centro: avisa cuando no hay conexión
+    // y confirma cada guardado (Guardando… / Guardado ✓ / Error).
+    // Usa .info/connected de Firebase (refleja la sincronización real,
+    // no solo si hay wifi) + el evento offline del navegador para reaccionar
+    // al instante. Las escrituras hechas sin conexión quedan en cola y se
+    // sincronizan solas al volver, por eso el aviso tranquiliza al usuario.
+    let _isConnected   = true;  // se asume conectado hasta que .info/connected diga lo contrario (evita parpadeo al cargar)
+    let _pendingWrites = 0;     // escrituras en vuelo (o en cola si está offline)
+    let _statusEl      = null;
+    let _statusHideTimer = null;
+    let _offlineTimer  = null;
+
+    function _ensureStatusEl(){
+      if(_statusEl) return _statusEl;
+      const el = document.createElement('div');
+      el.id = 'fb-status';
+      el.className = 'fb-status';
+      el.setAttribute('role', 'status');
+      el.setAttribute('aria-live', 'polite');
+      (document.body || document.documentElement).appendChild(el);
+      _statusEl = el;
+      return el;
+    }
+
+    function _renderStatus(){
+      const el = _ensureStatusEl();
+      clearTimeout(_statusHideTimer);
+      // Prioridad: sin conexión > guardando.
+      if(!_isConnected){
+        el.textContent = '⚠ Sin conexión — los cambios se guardan al volver';
+        el.dataset.state = 'offline';
+        el.classList.add('visible');
+        return;
+      }
+      if(_pendingWrites > 0){
+        el.textContent = '⟳ Guardando…';
+        el.dataset.state = 'saving';
+        el.classList.add('visible');
+        return;
+      }
+      // Con conexión y sin pendientes: ocultar.
+      el.classList.remove('visible');
+    }
+
+    function _flashSaved(ok){
+      // No molestamos con "Guardado" si seguimos offline o quedan escrituras.
+      if(!_isConnected || _pendingWrites > 0) return;
+      const el = _ensureStatusEl();
+      clearTimeout(_statusHideTimer);
+      el.textContent  = ok ? 'Guardado ✓' : '⚠ Error al guardar';
+      el.dataset.state = ok ? 'saved' : 'error';
+      el.classList.add('visible');
+      _statusHideTimer = setTimeout(() => {
+        if(_pendingWrites === 0 && _isConnected) el.classList.remove('visible');
+      }, ok ? 1600 : 5000);
+    }
+
+    function _trackWrite(promise, errLabel){
+      _pendingWrites++;
+      _renderStatus();
+      return promise.then(
+        () => { _pendingWrites = Math.max(0, _pendingWrites - 1); _renderStatus(); _flashSaved(true); },
+        (e) => { _pendingWrites = Math.max(0, _pendingWrites - 1); console.warn(errLabel || 'FB write error:', e); _renderStatus(); _flashSaved(false); }
+      );
+    }
+
+    // Estado de conexión real con Firebase (más fiable que navigator.onLine).
+    onValue(ref(db, '.info/connected'), snap => {
+      const connected = snap.val() === true;
+      if(connected){
+        clearTimeout(_offlineTimer);
+        _isConnected = true;
+        _renderStatus();
+      } else {
+        // Debounce: evitar el falso "Sin conexión" durante el handshake inicial
+        // o microcortes. Solo avisamos si persiste unos segundos.
+        clearTimeout(_offlineTimer);
+        _offlineTimer = setTimeout(() => { _isConnected = false; _renderStatus(); }, 3000);
+      }
+    });
+
+    // El navegador detecta la caída de red al instante (Firebase puede tardar
+    // hasta un minuto en notar el corte por su keepalive).
+    window.addEventListener('offline', () => { clearTimeout(_offlineTimer); _isConnected = false; _renderStatus(); });
+    // Al volver online dejamos que .info/connected confirme la sincronización real.
 
     // ── Expose to global scope so non-module script can call them ─
     window.fbSet     = fbSet;
