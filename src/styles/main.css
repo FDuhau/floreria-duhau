@@ -73,6 +73,14 @@
   body:not(.role-gerencia) .lp-price-input { pointer-events:none; background:transparent; border-color:transparent; resize:none; }
   body:not(.role-gerencia) .lp-card-actions,
   body:not(.role-gerencia) .lp-add-photo { display:none !important; }
+  /* Excepción: en Ramos Disponibles (#rd-grid) los floristas/comercial SÍ deben
+     ver las acciones del ramo (botón Vender, cambiar foto). La regla de arriba
+     es para la Lista de Precios (solo-lectura), pero los ramos reusan la misma
+     clase .lp-card-actions, así que acá la re-habilitamos solo para ese grid. */
+  body:not(.role-gerencia) #rd-grid .lp-card-actions { display:flex !important; }
+  body:not(.role-gerencia) #rd-grid .lp-card-name,
+  body:not(.role-gerencia) #rd-grid .lp-card-desc,
+  body:not(.role-gerencia) #rd-grid .lp-price-input { pointer-events:auto; }
   .sidebar-footer { padding:18px 22px; border-top:1px solid rgba(255,255,255,.05); font-size:10px; color:rgba(247,245,242,.25); letter-spacing:.5px; }
 
   /* ── MAIN ── */
