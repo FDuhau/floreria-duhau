@@ -6052,7 +6052,7 @@ function renderRamosDisp(){
           <div class="lp-card-actions" style="display:flex;gap:6px">
             <button class="btn-add" style="padding:6px 12px;font-size:12px" onclick="openVentaRamo(${i})">✓ Vender</button>
             ${userRole!=='ventas' ? `<button class="btn-icon" onclick="cambiarFotoRamo(${i})" title="Cambiar foto">📷</button>` : ''}
-            ${userRole!=='ventas'&&userRole!=='florista' ? `<button class="btn-icon" style="color:var(--red-alert)" onclick="delRamo(${i})" title="Quitar">✕</button>` : ''}
+            ${userRole!=='ventas' ? `<button class="btn-icon" style="color:var(--red-alert)" onclick="delRamo(${i})" title="Descartar (no registra venta)">✕</button>` : ''}
           </div>
         </div>
       </div>
