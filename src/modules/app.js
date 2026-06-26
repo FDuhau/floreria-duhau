@@ -4,7 +4,7 @@
 // Cuando un dispositivo detecta una versión distinta a la guardada,
 // limpia el localStorage viejo UNA sola vez y recarga. Sin borrar caché a mano.
 // ════════════════════════════════════════
-const APP_VERSION = '2026-06-25-a';
+const APP_VERSION = '2026-06-25-b';
 (function checkAppVersion(){
   try {
     const stored = localStorage.getItem('app_version');
@@ -10780,9 +10780,31 @@ const _isAndroid = /Android/.test(navigator.userAgent);
 const _isInStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
 
 if('serviceWorker' in navigator){
+  // Auto-actualización: cuando se activa un service worker nuevo (versión nueva
+  // desplegada), recargar la app sola para tomar el código nuevo. Evita que los
+  // dispositivos queden pegados en una versión vieja cacheada.
+  let _swReloading = false;
+  // Solo si YA había un SW controlando (no en la primerísima instalación, para
+  // no recargar de más la primera vez).
+  if(navigator.serviceWorker.controller){
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if(_swReloading) return;
+      _swReloading = true;
+      try { window.showToast?.('🔄 Actualizando a la última versión…'); } catch(e){}
+      setTimeout(() => location.reload(), 800);
+    });
+  }
   // Registrar el MISMO SW que index.html para no tener dos en conflicto en el
   // mismo scope (lo que puede romper la instalabilidad / beforeinstallprompt).
-  window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js').catch(()=>{}));
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js').then(reg => {
+      // Volver a chequear si hay versión nueva cada vez que la app gana foco
+      // (útil para la PWA instalada que queda abierta mucho tiempo).
+      document.addEventListener('visibilitychange', () => {
+        if(document.visibilityState === 'visible') reg.update().catch(()=>{});
+      });
+    }).catch(()=>{});
+  });
 }
 
 window.addEventListener('beforeinstallprompt', e => {
@@ -10792,17 +10814,17 @@ window.addEventListener('beforeinstallprompt', e => {
 });
 
 window.addEventListener('appinstalled', () => {
-  const sb = document.getElementById('pwa-sidebar-btn');
-  if(sb) sb.style.display = 'none';
+  const btn = document.getElementById('pwa-topbar-btn');
+  if(btn) btn.style.display = 'none';
   document.getElementById('pwa-ios-banner')?.remove();
   document.getElementById('pwa-android-banner')?.remove();
   showToast('✅ App instalada correctamente');
 });
 
-// Muestra el botón "Instalar app" en el menú lateral (debajo de Cambiar contraseña).
+// Muestra el botón "Instalar app" (📲) en la barra superior.
 function _showPWABtn(){
-  const sb = document.getElementById('pwa-sidebar-btn');
-  if(sb) sb.style.display = '';
+  const btn = document.getElementById('pwa-topbar-btn');
+  if(btn) btn.style.display = '';
 }
 
 function _initPWAPrompt(){
@@ -10848,14 +10870,15 @@ function installPWA(){
   if(_pwaInstallEvent){
     _pwaInstallEvent.prompt();
     _pwaInstallEvent.userChoice.then(choice => {
-      if(choice.outcome==='accepted'){ showToast('✅ App instalada'); const sb=document.getElementById('pwa-sidebar-btn'); if(sb) sb.style.display='none'; }
+      if(choice.outcome==='accepted'){ showToast('✅ App instalada'); const tb=document.getElementById('pwa-topbar-btn'); if(tb) tb.style.display='none'; }
       _pwaInstallEvent = null;
     });
     return;
   }
-  // Sin evento nativo (iOS siempre; Android cuando Chrome no lo dispara):
-  // mostrar instrucciones manuales según la plataforma.
-  _initPWAPrompt();
+  // Sin evento nativo: instrucciones manuales según plataforma.
+  if(_isIOS || _isAndroid){ _initPWAPrompt(); return; }
+  // PC sin evento (ya instalada, o navegador sin soporte de instalación).
+  showToast('Para instalarla, usá el ícono de instalar ⊕ en la barra de direcciones de Chrome/Edge.');
 }
 
 // Mostrar el botón de instalar siempre que no esté ya instalada, tanto en iOS

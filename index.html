@@ -121,7 +121,6 @@
   </div>
   <div style="padding:12px 24px;border-top:1px solid rgba(255,255,255,.07)">
     <button onclick="cambiarContrasena()" style="width:100%;padding:8px 12px;font-size:11px;letter-spacing:.5px;background:rgba(255,255,255,.06);color:rgba(247,245,242,.6);border:1px solid rgba(255,255,255,.1);border-radius:6px;cursor:pointer;font-family:inherit;margin-bottom:6px">🔑 Cambiar contraseña</button>
-    <button onclick="installPWA()" id="pwa-sidebar-btn" style="display:none;width:100%;padding:8px 12px;font-size:11px;letter-spacing:.5px;background:rgba(255,255,255,.06);color:rgba(247,245,242,.6);border:1px solid rgba(255,255,255,.1);border-radius:6px;cursor:pointer;font-family:inherit;margin-bottom:6px">📲 Instalar app</button>
     <button onclick="openGestionPasswords()" class="gerencia-only" style="width:100%;padding:8px 12px;font-size:11px;letter-spacing:.5px;background:rgba(255,255,255,.06);color:rgba(247,245,242,.6);border:1px solid rgba(255,255,255,.1);border-radius:6px;cursor:pointer;font-family:inherit;margin-bottom:6px">👥 Gestionar usuarios</button>
     <button onclick="openPushNotifModal()" class="gerencia-only" style="width:100%;padding:8px 12px;font-size:11px;letter-spacing:.5px;background:rgba(255,255,255,.06);color:rgba(247,245,242,.6);border:1px solid rgba(255,255,255,.1);border-radius:6px;cursor:pointer;font-family:inherit">🔔 Enviar notificación</button>
   </div>
@@ -140,6 +139,7 @@
       <span class="date-badge" id="topbar-day"></span>
       <button class="theme-toggle-btn" id="theme-toggle-btn" onclick="toggleDarkMode()" title="Modo oscuro (Alt+D)">🌙</button>
       <button class="theme-toggle-btn" onclick="openGlobalSearch()" title="Búsqueda global (Ctrl+K)" style="font-size:13px">🔍</button>
+      <button class="theme-toggle-btn" id="pwa-topbar-btn" onclick="installPWA()" title="Instalar app" style="font-size:13px;display:none">📲</button>
       <span style="font-size:9px;color:#aaa;margin-left:8px">v9jun</span>
     </div>
   </div>
