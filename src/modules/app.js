@@ -4,7 +4,7 @@
 // Cuando un dispositivo detecta una versión distinta a la guardada,
 // limpia el localStorage viejo UNA sola vez y recarga. Sin borrar caché a mano.
 // ════════════════════════════════════════
-const APP_VERSION = '2026-06-26-a';
+const APP_VERSION = '2026-06-26-b';
 (function checkAppVersion(){
   try {
     const stored = localStorage.getItem('app_version');
@@ -11208,7 +11208,7 @@ function guardarPedidoRamo(){
   const asignado = document.getElementById('pr-asignado').value;
   if(!prod || prod==='__otro__'){ showToast('Elegí el arreglo'); return; }
   if(!cliente){ showToast('Completá el cliente'); return; }
-  if(!asignado){ showToast('Asigná un florista'); return; }
+  // El florista NO es obligatorio: si queda sin asignar, lo asigna Gerencia.
   ventasData.push({
     prod,
     desc: '',
@@ -11228,8 +11228,15 @@ function guardarPedidoRamo(){
   closeModal('modal-pedido-ramo');
   renderPedidosRamos();
   if(document.getElementById('page-ventas-externas')?.classList.contains('active')) renderVentas();
-  notificarAsignacion(asignado, '💐 Nuevo pedido asignado', `Ramo para ${cliente}${document.getElementById('pr-fecha').value ? ' · ' + fmtDate(document.getElementById('pr-fecha').value) : ''}`);
-  showToast(`💐 Pedido asignado a ${asignado} — aparece en su checklist`);
+  const cuando = document.getElementById('pr-fecha').value ? ' · ' + fmtDate(document.getElementById('pr-fecha').value) : '';
+  if(asignado){
+    notificarAsignacion(asignado, '💐 Nuevo pedido asignado', `Ramo para ${cliente}${cuando}`);
+    showToast(`💐 Pedido asignado a ${asignado} — aparece en su checklist`);
+  } else {
+    // Sin asignar: avisar a Gerencia para que lo asigne a un florista.
+    window.pushSend?.('💐 Nuevo pedido de ramo', `Para ${cliente}${cuando} — asigná un florista`, 'pedido-ramo', 'Gerencia');
+    showToast('💐 Pedido creado — Gerencia lo asignará a un florista');
+  }
 }
 
 function renderPedidosRamos(){
@@ -11240,21 +11247,48 @@ function renderPedidosRamos(){
   const sorted = [...pedidos].sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||''));
   if(!sorted.length){ el.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--mid-gray);padding:24px">Sin pedidos. Tocá «+ Nuevo Pedido» para encargar un ramo y asignarlo a un florista.</td></tr>'; return; }
   const estLbl = {pendiente:'⏳ Pendiente', confirmado:'✅ Confirmado', entregado:'🚚 Entregado'};
+  const floristas = (typeof getFloristasActivos === 'function' ? getFloristasActivos() : []);
   el.innerHTML = sorted.map(v=>{
     const i = ventasData.indexOf(v);
     const hecho = v.estado==='entregado' || v.fin;
+    // Gerencia asigna/reasigna el florista desde acá; el resto lo ve solo lectura.
+    const asignCell = userRole === 'gerencia'
+      ? `<select class="form-input" style="padding:5px 8px;font-size:12px;min-width:130px" onchange="asignarFloristaPedido(${i}, this.value)">
+           <option value="">— Sin asignar —</option>
+           ${floristas.map(f=>`<option value="${esc(f)}" ${v.asignado===f?'selected':''}>${esc(f)}</option>`).join('')}
+         </select>`
+      : (v.asignado
+          ? `<span style="font-weight:600;color:var(--sage-dark)">${esc(v.asignado)}</span>`
+          : `<span style="font-weight:600;color:#9A6A1E">⚠ Sin asignar</span>`);
     return `<tr${hecho?' style="opacity:.55"':''}>
       <td style="white-space:nowrap">${v.fecha?fmtDate(v.fecha):'—'}</td>
       <td><strong>${esc(v.prod||'—')}</strong></td>
       <td>${esc(v.cliente||'—')}</td>
       <td style="font-size:12px">${esc(v.colores||'—')}</td>
-      <td style="font-weight:600;color:var(--sage-dark)">${esc(v.asignado||'—')}</td>
+      <td>${asignCell}</td>
       <td style="white-space:nowrap;font-weight:600">${esc(v.precio||'—')}</td>
       <td><span style="font-size:11px">${estLbl[v.estado]||esc(v.estado||'')}${v.fin?' · '+esc(v.fin):''}</span></td>
       <td style="white-space:nowrap"><button class="btn-icon" title="Eliminar" onclick="eliminarPedidoRamo(${i})">🗑</button></td>
     </tr>`;
   }).join('');
 }
+
+// Gerencia asigna (o reasigna) un florista a un pedido de ramo y le avisa.
+function asignarFloristaPedido(i, nombre){
+  const v = ventasData[i];
+  if(!v) return;
+  v.asignado = nombre || '';
+  fbSave('ventasData', ventasData);
+  renderPedidosRamos();
+  if(document.getElementById('page-checklist')?.classList.contains('active')) renderChecklistTable?.();
+  if(nombre){
+    notificarAsignacion(nombre, '💐 Nuevo pedido asignado', `Ramo para ${v.cliente||''}${v.fecha ? ' · ' + fmtDate(v.fecha) : ''}`);
+    showToast(`💐 Asignado a ${nombre} — aparece en su checklist`);
+  } else {
+    showToast('Pedido sin asignar');
+  }
+}
+window.asignarFloristaPedido = asignarFloristaPedido;
 
 async function eliminarPedidoRamo(i){
   if(i<0 || !ventasData[i]) return;
