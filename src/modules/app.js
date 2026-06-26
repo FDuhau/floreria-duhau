@@ -19,6 +19,9 @@ const APP_VERSION = '2026-06-25-b';
       }
       keysToClear.forEach(k => localStorage.removeItem(k));
       localStorage.setItem('app_version', APP_VERSION);
+      // Limpiar TODOS los cachés del service worker para forzar la versión nueva
+      // (evita quedar pegado en una versión vieja de la app).
+      try { if(window.caches?.keys) window.caches.keys().then(ks => ks.forEach(k => window.caches.delete(k))); } catch(e){}
       // Si había una versión previa (no es primera visita), recargar limpio una vez
       if(stored !== null){
         location.reload();
@@ -26,6 +29,13 @@ const APP_VERSION = '2026-06-25-b';
     }
   } catch(e){ /* localStorage no disponible: la app igual funciona con Firebase */ }
 })();
+
+// Mostrar la versión real en el cartelito del topbar (para diagnosticar caché:
+// si un dispositivo muestra una versión vieja, está corriendo código viejo).
+try {
+  const _setVer = () => { const el = document.getElementById('app-version-label'); if(el) el.textContent = 'v' + APP_VERSION; };
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _setVer); else _setVer();
+} catch(e){}
 
 // ════════════════════════════════════════
 // FIREBASE SYNC HELPERS (called after fbReady)
