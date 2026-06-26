@@ -10824,17 +10824,21 @@ window.addEventListener('beforeinstallprompt', e => {
 });
 
 window.addEventListener('appinstalled', () => {
-  const btn = document.getElementById('pwa-topbar-btn');
-  if(btn) btn.style.display = 'none';
+  const top = document.getElementById('pwa-topbar-btn');
+  if(top) top.style.display = 'none';
+  const fl = document.getElementById('pwa-install-btn');
+  if(fl) fl.style.display = 'none';
   document.getElementById('pwa-ios-banner')?.remove();
   document.getElementById('pwa-android-banner')?.remove();
   showToast('✅ App instalada correctamente');
 });
 
-// Muestra el botón "Instalar app" (📲) en la barra superior.
+// Muestra el botón de instalar: ícono en topbar + botón flotante prominente.
 function _showPWABtn(){
-  const btn = document.getElementById('pwa-topbar-btn');
-  if(btn) btn.style.display = '';
+  const top = document.getElementById('pwa-topbar-btn');
+  if(top) top.style.display = '';
+  const fl = document.getElementById('pwa-install-btn');
+  if(fl) fl.style.display = 'flex';
 }
 
 function _initPWAPrompt(){
@@ -10880,7 +10884,7 @@ function installPWA(){
   if(_pwaInstallEvent){
     _pwaInstallEvent.prompt();
     _pwaInstallEvent.userChoice.then(choice => {
-      if(choice.outcome==='accepted'){ showToast('✅ App instalada'); const tb=document.getElementById('pwa-topbar-btn'); if(tb) tb.style.display='none'; }
+      if(choice.outcome==='accepted'){ showToast('✅ App instalada'); document.getElementById('pwa-topbar-btn')?.style && (document.getElementById('pwa-topbar-btn').style.display='none'); document.getElementById('pwa-install-btn')?.style && (document.getElementById('pwa-install-btn').style.display='none'); }
       _pwaInstallEvent = null;
     });
     return;
