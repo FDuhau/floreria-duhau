@@ -192,12 +192,23 @@
     fbListen('pushBroadcast', val => {
       if(!val) return;
       const me = (window.currentUserLabel || '').toLowerCase();
+      const myRole = (window.userRole || '').toLowerCase();
       const entries = Object.values(val);
       const recientes = entries.filter(e => e.ts > _pushSessionStart);
       if(recientes.length) _pushSessionStart = Math.max(_pushSessionStart, ...recientes.map(e => e.ts + 1));
       recientes.forEach(e => {
-        // Si la notificación es dirigida a alguien, mostrarla solo a esa persona
-        if(e.target && String(e.target).toLowerCase() !== me) return;
+        // Si la notificación es dirigida, mostrarla solo a quien corresponda.
+        // - target "roles:florista,gerencia" → a todos los de esos roles
+        // - target "Caro" / "Gerencia"      → solo a esa persona (por label)
+        if(e.target){
+          const t = String(e.target).toLowerCase();
+          if(t.startsWith('roles:')){
+            const roles = t.slice(6).split(',').map(s => s.trim()).filter(Boolean);
+            if(!roles.includes(myRole)) return;
+          } else if(t !== me){
+            return;
+          }
+        }
         // Aviso in-app (visible aunque no haya permiso de notificaciones del navegador)
         window.showToast?.('🔔 ' + (e.title || '') + (e.body ? ' — ' + e.body : ''));
         // Notificación del navegador si hay permiso
