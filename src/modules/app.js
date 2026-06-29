@@ -4,7 +4,7 @@
 // Cuando un dispositivo detecta una versión distinta a la guardada,
 // limpia el localStorage viejo UNA sola vez y recarga. Sin borrar caché a mano.
 // ════════════════════════════════════════
-const APP_VERSION = '2026-06-29-c';
+const APP_VERSION = '2026-06-29-d';
 (function checkAppVersion(){
   try {
     const stored = localStorage.getItem('app_version');
@@ -5062,6 +5062,15 @@ function jardRegistrarHoraTurno(campo){
   window.jardHorarios[nombre][TODAY_ISO][campo] = hh+':'+mm;
   jardCurrentJardinero = nombre;
   fbSave('jardHorarios', window.jardHorarios);
+  // Usuario combinado (jardinería + florista, ej. Ivan): una sola jornada vale
+  // para las dos áreas → reflejar el mismo inicio/fin en florTurnos.
+  if(floristaNombre && floristaNombre === nombre){
+    if(!window.florTurnos) window.florTurnos = {};
+    if(!window.florTurnos[nombre]) window.florTurnos[nombre] = {};
+    if(!window.florTurnos[nombre][TODAY_ISO]) window.florTurnos[nombre][TODAY_ISO] = {};
+    window.florTurnos[nombre][TODAY_ISO][campo] = hh+':'+mm;
+    window.fbSetPath?.('florTurnos/'+nombre+'/'+TODAY_ISO+'/'+campo, hh+':'+mm);
+  }
   renderJardTurnoCard();
   showToast(campo==='inicio' ? '▶ Jornada iniciada: '+hh+':'+mm : '⏹ Jornada finalizada: '+hh+':'+mm);
 }
@@ -5071,6 +5080,11 @@ function jardResetHoraTurno(campo){
   if(!nombre || !window.jardHorarios[nombre]?.[TODAY_ISO]) return;
   window.jardHorarios[nombre][TODAY_ISO][campo] = '';
   fbSave('jardHorarios', window.jardHorarios);
+  // Espejo para usuario combinado (ver jardRegistrarHoraTurno)
+  if(floristaNombre && floristaNombre === nombre && window.florTurnos?.[nombre]?.[TODAY_ISO]){
+    window.florTurnos[nombre][TODAY_ISO][campo] = '';
+    window.fbSetPath?.('florTurnos/'+nombre+'/'+TODAY_ISO+'/'+campo, '');
+  }
   renderJardTurnoCard();
 }
 
@@ -5130,6 +5144,15 @@ function florRegistrarTurno(campo){
   if(!window.florTurnos[floristaNombre]) window.florTurnos[floristaNombre] = {};
   if(!window.florTurnos[floristaNombre][TODAY_ISO]) window.florTurnos[floristaNombre][TODAY_ISO] = {};
   window.florTurnos[floristaNombre][TODAY_ISO][campo] = hh+':'+mm;
+  // Usuario combinado (florista + jardinería, ej. Ivan): una sola jornada vale
+  // para las dos áreas → reflejar el mismo inicio/fin en jardHorarios.
+  if(jardineroNombre && jardineroNombre === floristaNombre){
+    if(!window.jardHorarios) window.jardHorarios = {};
+    if(!window.jardHorarios[floristaNombre]) window.jardHorarios[floristaNombre] = {};
+    if(!window.jardHorarios[floristaNombre][TODAY_ISO]) window.jardHorarios[floristaNombre][TODAY_ISO] = {inicio:'',fin:'',tareas:0};
+    window.jardHorarios[floristaNombre][TODAY_ISO][campo] = hh+':'+mm;
+    window.fbSetPath?.('jardHorarios/'+floristaNombre+'/'+TODAY_ISO+'/'+campo, hh+':'+mm);
+  }
   renderFlorTurnoCard();
   showToast(campo==='inicio' ? '▶ Jornada iniciada: '+hh+':'+mm : '⏹ Jornada finalizada: '+hh+':'+mm);
 }
@@ -5138,6 +5161,11 @@ function florResetTurno(campo){
   if(!floristaNombre || !window.florTurnos?.[floristaNombre]?.[TODAY_ISO]) return;
   window.florTurnos[floristaNombre][TODAY_ISO][campo] = '';
   window.fbSetPath?.('florTurnos/'+floristaNombre+'/'+TODAY_ISO+'/'+campo, '');
+  // Espejo para usuario combinado (ver florRegistrarTurno)
+  if(jardineroNombre && jardineroNombre === floristaNombre && window.jardHorarios?.[floristaNombre]?.[TODAY_ISO]){
+    window.jardHorarios[floristaNombre][TODAY_ISO][campo] = '';
+    window.fbSetPath?.('jardHorarios/'+floristaNombre+'/'+TODAY_ISO+'/'+campo, '');
+  }
   renderFlorTurnoCard();
 }
 
