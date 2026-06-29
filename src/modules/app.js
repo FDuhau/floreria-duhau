@@ -4,7 +4,7 @@
 // Cuando un dispositivo detecta una versión distinta a la guardada,
 // limpia el localStorage viejo UNA sola vez y recarga. Sin borrar caché a mano.
 // ════════════════════════════════════════
-const APP_VERSION = '2026-06-26-b';
+const APP_VERSION = '2026-06-29-a';
 (function checkAppVersion(){
   try {
     const stored = localStorage.getItem('app_version');
@@ -7801,8 +7801,14 @@ function renderHorarios(){
           if(hp?.desde && hp?.hasta){ totalHs += calcHorasDia(hp.desde,hp.hasta); asignados++; }
         }
       } else {
-        const h = window.horariosData[n]?.[iso];
-        if(h && h.desde && h.hasta){ totalHs += calcHorasDia(h.desde, h.hasta); asignados++; }
+        // Florista: usar el inicio/fin REAL de jornada del checklist (florTurnos);
+        // la plantilla (horariosData) queda solo como respaldo si no fichó.
+        const ft = (window.florTurnos||{})[n]?.[iso];
+        if(ft?.inicio && ft?.fin){ totalHs += calcHorasDia(ft.inicio, ft.fin); asignados++; }
+        else {
+          const h = window.horariosData[n]?.[iso];
+          if(h && h.desde && h.hasta){ totalHs += calcHorasDia(h.desde, h.hasta); asignados++; }
+        }
       }
     });
 
@@ -7843,14 +7849,25 @@ function openDiaHorario(iso){
         if(!window.horariosData[nombre]) window.horariosData[nombre] = {};
         const h = window.horariosData[nombre][iso] || {desde:'',hasta:''};
         const hs = calcHorasDia(h.desde, h.hasta);
-        return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--light-gray)">
-          <strong style="flex:1;font-size:13px;color:#1A1A1A;min-width:80px">${esc(nombre)}</strong>
-          <input type="time" value="${h.desde||''}" id="hor_${nombre}_${iso}_desde"
-            style="width:90px;padding:4px 6px;border:1px solid var(--light-gray);border-radius:4px;font-size:12px;font-family:inherit">
-          <span style="font-size:11px;color:var(--mid-gray)">→</span>
-          <input type="time" value="${h.hasta||''}" id="hor_${nombre}_${iso}_hasta"
-            style="width:90px;padding:4px 6px;border:1px solid var(--light-gray);border-radius:4px;font-size:12px;font-family:inherit">
-          <span style="font-size:11px;color:var(--sage-dark);font-weight:600;min-width:30px">${hs > 0 ? hs+'h' : ''}</span>
+        // Jornada REAL fichada en el checklist (florista: florTurnos, jardinero: jardHorarios)
+        const real = isJardinero(nombre)
+          ? (window.jardHorarios||{})[nombre]?.[iso]
+          : (window.florTurnos||{})[nombre]?.[iso];
+        const realHs = (real?.inicio && real?.fin) ? calcHorasDia(real.inicio, real.fin) : 0;
+        const fichado = (real?.inicio && real?.fin)
+          ? `<div style="font-size:10px;color:var(--green-ok);font-weight:600;margin-top:2px">✓ Fichó ${real.inicio}–${real.fin} · ${realHs}h reales</div>`
+          : '';
+        return `<div style="padding:8px 0;border-bottom:1px solid var(--light-gray)">
+          <div style="display:flex;align-items:center;gap:10px">
+            <strong style="flex:1;font-size:13px;color:#1A1A1A;min-width:80px">${esc(nombre)}</strong>
+            <input type="time" value="${h.desde||''}" id="hor_${nombre}_${iso}_desde"
+              style="width:90px;padding:4px 6px;border:1px solid var(--light-gray);border-radius:4px;font-size:12px;font-family:inherit">
+            <span style="font-size:11px;color:var(--mid-gray)">→</span>
+            <input type="time" value="${h.hasta||''}" id="hor_${nombre}_${iso}_hasta"
+              style="width:90px;padding:4px 6px;border:1px solid var(--light-gray);border-radius:4px;font-size:12px;font-family:inherit">
+            <span style="font-size:11px;color:var(--sage-dark);font-weight:600;min-width:30px">${hs > 0 ? hs+'h' : ''}</span>
+          </div>
+          ${fichado}
         </div>`;
       }).join('')}
     </div>
@@ -7928,9 +7945,12 @@ function renderProductividadHorarios(empleados){
     } else {
       hor = window.horariosData[nombre]?.[TODAY_ISO] || {};
       hsProgramadas = calcHorasDia(hor.desde, hor.hasta);
-      // Turno real del florista (check-in/checkout)
+      // Horas trabajadas = jornada REAL del checklist (inicio→fin de jornada).
+      // Las tareas/eventos/ventas asignadas cuentan para la productividad
+      // (cuántas hizo), NO se suman a las horas si ya fichó la jornada.
       const ft=(window.florTurnos||{})[nombre]?.[TODAY_ISO];
-      if(ft?.inicio && ft?.fin){ minsTrabjados = calcHorasDia(ft.inicio,ft.fin)*60; }
+      const jornadaMarcada = !!(ft?.inicio && ft?.fin);
+      if(jornadaMarcada){ minsTrabjados = calcHorasDia(ft.inicio,ft.fin)*60; }
       if(dayState){
         CL_TASKS.forEach((t,i) => {
           const resp = dayState.responsable?.[i] || '';
@@ -7938,7 +7958,7 @@ function renderProductividadHorarios(empleados){
           tareasAsignadas++;
           const ini = dayState.inicio?.[i];
           const fin = dayState.fin?.[i];
-          if(ini && fin){
+          if(ini && fin && !jornadaMarcada){
             const [h1,m1] = ini.split(':').map(Number);
             const [h2,m2] = fin.split(':').map(Number);
             const diff = (h2*60+m2) - (h1*60+m1);
@@ -7953,21 +7973,24 @@ function renderProductividadHorarios(empleados){
         const mins = (a,b) => { const [h1,m1]=a.split(':').map(Number); const [h2,m2]=b.split(':').map(Number); return (h2*60+m2)-(h1*60+m1); };
         // Armado → al florista que armó (asignado)
         if(ev.asignado === nombre){
-          if(ev.inicio && ev.fin){ const d = mins(ev.inicio, ev.fin); if(d>0){ minsTrabjados += d; tareasHechas++; tareasAsignadas++; } }
+          if(ev.inicio && ev.fin){ tareasHechas++; tareasAsignadas++; if(!jornadaMarcada){ const d = mins(ev.inicio, ev.fin); if(d>0) minsTrabjados += d; } }
           else tareasAsignadas++;
         }
         // Colocación → al florista que colocó (colocacionAsignado)
         if(ev.colocacionAsignado === nombre){
-          if(ev.colocacionInicio && ev.colocacionFin){ const d = mins(ev.colocacionInicio, ev.colocacionFin); if(d>0){ minsTrabjados += d; tareasHechas++; tareasAsignadas++; } }
+          if(ev.colocacionInicio && ev.colocacionFin){ tareasHechas++; tareasAsignadas++; if(!jornadaMarcada){ const d = mins(ev.colocacionInicio, ev.colocacionFin); if(d>0) minsTrabjados += d; } }
           else tareasAsignadas++;
         }
       });
       (ventasData||[]).forEach(v => {
         if(v.asignado === nombre && v.estado === 'pendiente' && v.inicio && v.fin){
-          const [h1,m1] = v.inicio.split(':').map(Number);
-          const [h2,m2] = v.fin.split(':').map(Number);
-          const diff = (h2*60+m2) - (h1*60+m1);
-          if(diff > 0){ minsTrabjados += diff; tareasHechas++; tareasAsignadas++; }
+          tareasHechas++; tareasAsignadas++;
+          if(!jornadaMarcada){
+            const [h1,m1] = v.inicio.split(':').map(Number);
+            const [h2,m2] = v.fin.split(':').map(Number);
+            const diff = (h2*60+m2) - (h1*60+m1);
+            if(diff > 0) minsTrabjados += diff;
+          }
         } else if(v.asignado === nombre && v.estado === 'pendiente'){
           tareasAsignadas++;
         }
