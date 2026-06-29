@@ -4,7 +4,7 @@
 // Cuando un dispositivo detecta una versión distinta a la guardada,
 // limpia el localStorage viejo UNA sola vez y recarga. Sin borrar caché a mano.
 // ════════════════════════════════════════
-const APP_VERSION = '2026-06-29-a';
+const APP_VERSION = '2026-06-29-b';
 (function checkAppVersion(){
   try {
     const stored = localStorage.getItem('app_version');
@@ -6191,6 +6191,13 @@ function confirmVentaRamo(){
     fromRamo: true
   });
   fbSave('ventasData', ventasData);
+  // Avisar a todos los floristas y a gerencia para que lo saquen de la vidriera
+  window.pushSend?.(
+    '💐 Ramo vendido',
+    `"${r.nombre}" se vendió${cliente ? ' a ' + cliente : ''} — sacalo de la vidriera`,
+    'ramo-vendido',
+    'roles:florista,gerencia'
+  );
   // Quitar el ramo del catálogo (ya no está disponible)
   ramosDispData.splice(i,1);
   fbSave('ramosDispData', ramosDispData);
@@ -7323,6 +7330,7 @@ function filterBySucursal(arr, campo='sucursal'){
 }
 function applyRole(role){
   userRole = role;
+  window.userRole = role; // expuesto para el listener de avisos (targeting por rol)
   // Marcar el body con la clase del rol — el CSS oculta .gerencia-only automáticamente
   document.body.classList.remove('role-gerencia','role-operario','role-jardinero','role-compras','role-ventas','role-florista','role-comercial');
   document.body.classList.add('role-' + role);
