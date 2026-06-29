@@ -4,7 +4,7 @@
 // Cuando un dispositivo detecta una versión distinta a la guardada,
 // limpia el localStorage viejo UNA sola vez y recarga. Sin borrar caché a mano.
 // ════════════════════════════════════════
-const APP_VERSION = '2026-06-29-b';
+const APP_VERSION = '2026-06-29-c';
 (function checkAppVersion(){
   try {
     const stored = localStorage.getItem('app_version');
@@ -7633,6 +7633,22 @@ function calcHorasDia(desde, hasta){
   return diff > 0 ? Math.round(diff/60*10)/10 : 0;
 }
 
+// Jornada REAL fichada en el checklist para una persona en un día.
+// Mira AMBAS fuentes: florTurnos (florista) y jardHorarios (jardinería), así
+// los usuarios combinados como Ivan se toman bien fichen donde fichen.
+// Si hay fichaje en las dos, usa el rango completo: del inicio más temprano
+// al fin más tardío. Devuelve {inicio, fin, horas} o null si no fichó.
+function jornadaRealDia(nombre, iso){
+  const ft = (window.florTurnos||{})[nombre]?.[iso];
+  const jt = (window.jardHorarios||{})[nombre]?.[iso];
+  const turnos = [ft, jt].filter(x => x && x.inicio && x.fin);
+  if(!turnos.length) return null;
+  const inis = turnos.map(x => x.inicio).sort();
+  const fins = turnos.map(x => x.fin).sort();
+  const inicio = inis[0], fin = fins[fins.length-1];
+  return { inicio, fin, horas: calcHorasDia(inicio, fin) };
+}
+
 function horNavMes(dir){
   horMes += dir;
   if(horMes > 11){ horMes = 0; horAnio++; }
@@ -7801,22 +7817,13 @@ function renderHorarios(){
     let totalHs = 0;
     let asignados = 0;
     lista.forEach(n => {
-      if(isJardinero(n)){
-        const jt=(window.jardHorarios||{})[n]?.[iso];
-        if(jt?.inicio && jt?.fin){ totalHs += calcHorasDia(jt.inicio,jt.fin); asignados++; }
-        else {
-          const hp=window.horariosData[n]?.[iso];
-          if(hp?.desde && hp?.hasta){ totalHs += calcHorasDia(hp.desde,hp.hasta); asignados++; }
-        }
-      } else {
-        // Florista: usar el inicio/fin REAL de jornada del checklist (florTurnos);
-        // la plantilla (horariosData) queda solo como respaldo si no fichó.
-        const ft = (window.florTurnos||{})[n]?.[iso];
-        if(ft?.inicio && ft?.fin){ totalHs += calcHorasDia(ft.inicio, ft.fin); asignados++; }
-        else {
-          const h = window.horariosData[n]?.[iso];
-          if(h && h.desde && h.hasta){ totalHs += calcHorasDia(h.desde, h.hasta); asignados++; }
-        }
+      // Jornada REAL fichada en el checklist (florista y/o jardinería).
+      // La plantilla (horariosData) queda solo como respaldo si no fichó.
+      const real = jornadaRealDia(n, iso);
+      if(real){ totalHs += real.horas; asignados++; }
+      else {
+        const h = window.horariosData[n]?.[iso];
+        if(h && h.desde && h.hasta){ totalHs += calcHorasDia(h.desde, h.hasta); asignados++; }
       }
     });
 
@@ -7857,13 +7864,10 @@ function openDiaHorario(iso){
         if(!window.horariosData[nombre]) window.horariosData[nombre] = {};
         const h = window.horariosData[nombre][iso] || {desde:'',hasta:''};
         const hs = calcHorasDia(h.desde, h.hasta);
-        // Jornada REAL fichada en el checklist (florista: florTurnos, jardinero: jardHorarios)
-        const real = isJardinero(nombre)
-          ? (window.jardHorarios||{})[nombre]?.[iso]
-          : (window.florTurnos||{})[nombre]?.[iso];
-        const realHs = (real?.inicio && real?.fin) ? calcHorasDia(real.inicio, real.fin) : 0;
-        const fichado = (real?.inicio && real?.fin)
-          ? `<div style="font-size:10px;color:var(--green-ok);font-weight:600;margin-top:2px">✓ Fichó ${real.inicio}–${real.fin} · ${realHs}h reales</div>`
+        // Jornada REAL fichada en el checklist (florista y/o jardinería)
+        const real = jornadaRealDia(nombre, iso);
+        const fichado = real
+          ? `<div style="font-size:10px;color:var(--green-ok);font-weight:600;margin-top:2px">✓ Fichó ${real.inicio}–${real.fin} · ${real.horas}h reales</div>`
           : '';
         return `<div style="padding:8px 0;border-bottom:1px solid var(--light-gray)">
           <div style="display:flex;align-items:center;gap:10px">
@@ -7925,104 +7929,72 @@ function renderProductividadHorarios(empleados){
 
   const dayState = clStateByDay[TODAY_DAY];
 
-  container.innerHTML = empleados.map(nombre => {
-    let hsProgramadas = 0, minsTrabjados = 0, tareasHechas = 0, tareasAsignadas = 0, hor = {};
+  const dur = (a,b) => { if(!a || !b) return 0; const [h1,m1]=a.split(':').map(Number); const [h2,m2]=b.split(':').map(Number); const d=(h2*60+m2)-(h1*60+m1); return d>0?d:0; };
 
-    if(isJardinero(nombre)){
-      // Horario planificado (desde window.horariosData si gerencia lo cargó)
-      const hp = window.horariosData[nombre]?.[TODAY_ISO] || {};
-      hsProgramadas = calcHorasDia(hp.desde, hp.hasta);
-      // Turno real: jardHorarios check-in/out
-      const jt=(window.jardHorarios||{})[nombre]?.[TODAY_ISO];
-      if(jt?.inicio && jt?.fin){ minsTrabjados = calcHorasDia(jt.inicio,jt.fin)*60; }
-      // Tareas: jardineriaLog
-      const logHoy=(window.jardineriaLog||[]).filter(e=>e.fecha===TODAY_ISO && e.quien===nombre);
-      tareasAsignadas = logHoy.length;
-      tareasHechas = logHoy.filter(e=>e.horaFin).length;
-      // Sumar minutos de cada entrada del log
-      if(minsTrabjados===0){
-        logHoy.forEach(e => {
-          if(e.horaInicio && e.horaFin){
-            const [h1,m1]=e.horaInicio.split(':').map(Number);
-            const [h2,m2]=e.horaFin.split(':').map(Number);
-            const d=(h2*60+m2)-(h1*60+m1);
-            if(d>0) minsTrabjados+=d;
-          }
-        });
-      }
-    } else {
-      hor = window.horariosData[nombre]?.[TODAY_ISO] || {};
-      hsProgramadas = calcHorasDia(hor.desde, hor.hasta);
-      // Horas trabajadas = jornada REAL del checklist (inicio→fin de jornada).
-      // Las tareas/eventos/ventas asignadas cuentan para la productividad
-      // (cuántas hizo), NO se suman a las horas si ya fichó la jornada.
-      const ft=(window.florTurnos||{})[nombre]?.[TODAY_ISO];
-      const jornadaMarcada = !!(ft?.inicio && ft?.fin);
-      if(jornadaMarcada){ minsTrabjados = calcHorasDia(ft.inicio,ft.fin)*60; }
-      if(dayState){
-        CL_TASKS.forEach((t,i) => {
-          const resp = dayState.responsable?.[i] || '';
-          if(resp !== nombre) return;
-          tareasAsignadas++;
-          const ini = dayState.inicio?.[i];
-          const fin = dayState.fin?.[i];
-          if(ini && fin && !jornadaMarcada){
-            const [h1,m1] = ini.split(':').map(Number);
-            const [h2,m2] = fin.split(':').map(Number);
-            const diff = (h2*60+m2) - (h1*60+m1);
-            if(diff > 0) minsTrabjados += diff;
-          }
-          const checked = Array.isArray(dayState.checked) ? dayState.checked[i] : (dayState.checked?.[i]);
-          if(checked) tareasHechas++;
-        });
-      }
-      eventosData.forEach(ev => {
-        if(ev.fecha !== TODAY_ISO) return;
-        const mins = (a,b) => { const [h1,m1]=a.split(':').map(Number); const [h2,m2]=b.split(':').map(Number); return (h2*60+m2)-(h1*60+m1); };
-        // Armado → al florista que armó (asignado)
-        if(ev.asignado === nombre){
-          if(ev.inicio && ev.fin){ tareasHechas++; tareasAsignadas++; if(!jornadaMarcada){ const d = mins(ev.inicio, ev.fin); if(d>0) minsTrabjados += d; } }
-          else tareasAsignadas++;
-        }
-        // Colocación → al florista que colocó (colocacionAsignado)
-        if(ev.colocacionAsignado === nombre){
-          if(ev.colocacionInicio && ev.colocacionFin){ tareasHechas++; tareasAsignadas++; if(!jornadaMarcada){ const d = mins(ev.colocacionInicio, ev.colocacionFin); if(d>0) minsTrabjados += d; } }
-          else tareasAsignadas++;
-        }
-      });
-      (ventasData||[]).forEach(v => {
-        if(v.asignado === nombre && v.estado === 'pendiente' && v.inicio && v.fin){
-          tareasHechas++; tareasAsignadas++;
-          if(!jornadaMarcada){
-            const [h1,m1] = v.inicio.split(':').map(Number);
-            const [h2,m2] = v.fin.split(':').map(Number);
-            const diff = (h2*60+m2) - (h1*60+m1);
-            if(diff > 0) minsTrabjados += diff;
-          }
-        } else if(v.asignado === nombre && v.estado === 'pendiente'){
-          tareasAsignadas++;
-        }
+  container.innerHTML = empleados.map(nombre => {
+    let tareasHechas = 0, tareasAsignadas = 0, minsTareas = 0;
+
+    // 1) Horario PROGRAMADO (plantilla que carga gerencia)
+    const hor = window.horariosData[nombre]?.[TODAY_ISO] || {};
+    const hsProgramadas = calcHorasDia(hor.desde, hor.hasta);
+
+    // 2) Jornada REAL fichada (florista y/o jardinería) — toma a Ivan bien
+    const real = jornadaRealDia(nombre, TODAY_ISO);
+    const minsJornada = real ? real.horas * 60 : 0;
+
+    // 3) Tiempo en TAREAS asignadas (suma de duraciones) + conteo de tareas.
+    //    Se computan TODAS las fuentes para que los usuarios combinados
+    //    (florista + jardinería) sumen sus dos tipos de tarea.
+    if(dayState){
+      CL_TASKS.forEach((t,i) => {
+        if((dayState.responsable?.[i] || '') !== nombre) return;
+        tareasAsignadas++;
+        minsTareas += dur(dayState.inicio?.[i], dayState.fin?.[i]);
+        const checked = Array.isArray(dayState.checked) ? dayState.checked[i] : (dayState.checked?.[i]);
+        if(checked) tareasHechas++;
       });
     }
-    const hsTrabajadas = Math.round(minsTrabjados/60*10)/10;
+    eventosData.forEach(ev => {
+      if(ev.fecha !== TODAY_ISO) return;
+      if(ev.asignado === nombre){ tareasAsignadas++; if(ev.inicio && ev.fin){ tareasHechas++; minsTareas += dur(ev.inicio, ev.fin); } }
+      if(ev.colocacionAsignado === nombre){ tareasAsignadas++; if(ev.colocacionInicio && ev.colocacionFin){ tareasHechas++; minsTareas += dur(ev.colocacionInicio, ev.colocacionFin); } }
+    });
+    (ventasData||[]).forEach(v => {
+      if(v.asignado === nombre && v.estado === 'pendiente'){ tareasAsignadas++; if(v.inicio && v.fin){ tareasHechas++; minsTareas += dur(v.inicio, v.fin); } }
+    });
+    (window.jardineriaLog||[]).forEach(e => {
+      if(e.fecha !== TODAY_ISO || e.quien !== nombre) return;
+      tareasAsignadas++;
+      if(e.horaFin){ tareasHechas++; minsTareas += dur(e.horaInicio, e.horaFin); }
+    });
+
+    const hsTrabajadas = Math.round(minsJornada/60*10)/10;
+    const hsTareas     = Math.round(minsTareas/60*10)/10;
     const diff = hsTrabajadas - hsProgramadas;
-    const pct = hsProgramadas > 0 ? Math.round(hsTrabajadas/hsProgramadas*100) : 0;
+    const pct  = hsProgramadas > 0 ? Math.round(hsTrabajadas/hsProgramadas*100) : 0;
+    // % del tiempo de trabajo que se fue en tareas asignadas (si no fichó, vs programado)
+    const baseTareas = minsJornada > 0 ? minsJornada : hsProgramadas*60;
+    const pctTareas  = baseTareas > 0 ? Math.round(minsTareas/baseTareas*100) : 0;
 
     let statusColor, statusIcon, statusText;
-    if(hsProgramadas === 0){
+    if(hsProgramadas === 0 && minsJornada === 0 && minsTareas === 0){
       statusColor = 'var(--mid-gray)'; statusIcon = '⬜'; statusText = 'No trabaja hoy';
-    } else if(hsTrabajadas === 0){
+    } else if(minsJornada === 0 && minsTareas > 0){
+      statusColor = 'var(--amber)'; statusIcon = '🟡'; statusText = 'Tareas registradas · falta marcar jornada';
+    } else if(minsJornada === 0){
       statusColor = 'var(--mid-gray)'; statusIcon = '⏳'; statusText = 'Sin actividad registrada';
     } else if(diff > 0.5){
       statusColor = 'var(--red-alert)'; statusIcon = '🔴'; statusText = `+${diff.toFixed(1)}h extra · revisar`;
+    } else if(hsProgramadas === 0){
+      statusColor = 'var(--green-ok)'; statusIcon = '✅'; statusText = `${hsTrabajadas}h trabajadas`;
     } else if(pct >= 80){
       statusColor = 'var(--green-ok)'; statusIcon = '✅'; statusText = 'Productividad OK';
     } else {
       statusColor = 'var(--amber)'; statusIcon = '🟡'; statusText = `${(hsProgramadas - hsTrabajadas).toFixed(1)}h disponibles`;
     }
 
-    const barPct = Math.min(100, pct);
     const barColor = diff > 0.5 ? 'var(--red-alert)' : pct >= 80 ? 'var(--green-ok)' : 'var(--amber)';
+    const hayDatos = hsProgramadas > 0 || minsJornada > 0 || minsTareas > 0;
 
     return `<div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:10px;padding:14px 16px;margin-bottom:8px">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
@@ -8032,21 +8004,33 @@ function renderProductividadHorarios(empleados){
         </div>
         <span style="font-size:12px;font-weight:600;color:${statusColor}">${statusIcon} ${statusText}</span>
       </div>
-      ${hsProgramadas > 0 ? `<div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap">
-        <div style="text-align:center">
+      ${hayDatos ? `<div style="display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap">
+        <div style="text-align:center;min-width:64px">
           <div style="font-size:10px;color:var(--mid-gray)">Programado</div>
-          <div style="font-size:20px;font-weight:700;color:var(--charcoal)">${hsProgramadas}h</div>
-          <div style="font-size:9px;color:var(--mid-gray)">${hor.desde||''} → ${hor.hasta||''}</div>
+          <div style="font-size:19px;font-weight:700;color:var(--charcoal)">${hsProgramadas}h</div>
+          <div style="font-size:9px;color:var(--mid-gray)">${hor.desde||'—'} → ${hor.hasta||'—'}</div>
         </div>
-        <div style="text-align:center">
+        <div style="text-align:center;min-width:64px">
           <div style="font-size:10px;color:var(--mid-gray)">Trabajado</div>
-          <div style="font-size:20px;font-weight:700;color:${barColor}">${hsTrabajadas}h</div>
+          <div style="font-size:19px;font-weight:700;color:${barColor}">${hsTrabajadas}h</div>
+          <div style="font-size:9px;color:var(--mid-gray)">${real ? real.inicio+' → '+real.fin : 'sin fichar'}</div>
         </div>
-        <div style="flex:1;min-width:120px">
+        <div style="text-align:center;min-width:64px">
+          <div style="font-size:10px;color:var(--mid-gray)">En tareas</div>
+          <div style="font-size:19px;font-weight:700;color:var(--sage-dark)">${hsTareas}h</div>
+          <div style="font-size:9px;color:var(--mid-gray)">${tareasHechas} con horario</div>
+        </div>
+        <div style="flex:1;min-width:150px">
+          <div style="font-size:9px;color:var(--mid-gray);margin-bottom:2px">Tiempo de trabajo (jornada)</div>
           <div style="height:8px;background:#E5E3DC;border-radius:4px;overflow:hidden">
-            <div style="height:100%;width:${barPct}%;background:${barColor};border-radius:4px;transition:width .5s"></div>
+            <div style="height:100%;width:${Math.min(100,pct)}%;background:${barColor};border-radius:4px;transition:width .5s"></div>
           </div>
-          <div style="font-size:10px;color:var(--mid-gray);margin-top:3px;text-align:right">${pct}%</div>
+          <div style="font-size:10px;color:var(--mid-gray);margin:1px 0 8px;text-align:right">${pct}% de lo programado</div>
+          <div style="font-size:9px;color:var(--mid-gray);margin-bottom:2px">Tiempo en tareas asignadas</div>
+          <div style="height:8px;background:#E5E3DC;border-radius:4px;overflow:hidden">
+            <div style="height:100%;width:${Math.min(100,pctTareas)}%;background:var(--sage-dark);border-radius:4px;transition:width .5s"></div>
+          </div>
+          <div style="font-size:10px;color:var(--mid-gray);margin-top:1px;text-align:right">${pctTareas}% ${minsJornada>0?'de la jornada':'de lo programado'}</div>
         </div>
       </div>` : ''}
     </div>`;
