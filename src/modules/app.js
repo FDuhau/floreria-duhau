@@ -4,7 +4,7 @@
 // Cuando un dispositivo detecta una versión distinta a la guardada,
 // limpia el localStorage viejo UNA sola vez y recarga. Sin borrar caché a mano.
 // ════════════════════════════════════════
-const APP_VERSION = '2026-06-30-a';
+const APP_VERSION = '2026-06-30-b';
 (function checkAppVersion(){
   try {
     const stored = localStorage.getItem('app_version');
@@ -10521,6 +10521,54 @@ async function eliminarEvaluacion(idx){
 let liquidacionConfig = { horasEsperadas: 192, horas: {} };
 window._setLiquidacionConfig = v => { if(v) liquidacionConfig = v; };
 
+// Suma de horas PROGRAMADAS (calendario horariosData) de una persona en un mes 'YYYY-MM'
+function liqProgramadasMes(name, mes){
+  const data = (window.horariosData||{})[name] || {};
+  let h = 0;
+  for(const iso in data){ if(iso.startsWith(mes)){ const d = data[iso]||{}; h += calcHorasDia(d.desde, d.hasta); } }
+  return Math.round(h*10)/10;
+}
+// Suma de horas TRABAJADAS reales (jornada fichada) de una persona en un mes 'YYYY-MM'
+function liqTrabajadasMes(name, mes){
+  const dias = new Set([
+    ...Object.keys((window.florTurnos||{})[name]||{}),
+    ...Object.keys((window.jardHorarios||{})[name]||{})
+  ]);
+  let h = 0;
+  dias.forEach(iso => { if(iso.startsWith(mes)){ const r = jornadaRealDia(name, iso); if(r) h += r.horas; } });
+  return Math.round(h*10)/10;
+}
+// Empareja un empleado del legajo con su nombre en el calendario (match flexible)
+function liqNombreCalendario(e){
+  const cands = getEmpleadosActivos();
+  const nom = (e.nombre||'').trim().toLowerCase();
+  const full = ((e.nombre||'')+' '+(e.apellido||'')).trim().toLowerCase();
+  if(!nom) return null;
+  let m = cands.find(c => c.toLowerCase() === nom);
+  if(m) return m;
+  m = cands.find(c => nom.startsWith(c.toLowerCase()) || c.toLowerCase().startsWith(nom));
+  if(m) return m;
+  m = cands.find(c => full.includes(c.toLowerCase()));
+  return m || null;
+}
+// Calcula la fila de liquidación de un empleado (programadas/trabajadas auto del
+// calendario, con override editable guardado en liquidacionConfig).
+function liqFilaDatos(e, mes){
+  const mesData = (liquidacionConfig.horas||{})[mes]||{};
+  const ov = mesData[e.id] || {};
+  const calName = liqNombreCalendario(e);
+  const autoProg = calName ? liqProgramadasMes(calName, mes) : 0;
+  const autoTrab = calName ? liqTrabajadasMes(calName, mes) : 0;
+  const progEdit = ov.programadas != null && ov.programadas !== '';
+  const trabEdit = ov.trabajadas != null && ov.trabajadas !== '';
+  const prog = progEdit ? +ov.programadas : autoProg;
+  const trab = trabEdit ? +ov.trabajadas : autoTrab;
+  const valHora = +(ov.valorHora||0);
+  const hExtra = Math.max(0, Math.round((trab - prog)*10)/10);
+  const adicional = +(hExtra * valHora * 1.5).toFixed(2);
+  return { calName, autoProg, autoTrab, progEdit, trabEdit, prog, trab, valHora, hExtra, adicional };
+}
+
 function renderLiquidacion(){
   const tbody = document.getElementById('liq-tbody');
   const summary = document.getElementById('liq-summary');
@@ -10536,24 +10584,20 @@ function renderLiquidacion(){
     tbody.innerHTML = `<tr><td colspan="8" style="padding:20px;text-align:center;color:var(--mid-gray)">Sin empleados en el legajo.</td></tr>`;
     return;
   }
-  const mesData = (liquidacionConfig.horas||{})[mes]||{};
   let totalExtra = 0, totalPesos = 0;
   tbody.innerHTML = empleados.map((e)=>{
-    const hContrato = +(e.horasContrato||0);
-    const hTrab = +(mesData[e.id]?.trabajadas||0);
-    const valHora = +(mesData[e.id]?.valorHora||0);
-    const hExtra = Math.max(0, hTrab - hContrato);
-    const totalAdicional = +(hExtra * valHora * 1.5).toFixed(2);
-    totalExtra += hExtra;
-    totalPesos += totalAdicional;
+    const d = liqFilaDatos(e, mes);
+    totalExtra += d.hExtra;
+    totalPesos += d.adicional;
+    const sinCal = d.calName ? '' : ' <span style="font-size:10px;color:var(--amber)" title="No se encontró su horario en el calendario; cargá las horas a mano">⚠</span>';
     return `<tr>
-      <td>${esc(e.nombre)} ${esc(e.apellido)}</td>
+      <td>${esc(e.nombre)} ${esc(e.apellido)}${sinCal}</td>
       <td style="text-transform:capitalize">${esc(e.cargo||'')}</td>
-      <td style="text-align:center">${hContrato}h</td>
-      <td><input class="form-input" type="number" min="0" value="${hTrab||''}" placeholder="0" style="width:75px;padding:4px 8px;text-align:center" onchange="saveLiquidacionHoras(${e.id},'${mes}','trabajadas',+this.value)"></td>
-      <td style="text-align:center;font-weight:600;color:${hExtra>0?'var(--sage-dark)':'var(--mid-gray)'}">${hExtra}</td>
-      <td><input class="form-input" type="number" min="0" value="${valHora||''}" placeholder="$" style="width:90px;padding:4px 8px;text-align:right" onchange="saveLiquidacionHoras(${e.id},'${mes}','valorHora',+this.value)"></td>
-      <td style="text-align:right;font-weight:600">${totalAdicional ? '$'+totalAdicional.toLocaleString('es-AR',{minimumFractionDigits:2}) : '<span style="color:var(--mid-gray)">—</span>'}</td>
+      <td><input class="form-input" type="number" min="0" step="0.5" value="${d.progEdit?esc(String(d.prog)):''}" placeholder="${d.autoProg||0}" title="Horas programadas del calendario (editable)" style="width:80px;padding:4px 8px;text-align:center" onchange="saveLiquidacionHoras(${e.id},'${mes}','programadas',this.value)"></td>
+      <td><input class="form-input" type="number" min="0" step="0.5" value="${d.trabEdit?esc(String(d.trab)):''}" placeholder="${d.autoTrab||0}" title="Horas trabajadas reales según fichaje (editable)" style="width:80px;padding:4px 8px;text-align:center" onchange="saveLiquidacionHoras(${e.id},'${mes}','trabajadas',this.value)"></td>
+      <td style="text-align:center;font-weight:700;color:${d.hExtra>0?'var(--sage-dark)':'var(--mid-gray)'}">${d.hExtra}</td>
+      <td><input class="form-input" type="number" min="0" value="${d.valHora||''}" placeholder="$" style="width:90px;padding:4px 8px;text-align:right" onchange="saveLiquidacionHoras(${e.id},'${mes}','valorHora',this.value)"></td>
+      <td style="text-align:right;font-weight:600">${d.adicional ? '$'+d.adicional.toLocaleString('es-AR',{minimumFractionDigits:2}) : '<span style="color:var(--mid-gray)">—</span>'}</td>
     </tr>`;
   }).join('');
   if(summary) summary.innerHTML = `
@@ -10568,7 +10612,13 @@ function saveLiquidacionHoras(empleadoId, mes, field, val){
   if(!liquidacionConfig.horas) liquidacionConfig.horas = {};
   if(!liquidacionConfig.horas[mes]) liquidacionConfig.horas[mes] = {};
   if(!liquidacionConfig.horas[mes][empleadoId]) liquidacionConfig.horas[mes][empleadoId] = {};
-  liquidacionConfig.horas[mes][empleadoId][field] = val;
+  const s = (val==null ? '' : String(val)).trim();
+  if(s === ''){
+    // Vacío = volver al valor automático del calendario
+    delete liquidacionConfig.horas[mes][empleadoId][field];
+  } else {
+    liquidacionConfig.horas[mes][empleadoId][field] = +s;
+  }
   fbSave('liquidacionConfig', liquidacionConfig);
   renderLiquidacion();
 }
@@ -10577,14 +10627,10 @@ function exportLiquidacion(){
   const mes = document.getElementById('liq-mes')?.value || '';
   let txt = `LIQUIDACIÓN HORAS EXTRA — ${mes}\n${'='.repeat(50)}\n`;
   let total = 0;
-  legajoData.forEach(e=>{
-    const mesData = (liquidacionConfig.horas||{})[mes]||{};
-    const hTrab = +(mesData[e.id]?.trabajadas||0);
-    const valHora = +(mesData[e.id]?.valorHora||0);
-    const hExtra = Math.max(0, hTrab - +(e.horasContrato||0));
-    const adicional = +(hExtra*valHora*1.5).toFixed(2);
-    total += adicional;
-    txt += `${e.nombre} ${e.apellido} (${e.cargo}): contrato ${e.horasContrato||0}h, trabajadas ${hTrab}h, extra ${hExtra}h = $${adicional.toLocaleString('es-AR')}\n`;
+  legajoData.filter(e=>e.cargo !== '__inactivo__').forEach(e=>{
+    const d = liqFilaDatos(e, mes);
+    total += d.adicional;
+    txt += `${e.nombre} ${e.apellido} (${e.cargo}): programadas ${d.prog}h, trabajadas ${d.trab}h, extra ${d.hExtra}h = $${d.adicional.toLocaleString('es-AR')}\n`;
   });
   txt += `${'='.repeat(50)}\nTOTAL: $${total.toLocaleString('es-AR',{minimumFractionDigits:2})}`;
   const blob = new Blob([txt],{type:'text/plain'});
