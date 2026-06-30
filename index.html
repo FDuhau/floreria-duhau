@@ -1913,17 +1913,19 @@
     <div id="rent-panel-hotel" style="display:none">
       <div id="rent-hotel-kpis" class="cards-grid cards-grid-4" style="margin-bottom:24px"></div>
       <div class="card">
-        <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:14px;font-weight:500">
-          Completá el precio Hyatt y la cantidad mensual de cada arreglo. El costo de producción se calcula automáticamente desde las composiciones.
+        <div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;margin-bottom:14px">
+          <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);font-weight:500;max-width:640px">
+            Cada <strong>área de uso</strong> es un arreglo del hotel. El <strong>costo de insumos</strong> se calcula solo, sumando lo comprado en Compras › Florería con esa área. Completá el <strong>precio Hyatt</strong> de cada una para ver el margen.
+          </div>
+          <input class="form-input" type="month" id="rent-hotel-mes" oninput="renderRentabilidadHotel()" style="padding:8px 12px;font-size:13px">
         </div>
         <div class="table-wrapper"><table style="width:100%;border-collapse:collapse;font-size:13px">
           <thead><tr>
-            <th style="text-align:left;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Arreglo</th>
-            <th style="text-align:right;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Costo Producción</th>
+            <th style="text-align:left;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Área de uso</th>
+            <th style="text-align:right;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Costo insumos</th>
             <th style="text-align:right;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Precio Hyatt</th>
-            <th style="text-align:right;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Margen u.</th>
-            <th style="text-align:right;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Cant./mes</th>
-            <th style="text-align:right;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Facturación mes</th>
+            <th style="text-align:right;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Margen $</th>
+            <th style="text-align:right;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Margen %</th>
           </tr></thead>
           <tbody id="rent-hotel-body"></tbody>
         </table></div>

@@ -4,7 +4,7 @@
 // Cuando un dispositivo detecta una versión distinta a la guardada,
 // limpia el localStorage viejo UNA sola vez y recarga. Sin borrar caché a mano.
 // ════════════════════════════════════════
-const APP_VERSION = '2026-06-30-b';
+const APP_VERSION = '2026-06-30-c';
 (function checkAppVersion(){
   try {
     const stored = localStorage.getItem('app_version');
@@ -1794,6 +1794,19 @@ let compraFilter = { floreria: null, jardineria: null }; // null = all, {from, t
 function getArr(type){ return type==='floreria'?comprasFlore:comprasJard; }
 function getTbody(type){ return document.getElementById('tbody-'+type); }
 
+// Áreas de uso = zonas del checklist (Lobby, Biblioteca, Salón Privado, Gioia, etc.)
+function getAreaUsoZonas(){
+  return [...new Set(CL_TASKS.map(t=>t.zona))].sort((a,b)=>a.localeCompare(b,'es'));
+}
+function getAreaUsoOpts(current){
+  const zonas = getAreaUsoZonas();
+  const cur = (current||'').trim();
+  // Preservar un valor viejo que no esté en la lista (ej. 'Florería')
+  const extra = cur && !zonas.includes(cur) ? `<option value="${esc(cur)}" selected>${esc(cur)}</option>` : '';
+  return `<option value="">— Área / uso —</option>` + extra +
+    zonas.map(z=>`<option value="${esc(z)}"${z===cur?' selected':''}>${esc(z)}</option>`).join('');
+}
+
 function populateFloreriaFormHelpers(){
   // Datalist de Flor/Follaje desde la base de insumos (igual que el pedido semanal rápido)
   const dl = document.getElementById('cf-producto-list');
@@ -1804,8 +1817,7 @@ function populateFloreriaFormHelpers(){
   // Select de áreas del hotel
   const sec = document.getElementById('cf-sector');
   if(sec && sec.options.length <= 1){
-    sec.innerHTML = '<option value="">— Seleccionar área —</option>' +
-      HOTEL_SECCIONES.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('') +
+    sec.innerHTML = getAreaUsoOpts('') +
       '<option value="__otra__">✏️ Otra (escribir)...</option>';
     sec.onchange = async function(){
       if(this.value === '__otra__'){
@@ -2046,7 +2058,9 @@ function renderCompras(type){
       <td><input class="form-input" type="number" value="${esc(r.qty)}" onchange="updC('${type}',${i},'qty',this.value);renderStock()" style="width:65px"></td>
       <td><input class="form-input" value="${esc(r.costo)}" placeholder="$" onchange="updC('${type}',${i},'costo',this.value);renderCompraSummary('${type}',compraFilter['${type}']?getArr('${type}').filter(r=>r.fecha&&r.fecha.slice(0,7)>=compraFilter['${type}'].from&&r.fecha.slice(0,7)<=compraFilter['${type}'].to):getArr('${type}'))" style="width:90px"></td>
       <td><select class="form-input" onchange="updC('${type}',${i},'prov',this.value)" style="min-width:130px"><option value=''>— Seleccionar —</option>${getProvOpts(r.prov)}</select></td>
-      <td><input class="form-input" value="${esc(r.sector)}" onchange="updC('${type}',${i},'sector',this.value)" style="min-width:110px"></td>
+      <td>${type==='floreria'
+        ? `<select class="form-input" onchange="updC('${type}',${i},'sector',this.value)" style="min-width:140px">${getAreaUsoOpts(r.sector)}</select>`
+        : `<input class="form-input" value="${esc(r.sector)}" onchange="updC('${type}',${i},'sector',this.value)" style="min-width:110px">`}</td>
       <td>
         <select class="form-select" onchange="updC('${type}',${i},'estado',this.value);updateKpiCompras()" style="min-width:120px">
           <option value="pedido" ${r.estado!=='recibido'?'selected':''}>📝 Pedido</option>
@@ -8333,26 +8347,8 @@ window.addEventListener('load', ()=>{
 
 
 
-// ════════════════════════════════════════
-// DATA — SECCIONES DEL HOTEL (áreas de uso para pedidos)
-// ════════════════════════════════════════
-const HOTEL_SECCIONES = [
-  'Lobby Alvear',
-  'Lobby Posadas',
-  'Salón privado + Biblioteca',
-  'Mesada Piano + Recepción Alvear + Biblioteca',
-  'Centros mesa P.N.',
-  'Centros Mesa Duhau',
-  'Habitaciones',
-  'Copón Duhau',
-  'Copón Duhau + Elefante',
-  'Buffet Gioia + Copón Gioia + Recep. Posadas + Mesita Posadas + F. Posadas + M.R',
-  'Árboles Gioia',
-  'Centros de mesa Gioia',
-  'Bertone',
-  'Florería',
-  'Eventos'
-];
+// Nota: las áreas de uso para los pedidos salen de las zonas del checklist
+// (ver getAreaUsoZonas), para que coincidan con la rentabilidad por área.
 
 // ════════════════════════════════════════
 // DATA — BASE DE INSUMOS FLORERÍA
@@ -10180,47 +10176,56 @@ function renderRentabilidadHotel(){
   const kpisEl  = document.getElementById('rent-hotel-kpis');
   if(!tbody) return;
 
-  const rows = recetasData.map(r => {
-    const costo     = calcCostoComposicion(r);
-    const cfg       = arreglosHotelConfig[r.nombre] || {};
-    const precioHyatt = cfg.precioHyatt || 0;
-    const cant      = cfg.cantMensual   || 0;
-    const margenU   = precioHyatt - costo;
-    const margenPct = precioHyatt > 0 ? (margenU / precioHyatt * 100).toFixed(1) : null;
-    const facturacion = precioHyatt * cant;
-    return { nombre: r.nombre, costo, precioHyatt, cant, margenU, margenPct, facturacion };
+  // Mes seleccionado (default: mes actual)
+  const mesEl = document.getElementById('rent-hotel-mes');
+  if(mesEl && !mesEl.value){
+    const n = new Date();
+    mesEl.value = n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0');
+  }
+  const mes = mesEl?.value || '';
+
+  // Costo REAL de insumos por área de uso (sector) — compras de florería del mes
+  const costoPorArea = {};
+  (comprasFlore||[]).forEach(c => {
+    if(mes && (c.fecha||'').slice(0,7) !== mes) return;
+    const area = (c.sector||'').trim() || 'Sin área asignada';
+    costoPorArea[area] = (costoPorArea[area]||0) + parseMoney(c.costo);
   });
 
-  const totalFact  = rows.reduce((s,r) => s + r.facturacion, 0);
-  const totalCosto = rows.reduce((s,r) => s + r.costo * r.cant, 0);
-  const margenGlobal = totalFact > 0 ? ((totalFact - totalCosto) / totalFact * 100).toFixed(1) : '—';
+  // Áreas a mostrar: las que tienen compras este mes + las que ya tienen precio cargado
+  const areas = [...new Set([...Object.keys(costoPorArea), ...Object.keys(arreglosHotelConfig)])]
+    .filter(Boolean)
+    .sort((a,b)=>a.localeCompare(b,'es'));
 
-  if(kpisEl) kpisEl.innerHTML = `
-    <div class="card"><div class="card-label">Tipos de arreglo</div><div class="card-value" style="font-size:32px">${rows.length}</div></div>
-    <div class="card"><div class="card-label">Facturación mensual est.</div><div class="card-value" style="font-size:26px">$${totalFact.toLocaleString('es-AR')}</div></div>
-    <div class="card"><div class="card-label">Costo mensual est.</div><div class="card-value" style="font-size:26px">$${totalCosto.toLocaleString('es-AR')}</div></div>
-    <div class="card"><div class="card-label">Margen global hotel</div><div class="card-value ${+margenGlobal>40?'green':+margenGlobal>20?'amber':'red'}" style="font-size:32px">${margenGlobal}%</div></div>`;
-
+  let totalCosto = 0, totalFact = 0;
   const th = 'padding:9px 14px;border-bottom:1px solid var(--light-gray)';
-  tbody.innerHTML = rows.map(r => {
-    const mc = r.margenPct != null ? (+r.margenPct > 40 ? 'var(--green-ok)' : +r.margenPct > 20 ? 'var(--amber)' : 'var(--red-alert)') : 'var(--mid-gray)';
+  tbody.innerHTML = areas.map(area => {
+    const costo       = Math.round(costoPorArea[area]||0);
+    const cfg         = arreglosHotelConfig[area] || {};
+    const precioHyatt = cfg.precioHyatt || 0;
+    const margen      = precioHyatt - costo;
+    const margenPct   = precioHyatt > 0 ? (margen / precioHyatt * 100).toFixed(1) : null;
+    totalCosto += costo; totalFact += precioHyatt;
+    const mc = margenPct != null ? (+margenPct > 40 ? 'var(--green-ok)' : +margenPct > 20 ? 'var(--amber)' : 'var(--red-alert)') : 'var(--mid-gray)';
     return `<tr>
-      <td style="${th};font-weight:500">${arregloEmoji(r.nombre)} ${esc(r.nombre)}</td>
-      <td style="${th};text-align:right;color:var(--mid-gray)">$${r.costo.toLocaleString('es-AR',{maximumFractionDigits:0})}</td>
+      <td style="${th};font-weight:500">📍 ${esc(area)}</td>
+      <td style="${th};text-align:right;color:var(--mid-gray)">$${costo.toLocaleString('es-AR')}</td>
       <td style="${th};text-align:right">
-        <input type="number" min="0" value="${r.precioHyatt||''}" placeholder="$"
+        <input type="number" min="0" value="${precioHyatt||''}" placeholder="$"
           style="width:110px;text-align:right;border:1px solid var(--light-gray);border-radius:6px;padding:4px 8px;font-size:13px;outline:none;background:var(--warm-white);color:var(--charcoal)"
-          onchange="saveArregloHotelConfig('${esc(r.nombre)}','precioHyatt',this.value)">
+          onchange="saveArregloHotelConfig('${esc(area)}','precioHyatt',this.value)">
       </td>
-      <td style="${th};text-align:right;font-weight:700;color:${mc}">${r.margenPct != null ? r.margenPct+'%' : '—'}</td>
-      <td style="${th};text-align:right">
-        <input type="number" min="0" value="${r.cant||''}" placeholder="0"
-          style="width:70px;text-align:right;border:1px solid var(--light-gray);border-radius:6px;padding:4px 8px;font-size:13px;outline:none;background:var(--warm-white);color:var(--charcoal)"
-          onchange="saveArregloHotelConfig('${esc(r.nombre)}','cantMensual',this.value)">
-      </td>
-      <td style="${th};text-align:right;font-weight:600">${r.facturacion ? '$'+r.facturacion.toLocaleString('es-AR',{maximumFractionDigits:0}) : '<span style="color:var(--mid-gray)">—</span>'}</td>
+      <td style="${th};text-align:right;font-weight:600;color:${precioHyatt? (margen>=0?'var(--green-ok)':'var(--red-alert)') : 'var(--mid-gray)'}">${precioHyatt ? '$'+margen.toLocaleString('es-AR') : '—'}</td>
+      <td style="${th};text-align:right;font-weight:700;color:${mc}">${margenPct != null ? margenPct+'%' : '—'}</td>
     </tr>`;
-  }).join('');
+  }).join('') || `<tr><td colspan="5" style="padding:22px;text-align:center;color:var(--mid-gray)">Sin compras cargadas para este mes. Cargá insumos en <strong>Compras › Florería</strong> indicando el <strong>Área / uso</strong> de cada uno.</td></tr>`;
+
+  const margenGlobal = totalFact > 0 ? ((totalFact - totalCosto) / totalFact * 100).toFixed(1) : '—';
+  if(kpisEl) kpisEl.innerHTML = `
+    <div class="card"><div class="card-label">Áreas con arreglo</div><div class="card-value" style="font-size:32px">${areas.length}</div></div>
+    <div class="card"><div class="card-label">Facturación mensual</div><div class="card-value" style="font-size:26px">$${totalFact.toLocaleString('es-AR')}</div></div>
+    <div class="card"><div class="card-label">Costo insumos (mes)</div><div class="card-value" style="font-size:26px">$${totalCosto.toLocaleString('es-AR')}</div></div>
+    <div class="card"><div class="card-label">Margen global hotel</div><div class="card-value ${+margenGlobal>40?'green':+margenGlobal>20?'amber':'red'}" style="font-size:32px">${margenGlobal}%</div></div>`;
 }
 
 function renderRentabilidad(){
