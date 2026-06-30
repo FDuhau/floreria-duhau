@@ -4,7 +4,7 @@
 // Cuando un dispositivo detecta una versión distinta a la guardada,
 // limpia el localStorage viejo UNA sola vez y recarga. Sin borrar caché a mano.
 // ════════════════════════════════════════
-const APP_VERSION = '2026-06-29-d';
+const APP_VERSION = '2026-06-30-a';
 (function checkAppVersion(){
   try {
     const stored = localStorage.getItem('app_version');
@@ -4905,8 +4905,6 @@ function renderJardOps(){
     if(jopsFilter !== 'all' && !z.items.some(it=>it.badge.status===jopsFilter)) return;
 
     _jopsZones.push(z);  // índice = rendered
-    const zIdx = rendered;
-    const zh = zonaHorasData[z.section+'|||'+z.group] || {};
 
     const borderColor = z.worstStatus==='alert'?'#E53935':z.worstStatus==='warn'?'#F59E0B':z.worstStatus==='ok'?'#43A047':'#C0BEB6';
     const bgHeader    = z.worstStatus==='alert'?'#FFF5F5':z.worstStatus==='warn'?'#FFFBF0':z.worstStatus==='ok'?'#F0FAF0':'#F8F7F5';
@@ -4915,7 +4913,8 @@ function renderJardOps(){
     const zoneEl = document.createElement('div');
     zoneEl.style.cssText = `border:1px solid ${borderColor};border-left:5px solid ${borderColor};border-radius:8px;overflow:hidden`;
 
-    // Cabecera de zona — dos filas: info + botones de hora
+    // Cabecera de zona — solo info (el horario se marca una vez en la jornada,
+    // no por zona; cada tarea se cierra con "✓ Hecho").
     const headerEl = document.createElement('div');
     headerEl.style.cssText = `display:flex;flex-direction:column;gap:0;padding:12px 16px;background:${bgHeader};cursor:pointer;user-select:none`;
     headerEl.innerHTML = `
@@ -4931,13 +4930,6 @@ function renderJardOps(){
           ${z.okCount   ?`<span style="background:#E8F5E9;color:#2E7D32;padding:3px 9px;border-radius:12px;font-size:11px;font-weight:700">🟢 ${z.okCount} al día</span>`:''}
           <span id="${chevId}" style="font-size:14px;color:var(--mid-gray);transition:transform .2s;display:inline-block">▼</span>
         </div>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid rgba(0,0,0,0.07);flex-wrap:wrap">
-        <span style="font-size:11px;color:var(--mid-gray);font-weight:600;margin-right:2px">⏱ Zona:</span>
-        ${zonaHoraBtn(zIdx,'horaInicio',zh)}
-        ${zonaHoraBtn(zIdx,'horaFin',zh)}
-        ${zh.inicio&&zh.fin?durBadge(zh.inicio,zh.fin):''}
-        ${zh.fecha&&zh.fecha!==TODAY_ISO?`<span style="font-size:10px;color:var(--mid-gray);margin-left:4px">último: ${fmtDate(zh.fecha)}</span>`:''}
       </div>`;
 
     // Contenedor de tareas de la zona (grid interno)
@@ -7992,8 +7984,9 @@ function renderProductividadHorarios(empleados){
     });
     (window.jardineriaLog||[]).forEach(e => {
       if(e.fecha !== TODAY_ISO || e.quien !== nombre) return;
-      tareasAsignadas++;
-      if(e.horaFin){ tareasHechas++; minsTareas += dur(e.horaInicio, e.horaFin); }
+      // Estar en el log = tarea hecha (se cierra con "Hecho", sin horario por tarea).
+      tareasAsignadas++; tareasHechas++;
+      if(e.horaInicio && e.horaFin) minsTareas += dur(e.horaInicio, e.horaFin);
     });
 
     const hsTrabajadas = Math.round(minsJornada/60*10)/10;
