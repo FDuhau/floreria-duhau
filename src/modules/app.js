@@ -1013,7 +1013,7 @@ function renderChecklistTable(){
 
       if(isFlorista){
         vtTr.innerHTML = `
-          <td style="font-weight:600;font-size:12.5px;color:#2C5A80">💐 ${esc(v.prod)}</td>
+          <td style="font-weight:600;font-size:12.5px;color:#2C5A80">💐 ${esc(v.prod)}${badgeDiaRelativa(v.fecha)}</td>
           <td style="font-size:12px">${esc(v.cliente||'')}</td>
           <td style="font-size:11px;color:var(--mid-gray);max-width:200px;overflow:hidden;text-overflow:ellipsis">${esc(detalle)}</td>
           <td style="width:90px;text-align:center;padding:4px 6px">${renderVentaHoraCell(vIdx,'inicio',v)}</td>
@@ -1021,7 +1021,7 @@ function renderChecklistTable(){
       } else {
         vtTr.innerHTML = `
           <td style="width:32px"></td>
-          <td style="font-weight:600;font-size:12.5px;color:#2C5A80">💐 ${esc(v.prod)}</td>
+          <td style="font-weight:600;font-size:12.5px;color:#2C5A80">💐 ${esc(v.prod)}${badgeDiaRelativa(v.fecha)}</td>
           <td style="font-size:12px">${esc(v.cliente||'')}</td>
           <td style="font-size:11px;color:var(--mid-gray);max-width:200px">${esc(detalle)}</td>
           <td style="width:90px;text-align:center;padding:4px 6px">${renderVentaHoraCell(vIdx,'inicio',v)}</td>
