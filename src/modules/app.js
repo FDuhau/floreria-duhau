@@ -2152,22 +2152,56 @@ function renderHistorialCompras(){
           <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:10px">Paq</th>
           <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:10px">Varas/paq</th>
           <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:10px">Total varas</th>
-          <th style="padding:6px 10px;text-align:right;color:var(--mid-gray);font-size:10px">Precio</th>
+          <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:10px">Control</th>
+          <th style="padding:6px 10px;text-align:right;color:var(--mid-gray);font-size:10px">Precio de compra</th>
         </tr></thead>
-        <tbody>${items.map(r => `<tr style="border-top:1px solid #F0EDE8">
+        <tbody>${items.map(r => { const idx = comprasFlore.indexOf(r); return `<tr style="border-top:1px solid #F0EDE8">
           <td style="padding:6px 10px;font-weight:500">${esc(r.prod)}</td>
           <td style="padding:6px 10px;color:var(--mid-gray)">${esc(r.prov||'—')}</td>
           <td style="padding:6px 10px;color:var(--mid-gray)">${esc(r.sector||'—')}</td>
           <td style="padding:6px 10px;text-align:center">${r.paqRecibidos||r.qty||'—'}</td>
           <td style="padding:6px 10px;text-align:center">${r.varasPorPaq||'—'}</td>
           <td style="padding:6px 10px;text-align:center;font-weight:600">${r.totalVaras||r.qty||'—'}</td>
-          <td style="padding:6px 10px;text-align:right">${esc(r.costo||'—')}</td>
-        </tr>`).join('')}</tbody>
+          <td style="padding:6px 10px;text-align:center">${controlBadgeCompra(r)}</td>
+          <td style="padding:6px 10px;text-align:right"><input class="form-input" value="${esc(r.costo||'')}" placeholder="$" onchange="updHistCostoCompra(${idx},this.value)" style="width:90px;text-align:right"></td>
+        </tr>`; }).join('')}</tbody>
       </table>
     </div>`;
   });
 
   wrap.innerHTML = html;
+}
+
+// Insignia de control post-recepción: compara lo pedido vs. lo efectivamente recibido.
+// La orden queda "recibida" en el stock pero permanece editable acá (no se cierra),
+// para que Compras pueda cargar el precio de compra real una vez que llega la factura.
+function controlBadgeCompra(r){
+  const qty = parseFloat(r.qty) || 0;
+  const recibido = r.paqRecibidos != null ? parseFloat(r.paqRecibidos) || 0 : qty;
+  const ok = recibido >= qty;
+  return ok
+    ? '<span style="font-size:9px;font-weight:700;background:#4C7A3D;color:#fff;padding:2px 7px;border-radius:5px;white-space:nowrap">✅ OK</span>'
+    : '<span style="font-size:9px;font-weight:700;background:#C0392B;color:#fff;padding:2px 7px;border-radius:5px;white-space:nowrap">⚠️ Diferencias</span>';
+}
+
+// Permite corregir el precio de compra de una orden ya controlada/recibida
+// (por ej. cuando llega la factura con el precio real) sin reabrir el pedido
+// ni tocar el stock ya ingresado. Recalcula el costo por vara del cotizador
+// para que los costos de arreglos y la Rentabilidad por área queden al día.
+function updHistCostoCompra(idx, val){
+  const order = comprasFlore[idx];
+  if(!order) return;
+  order.costo = val;
+  const costoTotal = parseMoney(val);
+  const divisor = parseFloat(order.varasPorPaq) || parseFloat(order.qty) || 0;
+  if(costoTotal > 0 && divisor > 0){
+    cotizadorPrecios[order.prod] = Math.round(costoTotal / divisor);
+    fbSave('cotizadorPrecios', cotizadorPrecios);
+  }
+  window._comprasFloreLastSave = Date.now();
+  fbSave('comprasFlore', comprasFlore);
+  showToast('💰 Precio de compra actualizado — costos de arreglos recalculados');
+  renderHistorialCompras();
 }
 
 async function copiarBloquePedido(type, fecha){
