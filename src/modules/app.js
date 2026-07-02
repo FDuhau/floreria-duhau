@@ -2163,7 +2163,14 @@ async function cfImportConfirm(){
   if(!cfImportRows.length) return;
   if(!await confirmModal(`¿Importar ${cfImportRows.length} pedidos a Compras Florería? Quedarán en estado "Pedido", listos para controlar.`)) return;
   const sucursal = getSucursalId();
+  let nuevosProv = 0;
   cfImportRows.forEach(r=>{
+    // Registrar automáticamente proveedores nuevos que vengan en el Excel
+    // y no estén ya en la lista, para que el desplegable los reconozca.
+    if(r.prov && !proveedoresList.includes(r.prov)){
+      proveedoresList.push(r.prov);
+      nuevosProv++;
+    }
     comprasFlore.unshift({
       fecha: r.fecha || TODAY_ISO,
       pedidopor: r.pedidopor || '—',
@@ -2177,9 +2184,13 @@ async function cfImportConfirm(){
       sucursal
     });
   });
+  if(nuevosProv > 0){
+    proveedoresList.sort((a,b)=>a.localeCompare(b,'es'));
+    fbSave('proveedoresList', proveedoresList);
+  }
   window._comprasFloreLastSave = Date.now();
   fbSave('comprasFlore', comprasFlore);
-  showToast(`✅ ${cfImportRows.length} pedidos importados`);
+  showToast(`✅ ${cfImportRows.length} pedidos importados${nuevosProv?` (${nuevosProv} proveedor${nuevosProv!==1?'es':''} nuevo${nuevosProv!==1?'s':''} agregado${nuevosProv!==1?'s':''})`:''}`);
   cfImportCancel();
   renderCompras('floreria');
   updateKpiCompras();
@@ -12319,4 +12330,7 @@ Object.assign(window, {
   renderCierreMensual, generarCierreMensual, verCierreMensual, exportCierrePDF,
   renderDashboardGerencia,
   exportVentasXLSX, exportComprasXLSX, exportStockXLSX, exportLegajoXLSX,
+  toggleCfSplit, cfSplitAddRow, cfSplitRemoveRow, cfSplitUpdRow,
+  cfImportFile, cfImportCancel, cfImportParseSheet, cfImportConfirm,
+  toggleAnularCompra, updHistCantCompra, updHistCostoCompra,
 });
