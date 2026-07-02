@@ -1985,6 +1985,206 @@ function addCompra(type){
   updateKpiCompras();
 }
 
+// ── Importar pedido desde Excel/Sheets (.xlsx) — Compras Florería ──
+// Lee el archivo tal como lo cargan hoy (columnas Fecha, Pedido por,
+// Producto, Descripción, Cantidad, Precio por paquete, Proveedor, Área/uso),
+// detectando las columnas por el nombre del encabezado. Nunca escribe nada
+// directo: siempre pasa por una vista previa que hay que confirmar, y las
+// filas importadas quedan en estado "pedido" (no tocan stock) — recién se
+// suman al stock cuando se controlan/recepcionan como cualquier otro pedido.
+let cfImportWb = null;
+let cfImportRows = [];
+
+const CF_IMPORT_SYNONYMS = {
+  fecha:      ['fecha'],
+  pedidopor:  ['pedido por','pedido realizado por','pedidopor','pedido'],
+  prod:       ['flor / follaje','flor/follaje','producto','flor','articulo','artículo'],
+  desc:       ['descripcion adicional','descripcion','descripción','desc','detalle','color'],
+  qty:        ['cantidad','cant','paq','paquetes'],
+  costoUnit:  ['precio','costo','precio unitario','precio por paquete','precio paquete'],
+  prov:       ['proveedor','prov'],
+  sector:     ['usuario final / area','usuario final / área','usuario final','area/uso','área/uso','area / uso','área / uso','area','área','sector']
+};
+
+function normHeaderTxt(s){
+  return String(s||'').toLowerCase()
+    .replace(/[áàäâ]/g,'a').replace(/[éèëê]/g,'e').replace(/[íìïî]/g,'i')
+    .replace(/[óòöô]/g,'o').replace(/[úùüû]/g,'u').replace(/ñ/g,'n')
+    .trim();
+}
+
+function parseFechaImport(v){
+  if(v==null || v==='') return '';
+  if(typeof v === 'number'){
+    const d = new Date(Math.round((v - 25569) * 86400 * 1000));
+    if(isNaN(d)) return '';
+    return d.toISOString().slice(0,10);
+  }
+  const s = String(v).trim();
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+  m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+  if(m){
+    let [, dd, mm, yy] = m;
+    if(yy.length===2) yy = (+yy < 70 ? '20'+yy : '19'+yy);
+    return `${yy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`;
+  }
+  return '';
+}
+
+function cfImportFile(input){
+  const file = input.files?.[0];
+  if(!file) return;
+  const X = window.XLSX;
+  if(!X){ showToast('Error: librería XLSX no disponible','error'); return; }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try{
+      cfImportWb = X.read(new Uint8Array(e.target.result), {type:'array'});
+    } catch(err){
+      showToast('No se pudo leer el archivo: '+err.message,'error');
+      return;
+    }
+    const sheets = cfImportWb.SheetNames || [];
+    if(!sheets.length){ showToast('El archivo no tiene hojas.','error'); return; }
+    const sel = document.getElementById('cf-import-sheet-sel');
+    sel.innerHTML = sheets.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
+    // Preseleccionar la hoja que parezca el mes actual, si existe
+    const mesActual = normHeaderTxt(getMonthLabel(TODAY_ISO));
+    const match = sheets.find(s=>normHeaderTxt(s)===mesActual || mesActual.startsWith(normHeaderTxt(s)));
+    if(match) sel.value = match;
+    document.getElementById('cf-import-sheet-picker').style.display = 'flex';
+    document.getElementById('cf-import-preview').style.display = 'none';
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function cfImportCancel(){
+  cfImportWb = null;
+  cfImportRows = [];
+  document.getElementById('cf-import-sheet-picker').style.display = 'none';
+  document.getElementById('cf-import-preview').style.display = 'none';
+  document.getElementById('cf-import-file').value = '';
+}
+
+function cfImportParseSheet(){
+  const X = window.XLSX;
+  const sheetName = document.getElementById('cf-import-sheet-sel').value;
+  const sheet = cfImportWb?.Sheets?.[sheetName];
+  if(!sheet){ showToast('No se encontró la hoja seleccionada.','error'); return; }
+
+  const rows = X.utils.sheet_to_json(sheet, {header:1, raw:true, defval:''});
+  // Buscar la fila de encabezados: la primera con al menos 2 celdas de texto reconocibles
+  let headerIdx = -1, colMap = {};
+  for(let i=0;i<Math.min(rows.length,10);i++){
+    const row = rows[i];
+    const map = {};
+    row.forEach((cell,ci)=>{
+      const h = normHeaderTxt(cell);
+      if(!h) return;
+      for(const [field, syns] of Object.entries(CF_IMPORT_SYNONYMS)){
+        if(map[field]!=null) continue;
+        if(syns.some(s=>h===normHeaderTxt(s))) map[field] = ci;
+      }
+    });
+    if(map.prod!=null && map.qty!=null){ headerIdx = i; colMap = map; break; }
+  }
+  if(headerIdx===-1){
+    showToast('No pude detectar los encabezados (necesito al menos "Producto" y "Cantidad"). Revisá que la primera fila tenga los títulos de columna.','error');
+    return;
+  }
+
+  const parsed = [];
+  for(let i=headerIdx+1;i<rows.length;i++){
+    const row = rows[i];
+    const prod = colMap.prod!=null ? String(row[colMap.prod]??'').trim() : '';
+    if(!prod) continue; // fila vacía o separadora
+    const qty = colMap.qty!=null ? (parseFloat(row[colMap.qty]) || 0) : 0;
+    if(qty<=0) continue;
+    const costoUnit = colMap.costoUnit!=null ? parseMoney(row[colMap.costoUnit]) : 0;
+    parsed.push({
+      fecha: colMap.fecha!=null ? parseFechaImport(row[colMap.fecha]) : '',
+      pedidopor: colMap.pedidopor!=null ? String(row[colMap.pedidopor]??'').trim() : '',
+      prod,
+      desc: colMap.desc!=null ? String(row[colMap.desc]??'').trim() : '',
+      qty,
+      costo: costoUnit>0 ? String(Math.round(costoUnit*qty*100)/100) : '',
+      prov: colMap.prov!=null ? String(row[colMap.prov]??'').trim() : '',
+      sector: colMap.sector!=null ? String(row[colMap.sector]??'').trim() : ''
+    });
+  }
+
+  if(!parsed.length){
+    showToast('No encontré filas con producto y cantidad para importar en esa hoja.','error');
+    return;
+  }
+
+  cfImportRows = parsed;
+  document.getElementById('cf-import-sheet-picker').style.display = 'none';
+  renderCfImportPreview(colMap);
+}
+
+function renderCfImportPreview(colMap){
+  const el = document.getElementById('cf-import-preview');
+  if(!el) return;
+  const campoLabel = {fecha:'Fecha',pedidopor:'Pedido por',prod:'Producto',desc:'Descripción',qty:'Cantidad',costoUnit:'Precio (por paquete)',prov:'Proveedor',sector:'Área/uso'};
+  const detectados = Object.entries(colMap).map(([f,ci])=>`${campoLabel[f]||f}: col. ${String.fromCharCode(65+ci)}`).join(' · ');
+  el.style.display = '';
+  el.innerHTML = `
+    <div style="font-weight:600;margin-bottom:6px">Vista previa de importación — ${cfImportRows.length} pedido${cfImportRows.length!==1?'s':''}</div>
+    <div style="font-size:11px;color:var(--mid-gray);margin-bottom:10px">Columnas detectadas: ${esc(detectados)}. Los pedidos se cargan en estado "Pedido" (no tocan el stock) — el stock se actualiza recién cuando los controles/recepciones como a cualquier otro pedido.</div>
+    <div style="max-height:320px;overflow:auto;border:1px solid var(--light-gray);border-radius:6px">
+      <table style="width:100%;font-size:11.5px;border-collapse:collapse">
+        <thead><tr style="background:#FAF8F4;position:sticky;top:0">
+          <th style="padding:5px 8px;text-align:left">Fecha</th><th style="padding:5px 8px;text-align:left">Pedido por</th>
+          <th style="padding:5px 8px;text-align:left">Producto</th><th style="padding:5px 8px;text-align:left">Desc.</th>
+          <th style="padding:5px 8px;text-align:center">Cant.</th><th style="padding:5px 8px;text-align:right">Costo total</th>
+          <th style="padding:5px 8px;text-align:left">Proveedor</th><th style="padding:5px 8px;text-align:left">Área/uso</th>
+        </tr></thead>
+        <tbody>${cfImportRows.map(r=>`<tr style="border-top:1px solid #F0EDE8">
+          <td style="padding:5px 8px">${esc(r.fecha||'—')}</td>
+          <td style="padding:5px 8px">${esc(r.pedidopor||'—')}</td>
+          <td style="padding:5px 8px;font-weight:500">${esc(r.prod)}</td>
+          <td style="padding:5px 8px;color:var(--mid-gray)">${esc(r.desc||'—')}</td>
+          <td style="padding:5px 8px;text-align:center">${esc(r.qty)}</td>
+          <td style="padding:5px 8px;text-align:right">${r.costo?'$'+parseMoney(r.costo).toLocaleString('es-AR'):'—'}</td>
+          <td style="padding:5px 8px">${esc(r.prov||'—')}</td>
+          <td style="padding:5px 8px">${esc(r.sector||'—')}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn-add" onclick="cfImportConfirm()">✅ Confirmar importación de ${cfImportRows.length} pedidos</button>
+      <button class="btn-secondary" onclick="cfImportCancel()">✕ Cancelar</button>
+    </div>`;
+}
+
+async function cfImportConfirm(){
+  if(!cfImportRows.length) return;
+  if(!await confirmModal(`¿Importar ${cfImportRows.length} pedidos a Compras Florería? Quedarán en estado "Pedido", listos para controlar.`)) return;
+  const sucursal = getSucursalId();
+  cfImportRows.forEach(r=>{
+    comprasFlore.unshift({
+      fecha: r.fecha || TODAY_ISO,
+      pedidopor: r.pedidopor || '—',
+      prod: r.prod,
+      desc: r.desc || '',
+      qty: r.qty,
+      costo: r.costo || '',
+      prov: r.prov || '',
+      sector: r.sector || '',
+      estado: 'pedido',
+      sucursal
+    });
+  });
+  window._comprasFloreLastSave = Date.now();
+  fbSave('comprasFlore', comprasFlore);
+  showToast(`✅ ${cfImportRows.length} pedidos importados`);
+  cfImportCancel();
+  renderCompras('floreria');
+  updateKpiCompras();
+}
+
 function applyCompraFilter(type){
   const from = document.getElementById((type==='floreria'?'cf':'cj')+'-from').value;
   const to   = document.getElementById((type==='floreria'?'cf':'cj')+'-to').value;

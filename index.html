@@ -455,8 +455,19 @@
     <div class="compras-form">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
         <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);font-weight:500">Nueva orden de compra</div>
-        <button class="btn-secondary" onclick="copiarUltimoPedido('floreria')" style="font-size:12px" title="Trae los datos del último pedido cargado para modificar cantidades, colores, etc.">📋 Copiar último pedido</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-secondary" onclick="copiarUltimoPedido('floreria')" style="font-size:12px" title="Trae los datos del último pedido cargado para modificar cantidades, colores, etc.">📋 Copiar último pedido</button>
+          <button class="btn-secondary" onclick="document.getElementById('cf-import-file').click()" style="font-size:12px" title="Importar un pedido cargado en Excel/Sheets (.xlsx)">📥 Importar desde Excel</button>
+          <input type="file" id="cf-import-file" accept=".xlsx,.xls" style="display:none" onchange="cfImportFile(this)">
+        </div>
       </div>
+      <div id="cf-import-sheet-picker" style="display:none;margin-bottom:12px;background:#FAF8F4;border:1px solid var(--light-gray);border-radius:8px;padding:10px 12px;display:flex;gap:10px;align-items:center">
+        <span style="font-size:12px;color:var(--mid-gray)">Hoja / mes a importar:</span>
+        <select class="form-input" id="cf-import-sheet-sel" style="width:200px"></select>
+        <button class="btn-add" style="font-size:12px" onclick="cfImportParseSheet()">Leer hoja</button>
+        <button class="btn-secondary" style="font-size:12px" onclick="cfImportCancel()">Cancelar</button>
+      </div>
+      <div id="cf-import-preview" style="display:none;margin-bottom:16px;background:var(--warm-white);border:1px solid var(--light-gray);border-radius:10px;padding:14px 16px"></div>
       <div class="form-row" style="grid-template-columns:1fr 2fr 2fr 1fr;margin-bottom:10px">
         <div class="form-group"><label>Fecha</label><input class="form-input" id="cf-fecha" type="date"></div>
         <div class="form-group"><label>Pedido realizado por</label><input class="form-input" id="cf-pedidopor" placeholder="Nombre"></div>
