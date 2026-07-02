@@ -1868,22 +1868,114 @@ function copiarUltimoPedido(type){
   document.getElementById(p+'-producto')?.focus();
 }
 
+// ── Reparto de un mismo artículo entre varias áreas (florería) ──
+// Cuando lo que llega en una orden se destina a más de un sector del hotel
+// (ej. 3 varas de Limonium: 2 al Lobby Alvear, 1 a Biblioteca), en vez de
+// cargar el mismo producto varias veces a mano se define el reparto acá y
+// addCompra() genera una línea de compra por área, prorrateando el costo.
+let cfSplitRows = [];
+
+function toggleCfSplit(){
+  const wrap = document.getElementById('cf-split-wrap');
+  if(!wrap) return;
+  const visible = wrap.style.display !== 'none';
+  if(visible){
+    wrap.style.display = 'none';
+  } else {
+    wrap.style.display = '';
+    if(cfSplitRows.length === 0){ cfSplitRows = [{sector:'',qty:''},{sector:'',qty:''}]; }
+    renderCfSplitRows();
+  }
+}
+
+function cfSplitAddRow(){
+  cfSplitRows.push({sector:'', qty:''});
+  renderCfSplitRows();
+}
+
+function cfSplitRemoveRow(i){
+  cfSplitRows.splice(i,1);
+  renderCfSplitRows();
+}
+
+function cfSplitUpdRow(i, field, val){
+  if(!cfSplitRows[i]) return;
+  cfSplitRows[i][field] = val;
+  renderCfSplitTotal();
+}
+
+function renderCfSplitTotal(){
+  const totalEl = document.getElementById('cf-split-total');
+  if(!totalEl) return;
+  const total = cfSplitRows.reduce((s,r)=>s+(parseFloat(r.qty)||0),0);
+  totalEl.textContent = total > 0 ? `Total repartido: ${total}` : '';
+}
+
+function renderCfSplitRows(){
+  const el = document.getElementById('cf-split-rows');
+  if(!el) return;
+  el.innerHTML = cfSplitRows.map((r,i)=>`
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+      <select class="form-input" style="flex:2" onchange="cfSplitUpdRow(${i},'sector',this.value)">${getAreaUsoOpts(r.sector)}</select>
+      <input class="form-input" type="number" placeholder="Cant." value="${esc(r.qty)}" style="width:80px" onchange="cfSplitUpdRow(${i},'qty',this.value)">
+      <button class="btn-icon" style="color:var(--red-alert)" onclick="cfSplitRemoveRow(${i})">✕</button>
+    </div>`).join('');
+  renderCfSplitTotal();
+}
+
 function addCompra(type){
   const p=type==='floreria'?'cf':'cj';
   const prod=document.getElementById(p+'-producto').value.trim();
   if(!prod){showToast('Ingresá el producto.','error');return;}
-  getArr(type).unshift({
-    fecha:document.getElementById(p+'-fecha').value||TODAY_ISO,
-    pedidopor:document.getElementById(p+'-pedidopor').value||'—',
-    prod,
-    desc:document.getElementById(p+'-desc').value||'',
-    qty:document.getElementById(p+'-cantidad').value||1,
-    costo:document.getElementById(p+'-costo').value||'',
-    prov:document.getElementById(p+'-proveedor').value||'',
-    sector:document.getElementById(p+'-sector').value||'',
-    estado:'pedido',
-    sucursal: getSucursalId()
-  });
+
+  const fecha = document.getElementById(p+'-fecha').value||TODAY_ISO;
+  const pedidopor = document.getElementById(p+'-pedidopor').value||'—';
+  const desc = document.getElementById(p+'-desc').value||'';
+  const prov = document.getElementById(p+'-proveedor').value||'';
+  const costoTotal = parseMoney(document.getElementById(p+'-costo').value);
+  const sucursal = getSucursalId();
+
+  // Reparto entre varias áreas (solo florería): una línea de compra por área,
+  // con la cantidad de cada una y el costo prorrateado según esa cantidad.
+  const splits = type==='floreria'
+    ? cfSplitRows.filter(r=>r.sector && parseFloat(r.qty)>0)
+    : [];
+
+  if(splits.length > 0){
+    const totalQty = splits.reduce((s,r)=>s+(parseFloat(r.qty)||0),0);
+    let costoAsignado = 0;
+    splits.forEach((r,i)=>{
+      const qty = parseFloat(r.qty)||0;
+      // La última línea absorbe el redondeo para que la suma cierre exacto.
+      const costoLinea = i === splits.length-1
+        ? Math.round((costoTotal - costoAsignado)*100)/100
+        : Math.round(costoTotal * (qty/totalQty) * 100)/100;
+      costoAsignado += costoLinea;
+      getArr(type).unshift({
+        fecha, pedidopor, prod, desc,
+        qty,
+        costo: costoTotal>0 ? String(costoLinea) : '',
+        prov,
+        sector: r.sector,
+        estado:'pedido',
+        sucursal
+      });
+    });
+    cfSplitRows = [];
+    document.getElementById('cf-split-wrap').style.display = 'none';
+    showToast(`✅ "${prod}" repartido en ${splits.length} áreas`);
+  } else {
+    getArr(type).unshift({
+      fecha, pedidopor, prod, desc,
+      qty:document.getElementById(p+'-cantidad').value||1,
+      costo:document.getElementById(p+'-costo').value||'',
+      prov,
+      sector:document.getElementById(p+'-sector').value||'',
+      estado:'pedido',
+      sucursal
+    });
+  }
+
   ['fecha','pedidopor','producto','cantidad','desc','costo','proveedor','sector'].forEach(id=>{
     const el=document.getElementById(p+'-'+id);
     if(el) el.value='';

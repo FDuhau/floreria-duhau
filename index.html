@@ -480,6 +480,16 @@
         </div>
         <button class="btn-add" onclick="addCompra('floreria')" style="align-self:flex-end">+ Agregar</button>
       </div>
+      <div style="margin-top:8px">
+        <button class="btn-secondary" type="button" onclick="toggleCfSplit()" id="cf-split-toggle-btn" style="font-size:11.5px;padding:4px 10px" title="Cuando un mismo artículo se reparte entre varias áreas del hotel">🔀 Repartir este artículo entre varias áreas</button>
+        <div id="cf-split-wrap" style="display:none;margin-top:10px;background:#FAF8F4;border:1px solid var(--light-gray);border-radius:8px;padding:12px">
+          <div id="cf-split-rows"></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+            <button class="btn-secondary" type="button" onclick="cfSplitAddRow()" style="font-size:11px;padding:4px 10px">+ Agregar área</button>
+            <span id="cf-split-total" style="font-size:11.5px;color:var(--mid-gray)"></span>
+          </div>
+        </div>
+      </div>
     </div>
     <!-- PROVEEDORES MANAGER -->
     <div id="prov-manager" style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;padding:18px 20px;margin-bottom:16px">
