@@ -1868,28 +1868,320 @@ function copiarUltimoPedido(type){
   document.getElementById(p+'-producto')?.focus();
 }
 
+// ── Reparto de un mismo artículo entre varias áreas (florería) ──
+// Cuando lo que llega en una orden se destina a más de un sector del hotel
+// (ej. 3 varas de Limonium: 2 al Lobby Alvear, 1 a Biblioteca), en vez de
+// cargar el mismo producto varias veces a mano se define el reparto acá y
+// addCompra() genera una línea de compra por área, prorrateando el costo.
+let cfSplitRows = [];
+
+function toggleCfSplit(){
+  const wrap = document.getElementById('cf-split-wrap');
+  if(!wrap) return;
+  const visible = wrap.style.display !== 'none';
+  if(visible){
+    wrap.style.display = 'none';
+  } else {
+    wrap.style.display = '';
+    if(cfSplitRows.length === 0){ cfSplitRows = [{sector:'',qty:''},{sector:'',qty:''}]; }
+    renderCfSplitRows();
+  }
+}
+
+function cfSplitAddRow(){
+  cfSplitRows.push({sector:'', qty:''});
+  renderCfSplitRows();
+}
+
+function cfSplitRemoveRow(i){
+  cfSplitRows.splice(i,1);
+  renderCfSplitRows();
+}
+
+function cfSplitUpdRow(i, field, val){
+  if(!cfSplitRows[i]) return;
+  cfSplitRows[i][field] = val;
+  renderCfSplitTotal();
+}
+
+function renderCfSplitTotal(){
+  const totalEl = document.getElementById('cf-split-total');
+  if(!totalEl) return;
+  const total = cfSplitRows.reduce((s,r)=>s+(parseFloat(r.qty)||0),0);
+  totalEl.textContent = total > 0 ? `Total repartido: ${total}` : '';
+}
+
+function renderCfSplitRows(){
+  const el = document.getElementById('cf-split-rows');
+  if(!el) return;
+  el.innerHTML = cfSplitRows.map((r,i)=>`
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+      <select class="form-input" style="flex:2" onchange="cfSplitUpdRow(${i},'sector',this.value)">${getAreaUsoOpts(r.sector)}</select>
+      <input class="form-input" type="number" placeholder="Cant." value="${esc(r.qty)}" style="width:80px" onchange="cfSplitUpdRow(${i},'qty',this.value)">
+      <button class="btn-icon" style="color:var(--red-alert)" onclick="cfSplitRemoveRow(${i})">✕</button>
+    </div>`).join('');
+  renderCfSplitTotal();
+}
+
 function addCompra(type){
   const p=type==='floreria'?'cf':'cj';
   const prod=document.getElementById(p+'-producto').value.trim();
   if(!prod){showToast('Ingresá el producto.','error');return;}
-  getArr(type).unshift({
-    fecha:document.getElementById(p+'-fecha').value||TODAY_ISO,
-    pedidopor:document.getElementById(p+'-pedidopor').value||'—',
-    prod,
-    desc:document.getElementById(p+'-desc').value||'',
-    qty:document.getElementById(p+'-cantidad').value||1,
-    costo:document.getElementById(p+'-costo').value||'',
-    prov:document.getElementById(p+'-proveedor').value||'',
-    sector:document.getElementById(p+'-sector').value||'',
-    estado:'pedido',
-    sucursal: getSucursalId()
-  });
+
+  const fecha = document.getElementById(p+'-fecha').value||TODAY_ISO;
+  const pedidopor = document.getElementById(p+'-pedidopor').value||'—';
+  const desc = document.getElementById(p+'-desc').value||'';
+  const prov = document.getElementById(p+'-proveedor').value||'';
+  const costoTotal = parseMoney(document.getElementById(p+'-costo').value);
+  const sucursal = getSucursalId();
+
+  // Reparto entre varias áreas (solo florería): una línea de compra por área,
+  // con la cantidad de cada una y el costo prorrateado según esa cantidad.
+  const splits = type==='floreria'
+    ? cfSplitRows.filter(r=>r.sector && parseFloat(r.qty)>0)
+    : [];
+
+  if(splits.length > 0){
+    const totalQty = splits.reduce((s,r)=>s+(parseFloat(r.qty)||0),0);
+    let costoAsignado = 0;
+    splits.forEach((r,i)=>{
+      const qty = parseFloat(r.qty)||0;
+      // La última línea absorbe el redondeo para que la suma cierre exacto.
+      const costoLinea = i === splits.length-1
+        ? Math.round((costoTotal - costoAsignado)*100)/100
+        : Math.round(costoTotal * (qty/totalQty) * 100)/100;
+      costoAsignado += costoLinea;
+      getArr(type).unshift({
+        fecha, pedidopor, prod, desc,
+        qty,
+        costo: costoTotal>0 ? String(costoLinea) : '',
+        prov,
+        sector: r.sector,
+        estado:'pedido',
+        sucursal
+      });
+    });
+    cfSplitRows = [];
+    document.getElementById('cf-split-wrap').style.display = 'none';
+    showToast(`✅ "${prod}" repartido en ${splits.length} áreas`);
+  } else {
+    getArr(type).unshift({
+      fecha, pedidopor, prod, desc,
+      qty:document.getElementById(p+'-cantidad').value||1,
+      costo:document.getElementById(p+'-costo').value||'',
+      prov,
+      sector:document.getElementById(p+'-sector').value||'',
+      estado:'pedido',
+      sucursal
+    });
+  }
+
   ['fecha','pedidopor','producto','cantidad','desc','costo','proveedor','sector'].forEach(id=>{
     const el=document.getElementById(p+'-'+id);
     if(el) el.value='';
   });
   renderCompras(type);
   if(document.getElementById('page-stock').classList.contains('active')) renderStock();
+  updateKpiCompras();
+}
+
+// ── Importar pedido desde Excel/Sheets (.xlsx) — Compras Florería ──
+// Lee el archivo tal como lo cargan hoy (columnas Fecha, Pedido por,
+// Producto, Descripción, Cantidad, Precio por paquete, Proveedor, Área/uso),
+// detectando las columnas por el nombre del encabezado. Nunca escribe nada
+// directo: siempre pasa por una vista previa que hay que confirmar, y las
+// filas importadas quedan en estado "pedido" (no tocan stock) — recién se
+// suman al stock cuando se controlan/recepcionan como cualquier otro pedido.
+let cfImportWb = null;
+let cfImportRows = [];
+
+const CF_IMPORT_SYNONYMS = {
+  fecha:      ['fecha'],
+  pedidopor:  ['pedido por','pedido realizado por','pedidopor','pedido'],
+  prod:       ['flor / follaje','flor/follaje','producto','flor','articulo','artículo'],
+  desc:       ['descripcion adicional','descripcion','descripción','desc','detalle','color'],
+  qty:        ['cantidad','cant','paq','paquetes'],
+  costoUnit:  ['precio','costo','precio unitario','precio por paquete','precio paquete'],
+  prov:       ['proveedor','prov'],
+  sector:     ['usuario final / area','usuario final / área','usuario final','area/uso','área/uso','area / uso','área / uso','area','área','sector']
+};
+
+function normHeaderTxt(s){
+  return String(s||'').toLowerCase()
+    .replace(/[áàäâ]/g,'a').replace(/[éèëê]/g,'e').replace(/[íìïî]/g,'i')
+    .replace(/[óòöô]/g,'o').replace(/[úùüû]/g,'u').replace(/ñ/g,'n')
+    .trim();
+}
+
+function parseFechaImport(v){
+  if(v==null || v==='') return '';
+  if(typeof v === 'number'){
+    const d = new Date(Math.round((v - 25569) * 86400 * 1000));
+    if(isNaN(d)) return '';
+    return d.toISOString().slice(0,10);
+  }
+  const s = String(v).trim();
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+  m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+  if(m){
+    let [, dd, mm, yy] = m;
+    if(yy.length===2) yy = (+yy < 70 ? '20'+yy : '19'+yy);
+    return `${yy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`;
+  }
+  return '';
+}
+
+function cfImportFile(input){
+  const file = input.files?.[0];
+  if(!file) return;
+  const X = window.XLSX;
+  if(!X){ showToast('Error: librería XLSX no disponible','error'); return; }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try{
+      cfImportWb = X.read(new Uint8Array(e.target.result), {type:'array'});
+    } catch(err){
+      showToast('No se pudo leer el archivo: '+err.message,'error');
+      return;
+    }
+    const sheets = cfImportWb.SheetNames || [];
+    if(!sheets.length){ showToast('El archivo no tiene hojas.','error'); return; }
+    const sel = document.getElementById('cf-import-sheet-sel');
+    sel.innerHTML = sheets.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
+    // Preseleccionar la hoja que parezca el mes actual, si existe
+    const mesActual = normHeaderTxt(getMonthLabel(TODAY_ISO));
+    const match = sheets.find(s=>normHeaderTxt(s)===mesActual || mesActual.startsWith(normHeaderTxt(s)));
+    if(match) sel.value = match;
+    document.getElementById('cf-import-sheet-picker').style.display = 'flex';
+    document.getElementById('cf-import-preview').style.display = 'none';
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function cfImportCancel(){
+  cfImportWb = null;
+  cfImportRows = [];
+  document.getElementById('cf-import-sheet-picker').style.display = 'none';
+  document.getElementById('cf-import-preview').style.display = 'none';
+  document.getElementById('cf-import-file').value = '';
+}
+
+function cfImportParseSheet(){
+  const X = window.XLSX;
+  const sheetName = document.getElementById('cf-import-sheet-sel').value;
+  const sheet = cfImportWb?.Sheets?.[sheetName];
+  if(!sheet){ showToast('No se encontró la hoja seleccionada.','error'); return; }
+
+  const rows = X.utils.sheet_to_json(sheet, {header:1, raw:true, defval:''});
+  // Buscar la fila de encabezados: la primera con al menos 2 celdas de texto reconocibles
+  let headerIdx = -1, colMap = {};
+  for(let i=0;i<Math.min(rows.length,10);i++){
+    const row = rows[i];
+    const map = {};
+    row.forEach((cell,ci)=>{
+      const h = normHeaderTxt(cell);
+      if(!h) return;
+      for(const [field, syns] of Object.entries(CF_IMPORT_SYNONYMS)){
+        if(map[field]!=null) continue;
+        if(syns.some(s=>h===normHeaderTxt(s))) map[field] = ci;
+      }
+    });
+    if(map.prod!=null && map.qty!=null){ headerIdx = i; colMap = map; break; }
+  }
+  if(headerIdx===-1){
+    showToast('No pude detectar los encabezados (necesito al menos "Producto" y "Cantidad"). Revisá que la primera fila tenga los títulos de columna.','error');
+    return;
+  }
+
+  const parsed = [];
+  for(let i=headerIdx+1;i<rows.length;i++){
+    const row = rows[i];
+    const prod = colMap.prod!=null ? String(row[colMap.prod]??'').trim() : '';
+    if(!prod) continue; // fila vacía o separadora
+    const qty = colMap.qty!=null ? (parseFloat(row[colMap.qty]) || 0) : 0;
+    if(qty<=0) continue;
+    const costoUnit = colMap.costoUnit!=null ? parseMoney(row[colMap.costoUnit]) : 0;
+    parsed.push({
+      fecha: colMap.fecha!=null ? parseFechaImport(row[colMap.fecha]) : '',
+      pedidopor: colMap.pedidopor!=null ? String(row[colMap.pedidopor]??'').trim() : '',
+      prod,
+      desc: colMap.desc!=null ? String(row[colMap.desc]??'').trim() : '',
+      qty,
+      costo: costoUnit>0 ? String(Math.round(costoUnit*qty*100)/100) : '',
+      prov: colMap.prov!=null ? String(row[colMap.prov]??'').trim() : '',
+      sector: colMap.sector!=null ? String(row[colMap.sector]??'').trim() : ''
+    });
+  }
+
+  if(!parsed.length){
+    showToast('No encontré filas con producto y cantidad para importar en esa hoja.','error');
+    return;
+  }
+
+  cfImportRows = parsed;
+  document.getElementById('cf-import-sheet-picker').style.display = 'none';
+  renderCfImportPreview(colMap);
+}
+
+function renderCfImportPreview(colMap){
+  const el = document.getElementById('cf-import-preview');
+  if(!el) return;
+  const campoLabel = {fecha:'Fecha',pedidopor:'Pedido por',prod:'Producto',desc:'Descripción',qty:'Cantidad',costoUnit:'Precio (por paquete)',prov:'Proveedor',sector:'Área/uso'};
+  const detectados = Object.entries(colMap).map(([f,ci])=>`${campoLabel[f]||f}: col. ${String.fromCharCode(65+ci)}`).join(' · ');
+  el.style.display = '';
+  el.innerHTML = `
+    <div style="font-weight:600;margin-bottom:6px">Vista previa de importación — ${cfImportRows.length} pedido${cfImportRows.length!==1?'s':''}</div>
+    <div style="font-size:11px;color:var(--mid-gray);margin-bottom:10px">Columnas detectadas: ${esc(detectados)}. Los pedidos se cargan en estado "Pedido" (no tocan el stock) — el stock se actualiza recién cuando los controles/recepciones como a cualquier otro pedido.</div>
+    <div style="max-height:320px;overflow:auto;border:1px solid var(--light-gray);border-radius:6px">
+      <table style="width:100%;font-size:11.5px;border-collapse:collapse">
+        <thead><tr style="background:#FAF8F4;position:sticky;top:0">
+          <th style="padding:5px 8px;text-align:left">Fecha</th><th style="padding:5px 8px;text-align:left">Pedido por</th>
+          <th style="padding:5px 8px;text-align:left">Producto</th><th style="padding:5px 8px;text-align:left">Desc.</th>
+          <th style="padding:5px 8px;text-align:center">Cant.</th><th style="padding:5px 8px;text-align:right">Costo total</th>
+          <th style="padding:5px 8px;text-align:left">Proveedor</th><th style="padding:5px 8px;text-align:left">Área/uso</th>
+        </tr></thead>
+        <tbody>${cfImportRows.map(r=>`<tr style="border-top:1px solid #F0EDE8">
+          <td style="padding:5px 8px">${esc(r.fecha||'—')}</td>
+          <td style="padding:5px 8px">${esc(r.pedidopor||'—')}</td>
+          <td style="padding:5px 8px;font-weight:500">${esc(r.prod)}</td>
+          <td style="padding:5px 8px;color:var(--mid-gray)">${esc(r.desc||'—')}</td>
+          <td style="padding:5px 8px;text-align:center">${esc(r.qty)}</td>
+          <td style="padding:5px 8px;text-align:right">${r.costo?'$'+parseMoney(r.costo).toLocaleString('es-AR'):'—'}</td>
+          <td style="padding:5px 8px">${esc(r.prov||'—')}</td>
+          <td style="padding:5px 8px">${esc(r.sector||'—')}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn-add" onclick="cfImportConfirm()">✅ Confirmar importación de ${cfImportRows.length} pedidos</button>
+      <button class="btn-secondary" onclick="cfImportCancel()">✕ Cancelar</button>
+    </div>`;
+}
+
+async function cfImportConfirm(){
+  if(!cfImportRows.length) return;
+  if(!await confirmModal(`¿Importar ${cfImportRows.length} pedidos a Compras Florería? Quedarán en estado "Pedido", listos para controlar.`)) return;
+  const sucursal = getSucursalId();
+  cfImportRows.forEach(r=>{
+    comprasFlore.unshift({
+      fecha: r.fecha || TODAY_ISO,
+      pedidopor: r.pedidopor || '—',
+      prod: r.prod,
+      desc: r.desc || '',
+      qty: r.qty,
+      costo: r.costo || '',
+      prov: r.prov || '',
+      sector: r.sector || '',
+      estado: 'pedido',
+      sucursal
+    });
+  });
+  window._comprasFloreLastSave = Date.now();
+  fbSave('comprasFlore', comprasFlore);
+  showToast(`✅ ${cfImportRows.length} pedidos importados`);
+  cfImportCancel();
+  renderCompras('floreria');
   updateKpiCompras();
 }
 
@@ -1932,11 +2224,12 @@ function renderPeriodTabs(type){
 
 function renderCompraSummary(type, filtered){
   const summaryEl = document.getElementById('compras-'+(type==='floreria'?'flore':'jard')+'-summary');
-  const total = filtered.reduce((s,r)=>s+parseMoney(r.costo),0);
-  const recibidos = filtered.filter(r=>r.estado==='recibido').reduce((s,r)=>s+parseMoney(r.costo),0);
-  const enPedido = filtered.filter(r=>r.estado!=='recibido').length;
+  const activas = filtered.filter(r=>!r.anulado);
+  const total = activas.reduce((s,r)=>s+parseMoney(r.costo),0);
+  const recibidos = activas.filter(r=>r.estado==='recibido').reduce((s,r)=>s+parseMoney(r.costo),0);
+  const enPedido = activas.filter(r=>r.estado!=='recibido').length;
   summaryEl.innerHTML = `
-    <div class="card"><div class="card-label">💰 Total período</div><div class="card-value" style="font-size:26px">$${total.toLocaleString('es-AR')}</div><div class="card-sub">${filtered.length} órdenes</div></div>
+    <div class="card"><div class="card-label">💰 Total período</div><div class="card-value" style="font-size:26px">$${total.toLocaleString('es-AR')}</div><div class="card-sub">${activas.length} órdenes</div></div>
     <div class="card"><div class="card-label">📦 Recibido</div><div class="card-value green" style="font-size:26px">$${recibidos.toLocaleString('es-AR')}</div></div>
     <div class="card"><div class="card-label">📝 En pedido</div><div class="card-value amber" style="font-size:26px">${enPedido}</div><div class="card-sub">esperando recepción</div></div>`;
 }
@@ -2154,16 +2447,18 @@ function renderHistorialCompras(){
           <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:10px">Total varas</th>
           <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:10px">Control</th>
           <th style="padding:6px 10px;text-align:right;color:var(--mid-gray);font-size:10px">Precio de compra</th>
+          <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:10px"></th>
         </tr></thead>
-        <tbody>${items.map(r => { const idx = comprasFlore.indexOf(r); return `<tr style="border-top:1px solid #F0EDE8">
-          <td style="padding:6px 10px;font-weight:500">${esc(r.prod)}</td>
+        <tbody>${items.map(r => { const idx = comprasFlore.indexOf(r); const an = !!r.anulado; const rowStyle = an ? 'border-top:1px solid #F0EDE8;opacity:.5' : 'border-top:1px solid #F0EDE8'; return `<tr style="${rowStyle}">
+          <td style="padding:6px 10px;font-weight:500;${an?'text-decoration:line-through':''}">${esc(r.prod)}</td>
           <td style="padding:6px 10px;color:var(--mid-gray)">${esc(r.prov||'—')}</td>
           <td style="padding:6px 10px;color:var(--mid-gray)">${esc(r.sector||'—')}</td>
-          <td style="padding:6px 10px;text-align:center">${r.paqRecibidos||r.qty||'—'}</td>
-          <td style="padding:6px 10px;text-align:center">${r.varasPorPaq||'—'}</td>
+          <td style="padding:6px 10px;text-align:center"><input class="form-input" type="number" value="${esc(r.paqRecibidos ?? r.qty ?? '')}" onchange="updHistCantCompra(${idx},'paqRecibidos',this.value)" style="width:55px;text-align:center" ${an?'disabled':''}></td>
+          <td style="padding:6px 10px;text-align:center"><input class="form-input" type="number" value="${esc(r.varasPorPaq ?? '')}" onchange="updHistCantCompra(${idx},'varasPorPaq',this.value)" style="width:55px;text-align:center" ${an?'disabled':''}></td>
           <td style="padding:6px 10px;text-align:center;font-weight:600">${r.totalVaras||r.qty||'—'}</td>
-          <td style="padding:6px 10px;text-align:center">${controlBadgeCompra(r)}</td>
-          <td style="padding:6px 10px;text-align:right"><input class="form-input" value="${esc(r.costo||'')}" placeholder="$" onchange="updHistCostoCompra(${idx},this.value)" style="width:90px;text-align:right"></td>
+          <td style="padding:6px 10px;text-align:center">${an ? '<span style="font-size:9px;font-weight:700;background:#7A7A72;color:#fff;padding:2px 7px;border-radius:5px;white-space:nowrap">🚫 Anulado</span>' : controlBadgeCompra(r)}</td>
+          <td style="padding:6px 10px;text-align:right"><input class="form-input" value="${esc(r.costo||'')}" placeholder="$" onchange="updHistCostoCompra(${idx},this.value)" style="width:90px;text-align:right" ${an?'disabled':''}></td>
+          <td style="padding:6px 10px;text-align:center;white-space:nowrap"><button class="btn-secondary" style="font-size:10px;padding:3px 8px" onclick="toggleAnularCompra(${idx})">${an?'↩️ Reactivar':'🚫 Anular'}</button></td>
         </tr>`; }).join('')}</tbody>
       </table>
     </div>`;
@@ -2174,7 +2469,8 @@ function renderHistorialCompras(){
 
 // Insignia de control post-recepción: compara lo pedido vs. lo efectivamente recibido.
 // La orden queda "recibida" en el stock pero permanece editable acá (no se cierra),
-// para que Compras pueda cargar el precio de compra real una vez que llega la factura.
+// para que Compras pueda cargar el precio de compra real una vez que llega la factura,
+// corregir cantidades, o anularla si fue un error.
 function controlBadgeCompra(r){
   const qty = parseFloat(r.qty) || 0;
   const recibido = r.paqRecibidos != null ? parseFloat(r.paqRecibidos) || 0 : qty;
@@ -2182,6 +2478,17 @@ function controlBadgeCompra(r){
   return ok
     ? '<span style="font-size:9px;font-weight:700;background:#4C7A3D;color:#fff;padding:2px 7px;border-radius:5px;white-space:nowrap">✅ OK</span>'
     : '<span style="font-size:9px;font-weight:700;background:#C0392B;color:#fff;padding:2px 7px;border-radius:5px;white-space:nowrap">⚠️ Diferencias</span>';
+}
+
+// Recalcula el costo por vara en el cotizador a partir del costo y el divisor
+// (varas por paquete, o cantidad si no aplica) de una orden ya controlada.
+function recalcCotizadorPrecio(order){
+  const costoTotal = parseMoney(order.costo);
+  const divisor = parseFloat(order.varasPorPaq) || parseFloat(order.qty) || 0;
+  if(costoTotal > 0 && divisor > 0){
+    cotizadorPrecios[order.prod] = Math.round(costoTotal / divisor);
+    fbSave('cotizadorPrecios', cotizadorPrecios);
+  }
 }
 
 // Permite corregir el precio de compra de una orden ya controlada/recibida
@@ -2192,15 +2499,45 @@ function updHistCostoCompra(idx, val){
   const order = comprasFlore[idx];
   if(!order) return;
   order.costo = val;
-  const costoTotal = parseMoney(val);
-  const divisor = parseFloat(order.varasPorPaq) || parseFloat(order.qty) || 0;
-  if(costoTotal > 0 && divisor > 0){
-    cotizadorPrecios[order.prod] = Math.round(costoTotal / divisor);
-    fbSave('cotizadorPrecios', cotizadorPrecios);
-  }
+  recalcCotizadorPrecio(order);
   window._comprasFloreLastSave = Date.now();
   fbSave('comprasFlore', comprasFlore);
   showToast('💰 Precio de compra actualizado — costos de arreglos recalculados');
+  renderHistorialCompras();
+}
+
+// Corrige la cantidad recibida (paquetes o varas/paquete) de una orden ya
+// controlada, solo a fines de que las métricas de costos sean exactas —
+// NO reajusta el stock ya ingresado (se hace manualmente en Gestión de Stock
+// si hace falta).
+function updHistCantCompra(idx, field, val){
+  const order = comprasFlore[idx];
+  if(!order) return;
+  order[field] = Math.max(0, parseFloat(val) || 0);
+  const paqRec = parseFloat(order.paqRecibidos) || 0;
+  const varasPaq = parseFloat(order.varasPorPaq) || 0;
+  if(paqRec > 0 && varasPaq > 0) order.totalVaras = paqRec * varasPaq;
+  recalcCotizadorPrecio(order);
+  window._comprasFloreLastSave = Date.now();
+  fbSave('comprasFlore', comprasFlore);
+  renderHistorialCompras();
+}
+
+// Anula/reactiva una orden ya controlada: queda excluida de los totales de
+// costos, márgenes y Rentabilidad por área (para métricas reales), pero el
+// stock ya ingresado no se toca automáticamente.
+async function toggleAnularCompra(idx){
+  const order = comprasFlore[idx];
+  if(!order) return;
+  if(!order.anulado){
+    if(!await confirmModal(`¿Anular el pedido "${order.prod}" del ${fmtDate(order.fecha)}?\n\nSe excluirá de costos y métricas, pero el stock ya ingresado no se modifica.`)) return;
+    order.anulado = true;
+  } else {
+    order.anulado = false;
+  }
+  window._comprasFloreLastSave = Date.now();
+  fbSave('comprasFlore', comprasFlore);
+  showToast(order.anulado ? '🚫 Pedido anulado — excluido de costos y métricas' : '↩️ Pedido reactivado');
   renderHistorialCompras();
 }
 
@@ -6769,7 +7106,7 @@ function renderDashboardMargen(){
   const compras = [
     ...(window.comprasFlore||[]),
     ...(window.comprasJard||[])
-  ].filter(c => (c.fecha||'').slice(0,7) === mesISO);
+  ].filter(c => (c.fecha||'').slice(0,7) === mesISO && !c.anulado);
 
   const parseMon = parseMoney;
 
@@ -9524,7 +9861,7 @@ function renderDashboardConsolidado(){
   el.innerHTML = sucursalesAMostrar.map(suc=>{
     const ventas = (window.ventasData||[]).filter(v=>(v.sucursal||'duhau')===suc.id && (v.fecha||'').startsWith(mesISO));
     const caja = (window.cajaData||[]).filter(r=>(r.sucursal||'duhau')===suc.id && (r.fecha||'').startsWith(mesISO));
-    const compras = [...(window.comprasFlore||[]),...(window.comprasJard||[])].filter(c=>(c.sucursal||'duhau')===suc.id && (c.fecha||'').startsWith(mesISO));
+    const compras = [...(window.comprasFlore||[]),...(window.comprasJard||[])].filter(c=>(c.sucursal||'duhau')===suc.id && (c.fecha||'').startsWith(mesISO) && !c.anulado);
     const totalVentas = ventas.reduce((s,v)=>s+parseMon(v.precio||v.monto||v.total),0);
     const totalIngresos = caja.filter(r=>r.tipo==='ingreso').reduce((s,r)=>s+parseMon(r.monto),0);
     const totalEgresos = caja.filter(r=>r.tipo==='egreso').reduce((s,r)=>s+parseMon(r.monto),0);
@@ -10221,6 +10558,7 @@ function renderRentabilidadHotel(){
   // Costo REAL de insumos por área de uso (sector) — compras de florería del mes
   const costoPorArea = {};
   (comprasFlore||[]).forEach(c => {
+    if(c.anulado) return;
     if(mes && (c.fecha||'').slice(0,7) !== mes) return;
     const area = (c.sector||'').trim() || 'Sin área asignada';
     costoPorArea[area] = (costoPorArea[area]||0) + parseMoney(c.costo);
@@ -10748,7 +11086,7 @@ function buscarComparacion(query){
   if(!res) return;
   const q = (query||'').toLowerCase().trim();
   if(!q){ res.innerHTML = '<div style="color:var(--mid-gray);text-align:center;padding:40px">Escribí un producto para comparar precios entre proveedores.</div>'; return; }
-  const allCompras = [...comprasFlore, ...comprasJard].filter(c => c.prod && c.prod.toLowerCase().includes(q) && c.prov && c.costo);
+  const allCompras = [...comprasFlore, ...comprasJard].filter(c => c.prod && c.prod.toLowerCase().includes(q) && c.prov && c.costo && !c.anulado);
   if(!allCompras.length){ res.innerHTML = '<div style="color:var(--mid-gray);text-align:center;padding:40px">Sin datos de precio para este producto.</div>'; return; }
   const byProv = {};
   allCompras.forEach(c=>{
@@ -11700,7 +12038,7 @@ async function generarCierreMensual(){
   const mes = document.getElementById('cierre-mes-sel')?.value || CURR_MONTH;
   const ventas = (ventasData||[]).filter(v=>v.fecha&&v.fecha.startsWith(mes));
   const totalVentas = ventas.reduce((s,v)=>s+parseMoney(v.monto||v.total||0),0);
-  const compras = [...(comprasFlore||[]),...(comprasJard||[])].filter(c=>c.fecha&&c.fecha.startsWith(mes));
+  const compras = [...(comprasFlore||[]),...(comprasJard||[])].filter(c=>c.fecha&&c.fecha.startsWith(mes)&&!c.anulado);
   const totalCompras = compras.reduce((s,c)=>s+parseMoney(c.costo||0),0);
   const eventos = (eventosData||[]).filter(e=>e.fecha&&e.fecha.startsWith(mes));
   const cajaMov = (cajaData||[]).filter(m=>m.fecha&&m.fecha.startsWith(mes));
@@ -11766,7 +12104,7 @@ function renderDashboardGerencia(){
   const mes = CURR_MONTH;
   const ventas = (ventasData||[]).filter(v=>v.fecha&&v.fecha.startsWith(mes));
   const tvMes = ventas.reduce((s,v)=>s+parseMoney(v.monto||v.total||0),0);
-  const compras = [...(comprasFlore||[]),...(comprasJard||[])].filter(c=>c.fecha&&c.fecha.startsWith(mes));
+  const compras = [...(comprasFlore||[]),...(comprasJard||[])].filter(c=>c.fecha&&c.fecha.startsWith(mes)&&!c.anulado);
   const tcMes = compras.reduce((s,c)=>s+parseMoney(c.costo||0),0);
   const evMes = (eventosData||[]).filter(e=>e.fecha&&e.fecha.startsWith(mes));
   const evHoy = (eventosData||[]).filter(e=>e.fecha===TODAY_ISO);
@@ -11845,7 +12183,7 @@ function exportComprasXLSX(){
   const mes = CURR_MONTH;
   const rows = [...(comprasFlore||[]),...(comprasJard||[])].filter(c=>c.fecha&&c.fecha.startsWith(mes)).map(c=>({
     Fecha: c.fecha||'', Proveedor: c.prov||'', Producto: c.prod||'', Cantidad: c.qty||1,
-    Costo: parseMoney(c.costo||0), Estado: c.estado||'', Sector: c.sector||'', Notas: c.notas||c.desc||''
+    Costo: parseMoney(c.costo||0), Estado: c.anulado ? 'anulado' : (c.estado||''), Sector: c.sector||'', Notas: c.notas||c.desc||''
   }));
   if(!rows.length){ showToast('Sin compras para exportar este mes'); return; }
   const ws = X.utils.json_to_sheet(rows);
