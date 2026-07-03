@@ -3562,78 +3562,60 @@ function fmtMin(min){
 
 function getProdEmpleado(nombre){
   let desde=null,hasta=null,totalMin=0,elapsed=0,remaining=0,timePct=0,started=false,finished=false;
-  let myTotal=0,myDone=0,taskPct=0;
+  let myTotal=0,myDone=0;
+  const esJard=isJardinero(nombre);
+  const toMin=s=>{ const [h,m]=s.split(':').map(Number); return h*60+m; };
+  const now=new Date(), nowMin=now.getHours()*60+now.getMinutes();
 
-  if(isJardinero(nombre)){
-    // Turno real del jardinero (check-in/checkout)
-    const jTurno=(window.jardHorarios||{})[nombre]?.[TODAY_ISO];
-    if(jTurno?.inicio && jTurno?.fin){
-      const [h1,m1]=jTurno.inicio.split(':').map(Number);
-      const [h2,m2]=jTurno.fin.split(':').map(Number);
-      totalMin=(h2*60+m2)-(h1*60+m1);
-      const now=new Date(), nowMin=now.getHours()*60+now.getMinutes();
-      started=nowMin>=(h1*60+m1);
-      finished=nowMin>=(h2*60+m2);
-      elapsed=Math.max(0,Math.min(nowMin-(h1*60+m1),totalMin));
-      remaining=Math.max(0,(h2*60+m2)-nowMin);
-      timePct=totalMin>0 ? Math.round(elapsed/totalMin*100) : 0;
-      desde=jTurno.inicio; hasta=jTurno.fin;
-    } else if(jTurno?.inicio){
-      // Inició pero no terminó
-      const [h1,m1]=jTurno.inicio.split(':').map(Number);
-      const now=new Date(), nowMin=now.getHours()*60+now.getMinutes();
-      started=true; finished=false;
-      elapsed=Math.max(0,nowMin-(h1*60+m1));
-      desde=jTurno.inicio; hasta=null;
+  // ── Turno: fichajes reales de florería y/o jardinería (usuarios combinados
+  // como Ivan pueden fichar en cualquiera de los dos; se toma el rango completo)
+  const fTurno=(window.florTurnos||{})[nombre]?.[TODAY_ISO];
+  const jTurno=esJard ? (window.jardHorarios||{})[nombre]?.[TODAY_ISO] : null;
+  const horario=(window.horariosData||{})[nombre]?.[TODAY_ISO];
+  const reales=[fTurno,jTurno].filter(t=>t?.inicio);
+  if(reales.length){
+    desde=reales.map(t=>t.inicio).sort()[0];
+    const abierto=reales.some(t=>!t.fin);
+    started=true;
+    if(!abierto){
+      hasta=reales.map(t=>t.fin).sort().slice(-1)[0];
+      finished=true;
+      totalMin=toMin(hasta)-toMin(desde);
+      elapsed=totalMin; remaining=0; timePct=100;
+    } else {
+      finished=false;
+      elapsed=Math.max(0,nowMin-toMin(desde));
+      const finPlan=horario?.hasta ? toMin(horario.hasta) : null;
+      remaining=finPlan!=null ? Math.max(0,finPlan-nowMin) : 0;
+      totalMin=finPlan!=null ? finPlan-toMin(desde) : elapsed;
+      // Sin fin planificado no se puede calcular el % del turno
+      timePct=finPlan!=null && totalMin>0 ? Math.round(elapsed/totalMin*100) : 0;
     }
-    // Tareas del jardinero hoy (desde jardineriaLog)
-    const logHoy=(window.jardineriaLog||[]).filter(e=>e.fecha===TODAY_ISO && e.quien===nombre);
-    myTotal=logHoy.length;
-    myDone=logHoy.filter(e=>e.horaFin).length;
-    taskPct=myTotal>0 ? Math.round(myDone/myTotal*100) : 0;
-  } else {
-    // Florista: turno real (check-in/out del florista), fallback a planificado
-    const fTurno=(window.florTurnos||{})[nombre]?.[TODAY_ISO];
-    const horario=(window.horariosData||{})[nombre]?.[TODAY_ISO];
-    if(fTurno?.inicio){
-      // Turno real registrado por el florista
-      const [h1,m1]=fTurno.inicio.split(':').map(Number);
-      if(fTurno.fin){
-        const [h2,m2]=fTurno.fin.split(':').map(Number);
-        totalMin=(h2*60+m2)-(h1*60+m1);
-        finished=true; started=true;
-        elapsed=totalMin; remaining=0;
-        timePct=100;
-      } else {
-        const now=new Date(), nowMin=now.getHours()*60+now.getMinutes();
-        started=true; finished=false;
-        elapsed=Math.max(0,nowMin-(h1*60+m1));
-        remaining=horario?.hasta ? Math.max(0,horario.hasta.split(':').reduce((a,v,i)=>i?a+Number(v):Number(v)*60,0)-nowMin) : 0;
-        totalMin=horario?.desde&&horario?.hasta ? (horario.hasta.split(':').reduce((a,v,i)=>i?a+Number(v):Number(v)*60,0))-(h1*60+m1) : elapsed;
-        timePct=totalMin>0 ? Math.round(elapsed/totalMin*100) : 0;
-      }
-      desde=fTurno.inicio; hasta=fTurno.fin||null;
-    } else if(horario?.desde && horario?.hasta){
-      // Solo horario planificado (todavía no fichó)
-      const [h1,m1]=horario.desde.split(':').map(Number);
-      const [h2,m2]=horario.hasta.split(':').map(Number);
-      totalMin=(h2*60+m2)-(h1*60+m1);
-      const now=new Date(), nowMin=now.getHours()*60+now.getMinutes();
-      started=nowMin>=(h1*60+m1);
-      finished=nowMin>=(h2*60+m2);
-      elapsed=Math.max(0,Math.min(nowMin-(h1*60+m1),totalMin));
-      remaining=Math.max(0,(h2*60+m2)-nowMin);
-      timePct=totalMin>0 ? Math.round(elapsed/totalMin*100) : 0;
-      desde=horario.desde; hasta=horario.hasta;
-    }
-    const day=window.currentDay;
-    const dayState=(window.clStateByDay||{})[day]||window.clState||{};
-    const resp=dayState.responsable||[], checked=dayState.checked||[];
-    const myIdxs=resp.reduce((a,r,i)=>{ if(r===nombre) a.push(i); return a; },[]);
-    myTotal=myIdxs.length;
-    myDone=myIdxs.filter(i=>checked[i]).length;
-    taskPct=myTotal>0 ? Math.round(myDone/myTotal*100) : 0;
+  } else if(horario?.desde && horario?.hasta){
+    // Solo horario planificado (todavía no fichó)
+    totalMin=toMin(horario.hasta)-toMin(horario.desde);
+    started=nowMin>=toMin(horario.desde);
+    finished=nowMin>=toMin(horario.hasta);
+    elapsed=Math.max(0,Math.min(nowMin-toMin(horario.desde),totalMin));
+    remaining=Math.max(0,toMin(horario.hasta)-nowMin);
+    timePct=totalMin>0 ? Math.round(elapsed/totalMin*100) : 0;
+    desde=horario.desde; hasta=horario.hasta;
   }
+
+  // ── Tareas: checklist de florería + log de jardinería (se suman ambas
+  // fuentes para que a los usuarios combinados les computen todas)
+  const day=window.currentDay;
+  const dayState=(window.clStateByDay||{})[day]||window.clState||{};
+  const resp=dayState.responsable||[], checked=dayState.checked||[];
+  const myIdxs=resp.reduce((a,r,i)=>{ if(r===nombre) a.push(i); return a; },[]);
+  myTotal+=myIdxs.length;
+  myDone+=myIdxs.filter(i=>checked[i]).length;
+  if(esJard){
+    const logHoy=(window.jardineriaLog||[]).filter(e=>e.fecha===TODAY_ISO && e.quien===nombre);
+    myTotal+=logHoy.length;
+    myDone+=logHoy.filter(e=>e.horaFin).length;
+  }
+  const taskPct=myTotal>0 ? Math.round(myDone/myTotal*100) : 0;
   return {desde,hasta,totalMin,elapsed,remaining,timePct,myTotal,myDone,taskPct,started,finished};
 }
 
@@ -3701,7 +3683,7 @@ function renderProductividadHome(){
     if(!nombres.length){ el.innerHTML=''; return; }
     const total=nombres.length;
     const conTurno=nombres.filter(n=>{
-      if(isJardinero(n)) return !!(window.jardHorarios||{})[n]?.[TODAY_ISO]?.inicio;
+      if(isJardinero(n) && (window.jardHorarios||{})[n]?.[TODAY_ISO]?.inicio) return true;
       return !!(window.florTurnos||{})[n]?.[TODAY_ISO]?.inicio || !!(window.horariosData||{})[n]?.[TODAY_ISO]?.desde;
     }).length;
     const cards=nombres.map(n=>_prodCardHTML(n,getProdEmpleado(n),false)).join('');
