@@ -4926,7 +4926,12 @@ window._setJardineriaLog = (arr) => { jardineriaLog.splice(0, jardineriaLog.leng
 window._setHabitacionesLog = (arr) => { habitacionesLog.splice(0, habitacionesLog.length, ...arr); };
 
 // ── RECORDATORIOS JARDINERÍA ─────────────────────────────────────────────────
-window._setJardRecordatorios = (arr) => { jardRecordatorios.splice(0, jardRecordatorios.length, ...arr); };
+window._setJardRecordatorios = (arr) => {
+  jardRecordatorios.splice(0, jardRecordatorios.length, ...arr);
+  // Aviso en vivo a operarios cuando gerencia agrega recordatorios
+  renderJardRecAviso();
+  notificarRecordatoriosNuevos();
+};
 
 const JARD_TIPOS_ICON = { 'Riego':'💧','Fertilización':'🌱','Desmalezado':'🌿','Poda':'✂️' };
 const JARD_TIPO_STYLE = {
@@ -4960,6 +4965,7 @@ function renderRecordatoriosJard(){
   const vencidos = jardRecordatorios.filter(r=>recEstado(r)==='vencido');
   const proximos = jardRecordatorios.filter(r=>recEstado(r)==='proximo');
   const ok       = jardRecordatorios.filter(r=>recEstado(r)==='ok');
+  const nuevosSet = new Set(getRecordatoriosNuevos());
 
   document.getElementById('jrec-kpis').innerHTML = `
     <div class="cards-grid cards-grid-3" style="margin-bottom:24px">
@@ -4968,8 +4974,14 @@ function renderRecordatoriosJard(){
       <div class="card"><div class="card-label">🟢 Al día</div><div class="card-value green">${ok.length}</div><div class="card-sub">sin vencer</div></div>
     </div>`;
 
+  // Cartel de recordatorios nuevos agregados por gerencia (para operarios)
+  const nuevosBanner = nuevosSet.size ? `<div class="jrec-aviso-banner" style="cursor:default">
+      <span class="jrec-aviso-icon">🔔</span>
+      <span><strong>${nuevosSet.size===1?'Gerencia agregó un recordatorio nuevo':'Gerencia agregó '+nuevosSet.size+' recordatorios nuevos'}:</strong> ${esc([...nuevosSet].map(r=>`${r.tipo} · ${r.task}`).join('  ·  '))}</span>
+    </div>` : '';
+
   const alertas = [...vencidos,...proximos];
-  document.getElementById('jrec-alertas').innerHTML = alertas.length
+  document.getElementById('jrec-alertas').innerHTML = nuevosBanner + (alertas.length
     ? `<div class="section-title" style="margin-bottom:14px">⚠️ Alertas Activas</div>
        ${alertas.map(r=>{
          const idx=jardRecordatorios.indexOf(r);
@@ -4980,7 +4992,7 @@ function renderRecordatoriosJard(){
            : `Vence en ${dr} día${dr!==1?'s':''}`;
          return `<div class="jrec-alert-row jrec-${est}">
            <div class="jrec-alert-left">
-             <div class="jrec-alert-nombre">${esc(r.task)}</div>
+             <div class="jrec-alert-nombre">${esc(r.task)}${nuevosSet.has(r)?'<span class="jrec-nuevo-badge">Nuevo</span>':''}</div>
              <div class="jrec-alert-meta">${esc(r.section)} · ${esc(r.group)}</div>
              <span class="jrec-tipo-badge" style="${JARD_TIPO_STYLE[r.tipo]||''}">${JARD_TIPOS_ICON[r.tipo]||''} ${esc(r.tipo)} · cada ${r.frecuencia} días</span>
            </div>
@@ -4990,7 +5002,10 @@ function renderRecordatoriosJard(){
            </div>
          </div>`;
        }).join('')}`
-    : `<div class="jrec-all-ok">✅ Todo al día — sin alertas pendientes</div>`;
+    : `<div class="jrec-all-ok">✅ Todo al día — sin alertas pendientes</div>`);
+
+  // Al abrir la sección, el operario queda al día: se limpian badge y carteles
+  if(nuevosSet.size) marcarRecordatoriosVistos();
 
   // Tabla de configuración (solo gerencia)
   const cfg = document.getElementById('jrec-config');
@@ -5072,7 +5087,9 @@ function saveRecordatorio(){
     frecuencia: parseInt(document.getElementById('jrec-modal-frecuencia').value)||7,
     ultimaVez: document.getElementById('jrec-modal-ultima').value || null,
   };
-  if(idx>=0) jardRecordatorios[idx]=rec; else jardRecordatorios.push(rec);
+  // Timestamp de creación: los operarios lo usan para detectar recordatorios nuevos
+  if(idx>=0){ rec.creado = jardRecordatorios[idx].creado || null; jardRecordatorios[idx]=rec; }
+  else { rec.creado = Date.now(); jardRecordatorios.push(rec); }
   fbSave('jardRecordatorios', jardRecordatorios);
   closeModal('jrec-modal');
   renderRecordatoriosJard();
@@ -5083,6 +5100,65 @@ async function deleteRecordatorio(idx){
   jardRecordatorios.splice(idx,1);
   fbSave('jardRecordatorios', jardRecordatorios);
   renderRecordatoriosJard();
+  renderJardRecAviso();
+}
+
+// ── Aviso de recordatorios nuevos a operarios de jardinería ──────────────────
+// Los recordatorios que crea gerencia llevan timestamp `creado`. Cada
+// dispositivo guarda en localStorage hasta cuándo los vio; todo lo posterior
+// cuenta como "nuevo" y dispara badge, cartel en el panel general y toast.
+function _avisosRecAplica(){
+  return userRole==='jardinero' || (userRole==='florista' && !!jardineroNombre);
+}
+
+function getRecordatoriosNuevos(){
+  if(!_avisosRecAplica()) return [];
+  let visto=0;
+  try{ visto=parseInt(localStorage.getItem('jardRecVisto')||'0',10)||0; }catch(e){}
+  return jardRecordatorios.filter(r=>r.creado && r.creado>visto);
+}
+
+function marcarRecordatoriosVistos(){
+  try{ localStorage.setItem('jardRecVisto', String(Date.now())); }catch(e){}
+  renderJardRecAviso();
+}
+
+function renderJardRecAviso(){
+  const nuevos=getRecordatoriosNuevos();
+  // Punto rojo en la barra inferior mobile (item Avisos 🔔)
+  document.querySelectorAll('.bottom-nav-item[data-page="recordatorios-jardineria"]').forEach(el=>{
+    el.querySelector('.bottom-nav-badge')?.remove();
+    if(nuevos.length) el.insertAdjacentHTML('beforeend',`<span class="bottom-nav-badge">${nuevos.length>9?'9+':nuevos.length}</span>`);
+  });
+  // Punto rojo en el menú lateral (Recordatorios Jardín)
+  const navItem=document.getElementById('nav-rec-jard');
+  if(navItem){
+    navItem.querySelector('.nav-alert-dot')?.remove();
+    if(nuevos.length) navItem.insertAdjacentHTML('beforeend','<span class="nav-alert-dot"></span>');
+  }
+  // Cartel en los paneles generales (Tareas Jardinería e Inicio)
+  const detalle=nuevos.slice(0,3).map(r=>`${JARD_TIPOS_ICON[r.tipo]||''} ${r.tipo} · ${r.task}`).join('  ·  ');
+  const html=nuevos.length ? `<div class="jrec-aviso-banner" onclick="navigate('recordatorios-jardineria')">
+      <span class="jrec-aviso-icon">🔔</span>
+      <span><strong>${nuevos.length===1?'Gerencia agregó un recordatorio nuevo':'Gerencia agregó '+nuevos.length+' recordatorios nuevos'}:</strong> ${esc(detalle)}${nuevos.length>3?' …':''}</span>
+      <span class="jrec-aviso-cta">Ver →</span>
+    </div>` : '';
+  ['jops-aviso-rec','home-aviso-rec'].forEach(id=>{ const el=document.getElementById(id); if(el) el.innerHTML=html; });
+}
+
+// Toast (y notificación del navegador si hay permiso) una sola vez por sesión
+const _recAvisados=new Set();
+function notificarRecordatoriosNuevos(){
+  const sinAvisar=getRecordatoriosNuevos().filter(r=>!_recAvisados.has(r.creado));
+  if(!sinAvisar.length) return;
+  sinAvisar.forEach(r=>_recAvisados.add(r.creado));
+  const msg = sinAvisar.length===1
+    ? `Gerencia agregó un recordatorio de jardinería: ${sinAvisar[0].tipo} · ${sinAvisar[0].task}`
+    : `Gerencia agregó ${sinAvisar.length} recordatorios de jardinería`;
+  showToast('🔔 '+msg);
+  if(typeof Notification!=='undefined' && Notification.permission==='granted'){
+    try{ new Notification('🌿 Recordatorios de jardinería', { body:msg, icon:'/icon-192.png', tag:'jard-rec' }); }catch(e){}
+  }
 }
 let zonaHorasData = {};   // key: section+'|||'+group → {inicio:'', fin:'', fecha:''}
 let _jopsZones = [];      // zonas renderizadas en orden, para referencias por índice
@@ -7992,6 +8068,10 @@ function applyRole(role){
   finalizeNavGroups();
   // Renderizar barra de navegación inferior mobile
   renderBottomNav(role);
+  // Aviso de recordatorios nuevos: badge + cartel al entrar, toast demorado
+  // para no pisar el saludo de bienvenida
+  renderJardRecAviso();
+  setTimeout(notificarRecordatoriosNuevos, 4000);
   // Re-renderizar el Inicio ya con el rol aplicado (evita mostrar el panel completo a no-gerencia)
   if(document.getElementById('home-kpis')) renderHome();
 }
