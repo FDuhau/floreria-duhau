@@ -117,7 +117,7 @@
     <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('jardineria-ops',this)">Tareas Jardinería</div>
     <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('hab-ops',this)">Habitaciones con Plantas</div>
     <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('recepcion-pedidos',this)">📦 Recepción de Pedidos</div>
-    <div class="nav-sub-item nav-jard-only" data-group="grp-ops" style="display:none" onclick="navigate('recordatorios-jardineria',this)">🔔 Recordatorios Jardín</div>
+    <div class="nav-sub-item nav-jard-only" id="nav-rec-jard" data-group="grp-ops" style="display:none" onclick="navigate('recordatorios-jardineria',this)">🔔 Recordatorios Jardín</div>
   </div>
   <div style="padding:12px 24px;border-top:1px solid rgba(255,255,255,.07)">
     <button onclick="cambiarContrasena()" style="width:100%;padding:8px 12px;font-size:11px;letter-spacing:.5px;background:rgba(255,255,255,.06);color:rgba(247,245,242,.6);border:1px solid rgba(255,255,255,.1);border-radius:6px;cursor:pointer;font-family:inherit;margin-bottom:6px">🔑 Cambiar contraseña</button>
@@ -164,6 +164,7 @@
       <div class="home-hero-sub">Panel de control · Operativa general</div>
       <div class="home-hero-date" id="hero-date"></div>
     </div>
+    <div id="home-aviso-rec"></div>
     <div id="home-kpis"></div>
     <div id="home-prod"></div>
     <div class="home-dash-grid">
@@ -239,6 +240,9 @@
         <p style="color:var(--mid-gray);font-size:13px;text-align:center;padding:20px">Sin datos aún — completá tareas con horario para ver el informe.</p>
       </div>
     </div>
+
+    <!-- Aviso de recordatorios nuevos agregados por gerencia -->
+    <div id="jops-aviso-rec"></div>
 
     <!-- Turno card jardinero -->
     <div id="jops-turno-card" style="margin-bottom:16px"></div>

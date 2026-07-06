@@ -3562,78 +3562,60 @@ function fmtMin(min){
 
 function getProdEmpleado(nombre){
   let desde=null,hasta=null,totalMin=0,elapsed=0,remaining=0,timePct=0,started=false,finished=false;
-  let myTotal=0,myDone=0,taskPct=0;
+  let myTotal=0,myDone=0;
+  const esJard=isJardinero(nombre);
+  const toMin=s=>{ const [h,m]=s.split(':').map(Number); return h*60+m; };
+  const now=new Date(), nowMin=now.getHours()*60+now.getMinutes();
 
-  if(isJardinero(nombre)){
-    // Turno real del jardinero (check-in/checkout)
-    const jTurno=(window.jardHorarios||{})[nombre]?.[TODAY_ISO];
-    if(jTurno?.inicio && jTurno?.fin){
-      const [h1,m1]=jTurno.inicio.split(':').map(Number);
-      const [h2,m2]=jTurno.fin.split(':').map(Number);
-      totalMin=(h2*60+m2)-(h1*60+m1);
-      const now=new Date(), nowMin=now.getHours()*60+now.getMinutes();
-      started=nowMin>=(h1*60+m1);
-      finished=nowMin>=(h2*60+m2);
-      elapsed=Math.max(0,Math.min(nowMin-(h1*60+m1),totalMin));
-      remaining=Math.max(0,(h2*60+m2)-nowMin);
-      timePct=totalMin>0 ? Math.round(elapsed/totalMin*100) : 0;
-      desde=jTurno.inicio; hasta=jTurno.fin;
-    } else if(jTurno?.inicio){
-      // Inició pero no terminó
-      const [h1,m1]=jTurno.inicio.split(':').map(Number);
-      const now=new Date(), nowMin=now.getHours()*60+now.getMinutes();
-      started=true; finished=false;
-      elapsed=Math.max(0,nowMin-(h1*60+m1));
-      desde=jTurno.inicio; hasta=null;
+  // ── Turno: fichajes reales de florería y/o jardinería (usuarios combinados
+  // como Ivan pueden fichar en cualquiera de los dos; se toma el rango completo)
+  const fTurno=(window.florTurnos||{})[nombre]?.[TODAY_ISO];
+  const jTurno=esJard ? (window.jardHorarios||{})[nombre]?.[TODAY_ISO] : null;
+  const horario=(window.horariosData||{})[nombre]?.[TODAY_ISO];
+  const reales=[fTurno,jTurno].filter(t=>t?.inicio);
+  if(reales.length){
+    desde=reales.map(t=>t.inicio).sort()[0];
+    const abierto=reales.some(t=>!t.fin);
+    started=true;
+    if(!abierto){
+      hasta=reales.map(t=>t.fin).sort().slice(-1)[0];
+      finished=true;
+      totalMin=toMin(hasta)-toMin(desde);
+      elapsed=totalMin; remaining=0; timePct=100;
+    } else {
+      finished=false;
+      elapsed=Math.max(0,nowMin-toMin(desde));
+      const finPlan=horario?.hasta ? toMin(horario.hasta) : null;
+      remaining=finPlan!=null ? Math.max(0,finPlan-nowMin) : 0;
+      totalMin=finPlan!=null ? finPlan-toMin(desde) : elapsed;
+      // Sin fin planificado no se puede calcular el % del turno
+      timePct=finPlan!=null && totalMin>0 ? Math.round(elapsed/totalMin*100) : 0;
     }
-    // Tareas del jardinero hoy (desde jardineriaLog)
-    const logHoy=(window.jardineriaLog||[]).filter(e=>e.fecha===TODAY_ISO && e.quien===nombre);
-    myTotal=logHoy.length;
-    myDone=logHoy.filter(e=>e.horaFin).length;
-    taskPct=myTotal>0 ? Math.round(myDone/myTotal*100) : 0;
-  } else {
-    // Florista: turno real (check-in/out del florista), fallback a planificado
-    const fTurno=(window.florTurnos||{})[nombre]?.[TODAY_ISO];
-    const horario=(window.horariosData||{})[nombre]?.[TODAY_ISO];
-    if(fTurno?.inicio){
-      // Turno real registrado por el florista
-      const [h1,m1]=fTurno.inicio.split(':').map(Number);
-      if(fTurno.fin){
-        const [h2,m2]=fTurno.fin.split(':').map(Number);
-        totalMin=(h2*60+m2)-(h1*60+m1);
-        finished=true; started=true;
-        elapsed=totalMin; remaining=0;
-        timePct=100;
-      } else {
-        const now=new Date(), nowMin=now.getHours()*60+now.getMinutes();
-        started=true; finished=false;
-        elapsed=Math.max(0,nowMin-(h1*60+m1));
-        remaining=horario?.hasta ? Math.max(0,horario.hasta.split(':').reduce((a,v,i)=>i?a+Number(v):Number(v)*60,0)-nowMin) : 0;
-        totalMin=horario?.desde&&horario?.hasta ? (horario.hasta.split(':').reduce((a,v,i)=>i?a+Number(v):Number(v)*60,0))-(h1*60+m1) : elapsed;
-        timePct=totalMin>0 ? Math.round(elapsed/totalMin*100) : 0;
-      }
-      desde=fTurno.inicio; hasta=fTurno.fin||null;
-    } else if(horario?.desde && horario?.hasta){
-      // Solo horario planificado (todavía no fichó)
-      const [h1,m1]=horario.desde.split(':').map(Number);
-      const [h2,m2]=horario.hasta.split(':').map(Number);
-      totalMin=(h2*60+m2)-(h1*60+m1);
-      const now=new Date(), nowMin=now.getHours()*60+now.getMinutes();
-      started=nowMin>=(h1*60+m1);
-      finished=nowMin>=(h2*60+m2);
-      elapsed=Math.max(0,Math.min(nowMin-(h1*60+m1),totalMin));
-      remaining=Math.max(0,(h2*60+m2)-nowMin);
-      timePct=totalMin>0 ? Math.round(elapsed/totalMin*100) : 0;
-      desde=horario.desde; hasta=horario.hasta;
-    }
-    const day=window.currentDay;
-    const dayState=(window.clStateByDay||{})[day]||window.clState||{};
-    const resp=dayState.responsable||[], checked=dayState.checked||[];
-    const myIdxs=resp.reduce((a,r,i)=>{ if(r===nombre) a.push(i); return a; },[]);
-    myTotal=myIdxs.length;
-    myDone=myIdxs.filter(i=>checked[i]).length;
-    taskPct=myTotal>0 ? Math.round(myDone/myTotal*100) : 0;
+  } else if(horario?.desde && horario?.hasta){
+    // Solo horario planificado (todavía no fichó)
+    totalMin=toMin(horario.hasta)-toMin(horario.desde);
+    started=nowMin>=toMin(horario.desde);
+    finished=nowMin>=toMin(horario.hasta);
+    elapsed=Math.max(0,Math.min(nowMin-toMin(horario.desde),totalMin));
+    remaining=Math.max(0,toMin(horario.hasta)-nowMin);
+    timePct=totalMin>0 ? Math.round(elapsed/totalMin*100) : 0;
+    desde=horario.desde; hasta=horario.hasta;
   }
+
+  // ── Tareas: checklist de florería + log de jardinería (se suman ambas
+  // fuentes para que a los usuarios combinados les computen todas)
+  const day=window.currentDay;
+  const dayState=(window.clStateByDay||{})[day]||window.clState||{};
+  const resp=dayState.responsable||[], checked=dayState.checked||[];
+  const myIdxs=resp.reduce((a,r,i)=>{ if(r===nombre) a.push(i); return a; },[]);
+  myTotal+=myIdxs.length;
+  myDone+=myIdxs.filter(i=>checked[i]).length;
+  if(esJard){
+    const logHoy=(window.jardineriaLog||[]).filter(e=>e.fecha===TODAY_ISO && e.quien===nombre);
+    myTotal+=logHoy.length;
+    myDone+=logHoy.filter(e=>e.horaFin).length;
+  }
+  const taskPct=myTotal>0 ? Math.round(myDone/myTotal*100) : 0;
   return {desde,hasta,totalMin,elapsed,remaining,timePct,myTotal,myDone,taskPct,started,finished};
 }
 
@@ -3701,7 +3683,7 @@ function renderProductividadHome(){
     if(!nombres.length){ el.innerHTML=''; return; }
     const total=nombres.length;
     const conTurno=nombres.filter(n=>{
-      if(isJardinero(n)) return !!(window.jardHorarios||{})[n]?.[TODAY_ISO]?.inicio;
+      if(isJardinero(n) && (window.jardHorarios||{})[n]?.[TODAY_ISO]?.inicio) return true;
       return !!(window.florTurnos||{})[n]?.[TODAY_ISO]?.inicio || !!(window.horariosData||{})[n]?.[TODAY_ISO]?.desde;
     }).length;
     const cards=nombres.map(n=>_prodCardHTML(n,getProdEmpleado(n),false)).join('');
@@ -4944,7 +4926,12 @@ window._setJardineriaLog = (arr) => { jardineriaLog.splice(0, jardineriaLog.leng
 window._setHabitacionesLog = (arr) => { habitacionesLog.splice(0, habitacionesLog.length, ...arr); };
 
 // ── RECORDATORIOS JARDINERÍA ─────────────────────────────────────────────────
-window._setJardRecordatorios = (arr) => { jardRecordatorios.splice(0, jardRecordatorios.length, ...arr); };
+window._setJardRecordatorios = (arr) => {
+  jardRecordatorios.splice(0, jardRecordatorios.length, ...arr);
+  // Aviso en vivo a operarios cuando gerencia agrega recordatorios
+  renderJardRecAviso();
+  notificarRecordatoriosNuevos();
+};
 
 const JARD_TIPOS_ICON = { 'Riego':'💧','Fertilización':'🌱','Desmalezado':'🌿','Poda':'✂️' };
 const JARD_TIPO_STYLE = {
@@ -4978,6 +4965,7 @@ function renderRecordatoriosJard(){
   const vencidos = jardRecordatorios.filter(r=>recEstado(r)==='vencido');
   const proximos = jardRecordatorios.filter(r=>recEstado(r)==='proximo');
   const ok       = jardRecordatorios.filter(r=>recEstado(r)==='ok');
+  const nuevosSet = new Set(getRecordatoriosNuevos());
 
   document.getElementById('jrec-kpis').innerHTML = `
     <div class="cards-grid cards-grid-3" style="margin-bottom:24px">
@@ -4986,8 +4974,14 @@ function renderRecordatoriosJard(){
       <div class="card"><div class="card-label">🟢 Al día</div><div class="card-value green">${ok.length}</div><div class="card-sub">sin vencer</div></div>
     </div>`;
 
+  // Cartel de recordatorios nuevos agregados por gerencia (para operarios)
+  const nuevosBanner = nuevosSet.size ? `<div class="jrec-aviso-banner" style="cursor:default">
+      <span class="jrec-aviso-icon">🔔</span>
+      <span><strong>${nuevosSet.size===1?'Gerencia agregó un recordatorio nuevo':'Gerencia agregó '+nuevosSet.size+' recordatorios nuevos'}:</strong> ${esc([...nuevosSet].map(r=>`${r.tipo} · ${r.task}`).join('  ·  '))}</span>
+    </div>` : '';
+
   const alertas = [...vencidos,...proximos];
-  document.getElementById('jrec-alertas').innerHTML = alertas.length
+  document.getElementById('jrec-alertas').innerHTML = nuevosBanner + (alertas.length
     ? `<div class="section-title" style="margin-bottom:14px">⚠️ Alertas Activas</div>
        ${alertas.map(r=>{
          const idx=jardRecordatorios.indexOf(r);
@@ -4998,7 +4992,7 @@ function renderRecordatoriosJard(){
            : `Vence en ${dr} día${dr!==1?'s':''}`;
          return `<div class="jrec-alert-row jrec-${est}">
            <div class="jrec-alert-left">
-             <div class="jrec-alert-nombre">${esc(r.task)}</div>
+             <div class="jrec-alert-nombre">${esc(r.task)}${nuevosSet.has(r)?'<span class="jrec-nuevo-badge">Nuevo</span>':''}</div>
              <div class="jrec-alert-meta">${esc(r.section)} · ${esc(r.group)}</div>
              <span class="jrec-tipo-badge" style="${JARD_TIPO_STYLE[r.tipo]||''}">${JARD_TIPOS_ICON[r.tipo]||''} ${esc(r.tipo)} · cada ${r.frecuencia} días</span>
            </div>
@@ -5008,7 +5002,10 @@ function renderRecordatoriosJard(){
            </div>
          </div>`;
        }).join('')}`
-    : `<div class="jrec-all-ok">✅ Todo al día — sin alertas pendientes</div>`;
+    : `<div class="jrec-all-ok">✅ Todo al día — sin alertas pendientes</div>`);
+
+  // Al abrir la sección, el operario queda al día: se limpian badge y carteles
+  if(nuevosSet.size) marcarRecordatoriosVistos();
 
   // Tabla de configuración (solo gerencia)
   const cfg = document.getElementById('jrec-config');
@@ -5090,7 +5087,9 @@ function saveRecordatorio(){
     frecuencia: parseInt(document.getElementById('jrec-modal-frecuencia').value)||7,
     ultimaVez: document.getElementById('jrec-modal-ultima').value || null,
   };
-  if(idx>=0) jardRecordatorios[idx]=rec; else jardRecordatorios.push(rec);
+  // Timestamp de creación: los operarios lo usan para detectar recordatorios nuevos
+  if(idx>=0){ rec.creado = jardRecordatorios[idx].creado || null; jardRecordatorios[idx]=rec; }
+  else { rec.creado = Date.now(); jardRecordatorios.push(rec); }
   fbSave('jardRecordatorios', jardRecordatorios);
   closeModal('jrec-modal');
   renderRecordatoriosJard();
@@ -5101,6 +5100,65 @@ async function deleteRecordatorio(idx){
   jardRecordatorios.splice(idx,1);
   fbSave('jardRecordatorios', jardRecordatorios);
   renderRecordatoriosJard();
+  renderJardRecAviso();
+}
+
+// ── Aviso de recordatorios nuevos a operarios de jardinería ──────────────────
+// Los recordatorios que crea gerencia llevan timestamp `creado`. Cada
+// dispositivo guarda en localStorage hasta cuándo los vio; todo lo posterior
+// cuenta como "nuevo" y dispara badge, cartel en el panel general y toast.
+function _avisosRecAplica(){
+  return userRole==='jardinero' || (userRole==='florista' && !!jardineroNombre);
+}
+
+function getRecordatoriosNuevos(){
+  if(!_avisosRecAplica()) return [];
+  let visto=0;
+  try{ visto=parseInt(localStorage.getItem('jardRecVisto')||'0',10)||0; }catch(e){}
+  return jardRecordatorios.filter(r=>r.creado && r.creado>visto);
+}
+
+function marcarRecordatoriosVistos(){
+  try{ localStorage.setItem('jardRecVisto', String(Date.now())); }catch(e){}
+  renderJardRecAviso();
+}
+
+function renderJardRecAviso(){
+  const nuevos=getRecordatoriosNuevos();
+  // Punto rojo en la barra inferior mobile (item Avisos 🔔)
+  document.querySelectorAll('.bottom-nav-item[data-page="recordatorios-jardineria"]').forEach(el=>{
+    el.querySelector('.bottom-nav-badge')?.remove();
+    if(nuevos.length) el.insertAdjacentHTML('beforeend',`<span class="bottom-nav-badge">${nuevos.length>9?'9+':nuevos.length}</span>`);
+  });
+  // Punto rojo en el menú lateral (Recordatorios Jardín)
+  const navItem=document.getElementById('nav-rec-jard');
+  if(navItem){
+    navItem.querySelector('.nav-alert-dot')?.remove();
+    if(nuevos.length) navItem.insertAdjacentHTML('beforeend','<span class="nav-alert-dot"></span>');
+  }
+  // Cartel en los paneles generales (Tareas Jardinería e Inicio)
+  const detalle=nuevos.slice(0,3).map(r=>`${JARD_TIPOS_ICON[r.tipo]||''} ${r.tipo} · ${r.task}`).join('  ·  ');
+  const html=nuevos.length ? `<div class="jrec-aviso-banner" onclick="navigate('recordatorios-jardineria')">
+      <span class="jrec-aviso-icon">🔔</span>
+      <span><strong>${nuevos.length===1?'Gerencia agregó un recordatorio nuevo':'Gerencia agregó '+nuevos.length+' recordatorios nuevos'}:</strong> ${esc(detalle)}${nuevos.length>3?' …':''}</span>
+      <span class="jrec-aviso-cta">Ver →</span>
+    </div>` : '';
+  ['jops-aviso-rec','home-aviso-rec'].forEach(id=>{ const el=document.getElementById(id); if(el) el.innerHTML=html; });
+}
+
+// Toast (y notificación del navegador si hay permiso) una sola vez por sesión
+const _recAvisados=new Set();
+function notificarRecordatoriosNuevos(){
+  const sinAvisar=getRecordatoriosNuevos().filter(r=>!_recAvisados.has(r.creado));
+  if(!sinAvisar.length) return;
+  sinAvisar.forEach(r=>_recAvisados.add(r.creado));
+  const msg = sinAvisar.length===1
+    ? `Gerencia agregó un recordatorio de jardinería: ${sinAvisar[0].tipo} · ${sinAvisar[0].task}`
+    : `Gerencia agregó ${sinAvisar.length} recordatorios de jardinería`;
+  showToast('🔔 '+msg);
+  if(typeof Notification!=='undefined' && Notification.permission==='granted'){
+    try{ new Notification('🌿 Recordatorios de jardinería', { body:msg, icon:'/icon-192.png', tag:'jard-rec' }); }catch(e){}
+  }
 }
 let zonaHorasData = {};   // key: section+'|||'+group → {inicio:'', fin:'', fecha:''}
 let _jopsZones = [];      // zonas renderizadas en orden, para referencias por índice
@@ -8010,6 +8068,10 @@ function applyRole(role){
   finalizeNavGroups();
   // Renderizar barra de navegación inferior mobile
   renderBottomNav(role);
+  // Aviso de recordatorios nuevos: badge + cartel al entrar, toast demorado
+  // para no pisar el saludo de bienvenida
+  renderJardRecAviso();
+  setTimeout(notificarRecordatoriosNuevos, 4000);
   // Re-renderizar el Inicio ya con el rol aplicado (evita mostrar el panel completo a no-gerencia)
   if(document.getElementById('home-kpis')) renderHome();
 }
