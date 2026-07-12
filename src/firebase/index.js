@@ -289,6 +289,15 @@
         window.checklistHistory = Array.isArray(val) ? val : Object.values(val||{});
       });
 
+      fbListen('clTiemposRef', val => {
+        if(window._setClTiemposRef) window._setClTiemposRef(val || []);
+        // Re-render si el checklist está activo y nadie está editando un campo
+        const ae = document.activeElement;
+        const editando = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.tagName === 'SELECT')
+                         && ae.closest('#page-checklist');
+        if(!editando && document.getElementById('page-checklist')?.classList.contains('active')) window.renderChecklistTable?.();
+      });
+
       fbListen('eventosData', val => {
         const arr = Array.isArray(val) ? val : Object.values(val||{});
         if(JSON.stringify(arr) === JSON.stringify(window.eventosData)) return;

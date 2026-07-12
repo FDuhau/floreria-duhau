@@ -736,6 +736,8 @@
       <input type="hidden" id="ev-idx" value="-1">
       <label class="form-label">Nombre del evento</label>
       <input class="form-input-modal" id="ev-nombre" placeholder="Nombre del evento">
+      <label class="form-label">Organizador del evento</label>
+      <input class="form-input-modal" id="ev-organizador" placeholder="Nombre del organizador">
       <label class="form-label">Tipo</label>
       <select class="form-input-modal" id="ev-tipo" onchange="if(this.value==='__otro__'){var c=prompt('Escribí el tipo de evento:');if(c&&c.trim()){var o=document.createElement('option');o.value=c.trim();o.textContent=c.trim();o.selected=true;this.insertBefore(o,this.lastElementChild);}else{this.value='';}}">
         <option value="">— Seleccionar tipo —</option>
@@ -897,6 +899,7 @@
         <thead>
           <tr>
             <th>Evento</th>
+            <th>Organizador</th>
             <th>Tipo</th>
             <th>Fecha</th>
             <th>Salón</th>

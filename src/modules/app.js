@@ -550,54 +550,54 @@ let CL_RESP_OPTS = ['Caro','Clo','Cris','Gabi','Ivan','Jardineria','Pao','Nora']
 // Sections: 'a'=Alvear (crema), 'b'=Posadas (azul), 'c'=Florería (rosa)
 const CL_TASKS = [
   // ── ALVEAR ──────────────────────────────────────────────────────────────
-  {sec:'a',zona:'Bochitas',            actividad:'RETOQUE',   obs:'',tiempo:'',   responsable:''},
-  {sec:'a',zona:'2° 3° 4° Piso',       actividad:'RETOQUE',   obs:'',tiempo:'',responsable:''},
-  {sec:'a',zona:'Lobby Alvear',         actividad:'RIEGO',     obs:'',tiempo:'',   responsable:''},
-  {sec:'a',zona:'Lobby Alvear',         actividad:'RETOQUE',   obs:'',tiempo:'',   responsable:''},
-  {sec:'a',zona:'Lobby Alvear',         actividad:'NUEVO', obs:'',tiempo:'',   responsable:''},
-  {sec:'a',zona:'Recepción Alvear',     actividad:'RETOQUE',   obs:'',tiempo:'',responsable:''},
-  {sec:'a',zona:'Mesa Ratona Alvear',   actividad:'RETOQUE',   obs:'',tiempo:'',   responsable:''},
-  {sec:'a',zona:'Biblioteca',           actividad:'RETOQUE',   obs:'',tiempo:'',   responsable:''},
-  {sec:'a',zona:'Salón Privado',        actividad:'RETOQUE',   obs:'',tiempo:'',   responsable:''},
-  {sec:'a',zona:'Mesada P. Nobile',     actividad:'RETOQUE',   obs:'',tiempo:'',responsable:''},
-  {sec:'a',zona:'Mesitas P. Nobile',    actividad:'RETOQUE',   obs:'',tiempo:'',responsable:''},
-  {sec:'a',zona:'Mesas Duhau',          actividad:'RETOQUE',   obs:'',tiempo:'',responsable:''},
-  {sec:'a',zona:'Baños Duhau',          actividad:'NUEVO', obs:'',tiempo:'',responsable:''},
-  {sec:'a',zona:'Copón Duhau',          actividad:'RETOQUE',   obs:'',tiempo:'',responsable:''},
-  {sec:'a',zona:'Copón Duhau',          actividad:'NUEVO', obs:'',tiempo:'',   responsable:''},
-  {sec:'a',zona:'Chimenea Vinoteca',    actividad:'RETOQUE',   obs:'',tiempo:'',   responsable:''},
-  {sec:'a',zona:'Mesada Vinoteca',      actividad:'RETOQUE',   obs:'',tiempo:'',   responsable:''},
-  {sec:'a',zona:'Chimeneas P. Nobile',  actividad:'RETOQUE',   obs:'',tiempo:'', responsable:''},
-  {sec:'a',zona:'Elefante',             actividad:'RIEGO',     obs:'',tiempo:'',   responsable:''},
-  {sec:'a',zona:'Elefante',             actividad:'RETOQUE',   obs:'',tiempo:'',responsable:''},
-  {sec:'a',zona:'Foyer Spa',            actividad:'NUEVO', obs:'',tiempo:'',responsable:''},
-  {sec:'a',zona:'Spa recepción',        actividad:'NUEVO', obs:'',tiempo:'',responsable:''},
-  {sec:'a',zona:'Spa (cabinas)',         actividad:'NUEVO', obs:'',tiempo:'',responsable:''},
-  {sec:'a',zona:'Spa (vestuarios D)',    actividad:'NUEVO', obs:'',tiempo:'',responsable:''},
-  {sec:'a',zona:'Spa (vestuarios C)',    actividad:'NUEVO', obs:'',tiempo:'',responsable:''},
+  {sec:'a',zona:'Bochitas',            actividad:'Retoque',   obs:'',tiempo:'',   responsable:''},
+  {sec:'a',zona:'2° 3° 4° Piso',       actividad:'Retoque',   obs:'',tiempo:'',responsable:''},
+  {sec:'a',zona:'Lobby Alvear',         actividad:'Riego',     obs:'',tiempo:'',   responsable:''},
+  {sec:'a',zona:'Lobby Alvear',         actividad:'Retoque',   obs:'',tiempo:'',   responsable:''},
+  {sec:'a',zona:'Lobby Alvear',         actividad:'Retoque', obs:'',tiempo:'',   responsable:''},
+  {sec:'a',zona:'Recepción Alvear',     actividad:'Retoque',   obs:'',tiempo:'',responsable:''},
+  {sec:'a',zona:'Mesa Ratona Alvear',   actividad:'Retoque',   obs:'',tiempo:'',   responsable:''},
+  {sec:'a',zona:'Biblioteca',           actividad:'Retoque',   obs:'',tiempo:'',   responsable:''},
+  {sec:'a',zona:'Salón Privado',        actividad:'Retoque',   obs:'',tiempo:'',   responsable:''},
+  {sec:'a',zona:'Mesada P. Nobile',     actividad:'Retoque',   obs:'',tiempo:'',responsable:''},
+  {sec:'a',zona:'Mesitas P. Nobile',    actividad:'Retoque',   obs:'',tiempo:'',responsable:''},
+  {sec:'a',zona:'Mesas Duhau',          actividad:'Retoque',   obs:'',tiempo:'',responsable:''},
+  {sec:'a',zona:'Baños Duhau',          actividad:'Retoque', obs:'',tiempo:'',responsable:''},
+  {sec:'a',zona:'Copón Duhau',          actividad:'Retoque',   obs:'',tiempo:'',responsable:''},
+  {sec:'a',zona:'Copón Duhau',          actividad:'Retoque', obs:'',tiempo:'',   responsable:''},
+  {sec:'a',zona:'Chimenea Vinoteca',    actividad:'Retoque',   obs:'',tiempo:'',   responsable:''},
+  {sec:'a',zona:'Mesada Vinoteca',      actividad:'Retoque',   obs:'',tiempo:'',   responsable:''},
+  {sec:'a',zona:'Chimeneas P. Nobile',  actividad:'Retoque',   obs:'',tiempo:'', responsable:''},
+  {sec:'a',zona:'Elefante',             actividad:'Riego',     obs:'',tiempo:'',   responsable:''},
+  {sec:'a',zona:'Elefante',             actividad:'Retoque',   obs:'',tiempo:'',responsable:''},
+  {sec:'a',zona:'Foyer Spa',            actividad:'Retoque', obs:'',tiempo:'',responsable:''},
+  {sec:'a',zona:'Spa recepción',        actividad:'Retoque', obs:'',tiempo:'',responsable:''},
+  {sec:'a',zona:'Spa (cabinas)',         actividad:'Retoque', obs:'',tiempo:'',responsable:''},
+  {sec:'a',zona:'Spa (vestuarios D)',    actividad:'Retoque', obs:'',tiempo:'',responsable:''},
+  {sec:'a',zona:'Spa (vestuarios C)',    actividad:'Retoque', obs:'',tiempo:'',responsable:''},
   // ── POSADAS ─────────────────────────────────────────────────────────────
-  {sec:'b',zona:'Baños P. de las Artes',actividad:'NUEVO', obs:'',tiempo:'',responsable:''},
-  {sec:'b',zona:'Lobby Posadas',         actividad:'RIEGO',     obs:'',tiempo:'',   responsable:''},
-  {sec:'b',zona:'Lobby Posadas',         actividad:'NUEVO', obs:'',tiempo:'',responsable:''},
-  {sec:'b',zona:'Mesa Ratona Posadas',   actividad:'RETOQUE',   obs:'',tiempo:'',   responsable:''},
-  {sec:'b',zona:'Recepción Posadas',     actividad:'RETOQUE',   obs:'',tiempo:'',   responsable:''},
-  {sec:'b',zona:'Gioia',                 actividad:'RETOQUE',   obs:'Arreglos perimetrales + 2 buffets',tiempo:'',responsable:''},
-  {sec:'b',zona:'Gioia',                 actividad:'NUEVO', obs:'',tiempo:'',   responsable:''},
-  {sec:'b',zona:'Mesas Gioia',           actividad:'RETOQUE',   obs:'',tiempo:'',responsable:''},
-  {sec:'b',zona:'Copón Gioia',           actividad:'RETOQUE',   obs:'',tiempo:'',responsable:''},
-  {sec:'b',zona:'Foyer Posadas',         actividad:'RETOQUE',   obs:'',tiempo:'',responsable:''},
-  {sec:'b',zona:'Totems',                actividad:'RETOQUE',   obs:'',tiempo:'',   responsable:''},
-  {sec:'b',zona:'Meeting Rooms',         actividad:'RETOQUE',   obs:'',tiempo:'',   responsable:''},
-  {sec:'b',zona:'Baños Meetings',        actividad:'NUEVO', obs:'',tiempo:'',responsable:''},
-  {sec:'b',zona:'Tilo',                  actividad:'RETOQUE',   obs:'',tiempo:'',   responsable:''},
-  {sec:'b',zona:'Pisos',                 actividad:'RETOQUE',   obs:'',tiempo:'',responsable:''},
+  {sec:'b',zona:'Baños P. de las Artes',actividad:'Retoque', obs:'',tiempo:'',responsable:''},
+  {sec:'b',zona:'Lobby Posadas',         actividad:'Riego',     obs:'',tiempo:'',   responsable:''},
+  {sec:'b',zona:'Lobby Posadas',         actividad:'Retoque', obs:'',tiempo:'',responsable:''},
+  {sec:'b',zona:'Mesa Ratona Posadas',   actividad:'Retoque',   obs:'',tiempo:'',   responsable:''},
+  {sec:'b',zona:'Recepción Posadas',     actividad:'Retoque',   obs:'',tiempo:'',   responsable:''},
+  {sec:'b',zona:'Gioia',                 actividad:'Retoque',   obs:'Arreglos perimetrales + 2 buffets',tiempo:'',responsable:''},
+  {sec:'b',zona:'Gioia',                 actividad:'Retoque', obs:'',tiempo:'',   responsable:''},
+  {sec:'b',zona:'Mesas Gioia',           actividad:'Retoque',   obs:'',tiempo:'',responsable:''},
+  {sec:'b',zona:'Copón Gioia',           actividad:'Retoque',   obs:'',tiempo:'',responsable:''},
+  {sec:'b',zona:'Foyer Posadas',         actividad:'Retoque',   obs:'',tiempo:'',responsable:''},
+  {sec:'b',zona:'Totems',                actividad:'Retoque',   obs:'',tiempo:'',   responsable:''},
+  {sec:'b',zona:'Meeting Rooms',         actividad:'Retoque',   obs:'',tiempo:'',   responsable:''},
+  {sec:'b',zona:'Baños Meetings',        actividad:'Retoque', obs:'',tiempo:'',responsable:''},
+  {sec:'b',zona:'Tilo',                  actividad:'Retoque',   obs:'',tiempo:'',   responsable:''},
+  {sec:'b',zona:'Pisos',                 actividad:'Retoque',   obs:'',tiempo:'',responsable:''},
   // ── FLORERÍA ────────────────────────────────────────────────────────────
-  {sec:'c',zona:'Maison (Bertone)',       actividad:'RETOQUE',   obs:'',tiempo:'',responsable:''},
-  {sec:'c',zona:'Cámara',                actividad:'NUEVO', obs:'',tiempo:'',responsable:''},
-  {sec:'c',zona:'Bolsa de Cámara',       actividad:'RETOQUE',   obs:'',tiempo:'',   responsable:''},
-  {sec:'c',zona:'Ingreso Pedido',        actividad:'RETOQUE',   obs:'',tiempo:'',   responsable:''},
-  {sec:'c',zona:'Ramos',                 actividad:'NUEVO', obs:'1 de cada uno',tiempo:'',responsable:''},
-  {sec:'c',zona:'Florería',              actividad:'RETOQUE',   obs:'',tiempo:'',responsable:''},
+  {sec:'c',zona:'Maison (Bertone)',       actividad:'Retoque',   obs:'',tiempo:'',responsable:''},
+  {sec:'c',zona:'Cámara',                actividad:'Retoque', obs:'',tiempo:'',responsable:''},
+  {sec:'c',zona:'Bolsa de Cámara',       actividad:'Retoque',   obs:'',tiempo:'',   responsable:''},
+  {sec:'c',zona:'Ingreso Pedido',        actividad:'Retoque',   obs:'',tiempo:'',   responsable:''},
+  {sec:'c',zona:'Ramos',                 actividad:'Retoque', obs:'1 de cada uno',tiempo:'',responsable:''},
+  {sec:'c',zona:'Florería',              actividad:'Retoque',   obs:'',tiempo:'',responsable:''},
 ];
 
 const SEC_HEADERS = {
@@ -610,6 +610,31 @@ const SEC_HEADERS = {
 // clState: { checked[], actividad[], obs[], tiempo[], responsable[] }
 let clStateByDay = {}; // estado independiente por día
 let clState = null;   // referencia al día activo (alias)
+
+// ── Tiempo promedio de referencia por tarea (lo define gerencia) ─────────────
+// Minutos por índice de CL_TASKS; 0 = sin referencia. Compartido vía Firebase.
+let clTiemposRef = [];
+window._setClTiemposRef = (val) => {
+  clTiemposRef = val ? CL_TASKS.map((_,i)=>parseInt(val[i])||0) : [];
+};
+function getTiempoRef(i){ return parseInt(clTiemposRef[i])||0; }
+
+function updTiempoRef(i, val){
+  while(clTiemposRef.length < CL_TASKS.length) clTiemposRef.push(0);
+  clTiemposRef[i] = parseInt(val)||0;
+  fbSave('clTiemposRef', clTiemposRef);
+}
+
+// Cambio de actividad (solo gerencia): avisar si la zona ya tuvo Nuevo esta semana
+function updActividad(i, val){
+  if(String(val).toLowerCase()==='nuevo'){
+    const dias = Object.entries(clStateByDay)
+      .filter(([d,ds]) => d!==currentDay && String(ds?.actividad?.[i]||'').toLowerCase()==='nuevo')
+      .map(([d])=>d);
+    if(dias.length) showToast(`⚠️ ${CL_TASKS[i].zona} ya tiene NUEVO esta semana (${dias.join(', ')}) — se hace 1 vez por semana`, 'warn');
+  }
+  updCL(i,'actividad',val);
+}
 
 // ── Semana actual ISO (ej: "2026-W22") ────────────────────────────────────────
 function getISOWeekKey(date){
@@ -695,6 +720,7 @@ let historyWeekFilter = null;
 
 function getBadge(act){
   const a = (act||'').toLowerCase();
+  if(a.includes('nuevo')) return 'badge-nuevo';
   if(a.includes('retoque')) return 'badge-retoque';
   if(a.includes('reemplazo')) return 'badge-reemplazo';
   if(a.includes('riego')) return 'badge-riego';
@@ -773,9 +799,13 @@ function fmtDur(mins){
   const h = Math.floor(mins/60), m = mins%60;
   return h>0 ? (h+'h '+(m>0?m+'m':'')).trim() : m+'m';
 }
-function durBadge(inicio, fin){
+function durBadge(inicio, fin, ref){
   const mins = calcDuracion(inicio, fin);
   if(!mins) return '<span style="font-size:11px;color:var(--mid-gray)">—</span>';
+  // Excedida: superó el tiempo promedio de referencia definido por gerencia
+  if(ref && mins > ref){
+    return `<span title="Excedió la referencia de ${ref}m" style="font-size:11px;font-weight:600;color:var(--red-alert);background:#FDECEC;padding:2px 8px;border-radius:10px">⚠️ ${fmtDur(mins)}</span>`;
+  }
   const color = mins > 60 ? 'var(--amber)' : 'var(--green-ok)';
   const bg    = mins > 60 ? '#FDF8E8'      : '#EBF5E8';
   return `<span style="font-size:11px;font-weight:600;color:${color};background:${bg};padding:2px 8px;border-radius:10px">${fmtDur(mins)}</span>`;
@@ -859,9 +889,9 @@ function renderChecklistTable(){
   const thead = document.getElementById('checklist-thead');
   if(thead){
     if(userRole === 'florista'){
-      thead.innerHTML = '<tr><th>Zona</th><th>Actividad</th><th>Observaciones</th><th style="width:90px">Inicio</th><th style="width:90px">Fin</th></tr>';
+      thead.innerHTML = '<tr><th>Zona</th><th>Actividad</th><th style="width:60px">⏱ Ref.</th><th>Observaciones</th><th style="width:90px">Inicio</th><th style="width:90px">Fin</th></tr>';
     } else {
-      thead.innerHTML = '<tr><th style="width:32px">✓</th><th>Zona</th><th>Actividad</th><th>Observaciones</th><th style="width:90px">Inicio</th><th style="width:90px">Fin</th><th style="width:75px">Duración</th><th>Responsable</th><th style="width:32px"></th></tr>';
+      thead.innerHTML = '<tr><th style="width:32px">✓</th><th>Zona</th><th>Actividad</th><th style="width:60px">⏱ Ref.</th><th>Observaciones</th><th style="width:90px">Inicio</th><th style="width:90px">Fin</th><th style="width:75px">Duración</th><th>Responsable</th><th style="width:32px"></th></tr>';
     }
   }
 
@@ -879,7 +909,7 @@ function renderChecklistTable(){
       const sh = SEC_HEADERS[t.sec];
       const hr = document.createElement('tr');
       hr.className = 'cl-section-row ' + sh.cls;
-      hr.innerHTML = `<td colspan="${isFlorista?5:9}">${sh.icon}&nbsp;&nbsp;${sh.label}</td>`;
+      hr.innerHTML = `<td colspan="${isFlorista?6:10}">${sh.icon}&nbsp;&nbsp;${sh.label}</td>`;
       tbody.appendChild(hr);
     }
 
@@ -887,6 +917,21 @@ function renderChecklistTable(){
     const curAct  = clState.actividad[i]   || t.actividad;
     const curObs  = (clState.obs[i] && clState.obs[i] !== 'Observaciones') ? clState.obs[i] : (t.obs||'');
     const sh      = SEC_HEADERS[t.sec];
+    const ref     = getTiempoRef(i);
+
+    // Actividad: la determina gerencia (default Retoque); el resto la ve como badge
+    const actLower = String(curAct).toLowerCase();
+    const actividadCell = userRole==='gerencia'
+      ? `<select class="cl-select" onchange="updActividad(${i},this.value)" ${done?'disabled':''}>
+          ${CL_ACTIVIDAD_OPTS.map(o=>`<option${o.toLowerCase()===actLower?' selected':''}>${esc(o)}</option>`).join('')}
+        </select>`
+      : `<span class="badge ${getBadge(curAct)}">${esc(curAct)}</span>`;
+    // Tiempo promedio de referencia: gerencia lo edita, floristas lo ven
+    const refCell = userRole==='gerencia'
+      ? `<input type="number" min="0" value="${ref||''}" placeholder="min"
+          style="width:52px;padding:4px 5px;font-size:12px;border:1px solid var(--light-gray);border-radius:4px;text-align:center;background:var(--warm-white);color:var(--charcoal)"
+          onchange="updTiempoRef(${i},this.value)">`
+      : (ref ? `<span style="font-size:11.5px;font-weight:600;color:var(--mid-gray);white-space:nowrap">⏱ ${ref}m</span>` : '<span style="font-size:11px;color:var(--mid-gray)">—</span>');
 
     const tr = document.createElement('tr');
     tr.className = sh.rowCls + (done ? ' task-row-done' : '');
@@ -894,11 +939,8 @@ function renderChecklistTable(){
     if(isFlorista){
       tr.innerHTML = `
         <td style="font-weight:500;font-size:12.5px;min-width:140px">${esc(t.zona)}</td>
-        <td style="min-width:130px">
-          <select class="cl-select" onchange="updCL(${i},'actividad',this.value)" ${done?'disabled':''}>
-            ${CL_ACTIVIDAD_OPTS.map(o=>`<option${o===curAct?' selected':''}>${esc(o)}</option>`).join('')}
-          </select>
-        </td>
+        <td style="min-width:100px">${actividadCell}</td>
+        <td style="width:60px;text-align:center">${refCell}</td>
         <td style="min-width:150px">
           <input class="cl-obs-input" value="${esc(curObs)}" placeholder="Observaciones..."
             onchange="updCL(${i},'obs',this.value)" ${done?'disabled':''} style="width:100%">
@@ -909,18 +951,15 @@ function renderChecklistTable(){
       tr.innerHTML = `
         <td style="width:32px"><input type="checkbox" class="task-check" ${done?'checked':''} onchange="toggleTask(${i},this)"></td>
         <td style="font-weight:500;font-size:12.5px;min-width:140px">${esc(t.zona)}</td>
-        <td style="min-width:130px">
-          <select class="cl-select" onchange="updCL(${i},'actividad',this.value)" ${done?'disabled':''}>
-            ${CL_ACTIVIDAD_OPTS.map(o=>`<option${o===curAct?' selected':''}>${esc(o)}</option>`).join('')}
-          </select>
-        </td>
+        <td style="min-width:100px">${actividadCell}</td>
+        <td style="width:60px;text-align:center">${refCell}</td>
         <td style="min-width:150px">
           <input class="cl-obs-input" value="${esc(curObs)}" placeholder="Observaciones..."
             onchange="updCL(${i},'obs',this.value)" ${done?'disabled':''} style="width:100%">
         </td>
         <td style="width:90px;text-align:center;padding:4px 6px">${renderHoraCell(i,'inicio',done)}</td>
         <td style="width:90px;text-align:center;padding:4px 6px">${renderHoraCell(i,'fin',done)}</td>
-        <td style="width:80px;text-align:center">${durBadge(clState.inicio?.[i], clState.fin?.[i])}</td>
+        <td style="width:80px;text-align:center">${durBadge(clState.inicio?.[i], clState.fin?.[i], ref)}</td>
         <td style="min-width:110px">
           ${userRole==='operario'
             ? '<span style="font-size:13px;color:var(--charcoal);padding:4px 2px;display:block">' + (curResp || '<em style="color:var(--mid-gray);font-size:12px">Sin asignar</em>') + '</span>'
@@ -950,7 +989,7 @@ function renderChecklistTable(){
     const evHeader = document.createElement('tr');
     evHeader.className = 'cl-section-row';
     evHeader.style.cssText = 'background:#FDF0E8';
-    evHeader.innerHTML = `<td colspan="${isFlorista?5:9}" style="font-weight:600;color:#B8602A">🎉 Eventos del día</td>`;
+    evHeader.innerHTML = `<td colspan="${isFlorista?6:10}" style="font-weight:600;color:#B8602A">🎉 Eventos del día</td>`;
     tbody.appendChild(evHeader);
 
     eventosHoy.forEach(ev => {
@@ -969,6 +1008,7 @@ function renderChecklistTable(){
         evTr.innerHTML = `
           <td style="font-weight:600;font-size:12.5px;color:#B8602A">🎉 ${esc(ev.nombre)}${badgeDiaRelativa(ev.fecha)}${faseTag}</td>
           <td style="font-size:12px">${esc(ev.tipo)} · ${esc(ev.salon||'')}</td>
+          <td></td>
           <td style="font-size:11px;color:var(--mid-gray)">${ev.pax?ev.pax+' pax':''} ${ev.hora?'· '+ev.hora:''}</td>
           <td style="width:90px;text-align:center;padding:4px 6px">${renderEvHoraCell(evIdx,'inicio',ev,fase)}</td>
           <td style="width:90px;text-align:center;padding:4px 6px">${renderEvHoraCell(evIdx,'fin',ev,fase)}</td>`;
@@ -977,6 +1017,7 @@ function renderChecklistTable(){
           <td style="width:32px"></td>
           <td style="font-weight:600;font-size:12.5px;color:#B8602A">🎉 ${esc(ev.nombre)}${badgeDiaRelativa(ev.fecha)}${faseTag}</td>
           <td style="font-size:12px">${esc(ev.tipo)}</td>
+          <td></td>
           <td style="font-size:11px;color:var(--mid-gray)">${esc(ev.salon||'')} · ${ev.pax?ev.pax+' pax':''} ${ev.hora?'· '+ev.hora:''}</td>
           <td style="width:90px;text-align:center;padding:4px 6px">${renderEvHoraCell(evIdx,'inicio',ev,fase)}</td>
           <td style="width:90px;text-align:center;padding:4px 6px">${renderEvHoraCell(evIdx,'fin',ev,fase)}</td>
@@ -1001,7 +1042,7 @@ function renderChecklistTable(){
     const vtHeader = document.createElement('tr');
     vtHeader.className = 'cl-section-row';
     vtHeader.style.cssText = 'background:#E8EDF8';
-    vtHeader.innerHTML = `<td colspan="${isFlorista?5:9}" style="font-weight:600;color:#2C5A80">💐 Ventas pendientes</td>`;
+    vtHeader.innerHTML = `<td colspan="${isFlorista?6:10}" style="font-weight:600;color:#2C5A80">💐 Ventas pendientes</td>`;
     tbody.appendChild(vtHeader);
 
     ventasHoy.forEach(v => {
@@ -1015,6 +1056,7 @@ function renderChecklistTable(){
         vtTr.innerHTML = `
           <td style="font-weight:600;font-size:12.5px;color:#2C5A80">💐 ${esc(v.prod)}${badgeDiaRelativa(v.fecha)}</td>
           <td style="font-size:12px">${esc(v.cliente||'')}</td>
+          <td></td>
           <td style="font-size:11px;color:var(--mid-gray);max-width:200px;overflow:hidden;text-overflow:ellipsis">${esc(detalle)}</td>
           <td style="width:90px;text-align:center;padding:4px 6px">${renderVentaHoraCell(vIdx,'inicio',v)}</td>
           <td style="width:90px;text-align:center;padding:4px 6px">${renderVentaHoraCell(vIdx,'fin',v)}</td>`;
@@ -1023,6 +1065,7 @@ function renderChecklistTable(){
           <td style="width:32px"></td>
           <td style="font-weight:600;font-size:12.5px;color:#2C5A80">💐 ${esc(v.prod)}${badgeDiaRelativa(v.fecha)}</td>
           <td style="font-size:12px">${esc(v.cliente||'')}</td>
+          <td></td>
           <td style="font-size:11px;color:var(--mid-gray);max-width:200px">${esc(detalle)}</td>
           <td style="width:90px;text-align:center;padding:4px 6px">${renderVentaHoraCell(vIdx,'inicio',v)}</td>
           <td style="width:90px;text-align:center;padding:4px 6px">${renderVentaHoraCell(vIdx,'fin',v)}</td>
@@ -1040,7 +1083,7 @@ function renderChecklistTable(){
 
   // Mensaje si el florista no tiene tareas asignadas
   if(isFlorista && !tbody.querySelector('tr:not(.cl-section-row)')){
-    tbody.innerHTML = `<tr><td colspan="5" style="padding:32px;text-align:center;color:var(--mid-gray)">
+    tbody.innerHTML = `<tr><td colspan="6" style="padding:32px;text-align:center;color:var(--mid-gray)">
       <div style="font-size:28px;margin-bottom:8px">📋</div>
       <div style="font-size:14px;font-weight:500">No tenés tareas asignadas para hoy, ${floristaNombre}</div>
       <div style="font-size:12px;margin-top:4px">Gerencia asigna las tareas desde la checklist general.</div>
@@ -1116,6 +1159,8 @@ function registrarHora(i, campo){
     const resp = clState.responsable[i] || '—';
     const inicioFinal = clState.inicio[i] || '';
     const durFinal    = calcDuracion(inicioFinal, horaActual);
+    const ref         = getTiempoRef(i);
+    const excedida    = !!(ref && durFinal && durFinal > ref);
     checklistHistory.push({
       date: TODAY_ISO, week: getWeekLabel(now),
       weekKey: CURRENT_WEEK_KEY, day: currentDay,
@@ -1124,7 +1169,7 @@ function registrarHora(i, campo){
       obs: clState.obs[i]||'',
       tiempo: clState.tiempo[i]||'',
       inicio: inicioFinal, fin: horaActual,
-      duracion: durFinal,
+      duracion: durFinal, ref: ref||0, excedida,
       who: resp, hora: now.toTimeString().slice(0,5)
     });
     localStorage.setItem('cl_history', JSON.stringify(checklistHistory));
@@ -1133,6 +1178,12 @@ function registrarHora(i, campo){
     // Toast de confirmación con duración
     const durTxt = durFinal ? ' · Duración: ' + fmtDur(durFinal) : '';
     showToast('✅ Tarea finalizada — Inicio: ' + inicioFinal + ' · Fin: ' + horaActual + durTxt);
+    // Aviso a gerencia si se excedió el tiempo promedio de referencia
+    if(excedida){
+      window.pushSend?.('⏱ Tarea excedida',
+        `${resp} tardó ${fmtDur(durFinal)} en "${t.zona} · ${clState.actividad[i]||t.actividad}" (referencia: ${ref}m)`,
+        'tarea-excedida', 'roles:gerencia');
+    }
     saveWeekState(currentDay, 'checked');
   } else if(campo === 'inicio'){
     showToast('▶ Inicio registrado: ' + horaActual);
@@ -1223,6 +1274,8 @@ function toggleTask(i, el){
       inicio: clState.inicio?.[i]||'',
       fin:    clState.fin?.[i]||'',
       duracion: calcDuracion(clState.inicio?.[i]||'', clState.fin?.[i]||''),
+      ref: getTiempoRef(i),
+      excedida: !!(getTiempoRef(i) && calcDuracion(clState.inicio?.[i]||'', clState.fin?.[i]||'') > getTiempoRef(i)),
       who:  resp,
       hora: now.toTimeString().slice(0,5)
     });
@@ -1321,7 +1374,7 @@ function renderHistoryPanel(){
       <td style="font-size:12px;color:var(--mid-gray)">${r.obs&&r.obs!=='Observaciones'?esc(r.obs):'<span style="color:var(--light-gray)">—</span>'}</td>
       <td style="font-size:12px;font-weight:600;color:var(--charcoal)">${r.inicio||'<span style=\"color:var(--mid-gray)\">—</span>'}</td>
       <td style="font-size:12px;font-weight:600;color:var(--charcoal)">${r.fin||'<span style=\"color:var(--mid-gray)\">—</span>'}</td>
-      <td style="text-align:center">${durBadge(r.inicio,r.fin)}</td>
+      <td style="text-align:center">${durBadge(r.inicio,r.fin,parseInt(r.ref)||0)}</td>
       <td><span class="responsable-tag">${esc(r.who)}</span></td>
       <td style="font-size:12px;color:var(--mid-gray)">${esc(r.hora)}</td>
     </tr>`).join('');
@@ -2723,7 +2776,7 @@ function renderHistorialEventos(){
 
   const hechos = eventosData.filter(ev => ev.estado === 'Pedidos Finalizados' || ev.estado === 'Confirmado');
   const filtered = hechos.filter(ev=>{
-    const matchSearch = !search || ev.nombre?.toLowerCase().includes(search) || evZonasLabel(ev).toLowerCase().includes(search);
+    const matchSearch = !search || ev.nombre?.toLowerCase().includes(search) || evZonasLabel(ev).toLowerCase().includes(search) || ev.organizador?.toLowerCase().includes(search);
     const matchTipo   = !tipo   || ev.tipo === tipo;
     return matchSearch && matchTipo;
   });
@@ -2743,7 +2796,7 @@ function renderHistorialEventos(){
   if(!tbody) return;
 
   if(filtered.length === 0){
-    tbody.innerHTML = '<tr><td colspan="7" style="padding:24px;text-align:center;color:var(--mid-gray)">'+
+    tbody.innerHTML = '<tr><td colspan="8" style="padding:24px;text-align:center;color:var(--mid-gray)">'+
       (hechos.length===0 ? 'Aún no hay eventos finalizados.' : 'Sin resultados para los filtros aplicados.')+'</td></tr>';
     return;
   }
@@ -2758,6 +2811,7 @@ function renderHistorialEventos(){
       : '<span style="color:var(--mid-gray)">—</span>';
     return `<tr style="cursor:pointer" onclick="openEventoDetail(${realIdx})">
       <td style="font-weight:600;font-size:13px">${esc(ev.nombre||'')}</td>
+      <td style="font-size:13px">${ev.organizador?esc(ev.organizador):'<span style="color:var(--mid-gray)">—</span>'}</td>
       <td><span class="badge badge-tipo">${esc(ev.tipo||'—')}</span></td>
       <td style="font-size:12px;color:var(--mid-gray)">${ev.fecha?fmtDate(ev.fecha):'—'}</td>
       <td style="font-size:13px">${esc(evZonasLabel(ev))}</td>
@@ -9353,6 +9407,7 @@ function openEventoDetail(i){
   const armadoTxt = ev.asignado ? ev.asignado + (ev.inicio && ev.fin ? ` (${ev.inicio}–${ev.fin})` : ev.inicio ? ` (desde ${ev.inicio})` : '') : null;
   const colocTxt  = ev.colocacionAsignado ? ev.colocacionAsignado + (ev.colocacionInicio && ev.colocacionFin ? ` (${ev.colocacionInicio}–${ev.colocacionFin})` : ev.colocacionInicio ? ` (desde ${ev.colocacionInicio})` : '') : null;
   const fields = [
+    ev.organizador ? ['Organizador', ev.organizador] : null,
     ev.fecha ? ['Fecha', fmtDate(ev.fecha) + (ev.hora ? ' · ' + ev.hora : '') + (etiquetaDiaRelativa(ev.fecha) ? ' · ' + etiquetaDiaRelativa(ev.fecha) : '')] : null,
     evZonasLabel(ev) !== '—' ? ['Salón / Zona', evZonasLabel(ev)] : null,
     ev.pax   ? ['Pax', ev.pax + ' personas'] : null,
@@ -9472,6 +9527,7 @@ function saveEvent(){
   if(!nombre) return;
   const ev={
     nombre,
+    organizador:document.getElementById('ev-organizador')?.value.trim()||'',
     tipo:document.getElementById('ev-tipo').value||'Social',
     fecha:document.getElementById('ev-fecha').value,
     hora:document.getElementById('ev-hora').value||'',
@@ -9537,6 +9593,8 @@ function openEventModal(i){
 
   const ev = isNew ? {} : (eventosData[i] || {});
   document.getElementById('ev-nombre').value  = ev.nombre  || '';
+  const orgInput = document.getElementById('ev-organizador');
+  if(orgInput) orgInput.value = ev.organizador || '';
   document.getElementById('ev-tipo').value    = ev.tipo    || '';
   document.getElementById('ev-fecha').value   = ev.fecha   || '';
   document.getElementById('ev-hora').value    = ev.hora    || '';
@@ -12374,7 +12432,7 @@ Object.assign(window, {
   renderDashboardConsolidado, renderSucursalSelector, renderSucursalIndicador, getSucursalId, getSucursalNombre, filterBySucursal,
   renderClientes, abrirFichaCliente, openNuevoClienteModal, editarCliente, guardarCliente, eliminarCliente,
   generarPresupuestoPDF, checkOnboarding, nextOnboardingStep, finishOnboarding,
-  toggleProvManager, toggleSidebar, toggleTask, updC, updCL, updCaja, updCajaMonto, updCajaTipo,
+  toggleProvManager, toggleSidebar, toggleTask, updC, updCL, updActividad, updTiempoRef, updCaja, updCajaMonto, updCajaTipo,
   updPedidoHabEstado, updTipoEvento, updV, updateInsumoCount, updateInsumoRow,
   updateKpiCompras, urgenciaPanelHTML, vdAutoPrice, zonaHoraBtn, zonaResetHora, zonaSetHora,
   toggleStockSugerencias,
