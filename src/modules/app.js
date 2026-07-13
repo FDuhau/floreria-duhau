@@ -9556,6 +9556,90 @@ function cerrarBriefing(){
   setTimeout(()=>ov.remove(), 400);
 }
 
+// ── Resumen semanal automático (gerencia) ─────────────────────────────────────
+// Se genera del lado cliente: cuando gerencia entra en una semana nueva, arma el
+// resumen de la semana que cerró y avisa por push a los demás dispositivos de
+// gerencia. (El cron del Worker no puede leer Firebase sin service account, así
+// que el resumen lo produce el cliente, que ya tiene todos los datos.)
+function _rangoSemanaPasada(){
+  const hoy = new Date(TODAY_ISO);
+  const dow = (hoy.getDay()+6)%7; // 0=lunes
+  const lunesEsta = new Date(hoy); lunesEsta.setDate(hoy.getDate()-dow);
+  const lunesPasada = new Date(lunesEsta); lunesPasada.setDate(lunesEsta.getDate()-7);
+  const domingoPasada = new Date(lunesEsta); domingoPasada.setDate(lunesEsta.getDate()-1);
+  const iso = d => d.toISOString().slice(0,10);
+  return { desde: iso(lunesPasada), hasta: iso(domingoPasada), weekKey: getISOWeekKey(lunesPasada) };
+}
+
+function calcularResumenSemanal(desde, hasta){
+  const enRango = d => d && d>=desde && d<=hasta;
+  const regs = (checklistHistory||[]).filter(r => enRango(r.date));
+  const porFlor = {};
+  regs.forEach(r => {
+    const n = r.who || '—';
+    porFlor[n] = porFlor[n] || { hechas:0, exc:0 };
+    porFlor[n].hechas++;
+    if(r.excedida) porFlor[n].exc++;
+  });
+  const ventas = (ventasData||[]).filter(v => enRango(v.fecha));
+  const totalVentas = ventas.reduce((s,v)=>s+parseMoney(v.precio),0);
+  const eventos = (eventosData||[]).filter(e => enRango(e.fecha) && (e.estado==='Pedidos Finalizados'||e.estado==='Confirmado'));
+  // Zona con el Nuevo más atrasado
+  const map = mapUltimoNuevoPorZona();
+  let peorZona=null, peorDias=-1;
+  [...new Map(CL_TASKS.filter(t=>String(t.actividad).toLowerCase()!=='riego').map(t=>[t.sec+'|'+t.zona,t])).values()].forEach(t=>{
+    const f = map[t.sec+'|'+t.zona];
+    const dias = f ? Math.floor((new Date(TODAY_ISO)-new Date(f))/86400000) : 999;
+    if(dias>peorDias){ peorDias=dias; peorZona=t.zona; }
+  });
+  return { regs:regs.length, porFlor, totalVentas, nVentas:ventas.length, eventos:eventos.length, peorZona, peorDias };
+}
+
+function mostrarResumenSemanal(retry=0, force=false){
+  if(userRole!=='gerencia') return;
+  const { desde, hasta, weekKey } = _rangoSemanaPasada();
+  const k = 'resumenSem_' + weekKey;
+  if(!force){ try{ if(localStorage.getItem(k)) return; }catch(e){} }
+  // Esperar a que Firebase traiga el historial
+  if(!force && retry < 3 && !(checklistHistory||[]).length){ setTimeout(()=>mostrarResumenSemanal(retry+1), 2000); return; }
+
+  const r = calcularResumenSemanal(desde, hasta);
+  if(!force && !r.regs && !r.nVentas && !r.eventos) { try{ localStorage.setItem(k,'1'); }catch(e){} return; } // semana sin actividad
+  try{ localStorage.setItem(k,'1'); }catch(e){}
+
+  const fmtARS = n => '$' + Math.round(n).toLocaleString('es-AR');
+  const flor = Object.entries(r.porFlor).sort((a,b)=>b[1].hechas-a[1].hechas);
+  const rows = [
+    ['✅', `${r.regs} tareas completadas` + (flor.length ? ' — ' + esc(flor.slice(0,3).map(([n,d])=>`${n}: ${d.hechas}`).join(', ')) : '')],
+    flor.some(([,d])=>d.exc) ? ['⏱', 'Excedidas: ' + esc(flor.filter(([,d])=>d.exc).map(([n,d])=>`${n} ${d.exc}`).join(', '))] : null,
+    ['💰', `${fmtARS(r.totalVentas)} en ventas (${r.nVentas})`],
+    ['🎉', `${r.eventos} evento${r.eventos!==1?'s':''} realizado${r.eventos!==1?'s':''}`],
+    r.peorZona && r.peorDias>=5 ? ['🌸', `Zona más atrasada de Nuevo: ${esc(r.peorZona)} (${r.peorDias>900?'sin registro':r.peorDias+' días'})`] : null,
+  ].filter(Boolean);
+
+  const desdeTxt = new Date(desde+'T12:00:00').toLocaleDateString('es-AR',{day:'numeric',month:'short'});
+  const hastaTxt = new Date(hasta+'T12:00:00').toLocaleDateString('es-AR',{day:'numeric',month:'short'});
+  const ov = document.createElement('div');
+  ov.id = 'briefing-overlay';
+  ov.className = 'briefing-overlay';
+  ov.innerHTML = `
+    <div class="briefing-card">
+      <div class="briefing-flor">📊</div>
+      <div class="briefing-saludo">Resumen de la semana</div>
+      <div class="briefing-fecha">${desdeTxt} — ${hastaTxt}</div>
+      <div class="briefing-rows">${rows.map(([ic,tx])=>`<div class="briefing-row"><span>${ic}</span><span>${tx}</span></div>`).join('')}</div>
+      <button class="btn-add briefing-btn" onclick="cerrarBriefing()">Cerrar</button>
+    </div>`;
+  ov.addEventListener('click', e => { if(e.target === ov) cerrarBriefing(); });
+  document.body.appendChild(ov);
+  requestAnimationFrame(()=>ov.classList.add('open'));
+
+  // Aviso por push a los demás dispositivos de gerencia
+  window.pushSend?.('📊 Resumen semanal listo',
+    `${r.regs} tareas · ${fmtARS(r.totalVentas)} en ventas · ${r.eventos} eventos`,
+    'resumen-semanal', 'roles:gerencia');
+}
+
 async function doLogin(){
   const inp = document.getElementById('login-input');
   const err = document.getElementById('login-error');
@@ -9582,6 +9666,8 @@ async function doLogin(){
     setTimeout(()=>mostrarBriefingDia(), 2200);
     // Mantenimiento: poda del historial (gerencia, una vez al día, sin urgencia)
     if(entry.role === 'gerencia') setTimeout(()=>podarHistorial(), 12000);
+    // Resumen semanal: al entrar gerencia en una semana nueva (una vez por semana)
+    if(entry.role === 'gerencia') setTimeout(()=>mostrarResumenSemanal(), 6000);
   } else {
     err.textContent = 'Contraseña incorrecta';
     inp.classList.add('error');
@@ -13311,7 +13397,7 @@ Object.assign(window, {
   toggleProvManager, toggleSidebar, toggleTask, updC, updCL, updActividad, updTiempoRef, updCaja, updCajaMonto, updCajaTipo,
   openVistaSemanal, vsToggleActividad, vsSetResp, descargarBackup, clFotoPreview, guardarFotoChecklist, verFotoChecklist,
   activarNotificaciones, openGaleriaNuevos, renderGaleriaNuevos, moveKanbanCard, clSetFiltro,
-  cerrarBriefing,
+  cerrarBriefing, mostrarResumenSemanal,
   updPedidoHabEstado, updTipoEvento, updV, updateInsumoCount, updateInsumoRow,
   updateKpiCompras, urgenciaPanelHTML, vdAutoPrice, zonaHoraBtn, zonaResetHora, zonaSetHora,
   toggleStockSugerencias,
