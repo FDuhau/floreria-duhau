@@ -262,20 +262,29 @@
       });
     });
 
+    const _syncRespFloristas = val => {
+      Object.values(val||{}).forEach(e => {
+        if(e.role === 'florista' && e.floristaNombre && !window.CL_RESP_OPTS?.includes(e.floristaNombre)){
+          window.CL_RESP_OPTS?.push(e.floristaNombre);
+        }
+      });
+      if(window.CL_RESP_OPTS) window.CL_RESP_OPTS.sort((a,b) => a.localeCompare(b,'es'));
+    };
+
     // Cargar contraseñas personalizadas ANTES del login
     fbListen('loginPasswords', val => {
       if(val && typeof val === 'object' && Object.keys(val).length > 0){
         // Actualizar la variable real que usa el login (no una copia en window)
         if(window._setLoginPasswords) window._setLoginPasswords(val);
         window.loginPasswords = val;
-        // Sincronizar floristas con la lista de responsables del checklist
-        Object.values(val).forEach(e => {
-          if(e.role === 'florista' && e.floristaNombre && !window.CL_RESP_OPTS?.includes(e.floristaNombre)){
-            window.CL_RESP_OPTS?.push(e.floristaNombre);
-          }
-        });
-        if(window.CL_RESP_OPTS) window.CL_RESP_OPTS.sort((a,b) => a.localeCompare(b,'es'));
+        _syncRespFloristas(val);
       }
+    });
+
+    // Esquema con hash (loginAuth): si existe, el login lo prioriza sobre loginPasswords
+    fbListen('loginAuth', val => {
+      if(window._setLoginAuth) window._setLoginAuth(val);
+      if(val && typeof val === 'object') _syncRespFloristas(val);
     });
 
     // ── Listen to all shared data ─────────────────────────────────

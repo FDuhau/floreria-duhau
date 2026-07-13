@@ -59,18 +59,37 @@ requiere **autenticación real** (ver roadmap abajo).
   autenticación real del roadmap (con login anónimo no se puede restringir por
   rol, y en RTDB los permisos cascadean desde la raíz).
 
+## Contraseñas hasheadas (aplicado)
+
+Las contraseñas ya **no se guardan en texto plano**. Antes vivían como las
+*claves* del objeto `loginPasswords`, así que cualquiera que leyera la base las
+veía todas. Ahora:
+
+- La base guarda `loginAuth`, indexado por id de usuario (el nombre en
+  minúsculas, que no es secreto), con **salt aleatorio + hash PBKDF2-SHA256
+  (150.000 iteraciones)** por usuario. No es reversible.
+- El login recorre los usuarios y compara hashes (WebCrypto, del lado cliente).
+  El personal **sigue ingresando su contraseña igual** — no cambia el flujo.
+- **Migración automática y retrocompatible:** mientras exista `loginPasswords`
+  (texto plano), el login funciona como antes. La primera vez que entra
+  gerencia, se genera `loginAuth`, se autoverifica que su propia contraseña
+  valida contra el nuevo esquema, y recién ahí se **borra `loginPasswords`** de
+  la base. Si la autoverificación falla, no borra nada (nadie queda afuera).
+- La gestión de usuarios ya no muestra las contraseñas (no se pueden ver, solo
+  cambiar) y el mínimo subió a 4 caracteres.
+
+> Nota: no se usó un "pepper" vía Worker a propósito — acoplaría el login a la
+> red (si el Worker cae, nadie entra) y App Check ya bloquea la lectura externa
+> de la base. PBKDF2 fuerte + borrar el texto plano es el salto grande sin ese
+> riesgo. Igual conviene usar contraseñas menos previsibles.
+
 ## Roadmap del arreglo completo (autenticación real)
 
-Esto cierra el agujero de verdad, pero cambia cómo ingresa el personal y
-necesita provisionar credenciales. Pasos sugeridos:
+El paso que faltaría para cerrarlo del todo (cuando se quiera, es de mayor
+alcance porque cambia cómo ingresa el personal):
 
-1. Migrar el login a **Firebase Auth** (cuenta real por persona; email+clave o
-   el esquema que prefieras), en lugar del cotejo de contraseña del lado del
-   cliente.
+1. Migrar a **Firebase Auth** (cuenta real por persona) en lugar del cotejo del
+   lado del cliente.
 2. Guardar el rol en `/users/{uid}` y reescribir las reglas por rol, por ejemplo:
    - `caja`, `liquidacion`, `legajo`, `evaluaciones` → solo `gerencia`.
    - El resto, lectura/escritura según corresponda al rol.
-3. Mientras tanto, **subir la fortaleza de las contraseñas actuales** (hoy son
-   palabras cortas y previsibles).
-
-Cuando quieras encarar esto, se planifica aparte (es un cambio de mayor alcance).
