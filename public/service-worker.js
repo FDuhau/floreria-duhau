@@ -1,4 +1,4 @@
-const CACHE = 'floreria-duhau-v10';
+const CACHE = 'floreria-duhau-v11';
 const ASSETS = [
   '/',
   '/index.html',
@@ -27,6 +27,9 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
+
+  // API del worker y métodos no-GET: siempre a la red, sin cache
+  if(e.request.method !== 'GET' || url.pathname.startsWith('/api/')) return;
 
   // Firebase y APIs externas: siempre a la red
   if(url.hostname.includes('firebase') || url.hostname.includes('google') ||

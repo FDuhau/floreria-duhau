@@ -2,7 +2,6 @@
     import { initializeApp } from "firebase/app";
     import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
     import { getDatabase, ref, set, update, onValue } from "firebase/database";
-    import { getMessaging, getToken, onMessage } from "firebase/messaging";
     import { getAuth, signInAnonymously } from "firebase/auth";
 
     const firebaseConfig = {
@@ -156,32 +155,77 @@
     window.fbListen  = fbListen;
     window.fbReady   = true;
 
-    // ── Push Notifications (FCM) ──────────────────────────────────
-    const FCM_VAPID = 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjZkiDgE85ia8p7dDdMY5c8KL3YE'; // reemplazar con tu clave VAPID
-    let messaging = null;
-    try { messaging = getMessaging(fbApp); } catch(e){}
+    // ── Push Notifications (Web Push real vía Worker) ─────────────
+    // El navegador se suscribe con la clave pública VAPID y la suscripción se
+    // guarda en Firebase (pushSubs). Al enviar, el cliente filtra las
+    // suscripciones por destinatario y el Worker (/api/push) cifra y entrega —
+    // llega aunque la app esté cerrada.
+    const VAPID_PUBLIC_KEY = 'BPdHl3-CEMyDYx0j780ImwvNPCGaBInhq6lnNOjv6iJu8lfdHb-gcu9kROVchB4jf5oEul748FN_PKwQpc2x0gE';
+
+    let pushSubsCache = {};
+    fbListen('pushSubs', val => { pushSubsCache = (val && typeof val === 'object') ? val : {}; });
+
+    function _pushDeviceId(){
+      try {
+        let id = localStorage.getItem('pushDeviceId');
+        if(!id){ id = Math.random().toString(36).slice(2,10) + Date.now().toString(36); localStorage.setItem('pushDeviceId', id); }
+        return id;
+      } catch(e){ return 'anon'; }
+    }
+
+    function _b64uToUint8(s){
+      s = s.replace(/-/g,'+').replace(/_/g,'/');
+      const pad = s.length % 4 ? '='.repeat(4 - (s.length % 4)) : '';
+      return Uint8Array.from(atob(s + pad), c => c.charCodeAt(0));
+    }
 
     async function pushRequestPermission(){
-      if(!messaging) return false;
       try {
+        if(!('serviceWorker' in navigator) || !('PushManager' in window) || typeof Notification === 'undefined') return false;
         const perm = await Notification.requestPermission();
         if(perm !== 'granted') return false;
         const reg = await navigator.serviceWorker.ready;
-        const token = await getToken(messaging, { vapidKey: FCM_VAPID, serviceWorkerRegistration: reg });
-        if(token){
-          const uid = window.currentUserLabel || 'anon';
-          fbSetPath('pushTokens/' + uid.replace(/[.#$/\[\]]/g,'_'), token);
-          if(messaging) onMessage(messaging, payload => {
-            window.showToast?.('🔔 ' + (payload.notification?.title||'') + ': ' + (payload.notification?.body||''));
-          });
-          return true;
-        }
-      } catch(e){ console.warn('FCM error:', e); }
-      return false;
+        const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: _b64uToUint8(VAPID_PUBLIC_KEY) });
+        const ident = window._pushIdentity || {};
+        const id = _pushDeviceId();
+        const key = String(ident.label || 'anon').toLowerCase().replace(/[.#$/\[\]\s]/g,'_') + '_' + id;
+        fbSetPath('pushSubs/' + key, {
+          sub: sub.toJSON(),
+          label: ident.label || '',
+          roles: ident.roles || [],
+          deviceId: id,
+          ts: Date.now(),
+          ua: (navigator.userAgent || '').slice(0, 80),
+        });
+        return true;
+      } catch(e){ console.warn('push subscribe error:', e); return false; }
     }
 
     async function pushSend(title, body, tag='general', target=''){
+      // Aviso in-app para los dispositivos con la app abierta (comportamiento previo)
       fbSet('pushBroadcast/' + Date.now(), { title, body, tag, target, ts: Date.now() });
+      // Push real a los dispositivos suscriptos (llega con la app cerrada)
+      try {
+        const myId = _pushDeviceId();
+        const t = String(target || '').toLowerCase();
+        const roles = t.startsWith('roles:') ? t.slice(6).split(',').map(s => s.trim()).filter(Boolean) : null;
+        const destinos = Object.entries(pushSubsCache).filter(([,e]) => {
+          if(!e?.sub?.endpoint) return false;
+          if(e.deviceId === myId) return false; // no notificarse a sí mismo
+          if(!t) return true;
+          if(roles) return (e.roles || []).some(r => roles.includes(String(r).toLowerCase()));
+          return String(e.label || '').toLowerCase() === t;
+        });
+        if(!destinos.length) return;
+        const res = await fetch('/api/push', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ subs: destinos.map(([,e]) => e.sub), title, body, tag }),
+        });
+        const out = await res.json().catch(() => null);
+        // Limpiar suscripciones muertas (dispositivo desinstalado / permiso revocado)
+        out?.results?.forEach((r, i) => { if(r?.gone) fbSetPath('pushSubs/' + destinos[i][0], null); });
+      } catch(e){ console.warn('push send error:', e); }
     }
 
     window.pushRequestPermission = pushRequestPermission;

@@ -120,8 +120,10 @@
     <div class="nav-sub-item nav-jard-only" id="nav-rec-jard" data-group="grp-ops" style="display:none" onclick="navigate('recordatorios-jardineria',this)">🔔 Recordatorios Jardín</div>
   </div>
   <div style="padding:12px 24px;border-top:1px solid rgba(255,255,255,.07)">
+    <button onclick="activarNotificaciones()" style="width:100%;padding:8px 12px;font-size:11px;letter-spacing:.5px;background:rgba(255,255,255,.06);color:rgba(247,245,242,.6);border:1px solid rgba(255,255,255,.1);border-radius:6px;cursor:pointer;font-family:inherit;margin-bottom:6px">🔔 Activar notificaciones</button>
     <button onclick="cambiarContrasena()" style="width:100%;padding:8px 12px;font-size:11px;letter-spacing:.5px;background:rgba(255,255,255,.06);color:rgba(247,245,242,.6);border:1px solid rgba(255,255,255,.1);border-radius:6px;cursor:pointer;font-family:inherit;margin-bottom:6px">🔑 Cambiar contraseña</button>
     <button onclick="openGestionPasswords()" class="gerencia-only" style="width:100%;padding:8px 12px;font-size:11px;letter-spacing:.5px;background:rgba(255,255,255,.06);color:rgba(247,245,242,.6);border:1px solid rgba(255,255,255,.1);border-radius:6px;cursor:pointer;font-family:inherit;margin-bottom:6px">👥 Gestionar usuarios</button>
+    <button onclick="descargarBackup()" class="gerencia-only" style="width:100%;padding:8px 12px;font-size:11px;letter-spacing:.5px;background:rgba(255,255,255,.06);color:rgba(247,245,242,.6);border:1px solid rgba(255,255,255,.1);border-radius:6px;cursor:pointer;font-family:inherit;margin-bottom:6px">💾 Backup de datos</button>
     <button onclick="openPushNotifModal()" class="gerencia-only" style="width:100%;padding:8px 12px;font-size:11px;letter-spacing:.5px;background:rgba(255,255,255,.06);color:rgba(247,245,242,.6);border:1px solid rgba(255,255,255,.1);border-radius:6px;cursor:pointer;font-family:inherit">🔔 Enviar notificación</button>
   </div>
   <div class="sidebar-footer">Florería Duhau · Ivan Hechenleitner© 2026</div>
@@ -259,6 +261,7 @@
     <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px">
       <div><div class="page-title">Checklist Diaria</div><div class="page-subtitle">Mismo set de tareas de lunes a sábado · actividad, observaciones, tiempo y responsable editables</div></div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button class="btn-secondary gerencia-only" onclick="openVistaSemanal()" style="font-size:12px">📅 Vista semanal</button>
         <button class="btn-add gerencia-only" onclick="toggleHistory()" id="history-toggle-btn">📋 Ver Historial</button>
         <button class="btn-secondary gerencia-only" onclick="toggleProductividad()" id="prod-toggle-btn" style="font-size:12px;background:#2C4A3E;color:white;border-color:#2C4A3E">📊 Productividad</button>
         <button class="btn-secondary gerencia-only" id="btn-reset-week" onclick="confirmResetWeek()" style="font-size:12px">🔄 Nueva semana</button>
@@ -276,7 +279,7 @@
       <div class="history-week-tabs" id="history-week-tabs"></div>
       <div style="overflow-x:auto">
         <table class="history-table">
-          <thead><tr><th>Fecha</th><th>Semana</th><th>Día</th><th>Zona</th><th>Actividad</th><th>Observaciones</th><th>Inicio</th><th>Fin</th><th>Duración</th><th>Realizado por</th><th>Hora</th></tr></thead>
+          <thead><tr><th>Fecha</th><th>Semana</th><th>Día</th><th>Zona</th><th>Actividad</th><th>Observaciones</th><th>Inicio</th><th>Fin</th><th>Duración</th><th>Realizado por</th><th>Hora</th><th>Foto</th></tr></thead>
           <tbody id="history-body"></tbody>
         </table>
       </div>
@@ -725,6 +728,31 @@
         <button class="btn-secondary" onclick="calNextMonth()">Siguiente ›</button>
       </div>
       <div id="cal-grid"></div>
+    </div>
+  </div>
+
+  <!-- ══════ VISTA SEMANAL CHECKLIST (gerencia) ══════ -->
+  <div class="modal-overlay" id="cl-week-modal">
+    <div class="modal" style="max-width:1150px;width:96vw">
+      <button class="modal-close" onclick="closeModal('cl-week-modal')">✕</button>
+      <div class="modal-title">📅 Planificación semanal del checklist</div>
+      <div style="font-size:12px;color:var(--mid-gray);margin-bottom:12px">Asigná responsables y marcá el <strong>Nuevo</strong> de cada zona para toda la semana. Tocá la etiqueta Retoque/NUEVO para alternar — al marcar Nuevo, el resto de la semana pasa a Retoque automáticamente.</div>
+      <div id="cl-week-grid" style="max-height:70vh;overflow:auto"></div>
+    </div>
+  </div>
+
+  <!-- ══════ FOTO ARREGLO NUEVO (checklist) ══════ -->
+  <div class="modal-overlay" id="cl-foto-modal">
+    <div class="modal" style="max-width:420px">
+      <button class="modal-close" onclick="closeModal('cl-foto-modal')">✕</button>
+      <div class="modal-title">📷 Foto del arreglo</div>
+      <div id="cl-foto-zona" style="font-size:13px;color:var(--mid-gray);margin-bottom:12px"></div>
+      <input type="file" id="cl-foto-file" accept="image/*" capture="environment" style="margin-bottom:12px;max-width:100%" onchange="clFotoPreview(this)">
+      <img id="cl-foto-preview" alt="" style="display:none;max-width:100%;border-radius:10px;margin-bottom:12px">
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn-secondary" onclick="closeModal('cl-foto-modal')">Omitir</button>
+        <button class="btn-add" id="cl-foto-save" onclick="guardarFotoChecklist()" disabled>Guardar foto</button>
+      </div>
     </div>
   </div>
 
@@ -1986,6 +2014,7 @@
       </div>
     </div>
     <div id="rep-eq-tabla"></div>
+    <div id="rep-eq-tiempos" style="margin-top:28px"></div>
   </div>
 
   <!-- ══════ REPORTES — VENTAS & COMERCIAL ══════ -->
