@@ -625,15 +625,31 @@ function updTiempoRef(i, val){
   fbSave('clTiemposRef', clTiemposRef);
 }
 
-// Cambio de actividad (solo gerencia): avisar si la zona ya tuvo Nuevo esta semana
+// Cambio de actividad (solo gerencia). Al marcar Nuevo un día, esa tarea queda
+// en Retoque el resto de la semana (el Nuevo se hace 1 sola vez por semana).
 function updActividad(i, val){
-  if(String(val).toLowerCase()==='nuevo'){
-    const dias = Object.entries(clStateByDay)
-      .filter(([d,ds]) => d!==currentDay && String(ds?.actividad?.[i]||'').toLowerCase()==='nuevo')
-      .map(([d])=>d);
-    if(dias.length) showToast(`⚠️ ${CL_TASKS[i].zona} ya tiene NUEVO esta semana (${dias.join(', ')}) — se hace 1 vez por semana`, 'warn');
-  }
   updCL(i,'actividad',val);
+  if(String(val).toLowerCase()!=='nuevo') return;
+  const cambiados = [];
+  Object.entries(clStateByDay).forEach(([d,ds])=>{
+    if(d===currentDay || !Array.isArray(ds?.actividad)) return;
+    if(String(ds.actividad[i]||'').toLowerCase()==='nuevo'){
+      ds.actividad[i] = 'Retoque';
+      cambiados.push(d);
+    }
+  });
+  // Los días aún no creados ya arrancan en Retoque por default
+  if(cambiados.length){
+    try{ localStorage.setItem(CL_STORAGE_KEY, JSON.stringify(clStateByDay)); }catch(e){}
+    window._checklistLastSave = Date.now();
+    cambiados.forEach(d=>{
+      if(window.fbUpdate) window.fbUpdate('checklist/'+d, {actividad: clStateByDay[d].actividad});
+    });
+    if(!window.fbUpdate) fbSave('checklist', clStateByDay);
+    showToast(`✓ Nuevo el ${currentDay} — ${CL_TASKS[i].zona} pasó a Retoque el resto de la semana (${cambiados.join(', ')})`);
+  } else {
+    showToast(`✓ Nuevo asignado a ${CL_TASKS[i].zona} — el resto de la semana queda en Retoque`);
+  }
 }
 
 // ── Semana actual ISO (ej: "2026-W22") ────────────────────────────────────────
@@ -811,6 +827,28 @@ function durBadge(inicio, fin, ref){
   return `<span style="font-size:11px;font-weight:600;color:${color};background:${bg};padding:2px 8px;border-radius:10px">${fmtDur(mins)}</span>`;
 }
 
+// ── Último "Nuevo" por zona (contador de días, solo gerencia) ────────────────
+// Recorre el historial del checklist y devuelve la fecha más reciente en que
+// cada zona se completó con actividad Nuevo. Clave: sec + '|' + zona.
+function mapUltimoNuevoPorZona(){
+  const map = {};
+  (checklistHistory||[]).forEach(r=>{
+    if(!r?.date || !r?.zona) return;
+    if(!String(r.actividad||'').toLowerCase().includes('nuevo')) return;
+    const k = (r.sec||'')+'|'+r.zona;
+    if(!map[k] || r.date > map[k]) map[k] = r.date;
+  });
+  return map;
+}
+
+function badgeUltimoNuevo(fecha){
+  if(!fecha) return '<div style="font-size:10px;color:var(--mid-gray);margin-top:2px;font-weight:400">🌸 Sin registro de Nuevo</div>';
+  const dias = Math.max(0, Math.floor((new Date(TODAY_ISO)-new Date(fecha))/86400000));
+  const color = dias>=7 ? 'var(--red-alert)' : dias>=5 ? '#A06A00' : 'var(--sage-dark)';
+  const txt = dias===0 ? 'Nuevo hoy' : dias===1 ? 'Nuevo ayer' : `Nuevo hace ${dias} días`;
+  return `<div style="font-size:10px;font-weight:600;color:${color};margin-top:2px" title="Último Nuevo: ${fmtDate(fecha)}">🌸 ${txt}</div>`;
+}
+
 function renderChecklistTable(){
   if(!clState){
     clState = getOrCreateDayState(currentDay);
@@ -897,6 +935,8 @@ function renderChecklistTable(){
 
   // Para floristas: determinar qué secciones tienen tareas asignadas
   const isFlorista = userRole === 'florista';
+  // Contador de días desde el último Nuevo por zona — solo lo ve gerencia
+  const ultimoNuevoMap = userRole==='gerencia' ? mapUltimoNuevoPorZona() : null;
   CL_TASKS.forEach((t,i)=>{
     const curResp = clState.responsable[i] || t.responsable || '';
 
@@ -948,9 +988,10 @@ function renderChecklistTable(){
         <td style="width:90px;text-align:center;padding:4px 6px">${renderHoraCell(i,'inicio',done)}</td>
         <td style="width:90px;text-align:center;padding:4px 6px">${renderHoraCell(i,'fin',done)}</td>`;
     } else {
+      const nuevoInfo = ultimoNuevoMap && actLower!=='riego' ? badgeUltimoNuevo(ultimoNuevoMap[t.sec+'|'+t.zona]) : '';
       tr.innerHTML = `
         <td style="width:32px"><input type="checkbox" class="task-check" ${done?'checked':''} onchange="toggleTask(${i},this)"></td>
-        <td style="font-weight:500;font-size:12.5px;min-width:140px">${esc(t.zona)}</td>
+        <td style="font-weight:500;font-size:12.5px;min-width:140px">${esc(t.zona)}${nuevoInfo}</td>
         <td style="min-width:100px">${actividadCell}</td>
         <td style="width:60px;text-align:center">${refCell}</td>
         <td style="min-width:150px">
