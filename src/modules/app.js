@@ -9318,6 +9318,123 @@ let currentLoginKey = null; // la contraseña con la que se logueó
 // se guardaban en Firebase pero el login seguía usando los valores por defecto.
 window._setLoginPasswords = (v) => { if(v && typeof v === 'object') loginPasswords = v; };
 
+// ── Autenticación con hash (PBKDF2) ───────────────────────────────────────────
+// Las contraseñas ya no viajan en texto plano: en la base se guarda `loginAuth`,
+// indexado por id de usuario (el label en minúsculas, que no es secreto), con
+// salt aleatorio y hash PBKDF2. El personal sigue escribiendo su contraseña
+// igual; el login recorre los usuarios y compara hashes.
+// Retrocompatible: mientras no exista `loginAuth`, se usa `loginPasswords`
+// (texto plano) como hasta ahora, y gerencia lo migra al entrar.
+let loginAuth = null;         // { [id]: { role, label, ..., salt, hash } }
+let currentAuthId = null;     // id del usuario logueado (para cambiar contraseña)
+window._setLoginAuth = (v) => { loginAuth = (v && typeof v === 'object' && Object.keys(v).length) ? v : null; };
+
+function _bufToB64(buf){ let s=''; new Uint8Array(buf).forEach(b=>s+=String.fromCharCode(b)); return btoa(s); }
+function _randSalt(){ return _bufToB64(crypto.getRandomValues(new Uint8Array(16))); }
+
+async function hashPassword(pw, saltB64){
+  // Normaliza como el login histórico (case-insensitive, sin espacios)
+  const norm = String(pw).trim().toLowerCase();
+  const salt = Uint8Array.from(atob(saltB64), c=>c.charCodeAt(0));
+  const keyMat = await crypto.subtle.importKey('raw', new TextEncoder().encode(norm), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({ name:'PBKDF2', salt, iterations:150000, hash:'SHA-256' }, keyMat, 256);
+  return _bufToB64(bits);
+}
+
+// Construye la entrada de identidad común (usada por login y push)
+function _aplicarEntry(entry, id){
+  if(entry.role === 'florista' && entry.floristaNombre && JARDINEROS_LIST.includes(entry.floristaNombre) && !entry.jardineroNombre){
+    entry.jardineroNombre = entry.floristaNombre;
+  }
+  currentAuthId = id;
+  if(entry.floristaNombre) floristaNombre = entry.floristaNombre;
+  if(entry.jardineroNombre){ jardineroNombre = entry.jardineroNombre; jardCurrentJardinero = jardineroNombre; try{ localStorage.setItem('jardCurrentJardinero', jardineroNombre); }catch(e){} }
+  window.currentUserLabel = entry.label || id;
+  window._pushIdentity = { label: entry.label || id, roles: [entry.role, entry.jardineroNombre ? 'jardinero' : null].filter(Boolean) };
+  currentSucursal = entry.sucursal || 'duhau';
+}
+
+// Verifica una contraseña. Devuelve {entry, id} o null.
+async function verificarLogin(val){
+  if(loginAuth){
+    for(const [id, e] of Object.entries(loginAuth)){
+      if(!e?.salt || !e?.hash) continue;
+      const h = await hashPassword(val, e.salt);
+      if(h === e.hash) return { entry: {...e}, id };
+    }
+    return null;
+  }
+  // Fallback texto plano (esquema viejo): la clave ES la contraseña
+  const key = String(val).trim().toLowerCase();
+  const e = loginPasswords[key];
+  return e ? { entry: {...e}, id: (e.label||key).toLowerCase() } : null;
+}
+
+// Construye el objeto loginAuth (hashes) a partir de loginPasswords (texto plano)
+async function _construirLoginAuth(src){
+  const auth = {};
+  for(const [pw, e] of Object.entries(src||{})){
+    const salt = _randSalt();
+    const hash = await hashPassword(pw, salt);
+    const id = String(e.label || pw).toLowerCase().replace(/[.#$/[\]\s]/g, '_');
+    auth[id] = { role:e.role, label:e.label||pw, salt, hash,
+      ...(e.floristaNombre?{floristaNombre:e.floristaNombre}:{}),
+      ...(e.jardineroNombre?{jardineroNombre:e.jardineroNombre}:{}),
+      ...(e.sucursal?{sucursal:e.sucursal}:{}) };
+  }
+  return auth;
+}
+
+function _persistLoginAuth(){
+  if(window.fbSetPath) window.fbSetPath('loginAuth', loginAuth);
+  else fbSave('loginAuth', loginAuth);
+}
+
+// Migra a hashes al entrar gerencia. Autoverifica que la contraseña de gerencia
+// siga validando antes de borrar el texto plano (para no dejar a nadie afuera).
+async function migrarSeguridadLogin(pwGerenciaActual){
+  if(loginAuth || !Object.keys(loginPasswords||{}).length) return;
+  const auth = await _construirLoginAuth(loginPasswords);
+  let ok = false;
+  for(const e of Object.values(auth)){
+    if(await hashPassword(pwGerenciaActual, e.salt) === e.hash){ ok = true; break; }
+  }
+  if(!ok){ console.warn('Migración de login abortada: autoverificación falló'); return; }
+  loginAuth = auth;
+  _persistLoginAuth();
+  if(window.fbSetPath) window.fbSetPath('loginPasswords', null); // borra el texto plano de la base
+  showToast('🔒 Contraseñas protegidas — ahora se guardan cifradas');
+}
+
+// Garantiza loginAuth antes de gestionar usuarios (ya estás logueado como gerencia)
+async function _ensureLoginAuth(){
+  if(loginAuth) return true;
+  loginAuth = await _construirLoginAuth(loginPasswords);
+  _persistLoginAuth();
+  if(window.fbSetPath) window.fbSetPath('loginPasswords', null);
+  return true;
+}
+
+// Setea (o crea) la contraseña de un usuario del esquema con hash
+async function _setUserPassword(id, pw){
+  if(!loginAuth || !loginAuth[id]) return false;
+  const salt = _randSalt();
+  const hash = await hashPassword(pw, salt);
+  loginAuth[id] = { ...loginAuth[id], salt, hash };
+  if(window.fbSetPath) window.fbSetPath('loginAuth/'+id, loginAuth[id]);
+  else _persistLoginAuth();
+  return true;
+}
+
+// ¿Ya existe un usuario con esa contraseña? (para evitar colisiones al crear)
+async function _passwordEnUso(pw){
+  if(!loginAuth) return !!loginPasswords[String(pw).trim().toLowerCase()];
+  for(const e of Object.values(loginAuth)){
+    if(e?.salt && await hashPassword(pw, e.salt) === e.hash) return true;
+  }
+  return false;
+}
+
 // ── Briefing "Buen día" al entrar (una vez por día por dispositivo) ───────────
 function _saludoHora(){
   const h = new Date().getHours();
@@ -9393,35 +9510,24 @@ function cerrarBriefing(){
   setTimeout(()=>ov.remove(), 400);
 }
 
-function doLogin(){
-  const val = document.getElementById('login-input').value.trim();
+async function doLogin(){
   const inp = document.getElementById('login-input');
   const err = document.getElementById('login-error');
-  const key = val.toLowerCase();
-  const entry = loginPasswords[key];
-  if(entry){
-    // Florista que además es jardinero (figura en JARDINEROS_LIST, ej. Ivan):
-    // habilitar ambos mundos en el mismo usuario. Robusto aunque loginPasswords
-    // venga de Firebase con la entrada vieja (florista sola).
-    if(entry.role === 'florista' && entry.floristaNombre && JARDINEROS_LIST.includes(entry.floristaNombre) && !entry.jardineroNombre){
-      entry.jardineroNombre = entry.floristaNombre;
-    }
-    currentLoginKey = key;
-    if(entry.floristaNombre) floristaNombre = entry.floristaNombre;
-    if(entry.jardineroNombre){ jardineroNombre = entry.jardineroNombre; jardCurrentJardinero = jardineroNombre; try{ localStorage.setItem('jardCurrentJardinero', jardineroNombre); }catch(e){} }
-    window.currentUserLabel = entry.label || key;
-    // Identidad para las suscripciones push: label + roles (incluye 'jardinero'
-    // para usuarios combinados como Ivan, así les llegan los avisos de jardín)
-    window._pushIdentity = {
-      label: entry.label || key,
-      roles: [entry.role, entry.jardineroNombre ? 'jardinero' : null].filter(Boolean),
-    };
-    currentSucursal = entry.sucursal || 'duhau';
+  const val = inp.value.trim();
+  if(!val) return;
+  const found = await verificarLogin(val);
+  if(found){
+    const entry = found.entry;
+    if(!loginAuth) currentLoginKey = val.trim().toLowerCase(); // modo viejo: cambio de contraseña propia
+    _aplicarEntry(entry, found.id);
     applyRole(entry.role);
     renderSucursalIndicador();
     const screen = document.getElementById('login-screen');
     screen.classList.add('hide');
     setTimeout(()=>screen.remove(), 520);
+    // Migración de seguridad: gerencia convierte las contraseñas a hashes la
+    // primera vez que entra (retrocompatible, no rompe el flujo del personal).
+    if(entry.role === 'gerencia' && !loginAuth){ setTimeout(()=>migrarSeguridadLogin(val), 3000); }
     // Activar notificaciones push si el navegador lo soporta
     setTimeout(()=>initPushForUser?.(), 2000);
     setTimeout(()=>alertasAutomaticas(), 4000);
@@ -9438,24 +9544,31 @@ function doLogin(){
 }
 
 async function cambiarContrasena(){
-  const entry = loginPasswords[currentLoginKey];
-  if(!entry){ showToast('⚠️ Error de sesión'); return; }
-  const nueva = await promptModal('Ingresá tu nueva contraseña (mínimo 3 caracteres):', { title: 'Cambiar contraseña', password: false });
-  if(!nueva || nueva.trim().length < 3){ showToast('⚠️ La contraseña debe tener al menos 3 caracteres'); return; }
-  const nuevoKey = nueva.trim().toLowerCase();
-  if(nuevoKey === currentLoginKey){ showToast('Es la misma contraseña actual'); return; }
-  if(loginPasswords[nuevoKey]){ showToast('⚠️ Esa contraseña ya está en uso por otro usuario'); return; }
+  const nueva = await promptModal('Ingresá tu nueva contraseña (mínimo 4 caracteres):', { title: 'Cambiar contraseña', password: false });
+  if(!nueva || nueva.trim().length < 4){ showToast('⚠️ La contraseña debe tener al menos 4 caracteres'); return; }
+  const nuevaClean = nueva.trim();
   const confirmar = await promptModal('Confirmá la nueva contraseña:', { title: 'Cambiar contraseña', password: false });
-  if(!confirmar || confirmar.trim().toLowerCase() !== nuevoKey){ showToast('⚠️ Las contraseñas no coinciden'); return; }
-  loginPasswords[nuevoKey] = {...entry};
-  delete loginPasswords[currentLoginKey];
-  currentLoginKey = nuevoKey;
-  fbSave('loginPasswords', loginPasswords);
-  showToast('✅ Contraseña cambiada. Ahora ingresás con: ' + nueva.trim());
+  if(!confirmar || confirmar.trim().toLowerCase() !== nuevaClean.toLowerCase()){ showToast('⚠️ Las contraseñas no coinciden'); return; }
+  if(loginAuth){
+    if(!currentAuthId || !loginAuth[currentAuthId]){ showToast('⚠️ Error de sesión'); return; }
+    await _setUserPassword(currentAuthId, nuevaClean);
+  } else {
+    // Modo viejo (texto plano): todavía sin migrar
+    const entry = loginPasswords[currentLoginKey];
+    if(!entry){ showToast('⚠️ Error de sesión'); return; }
+    const nuevoKey = nuevaClean.toLowerCase();
+    if(nuevoKey !== currentLoginKey && loginPasswords[nuevoKey]){ showToast('⚠️ Esa contraseña ya está en uso'); return; }
+    loginPasswords[nuevoKey] = {...entry};
+    if(nuevoKey !== currentLoginKey) delete loginPasswords[currentLoginKey];
+    currentLoginKey = nuevoKey;
+    fbSave('loginPasswords', loginPasswords);
+  }
+  showToast('✅ Contraseña cambiada. Ahora ingresás con: ' + nuevaClean);
 }
 
-function openGestionPasswords(){
+async function openGestionPasswords(){
   if(userRole !== 'gerencia'){ showToast('⛔ Solo gerencia'); return; }
+  await _ensureLoginAuth();
   let ov = document.getElementById('gestion-passwords-modal');
   if(!ov){
     ov = document.createElement('div');
@@ -9463,30 +9576,30 @@ function openGestionPasswords(){
     ov.className = 'modal-overlay';
     document.body.appendChild(ov);
   }
-  const entries = Object.entries(loginPasswords).sort((a,b) => {
+  const entries = Object.entries(loginAuth||{}).sort((a,b) => {
     const order = {gerencia:0,operario:1,florista:2,jardinero:3,compras:4,ventas:5};
     return (order[a[1].role]||9) - (order[b[1].role]||9);
   });
-  const roleLabels = {gerencia:'👔 Gerencia',operario:'🏠 Operario',florista:'💐 Florista',jardinero:'🌿 Jardinero',compras:'📦 Compras',ventas:'🏨 Hyatt Ventas'};
+  const roleLabels = {gerencia:'👔 Gerencia',operario:'🏠 Operario',florista:'💐 Florista',jardinero:'🌿 Jardinero',compras:'📦 Compras',ventas:'🏨 Hyatt Ventas',comercial:'🎯 Comercial'};
 
   ov.innerHTML = `<div class="modal" style="max-width:600px;max-height:85vh;overflow-y:auto">
     <button class="modal-close" onclick="document.getElementById('gestion-passwords-modal').classList.remove('open')">✕</button>
-    <div class="modal-title">👥 Gestión de Usuarios y Contraseñas</div>
-    <div style="font-size:12px;color:var(--mid-gray);margin-bottom:16px">Podés ver, resetear o cambiar la contraseña de cualquier usuario.</div>
+    <div class="modal-title">👥 Gestión de Usuarios</div>
+    <div style="font-size:12px;color:var(--mid-gray);margin-bottom:6px">Cambiá o reseteá la contraseña de cualquier usuario.</div>
+    <div style="font-size:11.5px;color:var(--sage-dark);background:#EBF5E8;border-radius:8px;padding:8px 12px;margin-bottom:16px">🔒 Las contraseñas se guardan cifradas — por seguridad no se pueden ver, solo cambiar.</div>
     <div style="display:flex;flex-direction:column;gap:1px;background:var(--light-gray);border-radius:8px;overflow:hidden">
-      ${entries.map(([key, e]) => `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--warm-white)">
+      ${entries.map(([id, e]) => `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--warm-white)">
         <div style="flex:1;min-width:0">
-          <div style="font-size:13px;font-weight:600;color:#1A1A1A">${esc(e.label || e.floristaNombre || key)}</div>
+          <div style="font-size:13px;font-weight:600;color:#1A1A1A">${esc(e.label || e.floristaNombre || id)}</div>
           <div style="font-size:11px;color:var(--mid-gray)">${roleLabels[e.role]||e.role}</div>
         </div>
-        <div style="background:#F4F1EC;padding:4px 12px;border-radius:6px;font-family:monospace;font-size:13px;font-weight:600;color:#1A1A1A;min-width:80px;text-align:center">${esc(key)}</div>
-        <button onclick="resetearPassword('${esc(key)}')" style="background:none;border:1px solid var(--light-gray);border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:inherit;color:var(--charcoal);white-space:nowrap">✏️ Cambiar</button>
-        ${e.role==='florista' ? `<button onclick="eliminarUsuario('${esc(key)}')" style="background:none;border:1px solid #E8CECE;border-radius:6px;padding:5px 8px;font-size:11px;cursor:pointer;font-family:inherit;color:var(--red-alert);white-space:nowrap">✕</button>` : ''}
+        <div style="background:#F4F1EC;padding:4px 12px;border-radius:6px;font-size:12px;color:var(--mid-gray);min-width:70px;text-align:center">•••••</div>
+        <button onclick="resetearPassword('${esc(id)}')" style="background:none;border:1px solid var(--light-gray);border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:inherit;color:var(--charcoal);white-space:nowrap">✏️ Cambiar</button>
+        ${e.role==='florista' ? `<button onclick="eliminarUsuario('${esc(id)}')" style="background:none;border:1px solid #E8CECE;border-radius:6px;padding:5px 8px;font-size:11px;cursor:pointer;font-family:inherit;color:var(--red-alert);white-space:nowrap">✕</button>` : ''}
       </div>`).join('')}
     </div>
-    <div style="margin-top:16px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
+    <div style="margin-top:16px">
       <button class="btn-add" onclick="agregarUsuarioFlorista()" style="font-size:12px;padding:8px 16px">+ Agregar florista</button>
-      <button class="btn-secondary" onclick="resetearTodasPasswords()" style="font-size:11px;color:var(--red-alert)">🔄 Resetear todas a valores originales</button>
     </div>
   </div>`;
   ov.classList.add('open');
@@ -9494,17 +9607,19 @@ function openGestionPasswords(){
 
 async function agregarUsuarioFlorista(){
   if(userRole !== 'gerencia') return;
+  await _ensureLoginAuth();
   const nombre = await promptModal('Nombre del/la florista (ej. María):', { title: 'Nuevo usuario florista' });
   if(!nombre || !nombre.trim()) return;
   const nombreClean = nombre.trim();
-  const passDefault = nombreClean.toLowerCase();
-  const password = await promptModal('Contraseña para ' + nombreClean + ':', { title: 'Nuevo usuario florista', default: passDefault, password: false });
-  if(!password || password.trim().length < 3){ showToast('⚠️ Mínimo 3 caracteres'); return; }
-  const key = password.trim().toLowerCase();
-  if(loginPasswords[key]){ showToast('⚠️ Esa contraseña ya está en uso'); return; }
-  loginPasswords[key] = { role: 'florista', label: nombreClean, floristaNombre: nombreClean };
-  fbSave('loginPasswords', loginPasswords);
-  // Agregar a la lista de responsables del checklist
+  const password = await promptModal('Contraseña para ' + nombreClean + ':', { title: 'Nuevo usuario florista', default: nombreClean.toLowerCase(), password: false });
+  if(!password || password.trim().length < 4){ showToast('⚠️ Mínimo 4 caracteres'); return; }
+  if(await _passwordEnUso(password.trim())){ showToast('⚠️ Esa contraseña ya está en uso'); return; }
+  const id = nombreClean.toLowerCase().replace(/[.#$/[\]\s]/g,'_');
+  if(loginAuth[id]){ showToast('⚠️ Ya existe un usuario con ese nombre'); return; }
+  const salt = _randSalt();
+  const hash = await hashPassword(password.trim(), salt);
+  loginAuth[id] = { role:'florista', label:nombreClean, floristaNombre:nombreClean, salt, hash };
+  if(window.fbSetPath) window.fbSetPath('loginAuth/'+id, loginAuth[id]); else _persistLoginAuth();
   if(!CL_RESP_OPTS.includes(nombreClean)){
     CL_RESP_OPTS.push(nombreClean);
     CL_RESP_OPTS.sort((a,b) => a.localeCompare(b,'es'));
@@ -9513,44 +9628,40 @@ async function agregarUsuarioFlorista(){
   openGestionPasswords();
 }
 
-async function resetearPassword(key){
+async function resetearPassword(id){
   if(userRole !== 'gerencia') return;
-  const entry = loginPasswords[key];
+  await _ensureLoginAuth();
+  const entry = loginAuth[id];
   if(!entry){ showToast('Usuario no encontrado'); return; }
-  const nueva = await promptModal('Nueva contraseña para ' + (entry.label||key) + ':', { title: 'Resetear contraseña', password: false });
-  if(!nueva || nueva.trim().length < 3){ showToast('⚠️ Mínimo 3 caracteres'); return; }
-  const nuevoKey = nueva.trim().toLowerCase();
-  if(nuevoKey !== key && loginPasswords[nuevoKey]){ showToast('⚠️ Esa contraseña ya está en uso'); return; }
-  if(nuevoKey !== key){
-    loginPasswords[nuevoKey] = {...entry};
-    delete loginPasswords[key];
-    if(key === currentLoginKey) currentLoginKey = nuevoKey;
-  }
-  fbSave('loginPasswords', loginPasswords);
-  showToast('✅ Contraseña de ' + (entry.label||key) + ' cambiada a: ' + nueva.trim());
-  openGestionPasswords(); // refrescar modal
+  const nueva = await promptModal('Nueva contraseña para ' + (entry.label||id) + ':', { title: 'Resetear contraseña', password: false });
+  if(!nueva || nueva.trim().length < 4){ showToast('⚠️ Mínimo 4 caracteres'); return; }
+  if(await _passwordEnUso(nueva.trim())){ showToast('⚠️ Esa contraseña ya está en uso por otro usuario'); return; }
+  await _setUserPassword(id, nueva.trim());
+  showToast('✅ Contraseña de ' + (entry.label||id) + ' cambiada a: ' + nueva.trim());
+  openGestionPasswords();
 }
 
-async function eliminarUsuario(key){
+async function eliminarUsuario(id){
   if(userRole !== 'gerencia') return;
-  const entry = loginPasswords[key];
+  await _ensureLoginAuth();
+  const entry = loginAuth[id];
   if(!entry) return;
   if(entry.role !== 'florista'){ showToast('⚠️ Solo se pueden eliminar usuarios floristas'); return; }
-  if(!await confirmModal('¿Eliminar al usuario ' + (entry.label||key) + '?\nYa no podrá ingresar al sistema.')) return;
-  // Quitar de responsables
+  if(!await confirmModal('¿Eliminar al usuario ' + (entry.label||id) + '?\nYa no podrá ingresar al sistema.')) return;
   const idx = CL_RESP_OPTS.indexOf(entry.floristaNombre);
   if(idx > -1) CL_RESP_OPTS.splice(idx, 1);
-  delete loginPasswords[key];
-  fbSave('loginPasswords', loginPasswords);
-  showToast('🗑️ Usuario ' + (entry.label||key) + ' eliminado');
+  delete loginAuth[id];
+  if(window.fbSetPath) window.fbSetPath('loginAuth/'+id, null); else _persistLoginAuth();
+  showToast('🗑️ Usuario ' + (entry.label||id) + ' eliminado');
   openGestionPasswords();
 }
 
 async function resetearTodasPasswords(){
   if(userRole !== 'gerencia') return;
   if(!await confirmModal('¿Resetear TODAS las contraseñas a los valores originales?\n\nAlvear, Duhau, Caro, etc. volverán a ser las contraseñas.')) return;
-  loginPasswords = JSON.parse(JSON.stringify(LOGIN_DEFAULTS));
-  fbSave('loginPasswords', loginPasswords);
+  loginAuth = await _construirLoginAuth(LOGIN_DEFAULTS);
+  _persistLoginAuth();
+  if(window.fbSetPath) window.fbSetPath('loginPasswords', null);
   showToast('🔄 Todas las contraseñas reseteadas a valores originales');
   openGestionPasswords();
 }
