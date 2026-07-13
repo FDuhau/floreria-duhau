@@ -1000,11 +1000,31 @@ function renderChecklistTable(){
   if(userRole === 'florista'){
     if(tableWrap) tableWrap.style.display = 'none';
     if(cardsWrap){ cardsWrap.style.display = ''; renderChecklistCards(cardsWrap); }
+    const fEl = document.getElementById('cl-filtro-wrap');
+    if(fEl) fEl.style.display = 'none';
     renderProductividadCL();
     return;
   }
   if(tableWrap) tableWrap.style.display = '';
   if(cardsWrap) cardsWrap.style.display = 'none';
+
+  // ── Filtro rápido (gerencia/operario): por zona/responsable y estado ──
+  // Se crea una sola vez para no perder el foco del input al re-renderizar
+  let filtroEl = document.getElementById('cl-filtro-wrap');
+  if(!filtroEl){
+    filtroEl = document.createElement('div');
+    filtroEl.id = 'cl-filtro-wrap';
+    filtroEl.innerHTML = `
+      <input class="cl-obs-input" id="cl-filtro-txt" placeholder="🔍 Filtrar por zona o responsable..." style="flex:1;min-width:160px"
+        oninput="clSetFiltro('txt',this.value)">
+      <button class="filter-btn cl-fbtn" data-f="all"    onclick="clSetFiltro('estado','all')">Todas</button>
+      <button class="filter-btn cl-fbtn" data-f="pend"   onclick="clSetFiltro('estado','pend')">Pendientes</button>
+      <button class="filter-btn cl-fbtn" data-f="hechas" onclick="clSetFiltro('estado','hechas')">Hechas</button>`;
+    filtroEl.style.cssText = 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px';
+    document.getElementById('cl-table-wrap').before(filtroEl);
+  }
+  filtroEl.style.display = '';
+  filtroEl.querySelectorAll('.cl-fbtn').forEach(b=>b.classList.toggle('active', b.dataset.f===clFiltro.estado));
 
   const tbody = document.getElementById('checklist-body');
   tbody.innerHTML = '';
@@ -1029,6 +1049,14 @@ function renderChecklistTable(){
 
     // Florista individual: solo ver tareas asignadas a ellos
     if(isFlorista && curResp !== floristaNombre) return;
+
+    // Filtro rápido de gerencia: texto (zona/responsable) y estado
+    if(!isFlorista){
+      const txt = clFiltro.txt.trim().toLowerCase();
+      if(txt && !t.zona.toLowerCase().includes(txt) && !String(curResp).toLowerCase().includes(txt)) return;
+      if(clFiltro.estado==='pend' && clState.checked[i]) return;
+      if(clFiltro.estado==='hechas' && !clState.checked[i]) return;
+    }
 
     // Section header
     if(t.sec !== lastSec){
@@ -1221,6 +1249,36 @@ function renderChecklistTable(){
 }
 
 
+// ── Filtro rápido del checklist (gerencia/operario) ───────────────────────────
+const clFiltro = { txt:'', estado:'all' };
+function clSetFiltro(k, v){ clFiltro[k] = v; renderChecklistTable(); }
+
+// ── Festejo al completar todas las tareas del día (floristas) ─────────────────
+function festejarChecklist(){
+  const cont = document.createElement('div');
+  cont.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:9997;overflow:hidden';
+  const emojis = ['🌸','🌷','🌹','💐','🌻','✨'];
+  for(let i=0;i<26;i++){
+    const s = document.createElement('span');
+    s.textContent = emojis[Math.floor(Math.random()*emojis.length)];
+    s.style.cssText = `position:absolute;top:-40px;left:${Math.random()*100}%;font-size:${18+Math.random()*16}px;animation:clConfetti ${2.2+Math.random()*1.6}s ease-in ${Math.random()*0.8}s forwards`;
+    cont.appendChild(s);
+  }
+  document.body.appendChild(cont);
+  setTimeout(()=>cont.remove(), 5500);
+}
+
+function _checkFestejoChecklist(){
+  if(userRole!=='florista' || !floristaNombre) return;
+  const mis = CL_TASKS.map((_,i)=>i).filter(i => (clState.responsable[i]||'') === floristaNombre);
+  if(!mis.length || !mis.every(i=>clState.checked[i])) return;
+  const k = 'clFestejo_' + TODAY_ISO;
+  try{ if(localStorage.getItem(k)) return; localStorage.setItem(k,'1'); }catch(e){}
+  festejarChecklist();
+  navigator.vibrate?.([60,60,60,60,120]);
+  showToast(`🎉 ¡Completaste todas tus tareas de hoy, ${floristaNombre}!`);
+}
+
 // ── Checklist en tarjetas para floristas (mobile-first) ───────────────────────
 // Reemplaza la tabla por cards con botones grandes de Inicio/Fin. Reutiliza
 // renderHoraCell / renderEvHoraCell / renderVentaHoraCell para los controles.
@@ -1406,8 +1464,11 @@ function registrarHora(i, campo){
       ofrecerFotoNuevo(checklistHistory.length-1, t.zona);
     }
     saveWeekState(currentDay, 'checked');
+    navigator.vibrate?.([40,60,80]);
+    _checkFestejoChecklist();
   } else if(campo === 'inicio'){
     showToast('▶ Inicio registrado: ' + horaActual);
+    navigator.vibrate?.(30);
   }
 
   saveWeekState(currentDay, campo);
@@ -1605,6 +1666,8 @@ function toggleTask(i, el){
     if(userRole==='florista' && String(clState.actividad[i]||t.actividad).toLowerCase().includes('nuevo')){
       ofrecerFotoNuevo(checklistHistory.length-1, t.zona);
     }
+    navigator.vibrate?.(40);
+    _checkFestejoChecklist();
   }
   saveWeekState(currentDay, 'checked');
   renderChecklistTable();
@@ -13012,7 +13075,7 @@ Object.assign(window, {
   generarPresupuestoPDF, checkOnboarding, nextOnboardingStep, finishOnboarding,
   toggleProvManager, toggleSidebar, toggleTask, updC, updCL, updActividad, updTiempoRef, updCaja, updCajaMonto, updCajaTipo,
   openVistaSemanal, vsToggleActividad, vsSetResp, descargarBackup, clFotoPreview, guardarFotoChecklist, verFotoChecklist,
-  activarNotificaciones, openGaleriaNuevos, renderGaleriaNuevos, moveKanbanCard,
+  activarNotificaciones, openGaleriaNuevos, renderGaleriaNuevos, moveKanbanCard, clSetFiltro,
   updPedidoHabEstado, updTipoEvento, updV, updateInsumoCount, updateInsumoRow,
   updateKpiCompras, urgenciaPanelHTML, vdAutoPrice, zonaHoraBtn, zonaResetHora, zonaSetHora,
   toggleStockSugerencias,
