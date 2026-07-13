@@ -625,31 +625,105 @@ function updTiempoRef(i, val){
   fbSave('clTiemposRef', clTiemposRef);
 }
 
-// Cambio de actividad (solo gerencia). Al marcar Nuevo un día, esa tarea queda
-// en Retoque el resto de la semana (el Nuevo se hace 1 sola vez por semana).
-function updActividad(i, val){
-  updCL(i,'actividad',val);
-  if(String(val).toLowerCase()!=='nuevo') return;
+// Persistir un campo de un día puntual del checklist (localStorage + Firebase)
+function _persistCampoDia(day, campo){
+  try{ localStorage.setItem(CL_STORAGE_KEY, JSON.stringify(clStateByDay)); }catch(e){}
+  window._checklistLastSave = Date.now();
+  if(window.fbUpdate) window.fbUpdate('checklist/'+day, {[campo]: clStateByDay[day][campo]});
+  else fbSave('checklist', clStateByDay);
+}
+
+// Setear la actividad de una tarea en un día. Si es Nuevo, esa tarea pasa a
+// Retoque el resto de la semana (el Nuevo se hace 1 sola vez por semana).
+// Devuelve los días que se corrigieron automáticamente.
+function setActividadDia(day, i, val){
+  getOrCreateDayState(day).actividad[i] = val;
+  _persistCampoDia(day, 'actividad');
+  if(String(val).toLowerCase()!=='nuevo') return [];
   const cambiados = [];
   Object.entries(clStateByDay).forEach(([d,ds])=>{
-    if(d===currentDay || !Array.isArray(ds?.actividad)) return;
+    if(d===day || !Array.isArray(ds?.actividad)) return;
     if(String(ds.actividad[i]||'').toLowerCase()==='nuevo'){
       ds.actividad[i] = 'Retoque';
       cambiados.push(d);
+      _persistCampoDia(d, 'actividad');
     }
   });
   // Los días aún no creados ya arrancan en Retoque por default
-  if(cambiados.length){
-    try{ localStorage.setItem(CL_STORAGE_KEY, JSON.stringify(clStateByDay)); }catch(e){}
-    window._checklistLastSave = Date.now();
-    cambiados.forEach(d=>{
-      if(window.fbUpdate) window.fbUpdate('checklist/'+d, {actividad: clStateByDay[d].actividad});
+  return cambiados;
+}
+
+// Cambio de actividad desde la tabla diaria (solo gerencia)
+function updActividad(i, val){
+  const cambiados = setActividadDia(currentDay, i, val);
+  if(String(val).toLowerCase()!=='nuevo') return;
+  if(cambiados.length) showToast(`✓ Nuevo el ${currentDay} — ${CL_TASKS[i].zona} pasó a Retoque el resto de la semana (${cambiados.join(', ')})`);
+  else showToast(`✓ Nuevo asignado a ${CL_TASKS[i].zona} — el resto de la semana queda en Retoque`);
+}
+
+// ── Vista semanal del checklist (solo gerencia) ───────────────────────────────
+// Grilla zonas × días para asignar responsables y marcar el Nuevo de cada zona
+// de toda la semana de una sola vez.
+function openVistaSemanal(){
+  renderVistaSemanal();
+  document.getElementById('cl-week-modal').classList.add('open');
+}
+
+function renderVistaSemanal(){
+  const el = document.getElementById('cl-week-grid');
+  if(!el) return;
+  const dias = DIAS_SEMANA_NAMES;
+  const estados = {};
+  dias.forEach(d=>{ estados[d] = getOrCreateDayState(d); });
+  let lastSec = null;
+  let html = `<table class="stock-table" style="min-width:900px">
+    <thead><tr><th style="min-width:150px;position:sticky;left:0;background:var(--warm-white);z-index:1">Zona</th>${dias.map(d=>{
+      const nuevos = CL_TASKS.reduce((s,_,i)=>s+(String(estados[d].actividad[i]||'').toLowerCase()==='nuevo'?1:0),0);
+      return `<th style="min-width:118px">${d===currentDay?'▸ ':''}${d.slice(0,3)}${nuevos?` <span style="font-size:9px;background:#B8602A;color:#fff;border-radius:8px;padding:1px 6px;vertical-align:middle">${nuevos} N</span>`:''}</th>`;
+    }).join('')}</tr></thead><tbody>`;
+  CL_TASKS.forEach((t,i)=>{
+    if(t.sec !== lastSec){
+      lastSec = t.sec;
+      const sh = SEC_HEADERS[t.sec];
+      html += `<tr class="cl-section-row ${sh.cls}"><td colspan="${dias.length+1}">${sh.icon}&nbsp;&nbsp;${sh.label}</td></tr>`;
+    }
+    html += `<tr><td style="font-weight:500;font-size:12px;position:sticky;left:0;background:var(--warm-white);z-index:1">${esc(t.zona)}</td>`;
+    dias.forEach(d=>{
+      const ds = estados[d];
+      const actL = String(ds.actividad[i]||t.actividad).toLowerCase();
+      const resp = ds.responsable[i]||'';
+      const chip = actL==='riego'
+        ? '<span class="badge badge-riego" style="font-size:9px">Riego</span>'
+        : `<span class="badge ${actL==='nuevo'?'badge-nuevo':'badge-retoque'}" style="font-size:9px;cursor:pointer" title="Tocar para alternar Retoque/Nuevo" onclick="vsToggleActividad('${d}',${i})">${actL==='nuevo'?'NUEVO':'Retoque'}</span>`;
+      html += `<td style="padding:5px 6px;vertical-align:top">
+        <div style="margin-bottom:4px">${chip}</div>
+        <select class="cl-select" style="font-size:10.5px;padding:3px 4px;max-width:110px" onchange="vsSetResp('${d}',${i},this.value)">
+          <option value="">—</option>
+          ${CL_RESP_OPTS.map(o=>`<option${o===resp?' selected':''}>${esc(o)}</option>`).join('')}
+        </select>
+      </td>`;
     });
-    if(!window.fbUpdate) fbSave('checklist', clStateByDay);
-    showToast(`✓ Nuevo el ${currentDay} — ${CL_TASKS[i].zona} pasó a Retoque el resto de la semana (${cambiados.join(', ')})`);
-  } else {
-    showToast(`✓ Nuevo asignado a ${CL_TASKS[i].zona} — el resto de la semana queda en Retoque`);
-  }
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+function vsToggleActividad(day, i){
+  const ds = getOrCreateDayState(day);
+  const cur = String(ds.actividad[i]||CL_TASKS[i].actividad).toLowerCase();
+  if(cur==='riego') return;
+  const val = cur==='nuevo' ? 'Retoque' : 'Nuevo';
+  const cambiados = setActividadDia(day, i, val);
+  if(val==='Nuevo' && cambiados.length) showToast(`✓ Nuevo el ${day} — ${CL_TASKS[i].zona} pasó a Retoque: ${cambiados.join(', ')}`);
+  renderVistaSemanal();
+  if(document.getElementById('page-checklist')?.classList.contains('active')) renderChecklistTable();
+}
+
+function vsSetResp(day, i, val){
+  getOrCreateDayState(day).responsable[i] = val;
+  _persistCampoDia(day, 'responsable');
+  if(day===currentDay && document.getElementById('page-checklist')?.classList.contains('active')) renderChecklistTable();
 }
 
 // ── Semana actual ISO (ej: "2026-W22") ────────────────────────────────────────
@@ -1225,6 +1299,10 @@ function registrarHora(i, campo){
         `${resp} tardó ${fmtDur(durFinal)} en "${t.zona} · ${clState.actividad[i]||t.actividad}" (referencia: ${ref}m)`,
         'tarea-excedida', 'roles:gerencia');
     }
+    // Si la tarea era un arreglo Nuevo, ofrecer adjuntar foto (floristas)
+    if(userRole==='florista' && String(clState.actividad[i]||t.actividad).toLowerCase().includes('nuevo')){
+      ofrecerFotoNuevo(checklistHistory.length-1, t.zona);
+    }
     saveWeekState(currentDay, 'checked');
   } else if(campo === 'inicio'){
     showToast('▶ Inicio registrado: ' + horaActual);
@@ -1232,6 +1310,70 @@ function registrarHora(i, campo){
 
   saveWeekState(currentDay, campo);
   renderChecklistTable();
+}
+
+// ── Foto del arreglo al completar un Nuevo ────────────────────────────────────
+// La florista puede adjuntar una foto (comprimida) al terminar una tarea Nuevo;
+// queda en el registro del historial y gerencia la ve desde el panel.
+let _fotoHistIdx = -1;
+let _fotoDataTmp = '';
+
+function comprimirImagen(file, maxDim, calidad, cb){
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      const escala = Math.min(1, maxDim / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width  = Math.round(img.width*escala);
+      canvas.height = Math.round(img.height*escala);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      cb(canvas.toDataURL('image/jpeg', calidad));
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function ofrecerFotoNuevo(histIdx, zona){
+  const modal = document.getElementById('cl-foto-modal');
+  if(!modal) return;
+  _fotoHistIdx = histIdx; _fotoDataTmp = '';
+  document.getElementById('cl-foto-zona').textContent = `Sacale una foto al arreglo nuevo de "${zona}" para que gerencia lo vea (opcional).`;
+  document.getElementById('cl-foto-file').value = '';
+  const p = document.getElementById('cl-foto-preview');
+  p.src = ''; p.style.display = 'none';
+  document.getElementById('cl-foto-save').disabled = true;
+  modal.classList.add('open');
+}
+
+function clFotoPreview(input){
+  const file = input.files[0]; if(!file) return;
+  comprimirImagen(file, 800, 0.65, data => {
+    _fotoDataTmp = data;
+    const p = document.getElementById('cl-foto-preview');
+    p.src = data; p.style.display = 'block';
+    document.getElementById('cl-foto-save').disabled = false;
+  });
+}
+
+function guardarFotoChecklist(){
+  if(!_fotoDataTmp || _fotoHistIdx<0 || !checklistHistory[_fotoHistIdx]){ closeModal('cl-foto-modal'); return; }
+  checklistHistory[_fotoHistIdx].img = _fotoDataTmp;
+  try{ localStorage.setItem('cl_history', JSON.stringify(checklistHistory)); }catch(e){}
+  fbSave('checklistHistory', checklistHistory);
+  closeModal('cl-foto-modal');
+  showToast('📷 Foto guardada — gerencia la puede ver en el historial');
+  renderHistoryPanel();
+}
+
+function verFotoChecklist(idx){
+  const img = checklistHistory[idx]?.img; if(!img) return;
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9998;display:flex;align-items:center;justify-content:center;padding:20px;cursor:pointer';
+  ov.innerHTML = `<img src="${img}" style="max-width:94vw;max-height:90vh;border-radius:12px">`;
+  ov.onclick = () => ov.remove();
+  document.body.appendChild(ov);
 }
 
 // Alerta prominente para errores de horario (más visible que un toast)
@@ -1323,6 +1465,10 @@ function toggleTask(i, el){
     localStorage.setItem('cl_history', JSON.stringify(checklistHistory));
     fbSave('checklistHistory', checklistHistory);
     renderHistoryPanel();
+    // Si la tarea era un arreglo Nuevo, ofrecer adjuntar foto (floristas)
+    if(userRole==='florista' && String(clState.actividad[i]||t.actividad).toLowerCase().includes('nuevo')){
+      ofrecerFotoNuevo(checklistHistory.length-1, t.zona);
+    }
   }
   saveWeekState(currentDay, 'checked');
   renderChecklistTable();
@@ -1401,11 +1547,13 @@ function renderHistoryPanel(){
   const filtered = historyWeekFilter ? checklistHistory.filter(r=>r.week===historyWeekFilter) : checklistHistory;
   const tbody = document.getElementById('history-body');
   if(filtered.length===0){
-    tbody.innerHTML='<tr><td colspan="11" style="padding:16px;text-align:center;color:var(--mid-gray)">Sin registros para mostrar</td></tr>';
+    tbody.innerHTML='<tr><td colspan="12" style="padding:16px;text-align:center;color:var(--mid-gray)">Sin registros para mostrar</td></tr>';
     return;
   }
   const sorted = [...filtered].reverse();
-    tbody.innerHTML = sorted.map(r=>`
+    tbody.innerHTML = sorted.map(r=>{
+    const realIdx = checklistHistory.indexOf(r);
+    return `
     <tr>
       <td>${fmtDate(r.date)}</td>
       <td style="font-size:11px;color:var(--mid-gray)">${esc(r.week)}</td>
@@ -1418,7 +1566,8 @@ function renderHistoryPanel(){
       <td style="text-align:center">${durBadge(r.inicio,r.fin,parseInt(r.ref)||0)}</td>
       <td><span class="responsable-tag">${esc(r.who)}</span></td>
       <td style="font-size:12px;color:var(--mid-gray)">${esc(r.hora)}</td>
-    </tr>`).join('');
+      <td style="text-align:center">${r.img?`<button class="btn-icon" onclick="verFotoChecklist(${realIdx})" title="Ver foto del arreglo">📷</button>`:''}</td>
+    </tr>`;}).join('');
 }
 
 // ════════════════════════════════════════
@@ -7114,6 +7263,83 @@ function renderReportesEquipo(){
       return `<tr><td><strong>${esc(d.nombre)}</strong></td><td>${isJardinero(d.nombre)?'Jardinería':'Florería'}</td><td>${d.dias}</td><td>${d.hsProg}h</td><td>${d.hsTrab}h</td><td style="color:${col};font-weight:600">${d.hsProg>0?pct+'%':'—'}</td></tr>`;
     }).join('')}</tbody>
   </table></div>`;
+
+  renderReporteTiempos(mesISO, filtroEmp);
+}
+
+// ── Reporte: tiempos del checklist, real vs referencia ────────────────────────
+// Usa el historial del checklist (duración, referencia y flag excedida por
+// registro) para mostrar promedio real vs tiempo de referencia por tarea y
+// resumen de excedidas por florista.
+function renderReporteTiempos(mesISO, filtroEmp){
+  const el = document.getElementById('rep-eq-tiempos');
+  if(!el) return;
+  const regs = (checklistHistory||[]).filter(r =>
+    (r?.date||'').startsWith(mesISO) && (parseInt(r?.duracion)||0) > 0 && (!filtroEmp || r.who === filtroEmp)
+  );
+  const titulo = '<div class="section-title" style="margin-bottom:6px">⏱ Tiempos del checklist — real vs referencia</div>'
+    + '<div style="font-size:12px;color:var(--mid-gray);margin-bottom:14px">Tareas completadas con Inicio/Fin registrado en el mes. El desvío compara el promedio real contra el tiempo de referencia.</div>';
+  if(!regs.length){
+    el.innerHTML = titulo + '<p style="color:var(--mid-gray);font-size:13px">Sin tareas con duración registrada en el mes seleccionado.</p>';
+    return;
+  }
+
+  // Por tarea (sección + zona + actividad)
+  const porTarea = new Map();
+  regs.forEach(r=>{
+    const k = (r.sec||'')+'|'+(r.zona||'')+'|'+String(r.actividad||'').toLowerCase();
+    if(!porTarea.has(k)) porTarea.set(k, {sec:r.sec, zona:r.zona, actividad:r.actividad, total:0, n:0, exc:0, ref:0});
+    const o = porTarea.get(k);
+    o.total += parseInt(r.duracion)||0; o.n++;
+    if(r.excedida) o.exc++;
+    const rr = parseInt(r.ref)||0; if(rr) o.ref = rr;
+  });
+  const tareas = [...porTarea.values()].map(o=>{
+    if(!o.ref){
+      // Registros viejos sin ref guardada: usar la referencia actual de la zona
+      const idx = CL_TASKS.findIndex(t=>t.sec===o.sec && t.zona===o.zona);
+      if(idx>=0) o.ref = getTiempoRef(idx);
+    }
+    o.prom = Math.round(o.total/o.n);
+    o.desvio = o.ref ? Math.round((o.prom-o.ref)/o.ref*100) : null;
+    return o;
+  }).sort((a,b)=>(b.desvio??-999)-(a.desvio??-999));
+
+  // Por florista
+  const porFlor = new Map();
+  regs.forEach(r=>{
+    const k = r.who || '—';
+    if(!porFlor.has(k)) porFlor.set(k, {n:0, total:0, exc:0});
+    const o = porFlor.get(k); o.n++; o.total += parseInt(r.duracion)||0; if(r.excedida) o.exc++;
+  });
+  const florRows = [...porFlor.entries()].map(([nombre,o])=>({nombre, ...o, prom:Math.round(o.total/o.n)}))
+    .sort((a,b)=>b.exc-a.exc || b.n-a.n);
+
+  el.innerHTML = titulo + `
+    <div class="table-wrapper" style="margin-bottom:20px"><table class="stock-table" style="min-width:640px">
+      <thead><tr><th>Tarea</th><th>Actividad</th><th>Veces</th><th>Promedio real</th><th>Referencia</th><th>Desvío</th><th>Excedidas</th></tr></thead>
+      <tbody>${tareas.map(o=>{
+        const col = o.desvio===null ? 'var(--mid-gray)' : o.desvio>0 ? 'var(--red-alert)' : 'var(--green-ok)';
+        const desTxt = o.desvio===null ? 'sin ref.' : (o.desvio>0?'+':'')+o.desvio+'%';
+        return `<tr>
+          <td><strong>${esc(o.zona||'')}</strong></td>
+          <td><span class="badge ${getBadge(o.actividad)}">${esc(o.actividad||'')}</span></td>
+          <td style="text-align:center">${o.n}</td>
+          <td style="font-weight:600">${fmtDur(o.prom)}</td>
+          <td>${o.ref?o.ref+'m':'—'}</td>
+          <td style="color:${col};font-weight:600">${desTxt}</td>
+          <td style="text-align:center">${o.exc?'<span style="color:var(--red-alert);font-weight:600">'+o.exc+' ⚠️</span>':'0'}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table></div>
+    <div class="table-wrapper"><table class="stock-table" style="min-width:480px">
+      <thead><tr><th>Florista</th><th>Tareas con tiempo</th><th>Promedio por tarea</th><th>Excedidas</th><th>% excedidas</th></tr></thead>
+      <tbody>${florRows.map(o=>{
+        const pct = Math.round(o.exc/o.n*100);
+        const col = pct>=30?'var(--red-alert)':pct>=15?'#A06A00':'var(--green-ok)';
+        return `<tr><td><strong>${esc(o.nombre)}</strong></td><td style="text-align:center">${o.n}</td><td style="font-weight:600">${fmtDur(o.prom)}</td><td style="text-align:center">${o.exc}</td><td style="color:${col};font-weight:600">${pct}%</td></tr>`;
+      }).join('')}</tbody>
+    </table></div>`;
 }
 
 function exportReporteEquipo(){
@@ -7839,6 +8065,53 @@ document.querySelectorAll('.nav-item, .nav-sub-item').forEach(el => {
 });
 
 
+// ── BACKUP DE DATOS ───────────────────────────────────────────────────────────
+// Exporta todos los datos principales a un JSON descargable (solo gerencia).
+// Cada fuente está envuelta en función para tolerar variables que cambien de
+// nombre entre versiones sin romper el backup completo.
+function descargarBackup(){
+  const fuentes = {
+    checklist: ()=>clStateByDay, checklistHistory: ()=>checklistHistory, clTiemposRef: ()=>clTiemposRef,
+    eventosData: ()=>eventosData, kanbanData: ()=>kanbanData, eventosSinFloreria: ()=>eventosSinFloreria,
+    stockData: ()=>stockData, recetasData: ()=>recetasData,
+    comprasFlore: ()=>comprasFlore, comprasJard: ()=>comprasJard, proveedoresList: ()=>proveedoresList,
+    ventasData: ()=>ventasData, cajaData: ()=>cajaData, cierresCajaData: ()=>cierresCajaData,
+    cierresMensualesData: ()=>cierresMensualesData, presupuestosData: ()=>presupuestosData,
+    clientesData: ()=>clientesData, listaPreciosData: ()=>listaPreciosData,
+    ramosDispData: ()=>ramosDispData, pedidosHabData: ()=>pedidosHabData, galeriaData: ()=>galeriaData,
+    cotizadorPrecios: ()=>cotizadorPrecios, eventoPricing: ()=>eventoPricing,
+    jardineriaData: ()=>jardineriaData, jardineriaLog: ()=>jardineriaLog, jardRecordatorios: ()=>jardRecordatorios,
+    habitacionesData: ()=>habitacionesData, habitacionesLog: ()=>habitacionesLog, zonaHorasData: ()=>zonaHorasData,
+    horariosData: ()=>window.horariosData, horariosPlantilla: ()=>horariosPlantilla,
+    florTurnos: ()=>window.florTurnos, jardHorarios: ()=>window.jardHorarios,
+    legajoData: ()=>legajoData, evaluacionesData: ()=>evaluacionesData, liquidacionConfig: ()=>liquidacionConfig,
+    sucursalesConfig: ()=>sucursalesConfig, loginPasswords: ()=>loginPasswords, auditLogData: ()=>auditLogData,
+  };
+  const data = { _meta: { app:'Florería Duhau', fecha:new Date().toISOString(), generadoPor: window.currentUserLabel||userRole||'' } };
+  Object.entries(fuentes).forEach(([k,fn])=>{ try{ const v=fn(); if(v!==undefined) data[k]=v; }catch(e){} });
+  const blob = new Blob([JSON.stringify(data)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `backup-floreria-duhau-${TODAY_ISO}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+  try{ localStorage.setItem('ultimoBackupISO', TODAY_ISO); }catch(e){}
+  showToast('💾 Backup descargado — guardalo en un lugar seguro');
+}
+
+// Recordatorio mensual: avisar a gerencia si hace más de 30 días del último backup
+function recordarBackup(){
+  try{
+    const ult = localStorage.getItem('ultimoBackupISO');
+    const dias = ult ? Math.floor((new Date(TODAY_ISO)-new Date(ult))/86400000) : null;
+    if(dias===null || dias>30){
+      showToast(dias===null
+        ? '💾 Nunca se descargó un backup desde este dispositivo — botón "Backup de datos" en el menú'
+        : `💾 Hace ${dias} días que no se descarga un backup — botón "Backup de datos" en el menú`, 'warn');
+    }
+  }catch(e){}
+}
+
 // ── LOGIN ────────────────────────────────────────────────────────────────────
 // ── Expose globals for Firebase module ───────────────────────────────────────
 (function exposeGlobals(){
@@ -8167,6 +8440,8 @@ function applyRole(role){
   // para no pisar el saludo de bienvenida
   renderJardRecAviso();
   setTimeout(notificarRecordatoriosNuevos, 4000);
+  // Recordatorio de backup mensual (solo gerencia, demorado)
+  if(role === 'gerencia') setTimeout(recordarBackup, 8000);
   // Re-renderizar el Inicio ya con el rol aplicado (evita mostrar el panel completo a no-gerencia)
   if(document.getElementById('home-kpis')) renderHome();
 }
@@ -12474,6 +12749,7 @@ Object.assign(window, {
   renderClientes, abrirFichaCliente, openNuevoClienteModal, editarCliente, guardarCliente, eliminarCliente,
   generarPresupuestoPDF, checkOnboarding, nextOnboardingStep, finishOnboarding,
   toggleProvManager, toggleSidebar, toggleTask, updC, updCL, updActividad, updTiempoRef, updCaja, updCajaMonto, updCajaTipo,
+  openVistaSemanal, vsToggleActividad, vsSetResp, descargarBackup, clFotoPreview, guardarFotoChecklist, verFotoChecklist,
   updPedidoHabEstado, updTipoEvento, updV, updateInsumoCount, updateInsumoRow,
   updateKpiCompras, urgenciaPanelHTML, vdAutoPrice, zonaHoraBtn, zonaResetHora, zonaSetHora,
   toggleStockSugerencias,
