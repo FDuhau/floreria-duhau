@@ -1731,6 +1731,52 @@ function toggleHistory(){
   btn.textContent = show ? '✕ Cerrar Historial' : '📋 Ver Historial';
 }
 
+// ── Poda automática del historial del checklist (solo gerencia) ───────────────
+// El historial crece sin límite y encima guarda fotos (pesadas). Sin mantenimiento
+// la app se vuelve lenta y Firebase pesado. Esta poda es conservadora:
+//   · registros de más de 6 meses → se archivan (se quitan del historial activo)
+//   · fotos de más de 60 días → se borra la foto pero el registro queda
+//   · tope duro: como red de seguridad, máximo 4000 registros (los más recientes)
+const HIST_MESES_RETENER = 6;
+const HIST_DIAS_FOTO = 60;
+const HIST_MAX = 4000;
+
+function podarHistorial(){
+  if(userRole !== 'gerencia') return;
+  const k = 'histPoda_' + TODAY_ISO;
+  try{ if(localStorage.getItem(k)) return; }catch(e){}
+  if(!Array.isArray(checklistHistory) || !checklistHistory.length){ try{ localStorage.setItem(k,'1'); }catch(e){} return; }
+
+  const hoy = new Date(TODAY_ISO);
+  const limiteReg = new Date(hoy); limiteReg.setMonth(limiteReg.getMonth() - HIST_MESES_RETENER);
+  const limiteFotoISO = addDaysISO(TODAY_ISO, -HIST_DIAS_FOTO);
+  const limiteRegISO = limiteReg.toISOString().slice(0,10);
+
+  let quitados = 0, fotosQuitadas = 0;
+  let podado = checklistHistory.filter(r => {
+    if(r?.date && r.date < limiteRegISO){ quitados++; return false; }
+    return true;
+  });
+  podado.forEach(r => {
+    if(r?.img && r.date && r.date < limiteFotoISO){ delete r.img; fotosQuitadas++; }
+  });
+  if(podado.length > HIST_MAX){
+    podado = [...podado].sort((a,b)=>(a.date||'').localeCompare(b.date||'')).slice(-HIST_MAX);
+    quitados = checklistHistory.length - podado.length;
+  }
+
+  try{ localStorage.setItem(k,'1'); }catch(e){}
+  if(!quitados && !fotosQuitadas) return; // nada que hacer
+  checklistHistory = podado;
+  try{ localStorage.setItem('cl_history', JSON.stringify(checklistHistory)); }catch(e){}
+  fbSave('checklistHistory', checklistHistory);
+  const partes = [];
+  if(quitados) partes.push(`${quitados} registro${quitados!==1?'s':''} de +${HIST_MESES_RETENER} meses`);
+  if(fotosQuitadas) partes.push(`${fotosQuitadas} foto${fotosQuitadas!==1?'s':''} antigua${fotosQuitadas!==1?'s':''}`);
+  showToast('🧹 Historial optimizado — se archivaron ' + partes.join(' y '));
+  if(document.getElementById('history-panel')?.style.display !== 'none') renderHistoryPanel();
+}
+
 function renderHistoryPanel(){
   const weeks = [...new Set(checklistHistory.map(r=>r.week))];
   const tabsEl = document.getElementById('history-week-tabs');
@@ -9534,6 +9580,8 @@ async function doLogin(){
     setTimeout(()=>checkOnboarding(entry.role), 800);
     // Briefing del día (si ya se vio hoy, cae al aviso de eventos de siempre)
     setTimeout(()=>mostrarBriefingDia(), 2200);
+    // Mantenimiento: poda del historial (gerencia, una vez al día, sin urgencia)
+    if(entry.role === 'gerencia') setTimeout(()=>podarHistorial(), 12000);
   } else {
     err.textContent = 'Contraseña incorrecta';
     inp.classList.add('error');
