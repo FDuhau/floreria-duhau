@@ -9316,7 +9316,114 @@ let currentLoginKey = null; // la contraseña con la que se logueó
 // Puente para que el listener de Firebase actualice ESTA variable (la que usa el
 // login), no una copia separada en window. Sin esto, los cambios de contraseña
 // se guardaban en Firebase pero el login seguía usando los valores por defecto.
-window._setLoginPasswords = (v) => { if(v && typeof v === 'object') loginPasswords = v; };
+window._setLoginPasswords = (v) => { if(v && typeof v === 'object'){ loginPasswords = v; renderLoginUsers(); } };
+
+// ── Selector de usuario en el login ──────────────────────────────────────────
+const LOGIN_ROLE_EMOJI = { gerencia:'👔', operario:'🏠', florista:'💐', jardinero:'🌿', compras:'📦', ventas:'🏨', comercial:'🎯' };
+let loginUserSel = '';
+
+function renderLoginUsers(){
+  const el = document.getElementById('login-users');
+  if(!el) return;
+  const order = { gerencia:0, florista:1, jardinero:2, operario:3, compras:4, ventas:5, comercial:6 };
+  const vistos = new Set();
+  const usuarios = Object.values(loginPasswords||{})
+    .filter(e => e?.label && !vistos.has(e.label) && vistos.add(e.label))
+    .sort((a,b) => (order[a.role]??9)-(order[b.role]??9) || a.label.localeCompare(b.label,'es'));
+  el.innerHTML = usuarios.map(e =>
+    `<div class="login-user-chip${loginUserSel===e.label?' sel':''}" onclick="loginPickUser(this.dataset.u)" data-u="${esc(e.label)}">
+      <span>${LOGIN_ROLE_EMOJI[e.role]||'👤'}</span>${esc(e.label)}
+    </div>`).join('');
+}
+
+function loginPickUser(label){
+  loginUserSel = loginUserSel===label ? '' : label;
+  renderLoginUsers();
+  const hint = document.getElementById('login-hint');
+  if(hint) hint.textContent = loginUserSel ? `Contraseña de ${loginUserSel}` : 'Elegí tu usuario e ingresá tu contraseña';
+  const err = document.getElementById('login-error');
+  if(err) err.textContent = '';
+  if(loginUserSel) document.getElementById('login-input')?.focus();
+}
+
+// ── Briefing "Buen día" al entrar (una vez por día por dispositivo) ───────────
+function _saludoHora(){
+  const h = new Date().getHours();
+  return h < 13 ? 'Buen día' : h < 20 ? 'Buenas tardes' : 'Buenas noches';
+}
+
+function mostrarBriefingDia(retry = 0){
+  const label = window.currentUserLabel || '';
+  const k = 'briefing_' + TODAY_ISO + '_' + label;
+  try{ if(localStorage.getItem(k)){ mostrarEventosDelDia(); return; } }catch(e){}
+  // Esperar a que Firebase traiga datos (si todavía no llegó nada)
+  if(retry < 3 && !(eventosData||[]).length && !Object.keys(clStateByDay||{}).length){
+    setTimeout(()=>mostrarBriefingDia(retry+1), 1200);
+    return;
+  }
+  try{ localStorage.setItem(k,'1'); }catch(e){}
+
+  const fechaTxt = new Date(TODAY_ISO+'T12:00:00').toLocaleDateString('es-AR', { weekday:'long', day:'numeric', month:'long' });
+  const ds = clStateByDay[currentDay] || {};
+  let rows = [];
+  if(userRole==='florista' && floristaNombre){
+    const mis = CL_TASKS.map((_,i)=>i).filter(i => (ds.responsable?.[i]||'') === floristaNombre);
+    const horario = (window.horariosData||{})[floristaNombre]?.[TODAY_ISO];
+    const evs = (eventosData||[]).filter(ev => ev.estado!=='Pedidos Finalizados' &&
+      ((ev.estado==='Pendiente de Colocacion' ? ev.colocacionAsignado : ev.asignado) === floristaNombre));
+    rows = [
+      ['📋', mis.length ? `Tenés ${mis.length} tarea${mis.length!==1?'s':''} asignada${mis.length!==1?'s':''} para hoy` : 'Todavía no tenés tareas asignadas'],
+      horario?.desde ? ['🕐', `Tu turno: ${horario.desde} a ${horario.hasta||'—'}`] : null,
+      evs.length ? ['🎉', 'Eventos: ' + esc(evs.map(e=>e.nombre).slice(0,2).join(' · '))] : null,
+    ];
+  } else if(userRole==='gerencia'){
+    const evsHoy = (eventosData||[]).filter(e => e.fecha===TODAY_ISO && e.estado!=='Pedidos Finalizados');
+    const conTurno = getFloristasActivos().filter(n => (window.horariosData||{})[n]?.[TODAY_ISO]?.desde);
+    const hechas = (ds.checked||[]).filter(Boolean).length;
+    const venc = jardRecordatorios.filter(r=>recEstado(r)==='vencido').length;
+    rows = [
+      ['🎉', evsHoy.length ? `${evsHoy.length} evento${evsHoy.length!==1?'s':''} hoy: ${esc(evsHoy.map(e=>e.nombre).slice(0,2).join(' · '))}` : 'Sin eventos hoy'],
+      ['👥', conTurno.length ? 'Con turno hoy: ' + esc(conTurno.join(', ')) : 'Nadie con turno asignado hoy'],
+      ['✅', `Checklist: ${hechas} de ${CL_TASKS.length} tareas hechas`],
+      venc ? ['🌿', `${venc} recordatorio${venc!==1?'s':''} de jardín vencido${venc!==1?'s':''}`] : null,
+    ];
+  } else if(userRole==='jardinero'){
+    const venc = jardRecordatorios.filter(r=>recEstado(r)==='vencido').length;
+    const prox = jardRecordatorios.filter(r=>recEstado(r)==='proximo').length;
+    rows = [
+      venc ? ['🔴', `${venc} recordatorio${venc!==1?'s':''} vencido${venc!==1?'s':''} para atender`] : ['🟢', 'Recordatorios de jardín al día'],
+      prox ? ['🟡', `${prox} por vencer en los próximos días`] : null,
+    ];
+  }
+  rows = rows.filter(Boolean);
+
+  const nombre = floristaNombre || jardineroNombre || (userRole==='gerencia' ? '' : label);
+  const ov = document.createElement('div');
+  ov.id = 'briefing-overlay';
+  ov.className = 'briefing-overlay';
+  ov.innerHTML = `
+    <div class="briefing-card">
+      <div class="briefing-flor">🌸</div>
+      <div class="briefing-saludo">${_saludoHora()}${nombre ? ', ' + esc(nombre) : ''}</div>
+      <div class="briefing-fecha">${esc(fechaTxt)}</div>
+      ${rows.length ? `<div class="briefing-rows">${rows.map(([ic,tx])=>`<div class="briefing-row"><span>${ic}</span><span>${tx}</span></div>`).join('')}</div>` : ''}
+      <button class="btn-add briefing-btn" onclick="cerrarBriefing()">Empezar el día →</button>
+    </div>`;
+  ov.addEventListener('click', e => { if(e.target === ov) cerrarBriefing(); });
+  document.body.appendChild(ov);
+  requestAnimationFrame(()=>ov.classList.add('open'));
+}
+
+function cerrarBriefing(){
+  const ov = document.getElementById('briefing-overlay');
+  if(!ov) return;
+  ov.classList.remove('open');
+  setTimeout(()=>ov.remove(), 400);
+}
+
+// Poblar el selector de usuarios apenas carga la app (con los defaults;
+// se re-renderiza cuando llegan los usuarios reales desde Firebase)
+renderLoginUsers();
 
 function doLogin(){
   const val = document.getElementById('login-input').value.trim();
@@ -9324,6 +9431,15 @@ function doLogin(){
   const err = document.getElementById('login-error');
   const key = val.toLowerCase();
   const entry = loginPasswords[key];
+  // Si eligió un usuario del selector, la contraseña tiene que ser la suya
+  if(entry && loginUserSel && (entry.label||key) !== loginUserSel){
+    err.textContent = 'Esa contraseña no corresponde a ' + loginUserSel;
+    inp.classList.add('error');
+    setTimeout(()=>inp.classList.remove('error'), 400);
+    inp.value = '';
+    inp.focus();
+    return;
+  }
   if(entry){
     // Florista que además es jardinero (figura en JARDINEROS_LIST, ej. Ivan):
     // habilitar ambos mundos en el mismo usuario. Robusto aunque loginPasswords
@@ -9351,7 +9467,8 @@ function doLogin(){
     setTimeout(()=>initPushForUser?.(), 2000);
     setTimeout(()=>alertasAutomaticas(), 4000);
     setTimeout(()=>checkOnboarding(entry.role), 800);
-    setTimeout(()=>mostrarEventosDelDia(), 2500);
+    // Briefing del día (si ya se vio hoy, cae al aviso de eventos de siempre)
+    setTimeout(()=>mostrarBriefingDia(), 2200);
   } else {
     err.textContent = 'Contraseña incorrecta';
     inp.classList.add('error');
@@ -13076,6 +13193,7 @@ Object.assign(window, {
   toggleProvManager, toggleSidebar, toggleTask, updC, updCL, updActividad, updTiempoRef, updCaja, updCajaMonto, updCajaTipo,
   openVistaSemanal, vsToggleActividad, vsSetResp, descargarBackup, clFotoPreview, guardarFotoChecklist, verFotoChecklist,
   activarNotificaciones, openGaleriaNuevos, renderGaleriaNuevos, moveKanbanCard, clSetFiltro,
+  loginPickUser, cerrarBriefing,
   updPedidoHabEstado, updTipoEvento, updV, updateInsumoCount, updateInsumoRow,
   updateKpiCompras, urgenciaPanelHTML, vdAutoPrice, zonaHoraBtn, zonaResetHora, zonaSetHora,
   toggleStockSugerencias,
