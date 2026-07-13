@@ -982,7 +982,8 @@ function renderChecklistTable(){
   if(!progressEl){
     progressEl = document.createElement('div');
     progressEl.id = 'cl-progress-bar-wrap';
-    const wrapper = document.getElementById('checklist-body').closest('.table-wrapper');
+    // Antes de las tarjetas (floristas) y de la tabla (resto)
+    const wrapper = document.getElementById('cl-cards-wrap') || document.getElementById('checklist-body').closest('.table-wrapper');
     wrapper.before(progressEl);
   }
   progressEl.innerHTML = `
@@ -992,6 +993,38 @@ function renderChecklistTable(){
       </div>
       <span style="font-size:12px;color:var(--mid-gray);white-space:nowrap">${done_count} / ${total} tareas${pct===100?' ✅ ¡Completada!':''}</span>
     </div>`;
+
+  // ── Floristas: vista de tarjetas (mobile-first) en lugar de la tabla ──
+  const cardsWrap = document.getElementById('cl-cards-wrap');
+  const tableWrap = document.getElementById('cl-table-wrap');
+  if(userRole === 'florista'){
+    if(tableWrap) tableWrap.style.display = 'none';
+    if(cardsWrap){ cardsWrap.style.display = ''; renderChecklistCards(cardsWrap); }
+    const fEl = document.getElementById('cl-filtro-wrap');
+    if(fEl) fEl.style.display = 'none';
+    renderProductividadCL();
+    return;
+  }
+  if(tableWrap) tableWrap.style.display = '';
+  if(cardsWrap) cardsWrap.style.display = 'none';
+
+  // ── Filtro rápido (gerencia/operario): por zona/responsable y estado ──
+  // Se crea una sola vez para no perder el foco del input al re-renderizar
+  let filtroEl = document.getElementById('cl-filtro-wrap');
+  if(!filtroEl){
+    filtroEl = document.createElement('div');
+    filtroEl.id = 'cl-filtro-wrap';
+    filtroEl.innerHTML = `
+      <input class="cl-obs-input" id="cl-filtro-txt" placeholder="🔍 Filtrar por zona o responsable..." style="flex:1;min-width:160px"
+        oninput="clSetFiltro('txt',this.value)">
+      <button class="filter-btn cl-fbtn" data-f="all"    onclick="clSetFiltro('estado','all')">Todas</button>
+      <button class="filter-btn cl-fbtn" data-f="pend"   onclick="clSetFiltro('estado','pend')">Pendientes</button>
+      <button class="filter-btn cl-fbtn" data-f="hechas" onclick="clSetFiltro('estado','hechas')">Hechas</button>`;
+    filtroEl.style.cssText = 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px';
+    document.getElementById('cl-table-wrap').before(filtroEl);
+  }
+  filtroEl.style.display = '';
+  filtroEl.querySelectorAll('.cl-fbtn').forEach(b=>b.classList.toggle('active', b.dataset.f===clFiltro.estado));
 
   const tbody = document.getElementById('checklist-body');
   tbody.innerHTML = '';
@@ -1016,6 +1049,14 @@ function renderChecklistTable(){
 
     // Florista individual: solo ver tareas asignadas a ellos
     if(isFlorista && curResp !== floristaNombre) return;
+
+    // Filtro rápido de gerencia: texto (zona/responsable) y estado
+    if(!isFlorista){
+      const txt = clFiltro.txt.trim().toLowerCase();
+      if(txt && !t.zona.toLowerCase().includes(txt) && !String(curResp).toLowerCase().includes(txt)) return;
+      if(clFiltro.estado==='pend' && clState.checked[i]) return;
+      if(clFiltro.estado==='hechas' && !clState.checked[i]) return;
+    }
 
     // Section header
     if(t.sec !== lastSec){
@@ -1208,6 +1249,125 @@ function renderChecklistTable(){
 }
 
 
+// ── Filtro rápido del checklist (gerencia/operario) ───────────────────────────
+const clFiltro = { txt:'', estado:'all' };
+function clSetFiltro(k, v){ clFiltro[k] = v; renderChecklistTable(); }
+
+// ── Festejo al completar todas las tareas del día (floristas) ─────────────────
+function festejarChecklist(){
+  const cont = document.createElement('div');
+  cont.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:9997;overflow:hidden';
+  const emojis = ['🌸','🌷','🌹','💐','🌻','✨'];
+  for(let i=0;i<26;i++){
+    const s = document.createElement('span');
+    s.textContent = emojis[Math.floor(Math.random()*emojis.length)];
+    s.style.cssText = `position:absolute;top:-40px;left:${Math.random()*100}%;font-size:${18+Math.random()*16}px;animation:clConfetti ${2.2+Math.random()*1.6}s ease-in ${Math.random()*0.8}s forwards`;
+    cont.appendChild(s);
+  }
+  document.body.appendChild(cont);
+  setTimeout(()=>cont.remove(), 5500);
+}
+
+function _checkFestejoChecklist(){
+  if(userRole!=='florista' || !floristaNombre) return;
+  const mis = CL_TASKS.map((_,i)=>i).filter(i => (clState.responsable[i]||'') === floristaNombre);
+  if(!mis.length || !mis.every(i=>clState.checked[i])) return;
+  const k = 'clFestejo_' + TODAY_ISO;
+  try{ if(localStorage.getItem(k)) return; localStorage.setItem(k,'1'); }catch(e){}
+  festejarChecklist();
+  navigator.vibrate?.([60,60,60,60,120]);
+  showToast(`🎉 ¡Completaste todas tus tareas de hoy, ${floristaNombre}!`);
+}
+
+// ── Checklist en tarjetas para floristas (mobile-first) ───────────────────────
+// Reemplaza la tabla por cards con botones grandes de Inicio/Fin. Reutiliza
+// renderHoraCell / renderEvHoraCell / renderVentaHoraCell para los controles.
+function renderChecklistCards(el){
+  const misIdxs = CL_TASKS.map((_,i)=>i).filter(i => (clState.responsable[i]||CL_TASKS[i].responsable||'') === floristaNombre);
+
+  const tareasHTML = misIdxs.map(i=>{
+    const t = CL_TASKS[i];
+    const done = clState.checked[i];
+    const curAct = clState.actividad[i]||t.actividad;
+    const curObs = (clState.obs[i] && clState.obs[i]!=='Observaciones') ? clState.obs[i] : (t.obs||'');
+    const ref = getTiempoRef(i);
+    const sh = SEC_HEADERS[t.sec];
+    const dur = clState.inicio?.[i] && clState.fin?.[i] ? durBadge(clState.inicio[i], clState.fin[i], ref) : '';
+    return `<div class="cl-card${done?' cl-card-done':''}">
+      <div class="cl-card-top">
+        <div>
+          <div class="cl-card-zona">${done?'✅ ':''}${esc(t.zona)}</div>
+          <div class="cl-card-sec">${sh.icon} ${sh.label}</div>
+        </div>
+        <div class="cl-card-badges">
+          <span class="badge ${getBadge(curAct)}">${esc(curAct)}</span>
+          ${ref?`<span class="cl-card-ref" title="Tiempo promedio de referencia">⏱ ${ref}m</span>`:''}
+          ${dur}
+        </div>
+      </div>
+      <input class="cl-obs-input cl-card-obs" value="${esc(curObs)}" placeholder="Observaciones..."
+        onchange="updCL(${i},'obs',this.value)" ${done?'disabled':''}>
+      <div class="cl-card-horas">
+        <div class="cl-card-hora">${renderHoraCell(i,'inicio',done)}</div>
+        <div class="cl-card-hora">${renderHoraCell(i,'fin',done)}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Eventos del día asignados a la florista (armado o colocación según fase)
+  const eventosHoy = eventosData.filter(ev=>{
+    if(ev.estado==='Pedidos Finalizados') return false;
+    const fase = ev.estado==='Pendiente de Colocacion' ? 'colocacion' : 'armado';
+    const flor = fase==='colocacion' ? (ev.colocacionAsignado||'') : (ev.asignado||'');
+    return flor === floristaNombre;
+  });
+  const evHTML = eventosHoy.map(ev=>{
+    const evIdx = eventosData.indexOf(ev);
+    const fase = ev.estado==='Pendiente de Colocacion' ? 'colocacion' : 'armado';
+    return `<div class="cl-card cl-card-evento" onclick="if(!event.target.closest('button'))openEventoDetail(${evIdx})">
+      <div class="cl-card-top">
+        <div>
+          <div class="cl-card-zona">🎉 ${esc(ev.nombre)}</div>
+          <div class="cl-card-sec">${esc(ev.tipo||'')}${ev.salon?' · '+esc(ev.salon):''}${ev.pax?' · '+ev.pax+' pax':''}${ev.hora?' · '+ev.hora:''}</div>
+        </div>
+        <span class="cl-card-fase ${fase==='colocacion'?'cl-fase-coloc':'cl-fase-armado'}">${fase==='colocacion'?'📍 COLOCACIÓN':'🔨 ARMADO'}</span>
+      </div>
+      <div class="cl-card-horas">
+        <div class="cl-card-hora">${renderEvHoraCell(evIdx,'inicio',ev,fase)}</div>
+        <div class="cl-card-hora">${renderEvHoraCell(evIdx,'fin',ev,fase)}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Ventas / pedidos pendientes asignados
+  const ventasHoy = (ventasData||[]).filter(v => v.asignado===floristaNombre && v.estado==='pendiente' && !v.fin);
+  const vtHTML = ventasHoy.map(v=>{
+    const vIdx = ventasData.indexOf(v);
+    const detalle = [v.cliente, v.colores?'🎨 '+v.colores:'', v.fecha?'📅 '+fmtDate(v.fecha):''].filter(Boolean).join(' · ');
+    return `<div class="cl-card cl-card-venta" onclick="if(!event.target.closest('button'))openVentaDetail(${vIdx})">
+      <div class="cl-card-top">
+        <div>
+          <div class="cl-card-zona">💐 ${esc(v.prod||'')}</div>
+          <div class="cl-card-sec">${esc(detalle)}</div>
+        </div>
+      </div>
+      <div class="cl-card-horas">
+        <div class="cl-card-hora">${renderVentaHoraCell(vIdx,'inicio',v)}</div>
+        <div class="cl-card-hora">${renderVentaHoraCell(vIdx,'fin',v)}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    ${misIdxs.length ? tareasHTML : `<div class="cl-cards-empty">
+      <div style="font-size:30px;margin-bottom:8px">📋</div>
+      No tenés tareas asignadas para hoy, ${esc(floristaNombre)}
+      <div class="cl-cards-empty-sub">Gerencia asigna las tareas desde la checklist general.</div>
+    </div>`}
+    ${evHTML ? '<div class="cl-cards-sec-hdr" style="color:#B8602A">🎉 Eventos del día</div>'+evHTML : ''}
+    ${vtHTML ? '<div class="cl-cards-sec-hdr" style="color:#2C5A80">💐 Ventas pendientes</div>'+vtHTML : ''}`;
+}
+
 function renderHoraCell(i, campo, done){
   const val = clState[campo]?.[i] || '';
   if(userRole === 'gerencia'){
@@ -1304,8 +1464,11 @@ function registrarHora(i, campo){
       ofrecerFotoNuevo(checklistHistory.length-1, t.zona);
     }
     saveWeekState(currentDay, 'checked');
+    navigator.vibrate?.([40,60,80]);
+    _checkFestejoChecklist();
   } else if(campo === 'inicio'){
     showToast('▶ Inicio registrado: ' + horaActual);
+    navigator.vibrate?.(30);
   }
 
   saveWeekState(currentDay, campo);
@@ -1365,6 +1528,40 @@ function guardarFotoChecklist(){
   closeModal('cl-foto-modal');
   showToast('📷 Foto guardada — gerencia la puede ver en el historial');
   renderHistoryPanel();
+}
+
+// ── Galería de fotos de arreglos Nuevos (gerencia) ────────────────────────────
+function openGaleriaNuevos(){
+  const sel = document.getElementById('gal-nuevos-semana');
+  if(sel){
+    const semanas = [...new Set((checklistHistory||[]).filter(r=>r?.img).map(r=>r.week).filter(Boolean))].reverse();
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">Todas las semanas</option>' + semanas.map(w=>`<option${w===cur?' selected':''}>${esc(w)}</option>`).join('');
+  }
+  renderGaleriaNuevos();
+  document.getElementById('cl-galeria-modal').classList.add('open');
+}
+
+function renderGaleriaNuevos(){
+  const el = document.getElementById('cl-galeria-grid');
+  if(!el) return;
+  const semana = document.getElementById('gal-nuevos-semana')?.value || '';
+  const fotos = (checklistHistory||[])
+    .map((r,i)=>({r,i}))
+    .filter(x => x.r?.img && (!semana || x.r.week === semana))
+    .reverse()
+    .slice(0, 80);
+  const cnt = document.getElementById('gal-nuevos-count');
+  if(cnt) cnt.textContent = fotos.length ? fotos.length + ' foto' + (fotos.length!==1?'s':'') : '';
+  el.innerHTML = fotos.length ? fotos.map(({r,i})=>`
+    <div class="gal-nuevo-item" onclick="verFotoChecklist(${i})" title="Ver en grande">
+      <img src="${r.img}" loading="lazy" alt="${esc(r.zona||'')}">
+      <div class="gal-nuevo-cap">
+        <strong>${esc(r.zona||'')}</strong>
+        <span>${fmtDate(r.date)}${r.who?' · '+esc(r.who):''}</span>
+      </div>
+    </div>`).join('')
+    : '<p style="color:var(--mid-gray);font-size:13px;padding:24px;text-align:center">Todavía no hay fotos — las floristas pueden adjuntar una al terminar un arreglo Nuevo.</p>';
 }
 
 function verFotoChecklist(idx){
@@ -1469,6 +1666,8 @@ function toggleTask(i, el){
     if(userRole==='florista' && String(clState.actividad[i]||t.actividad).toLowerCase().includes('nuevo')){
       ofrecerFotoNuevo(checklistHistory.length-1, t.zona);
     }
+    navigator.vibrate?.(40);
+    _checkFestejoChecklist();
   }
   saveWeekState(currentDay, 'checked');
   renderChecklistTable();
@@ -1852,6 +2051,23 @@ function syncEventosToKanban(){
   });
 }
 
+// Mover una tarjeta del kanban con botones ‹ › (útil en touch, donde no hay drag & drop)
+function moveKanbanCard(ci, i, dir){
+  const nci = ci + dir;
+  if(nci < 0 || nci >= kanbanData.length) return;
+  const card = kanbanData[ci].cards.splice(i, 1)[0];
+  if(!card) return;
+  if(card.isEvento){
+    const estadoMap = {0:'Pedidos Pendientes',1:'En Proceso',2:'Pendiente de Colocacion',3:'Pedidos Finalizados'};
+    eventosData[card.eventoIdx].estado = estadoMap[nci]||'Pedidos Pendientes';
+    fbSave('eventosData', eventosData);
+    renderEventos(); renderHome();
+  }
+  kanbanData[nci].cards.push(card);
+  fbSave('kanbanData', kanbanData);
+  renderKanban();
+}
+
 function renderKanban(){
   syncEventosToKanban();
 
@@ -1898,13 +2114,27 @@ function renderKanban(){
       cardEl.addEventListener('dragstart',()=>{dragSrcCol=ci;dragSrcIdx=i;cardEl.classList.add('dragging');});
       cardEl.addEventListener('dragend',()=>cardEl.classList.remove('dragging'));
       const descLines = (card.desc||'').split('\n').filter(Boolean);
+      // Urgencia por fecha del evento: borde y chip según cuántos días faltan
+      let urgChip='';
+      if(card.isEvento && ci!==3){
+        const fechaEv = eventosData[card.eventoIdx]?.fecha;
+        if(fechaEv){
+          const dias = Math.round((new Date(fechaEv)-new Date(TODAY_ISO))/86400000);
+          if(dias===0){ cardEl.classList.add('kanban-urg-hoy'); urgChip='<span class="kanban-urg-chip" style="background:var(--red-alert)">HOY</span>'; }
+          else if(dias===1){ cardEl.classList.add('kanban-urg-prox'); urgChip='<span class="kanban-urg-chip" style="background:#D4820A">Mañana</span>'; }
+          else if(dias>1 && dias<=3){ cardEl.classList.add('kanban-urg-prox'); urgChip=`<span class="kanban-urg-chip" style="background:#D4A820">En ${dias} días</span>`; }
+          else if(dias<0){ cardEl.classList.add('kanban-urg-pasado'); urgChip='<span class="kanban-urg-chip" style="background:var(--mid-gray)">Pasado</span>'; }
+        }
+      }
       cardEl.innerHTML=`
-        <div class="kanban-card-title">${esc(card.title)}</div>
+        <div class="kanban-card-title">${esc(card.title)}${urgChip}</div>
         ${descLines.length?`<div class="kanban-card-desc">${descLines.map(esc).join('<br>')}</div>`:''}
         <div class="kanban-card-tags">${card.tags.map(t=>`<span class="kanban-tag ${t}">${TAG_LABELS[t]||t}</span>`).join('')}</div>
         <div class="kanban-card-meta">
           <span class="kanban-date">📅 ${card.date}</span>
           <div class="kanban-actions">
+            <button class="btn-icon kanban-move" title="Mover a la columna anterior" ${ci===0?'disabled':''} onclick="moveKanbanCard(${ci},${i},-1)">‹</button>
+            <button class="btn-icon kanban-move" title="Mover a la columna siguiente" ${ci===kanbanData.length-1?'disabled':''} onclick="moveKanbanCard(${ci},${i},1)">›</button>
             ${card.isEvento?`<button class="btn-icon" title="Ver detalle" onclick="openEventoDetail(${card.eventoIdx})">👁</button><button class="btn-icon" title="Ver en Comercial" onclick="navigate('eventos-comercial')">🔗</button>`:`<button class="btn-icon" onclick="openTaskModal(${ci},${i})">✏️</button>`}
             ${!card.isEvento?`<button class="btn-icon" style="color:var(--red-alert)" onclick="removeKanbanCard(${ci},${i})">✕</button>`:''}
           </div>
@@ -3959,6 +4189,76 @@ setInterval(()=>{
   if(document.getElementById('cl-prod-card')?.innerHTML) renderProductividadCL();
 }, 60000);
 
+// ── Fila visual del home de gerencia: anillo, sparkline y semáforo ────────────
+function _homeVisualHTML(hechas, totalTareas, pct, ventasMes, totalMes){
+  const fmtARS = n => '$' + Math.round(n).toLocaleString('es-AR');
+
+  // Anillo de progreso del checklist
+  const C = 2*Math.PI*34;
+  const off = (C*(1-Math.min(pct,100)/100)).toFixed(1);
+  const ringColor = pct>=100 ? 'var(--green-ok)' : pct>=50 ? '#D4A820' : 'var(--sage)';
+
+  // Sparkline: ventas acumuladas por día del mes
+  const diaHoy = Math.max(parseInt(TODAY_ISO.slice(8,10),10), 1);
+  const porDia = Array.from({length:diaHoy}, ()=>0);
+  ventasMes.forEach(v=>{
+    const d = parseInt((v.fecha||'').slice(8,10),10);
+    if(d>=1 && d<=diaHoy) porDia[d-1] += parseMoney(v.precio);
+  });
+  let acum = 0;
+  const serie = porDia.map(x => (acum += x));
+  const max = Math.max(...serie, 1);
+  const W = 220, H = 54;
+  const pts = serie.map((v,i)=>`${((i/Math.max(serie.length-1,1))*W).toFixed(1)},${(H-4-(v/max)*(H-12)).toFixed(1)}`).join(' ');
+  const areaPts = `0,${H} ${pts} ${W},${H}`;
+
+  // Semáforo: días desde el último Nuevo por zona de arreglos
+  const map = mapUltimoNuevoPorZona();
+  const zonas = [...new Map(CL_TASKS.filter(t=>String(t.actividad).toLowerCase()!=='riego').map(t=>[t.sec+'|'+t.zona, t])).values()];
+  let rojo=0, ambar=0, verde=0; const peores=[];
+  zonas.forEach(t=>{
+    const f = map[t.sec+'|'+t.zona];
+    const dias = f ? Math.floor((new Date(TODAY_ISO)-new Date(f))/86400000) : null;
+    if(dias===null || dias>=7){ rojo++; peores.push({zona:t.zona, dias}); }
+    else if(dias>=5) ambar++;
+    else verde++;
+  });
+  peores.sort((a,b)=>(b.dias??999)-(a.dias??999));
+  const peoresTxt = peores.slice(0,3).map(p=>`${esc(p.zona)} (${p.dias===null?'nunca':p.dias+'d'})`).join(' · ');
+
+  return `<div class="home-visual-grid">
+    <div class="card hv-card card-clickable" onclick="navigate('checklist')">
+      <div class="card-label">✅ Progreso del checklist</div>
+      <div class="hv-ring-row">
+        <svg viewBox="0 0 80 80" class="hv-ring" aria-hidden="true">
+          <circle cx="40" cy="40" r="34" fill="none" stroke="var(--light-gray)" stroke-width="8"/>
+          <circle cx="40" cy="40" r="34" fill="none" stroke="${ringColor}" stroke-width="8" stroke-linecap="round"
+            stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${off}" transform="rotate(-90 40 40)"/>
+          <text x="40" y="46" text-anchor="middle" class="hv-ring-txt">${pct}%</text>
+        </svg>
+        <div class="hv-sub">${hechas} de ${totalTareas} tareas<br>de hoy completadas</div>
+      </div>
+    </div>
+    <div class="card hv-card card-clickable" onclick="navigate('ventas-externas')">
+      <div class="card-label">💰 Ventas acumuladas del mes</div>
+      <svg viewBox="0 0 ${W} ${H}" class="hv-spark" preserveAspectRatio="none" aria-hidden="true">
+        <polygon points="${areaPts}" fill="var(--sage)" opacity="0.14"/>
+        <polyline points="${pts}" fill="none" stroke="var(--sage)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+      </svg>
+      <div class="hv-sub">${fmtARS(totalMes)} al día ${diaHoy}</div>
+    </div>
+    <div class="card hv-card card-clickable" onclick="navigate('checklist')">
+      <div class="card-label">🌸 Arreglos Nuevos por zona</div>
+      <div class="hv-semaforo">
+        <span class="hv-sem hv-sem-rojo">${rojo}<small>+7 días<br>o sin registro</small></span>
+        <span class="hv-sem hv-sem-ambar">${ambar}<small>5-6<br>días</small></span>
+        <span class="hv-sem hv-sem-verde">${verde}<small>al<br>día</small></span>
+      </div>
+      <div class="hv-sub">${peoresTxt ? '⚠️ ' + peoresTxt : '✓ Todas las zonas al día'}</div>
+    </div>
+  </div>`;
+}
+
 function renderHome(){
   if(!document.getElementById('home-kpis')) return;
 
@@ -4017,6 +4317,10 @@ function renderHome(){
         <div class="card-sub">${recAlerts.filter(r=>recEstado(r)==='vencido').length} vencido${recAlerts.filter(r=>recEstado(r)==='vencido').length!==1?'s':''} · ${recAlerts.filter(r=>recEstado(r)==='proximo').length} próximo${recAlerts.filter(r=>recEstado(r)==='proximo').length!==1?'s':''}</div>
       </div>` : ''}
     </div>`;
+
+  // ── Fila visual (solo gerencia): anillo, sparkline y semáforo ──
+  const visEl = document.getElementById('home-visual');
+  if(visEl) visEl.innerHTML = isFlorHome ? '' : _homeVisualHTML(hechas, totalTareas, pct, ventasMes, totalMes);
 
   // ── Columna Eventos ──
   document.getElementById('home-eventos-col').innerHTML = `
@@ -9014,6 +9318,81 @@ let currentLoginKey = null; // la contraseña con la que se logueó
 // se guardaban en Firebase pero el login seguía usando los valores por defecto.
 window._setLoginPasswords = (v) => { if(v && typeof v === 'object') loginPasswords = v; };
 
+// ── Briefing "Buen día" al entrar (una vez por día por dispositivo) ───────────
+function _saludoHora(){
+  const h = new Date().getHours();
+  return h < 13 ? 'Buen día' : h < 20 ? 'Buenas tardes' : 'Buenas noches';
+}
+
+function mostrarBriefingDia(retry = 0){
+  const label = window.currentUserLabel || '';
+  const k = 'briefing_' + TODAY_ISO + '_' + label;
+  try{ if(localStorage.getItem(k)){ mostrarEventosDelDia(); return; } }catch(e){}
+  // Esperar a que Firebase traiga datos (si todavía no llegó nada)
+  if(retry < 3 && !(eventosData||[]).length && !Object.keys(clStateByDay||{}).length){
+    setTimeout(()=>mostrarBriefingDia(retry+1), 1200);
+    return;
+  }
+  try{ localStorage.setItem(k,'1'); }catch(e){}
+
+  const fechaTxt = new Date(TODAY_ISO+'T12:00:00').toLocaleDateString('es-AR', { weekday:'long', day:'numeric', month:'long' });
+  const ds = clStateByDay[currentDay] || {};
+  let rows = [];
+  if(userRole==='florista' && floristaNombre){
+    const mis = CL_TASKS.map((_,i)=>i).filter(i => (ds.responsable?.[i]||'') === floristaNombre);
+    const horario = (window.horariosData||{})[floristaNombre]?.[TODAY_ISO];
+    const evs = (eventosData||[]).filter(ev => ev.estado!=='Pedidos Finalizados' &&
+      ((ev.estado==='Pendiente de Colocacion' ? ev.colocacionAsignado : ev.asignado) === floristaNombre));
+    rows = [
+      ['📋', mis.length ? `Tenés ${mis.length} tarea${mis.length!==1?'s':''} asignada${mis.length!==1?'s':''} para hoy` : 'Todavía no tenés tareas asignadas'],
+      horario?.desde ? ['🕐', `Tu turno: ${horario.desde} a ${horario.hasta||'—'}`] : null,
+      evs.length ? ['🎉', 'Eventos: ' + esc(evs.map(e=>e.nombre).slice(0,2).join(' · '))] : null,
+    ];
+  } else if(userRole==='gerencia'){
+    const evsHoy = (eventosData||[]).filter(e => e.fecha===TODAY_ISO && e.estado!=='Pedidos Finalizados');
+    const conTurno = getFloristasActivos().filter(n => (window.horariosData||{})[n]?.[TODAY_ISO]?.desde);
+    const hechas = (ds.checked||[]).filter(Boolean).length;
+    const venc = jardRecordatorios.filter(r=>recEstado(r)==='vencido').length;
+    rows = [
+      ['🎉', evsHoy.length ? `${evsHoy.length} evento${evsHoy.length!==1?'s':''} hoy: ${esc(evsHoy.map(e=>e.nombre).slice(0,2).join(' · '))}` : 'Sin eventos hoy'],
+      ['👥', conTurno.length ? 'Con turno hoy: ' + esc(conTurno.join(', ')) : 'Nadie con turno asignado hoy'],
+      ['✅', `Checklist: ${hechas} de ${CL_TASKS.length} tareas hechas`],
+      venc ? ['🌿', `${venc} recordatorio${venc!==1?'s':''} de jardín vencido${venc!==1?'s':''}`] : null,
+    ];
+  } else if(userRole==='jardinero'){
+    const venc = jardRecordatorios.filter(r=>recEstado(r)==='vencido').length;
+    const prox = jardRecordatorios.filter(r=>recEstado(r)==='proximo').length;
+    rows = [
+      venc ? ['🔴', `${venc} recordatorio${venc!==1?'s':''} vencido${venc!==1?'s':''} para atender`] : ['🟢', 'Recordatorios de jardín al día'],
+      prox ? ['🟡', `${prox} por vencer en los próximos días`] : null,
+    ];
+  }
+  rows = rows.filter(Boolean);
+
+  const nombre = floristaNombre || jardineroNombre || (userRole==='gerencia' ? '' : label);
+  const ov = document.createElement('div');
+  ov.id = 'briefing-overlay';
+  ov.className = 'briefing-overlay';
+  ov.innerHTML = `
+    <div class="briefing-card">
+      <div class="briefing-flor">🌸</div>
+      <div class="briefing-saludo">${_saludoHora()}${nombre ? ', ' + esc(nombre) : ''}</div>
+      <div class="briefing-fecha">${esc(fechaTxt)}</div>
+      ${rows.length ? `<div class="briefing-rows">${rows.map(([ic,tx])=>`<div class="briefing-row"><span>${ic}</span><span>${tx}</span></div>`).join('')}</div>` : ''}
+      <button class="btn-add briefing-btn" onclick="cerrarBriefing()">Empezar el día →</button>
+    </div>`;
+  ov.addEventListener('click', e => { if(e.target === ov) cerrarBriefing(); });
+  document.body.appendChild(ov);
+  requestAnimationFrame(()=>ov.classList.add('open'));
+}
+
+function cerrarBriefing(){
+  const ov = document.getElementById('briefing-overlay');
+  if(!ov) return;
+  ov.classList.remove('open');
+  setTimeout(()=>ov.remove(), 400);
+}
+
 function doLogin(){
   const val = document.getElementById('login-input').value.trim();
   const inp = document.getElementById('login-input');
@@ -9047,7 +9426,8 @@ function doLogin(){
     setTimeout(()=>initPushForUser?.(), 2000);
     setTimeout(()=>alertasAutomaticas(), 4000);
     setTimeout(()=>checkOnboarding(entry.role), 800);
-    setTimeout(()=>mostrarEventosDelDia(), 2500);
+    // Briefing del día (si ya se vio hoy, cae al aviso de eventos de siempre)
+    setTimeout(()=>mostrarBriefingDia(), 2200);
   } else {
     err.textContent = 'Contraseña incorrecta';
     inp.classList.add('error');
@@ -12771,7 +13151,8 @@ Object.assign(window, {
   generarPresupuestoPDF, checkOnboarding, nextOnboardingStep, finishOnboarding,
   toggleProvManager, toggleSidebar, toggleTask, updC, updCL, updActividad, updTiempoRef, updCaja, updCajaMonto, updCajaTipo,
   openVistaSemanal, vsToggleActividad, vsSetResp, descargarBackup, clFotoPreview, guardarFotoChecklist, verFotoChecklist,
-  activarNotificaciones,
+  activarNotificaciones, openGaleriaNuevos, renderGaleriaNuevos, moveKanbanCard, clSetFiltro,
+  cerrarBriefing,
   updPedidoHabEstado, updTipoEvento, updV, updateInsumoCount, updateInsumoRow,
   updateKpiCompras, urgenciaPanelHTML, vdAutoPrice, zonaHoraBtn, zonaResetHora, zonaSetHora,
   toggleStockSugerencias,
