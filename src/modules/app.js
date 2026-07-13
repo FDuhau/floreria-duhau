@@ -5335,6 +5335,8 @@ function saveRecordatorio(){
   if(idx>=0){ rec.creado = jardRecordatorios[idx].creado || null; jardRecordatorios[idx]=rec; }
   else { rec.creado = Date.now(); jardRecordatorios.push(rec); }
   fbSave('jardRecordatorios', jardRecordatorios);
+  // Push real a los jardineros cuando gerencia agrega un recordatorio
+  if(idx<0) window.pushSend?.('🌿 Recordatorio nuevo de jardinería', `${rec.tipo} · ${rec.task}`, 'jard-rec', 'roles:jardinero');
   closeModal('jrec-modal');
   renderRecordatoriosJard();
 }
@@ -7594,10 +7596,23 @@ async function initPushForUser(){
   if(!('Notification' in window)) return;
   if(Notification.permission==='default'){
     const granted=await window.pushRequestPermission?.();
-    if(granted) showToast('🔔 Notificaciones activadas');
+    if(granted) showToast('🔔 Notificaciones activadas — los avisos llegan aunque cierres la app');
   } else if(Notification.permission==='granted'){
+    // Refrescar la suscripción con la identidad/roles del usuario logueado
     await window.pushRequestPermission?.();
   }
+}
+
+// Activación manual desde el menú (por si se denegó o no saltó el pedido)
+async function activarNotificaciones(){
+  if(!('Notification' in window) || !('PushManager' in window)){
+    showToast('⚠️ Este navegador no soporta notificaciones push'); return;
+  }
+  if(Notification.permission==='denied'){
+    showToast('⚠️ Las notificaciones están bloqueadas — habilitalas en la configuración del navegador para este sitio'); return;
+  }
+  const ok = await window.pushRequestPermission?.();
+  showToast(ok ? '🔔 Notificaciones activadas en este dispositivo' : '⚠️ No se pudieron activar las notificaciones');
 }
 
 // ── PEDIDOS DE HABITACIÓN ──────────────────────────────────────────────────────
@@ -9016,6 +9031,12 @@ function doLogin(){
     if(entry.floristaNombre) floristaNombre = entry.floristaNombre;
     if(entry.jardineroNombre){ jardineroNombre = entry.jardineroNombre; jardCurrentJardinero = jardineroNombre; try{ localStorage.setItem('jardCurrentJardinero', jardineroNombre); }catch(e){} }
     window.currentUserLabel = entry.label || key;
+    // Identidad para las suscripciones push: label + roles (incluye 'jardinero'
+    // para usuarios combinados como Ivan, así les llegan los avisos de jardín)
+    window._pushIdentity = {
+      label: entry.label || key,
+      roles: [entry.role, entry.jardineroNombre ? 'jardinero' : null].filter(Boolean),
+    };
     currentSucursal = entry.sucursal || 'duhau';
     applyRole(entry.role);
     renderSucursalIndicador();
@@ -12750,6 +12771,7 @@ Object.assign(window, {
   generarPresupuestoPDF, checkOnboarding, nextOnboardingStep, finishOnboarding,
   toggleProvManager, toggleSidebar, toggleTask, updC, updCL, updActividad, updTiempoRef, updCaja, updCajaMonto, updCajaTipo,
   openVistaSemanal, vsToggleActividad, vsSetResp, descargarBackup, clFotoPreview, guardarFotoChecklist, verFotoChecklist,
+  activarNotificaciones,
   updPedidoHabEstado, updTipoEvento, updV, updateInsumoCount, updateInsumoRow,
   updateKpiCompras, urgenciaPanelHTML, vdAutoPrice, zonaHoraBtn, zonaResetHora, zonaSetHora,
   toggleStockSugerencias,

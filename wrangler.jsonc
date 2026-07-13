@@ -2,14 +2,26 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "floreria-duhau",
   "compatibility_date": "2026-06-19",
+  "main": "worker/index.js",
   "observability": {
     "enabled": true
   },
   "assets": {
     "directory": "./dist",
+    "binding": "ASSETS",
     "not_found_handling": "single-page-application"
   },
   "compatibility_flags": [
     "nodejs_compat"
-  ]
+  ],
+  // Web Push (VAPID). La clave pública es pública (también está en el cliente).
+  // La clave PRIVADA va como secret, NUNCA en este archivo:
+  //   npx wrangler secret put VAPID_PRIVATE_KEY
+  // o en el dashboard: Workers & Pages → floreria-duhau → Settings →
+  // Variables and Secrets → Add → tipo "Secret", nombre VAPID_PRIVATE_KEY.
+  // Sin ese secret, /api/push responde error y los avisos siguen siendo solo in-app.
+  "vars": {
+    "VAPID_PUBLIC_KEY": "BPdHl3-CEMyDYx0j780ImwvNPCGaBInhq6lnNOjv6iJu8lfdHb-gcu9kROVchB4jf5oEul748FN_PKwQpc2x0gE",
+    "VAPID_SUBJECT": "mailto:operaciones@lafloreriadelduhau.com.ar"
+  }
 }
