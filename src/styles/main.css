@@ -545,20 +545,10 @@
     to   { opacity: 1; transform: scale(1); filter: invert(1) blur(0) brightness(1); }
   }
   /* El resto del login aparece después de que el logo emergió */
-  .login-sub, .login-divider, .login-users, .login-hint, .login-input, .login-error, .login-btn {
+  .login-sub, .login-divider, .login-input, .login-error, .login-btn {
     animation: loginRise .7s ease 1.3s both;
   }
   @keyframes loginRise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-  /* Selector de usuario */
-  .login-users { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 16px 0 2px; max-width: 350px; }
-  .login-user-chip { display: flex; align-items: center; gap: 6px;
-    background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.14);
-    color: rgba(247,245,242,.85); border-radius: 20px; padding: 6px 13px 6px 9px;
-    font-size: 12.5px; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all .18s; }
-  .login-user-chip:hover { background: rgba(255,255,255,.13); }
-  .login-user-chip.sel { background: #F7F5F2; color: #111110; border-color: #F7F5F2; font-weight: 600; }
-  .login-hint { font-family: 'DM Sans', sans-serif; font-size: 11px; color: rgba(247,245,242,.45);
-    margin: 12px 0 2px; letter-spacing: .5px; }
   .login-sub {
     font-family: 'DM Sans', sans-serif; font-size: 11px; letter-spacing: 3px;
     text-transform: uppercase; color: rgba(247,245,242,.3); margin-bottom: 40px;

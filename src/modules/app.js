@@ -9316,35 +9316,7 @@ let currentLoginKey = null; // la contraseña con la que se logueó
 // Puente para que el listener de Firebase actualice ESTA variable (la que usa el
 // login), no una copia separada en window. Sin esto, los cambios de contraseña
 // se guardaban en Firebase pero el login seguía usando los valores por defecto.
-window._setLoginPasswords = (v) => { if(v && typeof v === 'object'){ loginPasswords = v; renderLoginUsers(); } };
-
-// ── Selector de usuario en el login ──────────────────────────────────────────
-const LOGIN_ROLE_EMOJI = { gerencia:'👔', operario:'🏠', florista:'💐', jardinero:'🌿', compras:'📦', ventas:'🏨', comercial:'🎯' };
-let loginUserSel = '';
-
-function renderLoginUsers(){
-  const el = document.getElementById('login-users');
-  if(!el) return;
-  const order = { gerencia:0, florista:1, jardinero:2, operario:3, compras:4, ventas:5, comercial:6 };
-  const vistos = new Set();
-  const usuarios = Object.values(loginPasswords||{})
-    .filter(e => e?.label && !vistos.has(e.label) && vistos.add(e.label))
-    .sort((a,b) => (order[a.role]??9)-(order[b.role]??9) || a.label.localeCompare(b.label,'es'));
-  el.innerHTML = usuarios.map(e =>
-    `<div class="login-user-chip${loginUserSel===e.label?' sel':''}" onclick="loginPickUser(this.dataset.u)" data-u="${esc(e.label)}">
-      <span>${LOGIN_ROLE_EMOJI[e.role]||'👤'}</span>${esc(e.label)}
-    </div>`).join('');
-}
-
-function loginPickUser(label){
-  loginUserSel = loginUserSel===label ? '' : label;
-  renderLoginUsers();
-  const hint = document.getElementById('login-hint');
-  if(hint) hint.textContent = loginUserSel ? `Contraseña de ${loginUserSel}` : 'Elegí tu usuario e ingresá tu contraseña';
-  const err = document.getElementById('login-error');
-  if(err) err.textContent = '';
-  if(loginUserSel) document.getElementById('login-input')?.focus();
-}
+window._setLoginPasswords = (v) => { if(v && typeof v === 'object') loginPasswords = v; };
 
 // ── Briefing "Buen día" al entrar (una vez por día por dispositivo) ───────────
 function _saludoHora(){
@@ -9421,25 +9393,12 @@ function cerrarBriefing(){
   setTimeout(()=>ov.remove(), 400);
 }
 
-// Poblar el selector de usuarios apenas carga la app (con los defaults;
-// se re-renderiza cuando llegan los usuarios reales desde Firebase)
-renderLoginUsers();
-
 function doLogin(){
   const val = document.getElementById('login-input').value.trim();
   const inp = document.getElementById('login-input');
   const err = document.getElementById('login-error');
   const key = val.toLowerCase();
   const entry = loginPasswords[key];
-  // Si eligió un usuario del selector, la contraseña tiene que ser la suya
-  if(entry && loginUserSel && (entry.label||key) !== loginUserSel){
-    err.textContent = 'Esa contraseña no corresponde a ' + loginUserSel;
-    inp.classList.add('error');
-    setTimeout(()=>inp.classList.remove('error'), 400);
-    inp.value = '';
-    inp.focus();
-    return;
-  }
   if(entry){
     // Florista que además es jardinero (figura en JARDINEROS_LIST, ej. Ivan):
     // habilitar ambos mundos en el mismo usuario. Robusto aunque loginPasswords
@@ -13193,7 +13152,7 @@ Object.assign(window, {
   toggleProvManager, toggleSidebar, toggleTask, updC, updCL, updActividad, updTiempoRef, updCaja, updCajaMonto, updCajaTipo,
   openVistaSemanal, vsToggleActividad, vsSetResp, descargarBackup, clFotoPreview, guardarFotoChecklist, verFotoChecklist,
   activarNotificaciones, openGaleriaNuevos, renderGaleriaNuevos, moveKanbanCard, clSetFiltro,
-  loginPickUser, cerrarBriefing,
+  cerrarBriefing,
   updPedidoHabEstado, updTipoEvento, updV, updateInsumoCount, updateInsumoRow,
   updateKpiCompras, urgenciaPanelHTML, vdAutoPrice, zonaHoraBtn, zonaResetHora, zonaSetHora,
   toggleStockSugerencias,
