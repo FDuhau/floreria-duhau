@@ -625,15 +625,31 @@ function updTiempoRef(i, val){
   fbSave('clTiemposRef', clTiemposRef);
 }
 
-// Cambio de actividad (solo gerencia): avisar si la zona ya tuvo Nuevo esta semana
+// Cambio de actividad (solo gerencia). Al marcar Nuevo un día, esa tarea queda
+// en Retoque el resto de la semana (el Nuevo se hace 1 sola vez por semana).
 function updActividad(i, val){
-  if(String(val).toLowerCase()==='nuevo'){
-    const dias = Object.entries(clStateByDay)
-      .filter(([d,ds]) => d!==currentDay && String(ds?.actividad?.[i]||'').toLowerCase()==='nuevo')
-      .map(([d])=>d);
-    if(dias.length) showToast(`⚠️ ${CL_TASKS[i].zona} ya tiene NUEVO esta semana (${dias.join(', ')}) — se hace 1 vez por semana`, 'warn');
-  }
   updCL(i,'actividad',val);
+  if(String(val).toLowerCase()!=='nuevo') return;
+  const cambiados = [];
+  Object.entries(clStateByDay).forEach(([d,ds])=>{
+    if(d===currentDay || !Array.isArray(ds?.actividad)) return;
+    if(String(ds.actividad[i]||'').toLowerCase()==='nuevo'){
+      ds.actividad[i] = 'Retoque';
+      cambiados.push(d);
+    }
+  });
+  // Los días aún no creados ya arrancan en Retoque por default
+  if(cambiados.length){
+    try{ localStorage.setItem(CL_STORAGE_KEY, JSON.stringify(clStateByDay)); }catch(e){}
+    window._checklistLastSave = Date.now();
+    cambiados.forEach(d=>{
+      if(window.fbUpdate) window.fbUpdate('checklist/'+d, {actividad: clStateByDay[d].actividad});
+    });
+    if(!window.fbUpdate) fbSave('checklist', clStateByDay);
+    showToast(`✓ Nuevo el ${currentDay} — ${CL_TASKS[i].zona} pasó a Retoque el resto de la semana (${cambiados.join(', ')})`);
+  } else {
+    showToast(`✓ Nuevo asignado a ${CL_TASKS[i].zona} — el resto de la semana queda en Retoque`);
+  }
 }
 
 // ── Semana actual ISO (ej: "2026-W22") ────────────────────────────────────────
