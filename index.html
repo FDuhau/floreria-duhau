@@ -168,6 +168,7 @@
     </div>
     <div id="home-aviso-rec"></div>
     <div id="home-kpis"></div>
+    <div id="home-visual"></div>
     <div id="home-prod"></div>
     <div class="home-dash-grid">
       <div id="home-eventos-col"></div>
@@ -262,6 +263,7 @@
       <div><div class="page-title">Checklist Diaria</div><div class="page-subtitle">Mismo set de tareas de lunes a sábado · actividad, observaciones, tiempo y responsable editables</div></div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         <button class="btn-secondary gerencia-only" onclick="openVistaSemanal()" style="font-size:12px">📅 Vista semanal</button>
+        <button class="btn-secondary gerencia-only" onclick="openGaleriaNuevos()" style="font-size:12px">📷 Fotos de Nuevos</button>
         <button class="btn-add gerencia-only" onclick="toggleHistory()" id="history-toggle-btn">📋 Ver Historial</button>
         <button class="btn-secondary gerencia-only" onclick="toggleProductividad()" id="prod-toggle-btn" style="font-size:12px;background:#2C4A3E;color:white;border-color:#2C4A3E">📊 Productividad</button>
         <button class="btn-secondary gerencia-only" id="btn-reset-week" onclick="confirmResetWeek()" style="font-size:12px">🔄 Nueva semana</button>
@@ -302,7 +304,9 @@
     </div>
 
     <div class="day-tabs" id="day-tabs-container"></div>
-    <div class="table-wrapper">
+    <!-- Vista de tarjetas para floristas (mobile-first) -->
+    <div id="cl-cards-wrap" style="display:none"></div>
+    <div class="table-wrapper" id="cl-table-wrap">
       <table class="checklist-table">
         <thead id="checklist-thead">
           <tr>
@@ -738,6 +742,21 @@
       <div class="modal-title">📅 Planificación semanal del checklist</div>
       <div style="font-size:12px;color:var(--mid-gray);margin-bottom:12px">Asigná responsables y marcá el <strong>Nuevo</strong> de cada zona para toda la semana. Tocá la etiqueta Retoque/NUEVO para alternar — al marcar Nuevo, el resto de la semana pasa a Retoque automáticamente.</div>
       <div id="cl-week-grid" style="max-height:70vh;overflow:auto"></div>
+    </div>
+  </div>
+
+  <!-- ══════ GALERÍA DE ARREGLOS NUEVOS (gerencia) ══════ -->
+  <div class="modal-overlay" id="cl-galeria-modal">
+    <div class="modal" style="max-width:980px;width:96vw">
+      <button class="modal-close" onclick="closeModal('cl-galeria-modal')">✕</button>
+      <div class="modal-title">📷 Fotos de arreglos Nuevos</div>
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
+        <select class="cl-select" id="gal-nuevos-semana" onchange="renderGaleriaNuevos()" style="font-size:12px">
+          <option value="">Todas las semanas</option>
+        </select>
+        <span id="gal-nuevos-count" style="font-size:12px;color:var(--mid-gray)"></span>
+      </div>
+      <div id="cl-galeria-grid" class="gal-nuevos-grid" style="max-height:68vh;overflow:auto"></div>
     </div>
   </div>
 

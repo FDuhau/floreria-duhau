@@ -982,7 +982,8 @@ function renderChecklistTable(){
   if(!progressEl){
     progressEl = document.createElement('div');
     progressEl.id = 'cl-progress-bar-wrap';
-    const wrapper = document.getElementById('checklist-body').closest('.table-wrapper');
+    // Antes de las tarjetas (floristas) y de la tabla (resto)
+    const wrapper = document.getElementById('cl-cards-wrap') || document.getElementById('checklist-body').closest('.table-wrapper');
     wrapper.before(progressEl);
   }
   progressEl.innerHTML = `
@@ -992,6 +993,18 @@ function renderChecklistTable(){
       </div>
       <span style="font-size:12px;color:var(--mid-gray);white-space:nowrap">${done_count} / ${total} tareas${pct===100?' ✅ ¡Completada!':''}</span>
     </div>`;
+
+  // ── Floristas: vista de tarjetas (mobile-first) en lugar de la tabla ──
+  const cardsWrap = document.getElementById('cl-cards-wrap');
+  const tableWrap = document.getElementById('cl-table-wrap');
+  if(userRole === 'florista'){
+    if(tableWrap) tableWrap.style.display = 'none';
+    if(cardsWrap){ cardsWrap.style.display = ''; renderChecklistCards(cardsWrap); }
+    renderProductividadCL();
+    return;
+  }
+  if(tableWrap) tableWrap.style.display = '';
+  if(cardsWrap) cardsWrap.style.display = 'none';
 
   const tbody = document.getElementById('checklist-body');
   tbody.innerHTML = '';
@@ -1208,6 +1221,95 @@ function renderChecklistTable(){
 }
 
 
+// ── Checklist en tarjetas para floristas (mobile-first) ───────────────────────
+// Reemplaza la tabla por cards con botones grandes de Inicio/Fin. Reutiliza
+// renderHoraCell / renderEvHoraCell / renderVentaHoraCell para los controles.
+function renderChecklistCards(el){
+  const misIdxs = CL_TASKS.map((_,i)=>i).filter(i => (clState.responsable[i]||CL_TASKS[i].responsable||'') === floristaNombre);
+
+  const tareasHTML = misIdxs.map(i=>{
+    const t = CL_TASKS[i];
+    const done = clState.checked[i];
+    const curAct = clState.actividad[i]||t.actividad;
+    const curObs = (clState.obs[i] && clState.obs[i]!=='Observaciones') ? clState.obs[i] : (t.obs||'');
+    const ref = getTiempoRef(i);
+    const sh = SEC_HEADERS[t.sec];
+    const dur = clState.inicio?.[i] && clState.fin?.[i] ? durBadge(clState.inicio[i], clState.fin[i], ref) : '';
+    return `<div class="cl-card${done?' cl-card-done':''}">
+      <div class="cl-card-top">
+        <div>
+          <div class="cl-card-zona">${done?'✅ ':''}${esc(t.zona)}</div>
+          <div class="cl-card-sec">${sh.icon} ${sh.label}</div>
+        </div>
+        <div class="cl-card-badges">
+          <span class="badge ${getBadge(curAct)}">${esc(curAct)}</span>
+          ${ref?`<span class="cl-card-ref" title="Tiempo promedio de referencia">⏱ ${ref}m</span>`:''}
+          ${dur}
+        </div>
+      </div>
+      <input class="cl-obs-input cl-card-obs" value="${esc(curObs)}" placeholder="Observaciones..."
+        onchange="updCL(${i},'obs',this.value)" ${done?'disabled':''}>
+      <div class="cl-card-horas">
+        <div class="cl-card-hora">${renderHoraCell(i,'inicio',done)}</div>
+        <div class="cl-card-hora">${renderHoraCell(i,'fin',done)}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Eventos del día asignados a la florista (armado o colocación según fase)
+  const eventosHoy = eventosData.filter(ev=>{
+    if(ev.estado==='Pedidos Finalizados') return false;
+    const fase = ev.estado==='Pendiente de Colocacion' ? 'colocacion' : 'armado';
+    const flor = fase==='colocacion' ? (ev.colocacionAsignado||'') : (ev.asignado||'');
+    return flor === floristaNombre;
+  });
+  const evHTML = eventosHoy.map(ev=>{
+    const evIdx = eventosData.indexOf(ev);
+    const fase = ev.estado==='Pendiente de Colocacion' ? 'colocacion' : 'armado';
+    return `<div class="cl-card cl-card-evento" onclick="if(!event.target.closest('button'))openEventoDetail(${evIdx})">
+      <div class="cl-card-top">
+        <div>
+          <div class="cl-card-zona">🎉 ${esc(ev.nombre)}</div>
+          <div class="cl-card-sec">${esc(ev.tipo||'')}${ev.salon?' · '+esc(ev.salon):''}${ev.pax?' · '+ev.pax+' pax':''}${ev.hora?' · '+ev.hora:''}</div>
+        </div>
+        <span class="cl-card-fase ${fase==='colocacion'?'cl-fase-coloc':'cl-fase-armado'}">${fase==='colocacion'?'📍 COLOCACIÓN':'🔨 ARMADO'}</span>
+      </div>
+      <div class="cl-card-horas">
+        <div class="cl-card-hora">${renderEvHoraCell(evIdx,'inicio',ev,fase)}</div>
+        <div class="cl-card-hora">${renderEvHoraCell(evIdx,'fin',ev,fase)}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Ventas / pedidos pendientes asignados
+  const ventasHoy = (ventasData||[]).filter(v => v.asignado===floristaNombre && v.estado==='pendiente' && !v.fin);
+  const vtHTML = ventasHoy.map(v=>{
+    const vIdx = ventasData.indexOf(v);
+    const detalle = [v.cliente, v.colores?'🎨 '+v.colores:'', v.fecha?'📅 '+fmtDate(v.fecha):''].filter(Boolean).join(' · ');
+    return `<div class="cl-card cl-card-venta" onclick="if(!event.target.closest('button'))openVentaDetail(${vIdx})">
+      <div class="cl-card-top">
+        <div>
+          <div class="cl-card-zona">💐 ${esc(v.prod||'')}</div>
+          <div class="cl-card-sec">${esc(detalle)}</div>
+        </div>
+      </div>
+      <div class="cl-card-horas">
+        <div class="cl-card-hora">${renderVentaHoraCell(vIdx,'inicio',v)}</div>
+        <div class="cl-card-hora">${renderVentaHoraCell(vIdx,'fin',v)}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    ${misIdxs.length ? tareasHTML : `<div class="cl-cards-empty">
+      <div style="font-size:30px;margin-bottom:8px">📋</div>
+      No tenés tareas asignadas para hoy, ${esc(floristaNombre)}
+      <div class="cl-cards-empty-sub">Gerencia asigna las tareas desde la checklist general.</div>
+    </div>`}
+    ${evHTML ? '<div class="cl-cards-sec-hdr" style="color:#B8602A">🎉 Eventos del día</div>'+evHTML : ''}
+    ${vtHTML ? '<div class="cl-cards-sec-hdr" style="color:#2C5A80">💐 Ventas pendientes</div>'+vtHTML : ''}`;
+}
+
 function renderHoraCell(i, campo, done){
   const val = clState[campo]?.[i] || '';
   if(userRole === 'gerencia'){
@@ -1365,6 +1467,40 @@ function guardarFotoChecklist(){
   closeModal('cl-foto-modal');
   showToast('📷 Foto guardada — gerencia la puede ver en el historial');
   renderHistoryPanel();
+}
+
+// ── Galería de fotos de arreglos Nuevos (gerencia) ────────────────────────────
+function openGaleriaNuevos(){
+  const sel = document.getElementById('gal-nuevos-semana');
+  if(sel){
+    const semanas = [...new Set((checklistHistory||[]).filter(r=>r?.img).map(r=>r.week).filter(Boolean))].reverse();
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">Todas las semanas</option>' + semanas.map(w=>`<option${w===cur?' selected':''}>${esc(w)}</option>`).join('');
+  }
+  renderGaleriaNuevos();
+  document.getElementById('cl-galeria-modal').classList.add('open');
+}
+
+function renderGaleriaNuevos(){
+  const el = document.getElementById('cl-galeria-grid');
+  if(!el) return;
+  const semana = document.getElementById('gal-nuevos-semana')?.value || '';
+  const fotos = (checklistHistory||[])
+    .map((r,i)=>({r,i}))
+    .filter(x => x.r?.img && (!semana || x.r.week === semana))
+    .reverse()
+    .slice(0, 80);
+  const cnt = document.getElementById('gal-nuevos-count');
+  if(cnt) cnt.textContent = fotos.length ? fotos.length + ' foto' + (fotos.length!==1?'s':'') : '';
+  el.innerHTML = fotos.length ? fotos.map(({r,i})=>`
+    <div class="gal-nuevo-item" onclick="verFotoChecklist(${i})" title="Ver en grande">
+      <img src="${r.img}" loading="lazy" alt="${esc(r.zona||'')}">
+      <div class="gal-nuevo-cap">
+        <strong>${esc(r.zona||'')}</strong>
+        <span>${fmtDate(r.date)}${r.who?' · '+esc(r.who):''}</span>
+      </div>
+    </div>`).join('')
+    : '<p style="color:var(--mid-gray);font-size:13px;padding:24px;text-align:center">Todavía no hay fotos — las floristas pueden adjuntar una al terminar un arreglo Nuevo.</p>';
 }
 
 function verFotoChecklist(idx){
@@ -1852,6 +1988,23 @@ function syncEventosToKanban(){
   });
 }
 
+// Mover una tarjeta del kanban con botones ‹ › (útil en touch, donde no hay drag & drop)
+function moveKanbanCard(ci, i, dir){
+  const nci = ci + dir;
+  if(nci < 0 || nci >= kanbanData.length) return;
+  const card = kanbanData[ci].cards.splice(i, 1)[0];
+  if(!card) return;
+  if(card.isEvento){
+    const estadoMap = {0:'Pedidos Pendientes',1:'En Proceso',2:'Pendiente de Colocacion',3:'Pedidos Finalizados'};
+    eventosData[card.eventoIdx].estado = estadoMap[nci]||'Pedidos Pendientes';
+    fbSave('eventosData', eventosData);
+    renderEventos(); renderHome();
+  }
+  kanbanData[nci].cards.push(card);
+  fbSave('kanbanData', kanbanData);
+  renderKanban();
+}
+
 function renderKanban(){
   syncEventosToKanban();
 
@@ -1898,13 +2051,27 @@ function renderKanban(){
       cardEl.addEventListener('dragstart',()=>{dragSrcCol=ci;dragSrcIdx=i;cardEl.classList.add('dragging');});
       cardEl.addEventListener('dragend',()=>cardEl.classList.remove('dragging'));
       const descLines = (card.desc||'').split('\n').filter(Boolean);
+      // Urgencia por fecha del evento: borde y chip según cuántos días faltan
+      let urgChip='';
+      if(card.isEvento && ci!==3){
+        const fechaEv = eventosData[card.eventoIdx]?.fecha;
+        if(fechaEv){
+          const dias = Math.round((new Date(fechaEv)-new Date(TODAY_ISO))/86400000);
+          if(dias===0){ cardEl.classList.add('kanban-urg-hoy'); urgChip='<span class="kanban-urg-chip" style="background:var(--red-alert)">HOY</span>'; }
+          else if(dias===1){ cardEl.classList.add('kanban-urg-prox'); urgChip='<span class="kanban-urg-chip" style="background:#D4820A">Mañana</span>'; }
+          else if(dias>1 && dias<=3){ cardEl.classList.add('kanban-urg-prox'); urgChip=`<span class="kanban-urg-chip" style="background:#D4A820">En ${dias} días</span>`; }
+          else if(dias<0){ cardEl.classList.add('kanban-urg-pasado'); urgChip='<span class="kanban-urg-chip" style="background:var(--mid-gray)">Pasado</span>'; }
+        }
+      }
       cardEl.innerHTML=`
-        <div class="kanban-card-title">${esc(card.title)}</div>
+        <div class="kanban-card-title">${esc(card.title)}${urgChip}</div>
         ${descLines.length?`<div class="kanban-card-desc">${descLines.map(esc).join('<br>')}</div>`:''}
         <div class="kanban-card-tags">${card.tags.map(t=>`<span class="kanban-tag ${t}">${TAG_LABELS[t]||t}</span>`).join('')}</div>
         <div class="kanban-card-meta">
           <span class="kanban-date">📅 ${card.date}</span>
           <div class="kanban-actions">
+            <button class="btn-icon kanban-move" title="Mover a la columna anterior" ${ci===0?'disabled':''} onclick="moveKanbanCard(${ci},${i},-1)">‹</button>
+            <button class="btn-icon kanban-move" title="Mover a la columna siguiente" ${ci===kanbanData.length-1?'disabled':''} onclick="moveKanbanCard(${ci},${i},1)">›</button>
             ${card.isEvento?`<button class="btn-icon" title="Ver detalle" onclick="openEventoDetail(${card.eventoIdx})">👁</button><button class="btn-icon" title="Ver en Comercial" onclick="navigate('eventos-comercial')">🔗</button>`:`<button class="btn-icon" onclick="openTaskModal(${ci},${i})">✏️</button>`}
             ${!card.isEvento?`<button class="btn-icon" style="color:var(--red-alert)" onclick="removeKanbanCard(${ci},${i})">✕</button>`:''}
           </div>
@@ -3959,6 +4126,76 @@ setInterval(()=>{
   if(document.getElementById('cl-prod-card')?.innerHTML) renderProductividadCL();
 }, 60000);
 
+// ── Fila visual del home de gerencia: anillo, sparkline y semáforo ────────────
+function _homeVisualHTML(hechas, totalTareas, pct, ventasMes, totalMes){
+  const fmtARS = n => '$' + Math.round(n).toLocaleString('es-AR');
+
+  // Anillo de progreso del checklist
+  const C = 2*Math.PI*34;
+  const off = (C*(1-Math.min(pct,100)/100)).toFixed(1);
+  const ringColor = pct>=100 ? 'var(--green-ok)' : pct>=50 ? '#D4A820' : 'var(--sage)';
+
+  // Sparkline: ventas acumuladas por día del mes
+  const diaHoy = Math.max(parseInt(TODAY_ISO.slice(8,10),10), 1);
+  const porDia = Array.from({length:diaHoy}, ()=>0);
+  ventasMes.forEach(v=>{
+    const d = parseInt((v.fecha||'').slice(8,10),10);
+    if(d>=1 && d<=diaHoy) porDia[d-1] += parseMoney(v.precio);
+  });
+  let acum = 0;
+  const serie = porDia.map(x => (acum += x));
+  const max = Math.max(...serie, 1);
+  const W = 220, H = 54;
+  const pts = serie.map((v,i)=>`${((i/Math.max(serie.length-1,1))*W).toFixed(1)},${(H-4-(v/max)*(H-12)).toFixed(1)}`).join(' ');
+  const areaPts = `0,${H} ${pts} ${W},${H}`;
+
+  // Semáforo: días desde el último Nuevo por zona de arreglos
+  const map = mapUltimoNuevoPorZona();
+  const zonas = [...new Map(CL_TASKS.filter(t=>String(t.actividad).toLowerCase()!=='riego').map(t=>[t.sec+'|'+t.zona, t])).values()];
+  let rojo=0, ambar=0, verde=0; const peores=[];
+  zonas.forEach(t=>{
+    const f = map[t.sec+'|'+t.zona];
+    const dias = f ? Math.floor((new Date(TODAY_ISO)-new Date(f))/86400000) : null;
+    if(dias===null || dias>=7){ rojo++; peores.push({zona:t.zona, dias}); }
+    else if(dias>=5) ambar++;
+    else verde++;
+  });
+  peores.sort((a,b)=>(b.dias??999)-(a.dias??999));
+  const peoresTxt = peores.slice(0,3).map(p=>`${esc(p.zona)} (${p.dias===null?'nunca':p.dias+'d'})`).join(' · ');
+
+  return `<div class="home-visual-grid">
+    <div class="card hv-card card-clickable" onclick="navigate('checklist')">
+      <div class="card-label">✅ Progreso del checklist</div>
+      <div class="hv-ring-row">
+        <svg viewBox="0 0 80 80" class="hv-ring" aria-hidden="true">
+          <circle cx="40" cy="40" r="34" fill="none" stroke="var(--light-gray)" stroke-width="8"/>
+          <circle cx="40" cy="40" r="34" fill="none" stroke="${ringColor}" stroke-width="8" stroke-linecap="round"
+            stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${off}" transform="rotate(-90 40 40)"/>
+          <text x="40" y="46" text-anchor="middle" class="hv-ring-txt">${pct}%</text>
+        </svg>
+        <div class="hv-sub">${hechas} de ${totalTareas} tareas<br>de hoy completadas</div>
+      </div>
+    </div>
+    <div class="card hv-card card-clickable" onclick="navigate('ventas-externas')">
+      <div class="card-label">💰 Ventas acumuladas del mes</div>
+      <svg viewBox="0 0 ${W} ${H}" class="hv-spark" preserveAspectRatio="none" aria-hidden="true">
+        <polygon points="${areaPts}" fill="var(--sage)" opacity="0.14"/>
+        <polyline points="${pts}" fill="none" stroke="var(--sage)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+      </svg>
+      <div class="hv-sub">${fmtARS(totalMes)} al día ${diaHoy}</div>
+    </div>
+    <div class="card hv-card card-clickable" onclick="navigate('checklist')">
+      <div class="card-label">🌸 Arreglos Nuevos por zona</div>
+      <div class="hv-semaforo">
+        <span class="hv-sem hv-sem-rojo">${rojo}<small>+7 días<br>o sin registro</small></span>
+        <span class="hv-sem hv-sem-ambar">${ambar}<small>5-6<br>días</small></span>
+        <span class="hv-sem hv-sem-verde">${verde}<small>al<br>día</small></span>
+      </div>
+      <div class="hv-sub">${peoresTxt ? '⚠️ ' + peoresTxt : '✓ Todas las zonas al día'}</div>
+    </div>
+  </div>`;
+}
+
 function renderHome(){
   if(!document.getElementById('home-kpis')) return;
 
@@ -4017,6 +4254,10 @@ function renderHome(){
         <div class="card-sub">${recAlerts.filter(r=>recEstado(r)==='vencido').length} vencido${recAlerts.filter(r=>recEstado(r)==='vencido').length!==1?'s':''} · ${recAlerts.filter(r=>recEstado(r)==='proximo').length} próximo${recAlerts.filter(r=>recEstado(r)==='proximo').length!==1?'s':''}</div>
       </div>` : ''}
     </div>`;
+
+  // ── Fila visual (solo gerencia): anillo, sparkline y semáforo ──
+  const visEl = document.getElementById('home-visual');
+  if(visEl) visEl.innerHTML = isFlorHome ? '' : _homeVisualHTML(hechas, totalTareas, pct, ventasMes, totalMes);
 
   // ── Columna Eventos ──
   document.getElementById('home-eventos-col').innerHTML = `
@@ -12771,7 +13012,7 @@ Object.assign(window, {
   generarPresupuestoPDF, checkOnboarding, nextOnboardingStep, finishOnboarding,
   toggleProvManager, toggleSidebar, toggleTask, updC, updCL, updActividad, updTiempoRef, updCaja, updCajaMonto, updCajaTipo,
   openVistaSemanal, vsToggleActividad, vsSetResp, descargarBackup, clFotoPreview, guardarFotoChecklist, verFotoChecklist,
-  activarNotificaciones,
+  activarNotificaciones, openGaleriaNuevos, renderGaleriaNuevos, moveKanbanCard,
   updPedidoHabEstado, updTipoEvento, updV, updateInsumoCount, updateInsumoRow,
   updateKpiCompras, urgenciaPanelHTML, vdAutoPrice, zonaHoraBtn, zonaResetHora, zonaSetHora,
   toggleStockSugerencias,
