@@ -283,6 +283,9 @@
 
     // Esquema con hash (loginAuth): si existe, el login lo prioriza sobre loginPasswords
     fbListen('loginAuth', val => {
+      // Marca que Firebase YA tiene loginAuth (evita que la gestión lo reconstruya
+      // desde los defaults antes de que carguen los usuarios reales)
+      if(val && typeof val === 'object' && Object.keys(val).length) window._loginAuthReady = true;
       if(window._setLoginAuth) window._setLoginAuth(val);
       if(val && typeof val === 'object') _syncRespFloristas(val);
     });
