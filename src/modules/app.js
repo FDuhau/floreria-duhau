@@ -44,7 +44,7 @@ function fbSave(key, data){
   if(window.fbSet){
     window.fbSet(key, JSON.parse(JSON.stringify(data)));
     // Auditoría automática (excluir los propios logs y datos de sesión)
-    const AUDIT_SKIP = ['auditLog','pushTokens','pushBroadcast','loginPasswords'];
+    const AUDIT_SKIP = ['auditLog','pushTokens','pushBroadcast','loginPasswords','loginAuth','pushSubs'];
     if(!AUDIT_SKIP.includes(key) && window.currentUserLabel){
       const entry = {
         ts: Date.now(),
@@ -8822,11 +8822,13 @@ const DIAS_SEMANA_NAMES = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sá
 const DIAS_SEMANA_SHORT = ['Lun','Mar','Mié','Jue','Vie','Sáb'];
 
 function getFloristasActivos(){
+  // Tras migrar a hashes los usuarios viven en loginAuth; antes, en loginPasswords.
+  const fuente = (loginAuth && Object.keys(loginAuth).length) ? loginAuth : loginPasswords;
   const nombres = [];
-  Object.values(loginPasswords||{}).forEach(e => {
+  Object.values(fuente||{}).forEach(e => {
     if(e.role === 'florista' && e.floristaNombre) nombres.push(e.floristaNombre);
   });
-  return nombres.sort((a,b) => a.localeCompare(b,'es'));
+  return [...new Set(nombres)].sort((a,b) => a.localeCompare(b,'es'));
 }
 
 function getEmpleadosActivos(){
