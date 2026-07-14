@@ -9441,7 +9441,9 @@ function _persistLoginAuth(){
 // Migra a hashes al entrar gerencia. Autoverifica que la contraseña de gerencia
 // siga validando antes de borrar el texto plano (para no dejar a nadie afuera).
 async function migrarSeguridadLogin(pwGerenciaActual){
-  if(loginAuth || !Object.keys(loginPasswords||{}).length) return;
+  // Si Firebase ya tiene loginAuth (aunque el listener no lo haya cargado aún),
+  // NO migrar: reconstruir desde defaults pisaría los usuarios reales.
+  if(loginAuth || window._loginAuthReady || !Object.keys(loginPasswords||{}).length) return;
   const auth = await _construirLoginAuth(loginPasswords);
   let ok = false;
   for(const e of Object.values(auth)){
@@ -9454,9 +9456,24 @@ async function migrarSeguridadLogin(pwGerenciaActual){
   showToast('🔒 Contraseñas protegidas — ahora se guardan cifradas');
 }
 
-// Garantiza loginAuth antes de gestionar usuarios (ya estás logueado como gerencia)
+// Garantiza loginAuth antes de gestionar usuarios (ya estás logueado como gerencia).
+// CRÍTICO: si Firebase tiene loginAuth pero el listener todavía no lo cargó,
+// esperamos — reconstruir desde los defaults locales pisaría los floristas reales.
 async function _ensureLoginAuth(){
   if(loginAuth) return true;
+  // Esperar hasta ~3s a que el listener traiga loginAuth de Firebase
+  for(let i=0; i<30 && !loginAuth && !window._loginAuthReady; i++){
+    await new Promise(r=>setTimeout(r, 100));
+  }
+  if(loginAuth) return true;
+  if(window._loginAuthReady){
+    // Firebase lo tiene pero aún no asentó en la variable; esperar un poco más
+    for(let i=0; i<20 && !loginAuth; i++){ await new Promise(r=>setTimeout(r, 100)); }
+    if(loginAuth) return true;
+    showToast('⚠️ Esperá unos segundos, cargando usuarios…');
+    return false;
+  }
+  // Genuinamente no hay loginAuth en Firebase → migrar desde loginPasswords (reales)
   loginAuth = await _construirLoginAuth(loginPasswords);
   _persistLoginAuth();
   if(window.fbSetPath) window.fbSetPath('loginPasswords', null);
@@ -9704,7 +9721,7 @@ async function cambiarContrasena(){
 
 async function openGestionPasswords(){
   if(userRole !== 'gerencia'){ showToast('⛔ Solo gerencia'); return; }
-  await _ensureLoginAuth();
+  if(!await _ensureLoginAuth()) return;
   let ov = document.getElementById('gestion-passwords-modal');
   if(!ov){
     ov = document.createElement('div');
@@ -9743,7 +9760,7 @@ async function openGestionPasswords(){
 
 async function agregarUsuarioFlorista(){
   if(userRole !== 'gerencia') return;
-  await _ensureLoginAuth();
+  if(!await _ensureLoginAuth()) return;
   const nombre = await promptModal('Nombre del/la florista (ej. María):', { title: 'Nuevo usuario florista' });
   if(!nombre || !nombre.trim()) return;
   const nombreClean = nombre.trim();
@@ -9766,7 +9783,7 @@ async function agregarUsuarioFlorista(){
 
 async function resetearPassword(id){
   if(userRole !== 'gerencia') return;
-  await _ensureLoginAuth();
+  if(!await _ensureLoginAuth()) return;
   const entry = loginAuth[id];
   if(!entry){ showToast('Usuario no encontrado'); return; }
   const nueva = await promptModal('Nueva contraseña para ' + (entry.label||id) + ':', { title: 'Resetear contraseña', password: false });
@@ -9779,7 +9796,7 @@ async function resetearPassword(id){
 
 async function eliminarUsuario(id){
   if(userRole !== 'gerencia') return;
-  await _ensureLoginAuth();
+  if(!await _ensureLoginAuth()) return;
   const entry = loginAuth[id];
   if(!entry) return;
   if(entry.role !== 'florista'){ showToast('⚠️ Solo se pueden eliminar usuarios floristas'); return; }
