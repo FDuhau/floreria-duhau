@@ -8214,6 +8214,28 @@ function populatePHSubSelector(){
   subSel.innerHTML = opts;
 }
 
+// Resuelve el precio del modelo elegido en el pedido de habitación.
+// La variante viene como "comp:Nombre" (composición, precio = costo + margen)
+// o "lp:Nombre" (ítem de la lista de precios). Devuelve el precio unitario.
+function _precioVariantePH(val){
+  if(!val) return '';
+  if(val.startsWith('comp:')){
+    const r = recetasData.find(x => x.nombre === val.slice(5));
+    if(r){
+      const costo = calcCostoComposicion(r);
+      const margen = cotizadorConfig?.margen ?? 30;
+      return '$' + Math.round(costo*(1+margen/100)).toLocaleString('es-AR');
+    }
+  } else if(val.startsWith('lp:')){
+    const nombre = val.slice(3);
+    for(const cat of listaPreciosData){
+      const it = (cat.items||[]).find(x => x.nombre === nombre);
+      if(it) return it.precio || '';
+    }
+  }
+  return '';
+}
+
 function enviarPedidoHab(){
   const tipo = document.getElementById('ph-tipo')?.value;
   if(!tipo){ showToast('⚠️ Seleccioná el tipo de arreglo'); return; }
@@ -8224,11 +8246,17 @@ function enviarPedidoHab(){
   const variante = document.getElementById('ph-variante')?.value || '';
   const tipoFinal = tipo === 'Otro' ? (tipoCustom || 'Arreglo especial') : tipo;
   const varianteLabel = variante.replace(/^(comp|lp):/,'');
+  const qty = +document.getElementById('ph-qty')?.value || 1;
+
+  // Precio unitario del modelo elegido y total según cantidad
+  const precioUnit = _precioVariantePH(variante);
+  const precioNum = parseMoney(precioUnit);
+  const precioTotal = precioNum > 0 ? '$' + (precioNum * qty).toLocaleString('es-AR') : precioUnit;
 
   const pedido = {
     tipo: tipoFinal,
     variante: varianteLabel,
-    qty: +document.getElementById('ph-qty')?.value || 1,
+    qty,
     cliente,
     habitacion: document.getElementById('ph-habitacion')?.value?.trim() || '—',
     tonalidad: document.getElementById('ph-tonalidad')?.value?.trim() || '',
@@ -8236,6 +8264,7 @@ function enviarPedidoHab(){
     cobro: document.getElementById('ph-cobro')?.value || '',
     solicitante: document.getElementById('ph-solicitante')?.value?.trim() || '',
     obs: document.getElementById('ph-obs')?.value?.trim() || '',
+    precio: precioTotal,
     fecha: TODAY_ISO,
     hora: new Date().toTimeString().slice(0,5),
     estado: 'pendiente'
@@ -8257,14 +8286,14 @@ function enviarPedidoHab(){
   });
   fbSave('kanbanData', kanbanData);
 
-  // ── AUTO: Registrar en Ventas Externas ──
+  // ── AUTO: Registrar en Ventas Externas (con el precio del modelo elegido) ──
   ventasData.push({
     prod: cardTitle,
     desc: cardDesc,
     cliente: cliente,
     fecha: TODAY_ISO,
     dedicatoria: pedido.obs || '',
-    precio: '',
+    precio: precioTotal,
     formaPago: pedido.cobro || '',
     estado: 'pendiente',
     dir: 'Hab. ' + pedido.habitacion,
