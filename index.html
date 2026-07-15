@@ -251,6 +251,9 @@
       </div>
     </div>
 
+    <!-- Alertas urgentes con foto (cargadas por gerencia) -->
+    <div id="jops-alertas-urgentes"></div>
+
     <!-- Aviso de recordatorios nuevos agregados por gerencia -->
     <div id="jops-aviso-rec"></div>
 
@@ -384,6 +387,12 @@
       <div class="page-subtitle">Controlá cada ítem recibido · el stock se actualiza al confirmar todo</div>
     </div>
     <div id="recep-alert-area"></div>
+    <!-- Filtro: buscar insumo y agrupar el mismo producto entre arreglos/secciones -->
+    <div id="recep-filter-bar" style="display:none;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
+      <input type="text" class="ctrl-search" id="recep-search" placeholder="🔍 Filtrar por insumo (ej. azarero)..." oninput="renderRecepcionPedidos()" style="flex:1;min-width:180px">
+      <button class="filter-btn" id="recep-group-btn" onclick="toggleRecepAgrupado()">📊 Agrupar por insumo</button>
+    </div>
+    <div id="recep-grouped" style="display:none"></div>
     <div id="recep-empty" style="display:none;padding:48px;text-align:center;color:var(--mid-gray);font-size:14px;background:var(--warm-white);border:1px solid var(--light-gray);border-radius:8px">
       ✅ No hay pedidos pendientes de recepción
     </div>
@@ -1725,8 +1734,12 @@
         <div class="page-title">Seguimiento Jardinería</div>
         <div class="page-subtitle">Todas las zonas del hotel</div>
       </div>
-      <button class="btn-add" onclick="exportCtrlCSV()">↓ Exportar CSV</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-add" style="background:var(--red-alert);border-color:var(--red-alert)" onclick="openAlertaJardinModal()">🚨 Alerta urgente</button>
+        <button class="btn-add" onclick="exportCtrlCSV()">↓ Exportar CSV</button>
+      </div>
     </div>
+    <div id="ctrl-jard-alertas"></div>
     <div class="ctrl-summary-cards" id="ctrl-jard-kpis"></div>
     <div class="ctrl-filter-bar">
       <input type="text" class="ctrl-search" id="ctrl-jard-search" placeholder="🔍 Buscar zona o tarea..." oninput="renderCtrlJard()">
@@ -1912,6 +1925,38 @@
           <button class="btn-secondary" onclick="closeModal('jrec-modal')">Cancelar</button>
           <button class="btn-add" onclick="saveRecordatorio()">Guardar</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ ALERTA URGENTE DE JARDÍN (gerencia) ══════ -->
+  <div class="modal-overlay" id="alerta-jard-modal" onclick="if(event.target===this)closeModal('alerta-jard-modal')">
+    <div class="modal" style="max-width:460px">
+      <button class="modal-close" onclick="closeModal('alerta-jard-modal')">✕</button>
+      <div class="modal-title">🚨 Alerta urgente de jardín</div>
+      <div style="font-size:12px;color:var(--mid-gray);margin-bottom:14px">Sacá o subí una foto de lo que necesita atención. Les llega al instante a los jardineros.</div>
+      <div class="form-group">
+        <label class="form-label">Foto</label>
+        <input type="file" id="alerta-jard-file" accept="image/*" capture="environment" onchange="alertaJardFotoPreview(this)" style="max-width:100%">
+        <img id="alerta-jard-preview" alt="" style="display:none;max-width:100%;border-radius:10px;margin-top:10px">
+      </div>
+      <div class="modal-row" style="grid-template-columns:1fr 1fr;gap:12px;display:grid">
+        <div class="form-group">
+          <label class="form-label">Zona</label>
+          <input class="form-input-modal" id="alerta-jard-zona" placeholder="ej. Jardín Central">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Qué hacer</label>
+          <select class="form-input-modal" id="alerta-jard-tipo"></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nota (opcional)</label>
+        <textarea class="form-input-modal" id="alerta-jard-nota" placeholder="Detalle de lo que hay que hacer..."></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="closeModal('alerta-jard-modal')">Cancelar</button>
+        <button class="btn-add" style="background:var(--red-alert);border-color:var(--red-alert)" onclick="guardarAlertaJardin()">🚨 Enviar alerta</button>
       </div>
     </div>
   </div>

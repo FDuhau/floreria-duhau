@@ -440,6 +440,11 @@
         if(document.getElementById('page-home')?.classList.contains('active')) window.renderHome?.();
       });
 
+      fbListen('jardAlertas', val => {
+        const arr = Array.isArray(val) ? val : Object.values(val||{});
+        if(window._setJardAlertas) window._setJardAlertas(arr);
+      });
+
       fbListen('jardHorarios', val => {
         window.jardHorarios = (val && typeof val === 'object') ? val : {};
         if(document.getElementById('page-jardineria-ops')?.classList.contains('active')) window.renderJardTurnoCard?.();
