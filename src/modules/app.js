@@ -4443,6 +4443,7 @@ function renderHome(){
 // ════════════════════════════════════════
 let ventasData=[];
 let jardRecordatorios=[];
+let jardAlertas=[]; // alertas urgentes con foto que carga gerencia para los jardineros
 window._setVentasData = (arr) => { ventasData.splice(0, ventasData.length, ...arr); };
 
 const VENTA_ESTADOS=['pendiente','confirmado','entregado'];
@@ -5055,32 +5056,87 @@ async function eliminarGaleria(idx){
 // ════════════════════════════════════════
 let recepState = {}; // key: idx → { items: [{checked, cantRecibida}] }
 
+let recepAgrupado = false;
+
+function toggleRecepAgrupado(){
+  recepAgrupado = !recepAgrupado;
+  const btn = document.getElementById('recep-group-btn');
+  if(btn) btn.classList.toggle('active', recepAgrupado);
+  renderRecepcionPedidos();
+}
+
 function renderRecepcionPedidos(){
-  const pending = comprasFlore
+  const allPending = comprasFlore
     .map((c,i) => ({...c, _idx: i}))
     .filter(c => c.estado !== 'recibido');
 
   const listEl  = document.getElementById('recep-list');
   const emptyEl = document.getElementById('recep-empty');
   const alertEl = document.getElementById('recep-alert-area');
+  const filterBar = document.getElementById('recep-filter-bar');
+  const groupedEl = document.getElementById('recep-grouped');
 
   if(!listEl) return;
 
-  if(pending.length === 0){
+  if(allPending.length === 0){
     listEl.innerHTML = '';
     emptyEl.style.display = '';
     alertEl.innerHTML = '';
+    if(filterBar) filterBar.style.display = 'none';
+    if(groupedEl){ groupedEl.style.display = 'none'; groupedEl.innerHTML=''; }
     return;
   }
   emptyEl.style.display = 'none';
+  if(filterBar) filterBar.style.display = 'flex';
+
+  // Filtro por nombre de insumo (agrupa el mismo producto aunque esté en pedidos separados)
+  const q = (document.getElementById('recep-search')?.value||'').trim().toLowerCase();
+  const pending = q ? allPending.filter(o => (o.prod||'').toLowerCase().includes(q)) : allPending;
 
   // Sin alertas de urgencia — circuito simple pedido → recibido
   alertEl.innerHTML = '';
 
-  // Group by fecha+proveedor for display
+  // Vista agrupada por insumo: suma paquetes del mismo producto entre arreglos/secciones
+  if(recepAgrupado && groupedEl){
+    listEl.style.display = 'none';
+    groupedEl.style.display = '';
+    const groups = {};
+    pending.forEach(o => {
+      const key = (o.prod||'—').trim();
+      if(!groups[key]) groups[key] = { prod:key, qty:0, n:0, sectores:new Set(), provs:new Set() };
+      groups[key].qty += parseFloat(o.qty)||0;
+      groups[key].n++;
+      if(o.sector) groups[key].sectores.add(o.sector);
+      if(o.prov) groups[key].provs.add(o.prov);
+    });
+    const rows = Object.values(groups).sort((a,b)=>a.prod.localeCompare(b.prod,'es'));
+    groupedEl.innerHTML = `<div style="font-size:12px;color:var(--mid-gray);margin-bottom:10px">${rows.length} insumo${rows.length!==1?'s':''} distinto${rows.length!==1?'s':''} · ${pending.length} pedido${pending.length!==1?'s':''}</div>
+      <div class="table-wrapper"><table class="stock-table" style="min-width:520px">
+        <thead><tr><th>Insumo</th><th style="text-align:center">Pedidos</th><th style="text-align:center">Total paquetes</th><th>Secciones / arreglos</th></tr></thead>
+        <tbody>${rows.map(g=>`<tr>
+          <td><strong>${esc(g.prod)}</strong></td>
+          <td style="text-align:center">${g.n}</td>
+          <td style="text-align:center"><strong style="font-size:15px;color:var(--sage-dark)">${g.qty}</strong></td>
+          <td style="font-size:11.5px;color:var(--mid-gray)">${esc([...g.sectores].join(', ')||'—')}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>`;
+    const actionBar = document.getElementById('recep-action-bar');
+    if(actionBar) actionBar.style.display = 'none';
+    recepUpdateGlobal(allPending);
+    return;
+  }
+  listEl.style.display = '';
+  if(groupedEl){ groupedEl.style.display = 'none'; groupedEl.innerHTML=''; }
+
   // Show action bar
   const actionBar = document.getElementById('recep-action-bar');
   if(actionBar) actionBar.style.display = 'flex';
+
+  if(pending.length === 0){
+    listEl.innerHTML = '<div style="padding:32px;text-align:center;color:var(--mid-gray);font-size:13px">Sin resultados para "'+esc(q)+'"</div>';
+    recepUpdateGlobal(allPending);
+    return;
+  }
 
   listEl.innerHTML = pending.map((order) => {
     const globalIdx = order._idx;
@@ -5527,6 +5583,114 @@ window._setJardRecordatorios = (arr) => {
   notificarRecordatoriosNuevos();
 };
 
+// ── ALERTAS URGENTES DE JARDÍN (foto) ─────────────────────────────────────────
+// Gerencia carga una foto de algo del jardín que requiere atención urgente
+// (zona + qué hacer). Les salta a los jardineros al instante como urgente.
+const JARD_ALERTA_TIPOS = ['Poda','Riego','Fertilización','Desmalezado','Plaga','Limpieza','Otro'];
+const JARD_ALERTA_ICON = { 'Poda':'✂️','Riego':'💧','Fertilización':'🌱','Desmalezado':'🌿','Plaga':'🐛','Limpieza':'🧹','Otro':'⚠️' };
+
+window._setJardAlertas = (arr) => {
+  const prev = jardAlertas.length;
+  jardAlertas.splice(0, jardAlertas.length, ...(Array.isArray(arr)?arr:Object.values(arr||{})));
+  renderAlertasUrgentesJard();
+  // Aviso a jardineros/combinados cuando entra una alerta nueva (no en la carga inicial)
+  if(prev>0) notificarAlertasUrgentes();
+};
+
+function _alertasActivas(){ return jardAlertas.filter(a=>a && !a.resuelto); }
+
+let _fotoAlertaData = '';
+function openAlertaJardinModal(){
+  if(userRole!=='gerencia'){ showToast('⛔ Solo gerencia'); return; }
+  _fotoAlertaData = '';
+  const sel = document.getElementById('alerta-jard-tipo');
+  if(sel) sel.innerHTML = JARD_ALERTA_TIPOS.map(t=>`<option value="${t}">${JARD_ALERTA_ICON[t]} ${t}</option>`).join('');
+  document.getElementById('alerta-jard-zona').value = '';
+  document.getElementById('alerta-jard-nota').value = '';
+  document.getElementById('alerta-jard-file').value = '';
+  const p = document.getElementById('alerta-jard-preview'); if(p){ p.src=''; p.style.display='none'; }
+  document.getElementById('alerta-jard-modal').classList.add('open');
+}
+
+function alertaJardFotoPreview(input){
+  const file = input.files[0]; if(!file) return;
+  comprimirImagen(file, 1000, 0.7, data => {
+    _fotoAlertaData = data;
+    const p = document.getElementById('alerta-jard-preview');
+    if(p){ p.src = data; p.style.display = 'block'; }
+  });
+}
+
+function guardarAlertaJardin(){
+  const zona = document.getElementById('alerta-jard-zona').value.trim();
+  const tipo = document.getElementById('alerta-jard-tipo').value;
+  const nota = document.getElementById('alerta-jard-nota').value.trim();
+  if(!zona){ showToast('⚠️ Indicá la zona'); return; }
+  const alerta = { id: Date.now(), zona, tipo, nota, foto: _fotoAlertaData||'', creado: Date.now(), por: window.currentUserLabel||'Gerencia', resuelto: false };
+  jardAlertas.unshift(alerta);
+  fbSave('jardAlertas', jardAlertas);
+  // Push real a jardineros (incluye combinados como Ivan)
+  window.pushSend?.('🚨 Jardín URGENTE: '+tipo, `${zona}${nota?' — '+nota:''}`, 'jard-urgente', 'roles:jardinero');
+  closeModal('alerta-jard-modal');
+  renderAlertasUrgentesJard();
+  showToast('🚨 Alerta enviada a los jardineros');
+}
+
+async function resolverAlertaJardin(id){
+  const a = jardAlertas.find(x=>x.id===id);
+  if(!a) return;
+  if(!await confirmModal(`¿Marcar como resuelta la alerta de ${a.tipo} en "${a.zona}"?`)) return;
+  a.resuelto = true; a.resueltoPor = window.currentUserLabel||''; a.resueltoFecha = TODAY_ISO;
+  fbSave('jardAlertas', jardAlertas);
+  renderAlertasUrgentesJard();
+  showToast('✅ Alerta resuelta');
+}
+
+function _alertaAplica(){ return userRole==='jardinero' || userRole==='gerencia' || (userRole==='florista' && !!jardineroNombre); }
+
+const _alertasAvisadas = new Set();
+function notificarAlertasUrgentes(){
+  if(!_alertaAplica() || userRole==='gerencia') return;
+  _alertasActivas().forEach(a=>{
+    if(_alertasAvisadas.has(a.id)) return;
+    _alertasAvisadas.add(a.id);
+    showToast(`🚨 Jardín urgente: ${a.tipo} en ${a.zona}`);
+    if(typeof Notification!=='undefined' && Notification.permission==='granted'){
+      try{ new Notification('🚨 Jardín URGENTE: '+a.tipo, { body:`${a.zona}${a.nota?' — '+a.nota:''}`, icon:'/icon-192.png', tag:'jard-urgente' }); }catch(e){}
+    }
+  });
+}
+
+function renderAlertasUrgentesJard(){
+  const activas = _alertasActivas();
+  const esGerencia = userRole==='gerencia';
+  const html = activas.length ? `
+    <div class="jalert-wrap">
+      <div class="jalert-hdr">🚨 ${activas.length} ${activas.length===1?'atención urgente':'atenciones urgentes'} del jardín</div>
+      ${activas.map(a=>`<div class="jalert-card">
+        ${a.foto?`<img src="${a.foto}" class="jalert-foto" onclick="verFotoAlerta(${a.id})" alt="">`:''}
+        <div class="jalert-body">
+          <div class="jalert-tipo">${JARD_ALERTA_ICON[a.tipo]||'⚠️'} ${esc(a.tipo)}</div>
+          <div class="jalert-zona">${esc(a.zona)}</div>
+          ${a.nota?`<div class="jalert-nota">${esc(a.nota)}</div>`:''}
+          <div class="jalert-meta">Cargado por ${esc(a.por||'gerencia')}</div>
+        </div>
+        <button class="jalert-btn" onclick="resolverAlertaJardin(${a.id})">✓ Resuelto</button>
+      </div>`).join('')}
+    </div>` : (esGerencia ? '' : '');
+  ['jops-alertas-urgentes','ctrl-jard-alertas'].forEach(id=>{ const el=document.getElementById(id); if(el) el.innerHTML=html; });
+}
+
+function verFotoAlerta(id){
+  const a = jardAlertas.find(x=>x.id===id);
+  if(!a?.foto) return;
+  const ov = document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9998;display:flex;align-items:center;justify-content:center;padding:20px;cursor:pointer';
+  ov.innerHTML=`<img src="${a.foto}" style="max-width:94vw;max-height:90vh;border-radius:12px">`;
+  ov.onclick=()=>ov.remove();
+  document.body.appendChild(ov);
+}
+
 const JARD_TIPOS_ICON = { 'Riego':'💧','Fertilización':'🌱','Desmalezado':'🌿','Poda':'✂️' };
 const JARD_TIPO_STYLE = {
   'Riego':        'background:#E8F4FD;color:#1A6B9A',
@@ -5908,6 +6072,7 @@ function setJopsFilter(mode){
 
 function renderJardOps(){
   renderJardTurnoCard();
+  renderAlertasUrgentesJard();
   // KPIs
   let kOk=0,kWarn=0,kAlert=0,kNone=0;
   jardineriaData.forEach(r=>{
@@ -6398,6 +6563,7 @@ function jardProdDiaClick(nombre, _fecha){
 }
 
 function renderCtrlJard(){
+  renderAlertasUrgentesJard();
   const search=(document.getElementById('ctrl-jard-search')?.value||'').toLowerCase();
   const mode=ctrlJardFilterMode;
   const secFilter=(document.getElementById('ctrl-jard-section')?.value||'');
@@ -13373,6 +13539,7 @@ Object.assign(window, {
   jopsDone, jopsHoraCell, jopsRegistrarHora, jopsResetHora, jopsUpdHora, limpiarCarrito,
   limpiarCarritoOps, limpiarDiaHorario, loadWeekState, lpAddPhotos, lpDelCat, lpDelItem,
   lpOpenViewer, lpRemovePhoto, lpUpdItem, markHabDone, markJardDone, marcarRecordatorioHecho, navToggleGroup, navExpandGroup, navCollapseGroup, finalizeNavGroups, navigate, openRecordatorioModal, renderBottomNav, renderRecordatoriosJard, saveRecordatorio, deleteRecordatorio, updateBottomNav, openCajaModal,
+  openAlertaJardinModal, alertaJardFotoPreview, guardarAlertaJardin, resolverAlertaJardin, verFotoAlerta, renderAlertasUrgentesJard, toggleRecepAgrupado,
   openDiaHorario, openEditSaleModal, openEventModal, openEventoDetail, openGestionPasswords,
   openGaleriaModal, openLpCatModal, openLpModal, openRamoModal, openRamoPhoto,
   openRecetaModal, openSaleModal, openSidebar, openTaskModal, openVentaRamo, parseMoney,
