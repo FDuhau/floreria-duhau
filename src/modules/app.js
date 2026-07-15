@@ -2117,10 +2117,10 @@ function moveKanbanCard(ci, i, dir){
 function renderKanban(){
   syncEventosToKanban();
 
-  // Alert banner for upcoming events
+  // Alert banner for upcoming events (protegido contra eventos sin fecha)
   const alertEl = document.getElementById('kanban-eventos-alert');
-  const próximos = eventosData.filter(e=>e.estado!=='Pedidos Finalizados'&&e.fecha>=TODAY_ISO).sort((a,b)=>a.fecha.localeCompare(b.fecha)).slice(0,2);
-  alertEl.innerHTML = próximos.length
+  const próximos = eventosData.filter(e=>e.estado!=='Pedidos Finalizados'&&(e.fecha||'')>=TODAY_ISO).sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')).slice(0,2);
+  if(alertEl) alertEl.innerHTML = próximos.length
     ? `<div class="alert-banner green">🎉 Próximos eventos: ${próximos.map(e=>`<strong>${esc(e.nombre)}</strong> — ${fmtDateTime(e.fecha,e.hora)}`).join(' · ')}</div>`
     : '';
 
@@ -2154,6 +2154,8 @@ function renderKanban(){
       <span class="kanban-count">${col.cards.length}</span>
     </div>`;
     col.cards.forEach((card,i)=>{
+      try{
+      if(!card) return;
       const cardEl=document.createElement('div');
       cardEl.className='kanban-card'+(card.isEvento?' evento-card':'')+(card.isEvento&&ci===3?' evento-hecho':'');
       cardEl.draggable=true;
@@ -2175,7 +2177,7 @@ function renderKanban(){
       cardEl.innerHTML=`
         <div class="kanban-card-title">${esc(card.title)}${urgChip}</div>
         ${descLines.length?`<div class="kanban-card-desc">${descLines.map(esc).join('<br>')}</div>`:''}
-        <div class="kanban-card-tags">${card.tags.map(t=>`<span class="kanban-tag ${t}">${TAG_LABELS[t]||t}</span>`).join('')}</div>
+        <div class="kanban-card-tags">${(card.tags||[]).map(t=>`<span class="kanban-tag ${t}">${TAG_LABELS[t]||t}</span>`).join('')}</div>
         <div class="kanban-card-meta">
           <span class="kanban-date">📅 ${card.date}</span>
           <div class="kanban-actions">
@@ -2186,6 +2188,7 @@ function renderKanban(){
           </div>
         </div>`;
       colEl.appendChild(cardEl);
+      }catch(err){ console.warn('Kanban card render error:', err, card); }
     });
     if(ci<3){
       const addBtn=document.createElement('button');

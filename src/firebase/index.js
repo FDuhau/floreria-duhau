@@ -364,6 +364,10 @@
           else window.renderEventos();
         }
         if(document.getElementById('page-eventos-maison')?.classList.contains('active')) window.renderKanban();
+        // Los eventos asignados aparecen en el checklist del florista y en el home:
+        // re-render en vivo para que impacten sin recargar.
+        if(document.getElementById('page-checklist')?.classList.contains('active')) window.renderChecklistTable?.();
+        if(document.getElementById('page-home')?.classList.contains('active')) window.renderHome?.();
       });
 
       fbListen('cotizadorPrecios', val => {
