@@ -2834,13 +2834,27 @@ function renderCompras(type){
   renderCompraFiltersPanel(type);
   renderCompraSummary(type, filtered);
 
-  // Para la tabla: solo mostrar pedidos en curso (los recibidos se van automáticamente)
-  const activos = filtered.filter(r => r.estado !== 'recibido');
+  // Para la tabla: por defecto solo pedidos en curso (los recibidos se van solos).
+  // Con "Incluir recibidos" tildado — o al filtrar por proveedor — se muestra todo
+  // el historial, así se puede ver todo lo comprado a un proveedor (nuevo y viejo).
+  const incluirRecibidos = document.getElementById(p+'-filter-recibidos')?.checked || !!fProv;
+  const activos = incluirRecibidos ? filtered : filtered.filter(r => r.estado !== 'recibido');
+
+  // Resumen del proveedor filtrado (total comprado + cantidad de pedidos)
+  const provSummaryEl = document.getElementById(p+'-prov-summary');
+  if(provSummaryEl){
+    if(fProv && filtered.length){
+      const totalProv = filtered.reduce((s,r)=>s+parseMoney(r.costo),0);
+      const fechasProv = new Set(filtered.map(r=>r.fecha).filter(Boolean)).size;
+      provSummaryEl.style.display='';
+      provSummaryEl.innerHTML = `<strong>${esc(fProv)}</strong> · ${filtered.length} ítem${filtered.length!==1?'s':''} en ${fechasProv} pedido${fechasProv!==1?'s':''} · total <strong>$${totalProv.toLocaleString('es-AR')}</strong>`;
+    } else { provSummaryEl.style.display='none'; provSummaryEl.innerHTML=''; }
+  }
 
   const tbody = getTbody(type);
   if(!tbody) return;
   if(activos.length===0){
-    tbody.innerHTML=`<tr><td colspan="11" style="padding:20px;text-align:center;color:var(--mid-gray)">${filtered.length>0?'✅ Todos los pedidos de este período fueron recibidos.':'Sin compras en este período.'}</td></tr>`;
+    tbody.innerHTML=`<tr><td colspan="11" style="padding:20px;text-align:center;color:var(--mid-gray)">${filtered.length>0?'✅ Todos los pedidos de este período fueron recibidos. Tildá "Incluir recibidos" para verlos.':'Sin compras en este período.'}</td></tr>`;
     if(type==='floreria') renderCompraAlert();
     return;
   }
@@ -2919,9 +2933,11 @@ function clearCompraExtraFilters(type){
   const provSel = document.getElementById(p+'-filter-prov');
   const areaSel = document.getElementById(p+'-filter-area');
   const fechaInp = document.getElementById(p+'-filter-fecha');
+  const recibInp = document.getElementById(p+'-filter-recibidos');
   if(provSel) provSel.value = '';
   if(areaSel) areaSel.value = '';
   if(fechaInp) fechaInp.value = '';
+  if(recibInp) recibInp.checked = false;
   renderCompras(type);
 }
 
