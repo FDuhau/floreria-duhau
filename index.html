@@ -848,6 +848,7 @@
         <option value="Pedidos Pendientes">📋 Pedidos Pendientes</option>
         <option value="En Proceso">🔄 En Proceso</option>
         <option value="Pendiente de Colocacion">📦 Pendiente de Colocacion</option>
+        <option value="Pendiente de Retiro">🔄 Pendiente de Retiro</option>
         <option value="Confirmado">✅ Confirmado</option>
         <option value="Pedidos Finalizados">✔️ Pedidos Finalizados</option>
       </select>
@@ -857,6 +858,10 @@
       </select>
       <label class="form-label">Asignar a florista (colocación)</label>
       <select class="form-input-modal" id="ev-colocacion">
+        <option value="">— Sin asignar —</option>
+      </select>
+      <label class="form-label">Asignar a florista (retiro) <span style="color:var(--mid-gray);font-size:10px;font-weight:400">— retira el arreglo al finalizar el evento</span></label>
+      <select class="form-input-modal" id="ev-retiro">
         <option value="">— Sin asignar —</option>
       </select>
 

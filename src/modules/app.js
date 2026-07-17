@@ -923,6 +923,23 @@ function badgeUltimoNuevo(fecha){
   return `<div style="font-size:10px;font-weight:600;color:${color};margin-top:2px" title="Último Nuevo: ${fmtDate(fecha)}">🌸 ${txt}</div>`;
 }
 
+// ── Fases de un evento: armado → colocación → retiro (las 2 últimas opcionales) ──
+function eventoFase(ev){
+  if(ev.estado === 'Pendiente de Colocacion') return 'colocacion';
+  if(ev.estado === 'Pendiente de Retiro') return 'retiro';
+  return 'armado';
+}
+function eventoFlorFase(ev, fase){
+  return fase === 'retiro' ? (ev.retiroAsignado||'')
+    : fase === 'colocacion' ? (ev.colocacionAsignado||'')
+    : (ev.asignado||'');
+}
+function eventoFaseTag(fase){
+  if(fase === 'retiro') return '<span style="font-size:9px;font-weight:700;background:#7A5CB8;color:#fff;padding:2px 6px;border-radius:5px;margin-left:6px">🔄 RETIRO</span>';
+  if(fase === 'colocacion') return '<span style="font-size:9px;font-weight:700;background:#E65100;color:#fff;padding:2px 6px;border-radius:5px;margin-left:6px">📍 COLOCACIÓN</span>';
+  return '<span style="font-size:9px;font-weight:700;background:#5A8C3A;color:#fff;padding:2px 6px;border-radius:5px;margin-left:6px">🔨 ARMADO</span>';
+}
+
 function renderChecklistTable(){
   if(!clState){
     clState = getOrCreateDayState(currentDay);
@@ -1131,15 +1148,14 @@ function renderChecklistTable(){
     tbody.appendChild(tr);
   });
 
-  // ── Eventos del día (fase armado o colocación según el estado) ──
-  // Armado → florista 'asignado'; Colocación (Pendiente de Colocacion) → florista 'colocacionAsignado'
+  // ── Eventos del día (fase armado, colocación o retiro según el estado) ──
   const eventosHoy = eventosData.filter(ev => {
     if(ev.estado === 'Pedidos Finalizados') return false;
-    const fase = ev.estado === 'Pendiente de Colocacion' ? 'colocacion' : 'armado';
-    const flor = fase === 'colocacion' ? (ev.colocacionAsignado||'') : (ev.asignado||'');
+    const fase = eventoFase(ev);
+    const flor = eventoFlorFase(ev, fase);
     if(isFlorista) return flor === floristaNombre;
-    // gerencia/operario: ven los activos que tengan armador o colocador asignado
-    return ev.asignado || ev.colocacionAsignado;
+    // gerencia/operario: ven los activos que tengan alguien asignado en alguna fase
+    return ev.asignado || ev.colocacionAsignado || ev.retiroAsignado;
   });
   if(eventosHoy.length > 0){
     const evHeader = document.createElement('tr');
@@ -1152,13 +1168,11 @@ function renderChecklistTable(){
       const evIdx = eventosData.indexOf(ev);
       const evTr = document.createElement('tr');
       evTr.style.cssText = 'background:#FEFAF6';
-      const fase = ev.estado === 'Pendiente de Colocacion' ? 'colocacion' : 'armado';
-      const flor = fase === 'colocacion' ? (ev.colocacionAsignado||'') : (ev.asignado||'');
-      const faseTag = fase === 'colocacion'
-        ? '<span style="font-size:9px;font-weight:700;background:#E65100;color:#fff;padding:2px 6px;border-radius:5px;margin-left:6px">📍 COLOCACIÓN</span>'
-        : '<span style="font-size:9px;font-weight:700;background:#5A8C3A;color:#fff;padding:2px 6px;border-radius:5px;margin-left:6px">🔨 ARMADO</span>';
-      const iniVal = fase === 'colocacion' ? ev.colocacionInicio : ev.inicio;
-      const finVal = fase === 'colocacion' ? ev.colocacionFin : ev.fin;
+      const fase = eventoFase(ev);
+      const flor = eventoFlorFase(ev, fase);
+      const faseTag = eventoFaseTag(fase);
+      const iniVal = fase === 'retiro' ? ev.retiroInicio : fase === 'colocacion' ? ev.colocacionInicio : ev.inicio;
+      const finVal = fase === 'retiro' ? ev.retiroFin : fase === 'colocacion' ? ev.colocacionFin : ev.fin;
 
       if(isFlorista){
         evTr.innerHTML = `
@@ -1314,23 +1328,25 @@ function renderChecklistCards(el){
     </div>`;
   }).join('');
 
-  // Eventos del día asignados a la florista (armado o colocación según fase)
+  // Eventos del día asignados a la florista (armado, colocación o retiro según fase)
   const eventosHoy = eventosData.filter(ev=>{
     if(ev.estado==='Pedidos Finalizados') return false;
-    const fase = ev.estado==='Pendiente de Colocacion' ? 'colocacion' : 'armado';
-    const flor = fase==='colocacion' ? (ev.colocacionAsignado||'') : (ev.asignado||'');
+    const fase = eventoFase(ev);
+    const flor = eventoFlorFase(ev, fase);
     return flor === floristaNombre;
   });
   const evHTML = eventosHoy.map(ev=>{
     const evIdx = eventosData.indexOf(ev);
-    const fase = ev.estado==='Pendiente de Colocacion' ? 'colocacion' : 'armado';
+    const fase = eventoFase(ev);
+    const faseCls = fase==='retiro' ? 'cl-fase-retiro' : fase==='colocacion' ? 'cl-fase-coloc' : 'cl-fase-armado';
+    const faseLbl = fase==='retiro' ? '🔄 RETIRO' : fase==='colocacion' ? '📍 COLOCACIÓN' : '🔨 ARMADO';
     return `<div class="cl-card cl-card-evento" onclick="if(!event.target.closest('button'))openEventoDetail(${evIdx})">
       <div class="cl-card-top">
         <div>
           <div class="cl-card-zona">🎉 ${esc(ev.nombre)}</div>
           <div class="cl-card-sec">${esc(ev.tipo||'')}${ev.salon?' · '+esc(ev.salon):''}${ev.pax?' · '+ev.pax+' pax':''}${ev.hora?' · '+ev.hora:''}</div>
         </div>
-        <span class="cl-card-fase ${fase==='colocacion'?'cl-fase-coloc':'cl-fase-armado'}">${fase==='colocacion'?'📍 COLOCACIÓN':'🔨 ARMADO'}</span>
+        <span class="cl-card-fase ${faseCls}">${faseLbl}</span>
       </div>
       <div class="cl-card-horas">
         <div class="cl-card-hora">${renderEvHoraCell(evIdx,'inicio',ev,fase)}</div>
@@ -1841,7 +1857,7 @@ function getStockEnPedido(item){
 
 function getStockComprometido(item){
   // Suma de ingredientes requeridos por eventos que aún no se confirmaron/realizaron
-  const ACTIVE_ESTADOS = ['Pedidos Pendientes','En Proceso','Pendiente de Colocacion'];
+  const ACTIVE_ESTADOS = ['Pedidos Pendientes','En Proceso','Pendiente de Colocacion','Pendiente de Retiro'];
   let total = 0;
   const prodLower = item.prod.toLowerCase();
   eventosData.forEach(ev=>{
@@ -2052,7 +2068,7 @@ const KANBAN_DEFAULTS = [
 ];
 let kanbanData = JSON.parse(JSON.stringify(KANBAN_DEFAULTS));
 const TAG_LABELS={'tag-floreria':'Florería','tag-maison':'Maison','tag-evento':'Evento','tag-urgente':'🔴 Urgente','tag-garden':'Jardinería'};
-const ESTADO_COL = {'Pedidos Pendientes':0,'En Proceso':1,'Pendiente de Colocacion':2,'Confirmado':1,'Pedidos Finalizados':3};
+const ESTADO_COL = {'Pedidos Pendientes':0,'En Proceso':1,'Pendiente de Colocacion':2,'Pendiente de Retiro':2,'Confirmado':1,'Pedidos Finalizados':3};
 let dragSrcCol=null,dragSrcIdx=null,editingTask=null;
 
 function ensureKanbanCols(){
@@ -3273,6 +3289,7 @@ const ESTADO_COLORS={
   'Pedidos Pendientes':'background:#E8E4DC;color:#4A4A4A',
   'En Proceso':'background:#EBF0E8;color:#4A5C3E',
   'Pendiente de Colocacion':'background:#FDF0E8;color:#A05A2C',
+  'Pendiente de Retiro':'background:#EFE8F8;color:#5A3E8A',
   'Confirmado':'background:#EBF5E8;color:#5A8A4A',
   'Pedidos Finalizados':'background:#E8F0F8;color:#2C5A80'
 };
@@ -9417,6 +9434,7 @@ function renderProductividadHorarios(empleados){
       if(ev.fecha !== TODAY_ISO) return;
       if(ev.asignado === nombre){ tareasAsignadas++; if(ev.inicio && ev.fin){ tareasHechas++; minsTareas += dur(ev.inicio, ev.fin); } }
       if(ev.colocacionAsignado === nombre){ tareasAsignadas++; if(ev.colocacionInicio && ev.colocacionFin){ tareasHechas++; minsTareas += dur(ev.colocacionInicio, ev.colocacionFin); } }
+      if(ev.retiroAsignado === nombre){ tareasAsignadas++; if(ev.retiroInicio && ev.retiroFin){ tareasHechas++; minsTareas += dur(ev.retiroInicio, ev.retiroFin); } }
     });
     (ventasData||[]).forEach(v => {
       if(v.asignado === nombre && v.estado === 'pendiente'){ tareasAsignadas++; if(v.inicio && v.fin){ tareasHechas++; minsTareas += dur(v.inicio, v.fin); } }
@@ -9502,8 +9520,8 @@ function renderProductividadHorarios(empleados){
 // Inicio/Fin para eventos (se muestra en checklist y computa en productividad)
 function renderEvHoraCell(evIdx, campo, ev, fase){
   fase = fase || 'armado';
-  const iniField = fase === 'colocacion' ? 'colocacionInicio' : 'inicio';
-  const finField = fase === 'colocacion' ? 'colocacionFin' : 'fin';
+  const iniField = fase === 'retiro' ? 'retiroInicio' : fase === 'colocacion' ? 'colocacionInicio' : 'inicio';
+  const finField = fase === 'retiro' ? 'retiroFin' : fase === 'colocacion' ? 'colocacionFin' : 'fin';
   const field = campo === 'inicio' ? iniField : finField;
   const val = ev[field] || '';
   if(val){
@@ -9523,10 +9541,41 @@ function registrarHoraEvento(evIdx, campo, fase){
   const hhmm = hh+':'+mm;
   const ev = eventosData[evIdx];
 
+  if(fase === 'retiro'){
+    ev[campo === 'inicio' ? 'retiroInicio' : 'retiroFin'] = hhmm;
+    if(campo === 'fin'){
+      // Retiro terminado → evento completo
+      ev.estado = 'Pedidos Finalizados';
+      fbSave('eventosData', eventosData);
+      renderChecklistTable();
+      if(document.getElementById('page-eventos-comercial')?.classList.contains('active')) renderEventos();
+      if(document.getElementById('page-eventos-maison')?.classList.contains('active')) renderKanban();
+      renderHome();
+      showToast(`✅ Retiro finalizado: "${ev.nombre}". Evento completo.`);
+      return;
+    }
+    fbSave('eventosData', eventosData);
+    renderChecklistTable();
+    showToast(`▶ Inicio de retiro: "${ev.nombre}" · ${hhmm}`);
+    return;
+  }
+
   if(fase === 'colocacion'){
     ev[campo === 'inicio' ? 'colocacionInicio' : 'colocacionFin'] = hhmm;
     if(campo === 'fin'){
-      // Colocación terminada → evento finalizado
+      // Colocación terminada. Si hay retiro asignado, queda pendiente de retiro;
+      // si no, el evento se finaliza (comportamiento de siempre).
+      if(ev.retiroAsignado){
+        ev.estado = 'Pendiente de Retiro';
+        fbSave('eventosData', eventosData);
+        renderChecklistTable();
+        if(document.getElementById('page-eventos-comercial')?.classList.contains('active')) renderEventos();
+        if(document.getElementById('page-eventos-maison')?.classList.contains('active')) renderKanban();
+        renderHome();
+        notificarAsignacion(ev.retiroAsignado, '🔄 Listo para retirar', `"${ev.nombre}" ya fue colocado. Retirá el arreglo al finalizar el evento.`);
+        showToast(`✅ Colocación finalizada: "${ev.nombre}". Pendiente de retiro por ${ev.retiroAsignado}.`);
+        return;
+      }
       ev.estado = 'Pedidos Finalizados';
       fbSave('eventosData', eventosData);
       renderChecklistTable();
@@ -9768,7 +9817,7 @@ function mostrarBriefingDia(retry = 0){
     const mis = CL_TASKS.map((_,i)=>i).filter(i => (ds.responsable?.[i]||'') === floristaNombre);
     const horario = (window.horariosData||{})[floristaNombre]?.[TODAY_ISO];
     const evs = (eventosData||[]).filter(ev => ev.estado!=='Pedidos Finalizados' &&
-      ((ev.estado==='Pendiente de Colocacion' ? ev.colocacionAsignado : ev.asignado) === floristaNombre));
+      eventoFlorFase(ev, eventoFase(ev)) === floristaNombre);
     rows = [
       ['📋', mis.length ? `Tenés ${mis.length} tarea${mis.length!==1?'s':''} asignada${mis.length!==1?'s':''} para hoy` : 'Todavía no tenés tareas asignadas'],
       horario?.desde ? ['🕐', `Tu turno: ${horario.desde} a ${horario.hasta||'—'}`] : null,
@@ -10621,6 +10670,7 @@ function openEventoDetail(i){
     'Pedidos Pendientes':  'background:#F5F0E8;color:#8B7355',
     'En Proceso': 'background:#E8F0F8;color:#2C5A80',
     'Pendiente de Colocacion':   'background:#FFF3E0;color:#E65100',
+    'Pendiente de Retiro':   'background:#EFE8F8;color:#5A3E8A',
     'Confirmado': 'background:#E8F5E9;color:#2E7D32',
     'Pedidos Finalizados':      'background:#F3E5F5;color:#6A1B9A',
   };
@@ -10631,6 +10681,7 @@ function openEventoDetail(i){
   // Body grid fields
   const armadoTxt = ev.asignado ? ev.asignado + (ev.inicio && ev.fin ? ` (${ev.inicio}–${ev.fin})` : ev.inicio ? ` (desde ${ev.inicio})` : '') : null;
   const colocTxt  = ev.colocacionAsignado ? ev.colocacionAsignado + (ev.colocacionInicio && ev.colocacionFin ? ` (${ev.colocacionInicio}–${ev.colocacionFin})` : ev.colocacionInicio ? ` (desde ${ev.colocacionInicio})` : '') : null;
+  const retiroTxt = ev.retiroAsignado ? ev.retiroAsignado + (ev.retiroInicio && ev.retiroFin ? ` (${ev.retiroInicio}–${ev.retiroFin})` : ev.retiroInicio ? ` (desde ${ev.retiroInicio})` : '') : null;
   const fields = [
     ev.organizador ? ['Organizador', ev.organizador] : null,
     ev.fecha ? ['Fecha', fmtDate(ev.fecha) + (ev.hora ? ' · ' + ev.hora : '') + (etiquetaDiaRelativa(ev.fecha) ? ' · ' + etiquetaDiaRelativa(ev.fecha) : '')] : null,
@@ -10639,6 +10690,7 @@ function openEventoDetail(i){
     ev.precio && ev.precio !== 'A confirmar' ? ['Precio', ev.precio] : null,
     armadoTxt ? ['🔨 Armado', armadoTxt] : null,
     colocTxt ? ['📍 Colocación', colocTxt] : null,
+    retiroTxt ? ['🔄 Retiro', retiroTxt] : null,
   ].filter(Boolean);
   document.getElementById('evento-detail-body').innerHTML = fields.map(([label, val]) =>
     `<div><div class="detail-field-label">${label}</div><div class="detail-field-value">${esc(String(val))}</div></div>`
@@ -10711,7 +10763,7 @@ function mostrarEventosDelDia(retry = 0){
   const hoy = (eventosData||[]).filter(ev =>
     ev.fecha === TODAY_ISO &&
     ev.estado !== 'Pedidos Finalizados' &&
-    (!isFlor || ev.asignado === floristaNombre || ev.colocacionAsignado === floristaNombre)
+    (!isFlor || ev.asignado === floristaNombre || ev.colocacionAsignado === floristaNombre || ev.retiroAsignado === floristaNombre)
   );
   if(!hoy.length) return; // floristas sin evento asignado hoy: no molestar
   _eventosDelDiaShown = true;
@@ -10766,12 +10818,15 @@ function saveEvent(){
     estado:document.getElementById('ev-estado').value,
     asignado:document.getElementById('ev-asignado').value||'',
     colocacionAsignado:document.getElementById('ev-colocacion')?.value||'',
+    retiroAsignado:document.getElementById('ev-retiro')?.value||'',
     arreglos: evArreglosRows.filter(r=>r.arreglo&&r.qty>0),
     img: document.getElementById('ev-img-data').value||'',
     inicio: eventosData[+document.getElementById('ev-idx').value]?.inicio || '',
     fin: eventosData[+document.getElementById('ev-idx').value]?.fin || '',
     colocacionInicio: eventosData[+document.getElementById('ev-idx').value]?.colocacionInicio || '',
-    colocacionFin: eventosData[+document.getElementById('ev-idx').value]?.colocacionFin || ''
+    colocacionFin: eventosData[+document.getElementById('ev-idx').value]?.colocacionFin || '',
+    retiroInicio: eventosData[+document.getElementById('ev-idx').value]?.retiroInicio || '',
+    retiroFin: eventosData[+document.getElementById('ev-idx').value]?.retiroFin || ''
   };
 
   // Descontar stock si el evento se confirma directamente
@@ -10792,6 +10847,7 @@ function saveEvent(){
   const idx=+document.getElementById('ev-idx').value;
   const prevAsignadoEv = idx >= 0 ? (eventosData[idx]?.asignado || '') : '';
   const prevColocEv = idx >= 0 ? (eventosData[idx]?.colocacionAsignado || '') : '';
+  const prevRetiroEv = idx >= 0 ? (eventosData[idx]?.retiroAsignado || '') : '';
   if(idx===-1) eventosData.push(ev);
   else eventosData[idx]=ev;
 
@@ -10802,6 +10858,9 @@ function saveEvent(){
   }
   if(ev.colocacionAsignado && ev.colocacionAsignado !== prevColocEv){
     notificarAsignacion(ev.colocacionAsignado, '📍 Colocación asignada', `Te asignaron la colocación de "${ev.nombre}"${ev.fecha ? ' · ' + fmtDate(ev.fecha) : ''}`);
+  }
+  if(ev.retiroAsignado && ev.retiroAsignado !== prevRetiroEv){
+    notificarAsignacion(ev.retiroAsignado, '🔄 Retiro asignado', `Te asignaron el retiro de "${ev.nombre}"${ev.fecha ? ' · ' + fmtDate(ev.fecha) : ''} — al finalizar el evento`);
   }
   syncEventosToKanban();
   fbSave('kanbanData', kanbanData);
@@ -10855,6 +10914,10 @@ function openEventModal(i){
   const colocSel = document.getElementById('ev-colocacion');
   if(colocSel){
     colocSel.innerHTML = '<option value="">— Sin asignar —</option>' + floristasEv.map(n => `<option value="${esc(n)}"${n===(ev.colocacionAsignado||'')?' selected':''}>${esc(n)}</option>`).join('');
+  }
+  const retiroSel = document.getElementById('ev-retiro');
+  if(retiroSel){
+    retiroSel.innerHTML = '<option value="">— Sin asignar —</option>' + floristasEv.map(n => `<option value="${esc(n)}"${n===(ev.retiroAsignado||'')?' selected':''}>${esc(n)}</option>`).join('');
   }
 
   // Inicializar zonas — compatibilidad con eventos viejos que solo tienen 'salon'
