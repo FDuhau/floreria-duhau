@@ -2946,6 +2946,8 @@ function toggleHistorialCompras(){
   if(!wrap) return;
   const visible = wrap.style.display !== 'none';
   wrap.style.display = visible ? 'none' : '';
+  const bar = document.getElementById('hist-compras-filterbar');
+  if(bar) bar.style.display = visible ? 'none' : 'flex';
   document.getElementById('hist-compras-btn').textContent = visible ? '📚 Ver historial de pedidos recibidos' : '📚 Ocultar historial';
   if(!visible) renderHistorialCompras();
 }
@@ -2954,9 +2956,37 @@ function renderHistorialCompras(){
   const wrap = document.getElementById('historial-compras-wrap');
   if(!wrap) return;
 
-  const recibidos = comprasFlore.filter(r => r.estado === 'recibido');
+  const todosRecibidos = comprasFlore.filter(r => r.estado === 'recibido');
+
+  // Poblar el filtro de proveedores del historial
+  const provSel = document.getElementById('hist-compras-prov');
+  if(provSel){
+    const provActual = provSel.value;
+    const provs = [...new Set(todosRecibidos.filter(r=>r.prov).map(r=>r.prov))].sort((a,b)=>a.localeCompare(b,'es'));
+    provSel.innerHTML = '<option value="">Todos los proveedores</option>' + provs.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('');
+    provSel.value = provActual;
+  }
+
+  // Aplicar filtros de proveedor y búsqueda de producto
+  const fProv = document.getElementById('hist-compras-prov')?.value || '';
+  const q = (document.getElementById('hist-compras-search')?.value || '').trim().toLowerCase();
+  let recibidos = todosRecibidos;
+  if(fProv) recibidos = recibidos.filter(r => r.prov === fProv);
+  if(q) recibidos = recibidos.filter(r => (r.prod||'').toLowerCase().includes(q));
+
+  // Resumen del proveedor filtrado
+  const summEl = document.getElementById('hist-compras-summary');
+  if(summEl){
+    if(fProv && recibidos.length){
+      const totalProv = recibidos.reduce((s,r)=>s+parseMoney(r.costo),0);
+      const nPedidos = new Set(recibidos.map(r=>r.fecha).filter(Boolean)).size;
+      summEl.style.display = '';
+      summEl.innerHTML = `<strong>${esc(fProv)}</strong> · ${recibidos.length} ítem${recibidos.length!==1?'s':''} en ${nPedidos} pedido${nPedidos!==1?'s':''} · total <strong>$${totalProv.toLocaleString('es-AR')}</strong>`;
+    } else { summEl.style.display = 'none'; summEl.innerHTML = ''; }
+  }
+
   if(!recibidos.length){
-    wrap.innerHTML = '<div style="text-align:center;padding:24px;color:var(--mid-gray)">No hay pedidos recibidos en el historial.</div>';
+    wrap.innerHTML = `<div style="text-align:center;padding:24px;color:var(--mid-gray)">${todosRecibidos.length ? 'Sin resultados para el filtro aplicado.' : 'No hay pedidos recibidos en el historial.'}</div>`;
     return;
   }
 
