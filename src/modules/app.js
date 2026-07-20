@@ -805,6 +805,11 @@ function getOrCreateDayState(day){
 })();
 
 let checklistHistory = [];
+// Registro PERSISTENTE de la última vez que cada zona se hizo Nuevo.
+// Independiente del historial semanal: no se pierde al cambiar de semana ni al
+// podar el historial. Clave: sec|zona (saneada para Firebase). Valor: fecha ISO.
+let ultimoNuevoZona = {};
+window._setUltimoNuevoZona = (v) => { if(v && typeof v === 'object') ultimoNuevoZona = v; };
 let currentDay = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'].includes(TODAY_DAY) ? TODAY_DAY : 'Lunes';
 let historyWeekFilter = null;
 
@@ -904,15 +909,33 @@ function durBadge(inicio, fin, ref){
 // ── Último "Nuevo" por zona (contador de días, solo gerencia) ────────────────
 // Recorre el historial del checklist y devuelve la fecha más reciente en que
 // cada zona se completó con actividad Nuevo. Clave: sec + '|' + zona.
+// Clave saneada para Firebase (las zonas pueden tener '.', '/', etc. que RTDB no permite en claves)
+function _zonaKey(sec, zona){ return (sec||'')+'|'+String(zona||'').replace(/[.#$/[\]]/g,'_'); }
+
+// Última vez que cada zona se hizo Nuevo. Mezcla el registro persistente
+// (ultimoNuevoZona, que sobrevive a cambios de semana y a la poda) con el
+// historial semanal, quedándose siempre con la fecha más reciente.
 function mapUltimoNuevoPorZona(){
   const map = {};
+  Object.entries(ultimoNuevoZona||{}).forEach(([k,fecha])=>{ if(fecha) map[k] = fecha; });
   (checklistHistory||[]).forEach(r=>{
     if(!r?.date || !r?.zona) return;
     if(!String(r.actividad||'').toLowerCase().includes('nuevo')) return;
-    const k = (r.sec||'')+'|'+r.zona;
+    const k = _zonaKey(r.sec, r.zona);
     if(!map[k] || r.date > map[k]) map[k] = r.date;
   });
   return map;
+}
+
+// Marca (persistente) que una zona se hizo Nuevo hoy. Se llama al completar
+// una tarea Nuevo; queda fijo para siempre aunque cambie la semana.
+function registrarUltimoNuevo(sec, zona, actividad, fecha){
+  if(!String(actividad||'').toLowerCase().includes('nuevo')) return;
+  const k = _zonaKey(sec, zona);
+  if(!ultimoNuevoZona[k] || (fecha||TODAY_ISO) > ultimoNuevoZona[k]){
+    ultimoNuevoZona[k] = fecha || TODAY_ISO;
+    fbSave('ultimoNuevoZona', ultimoNuevoZona);
+  }
 }
 
 function badgeUltimoNuevo(fecha){
@@ -1120,7 +1143,7 @@ function renderChecklistTable(){
         <td style="width:90px;text-align:center;padding:4px 6px">${renderHoraCell(i,'inicio',done)}</td>
         <td style="width:90px;text-align:center;padding:4px 6px">${renderHoraCell(i,'fin',done)}</td>`;
     } else {
-      const nuevoInfo = ultimoNuevoMap && actLower!=='riego' ? badgeUltimoNuevo(ultimoNuevoMap[t.sec+'|'+t.zona]) : '';
+      const nuevoInfo = ultimoNuevoMap && actLower!=='riego' ? badgeUltimoNuevo(ultimoNuevoMap[_zonaKey(t.sec,t.zona)]) : '';
       tr.innerHTML = `
         <td style="width:32px"><input type="checkbox" class="task-check" ${done?'checked':''} onchange="toggleTask(${i},this)"></td>
         <td style="font-weight:500;font-size:12.5px;min-width:140px">${esc(t.zona)}${nuevoInfo}</td>
@@ -1465,6 +1488,7 @@ function registrarHora(i, campo){
     });
     localStorage.setItem('cl_history', JSON.stringify(checklistHistory));
     fbSave('checklistHistory', checklistHistory);
+    registrarUltimoNuevo(t.sec, t.zona, clState.actividad[i]||t.actividad, TODAY_ISO);
     renderHistoryPanel();
     // Toast de confirmación con duración
     const durTxt = durFinal ? ' · Duración: ' + fmtDur(durFinal) : '';
@@ -1677,6 +1701,7 @@ function toggleTask(i, el){
     });
     localStorage.setItem('cl_history', JSON.stringify(checklistHistory));
     fbSave('checklistHistory', checklistHistory);
+    registrarUltimoNuevo(t.sec, t.zona, clState.actividad[i]||t.actividad, TODAY_ISO);
     renderHistoryPanel();
     // Si la tarea era un arreglo Nuevo, ofrecer adjuntar foto (floristas)
     if(userRole==='florista' && String(clState.actividad[i]||t.actividad).toLowerCase().includes('nuevo')){
@@ -4339,10 +4364,10 @@ function _homeVisualHTML(hechas, totalTareas, pct, ventasMes, totalMes){
 
   // Semáforo: días desde el último Nuevo por zona de arreglos
   const map = mapUltimoNuevoPorZona();
-  const zonas = [...new Map(CL_TASKS.filter(t=>String(t.actividad).toLowerCase()!=='riego').map(t=>[t.sec+'|'+t.zona, t])).values()];
+  const zonas = [...new Map(CL_TASKS.filter(t=>String(t.actividad).toLowerCase()!=='riego').map(t=>[_zonaKey(t.sec,t.zona), t])).values()];
   let rojo=0, ambar=0, verde=0; const peores=[];
   zonas.forEach(t=>{
-    const f = map[t.sec+'|'+t.zona];
+    const f = map[_zonaKey(t.sec,t.zona)];
     const dias = f ? Math.floor((new Date(TODAY_ISO)-new Date(f))/86400000) : null;
     if(dias===null || dias>=7){ rojo++; peores.push({zona:t.zona, dias}); }
     else if(dias>=5) ambar++;
@@ -8710,7 +8735,7 @@ document.querySelectorAll('.nav-item, .nav-sub-item').forEach(el => {
 // nombre entre versiones sin romper el backup completo.
 function descargarBackup(){
   const fuentes = {
-    checklist: ()=>clStateByDay, checklistHistory: ()=>checklistHistory, clTiemposRef: ()=>clTiemposRef,
+    checklist: ()=>clStateByDay, checklistHistory: ()=>checklistHistory, clTiemposRef: ()=>clTiemposRef, ultimoNuevoZona: ()=>ultimoNuevoZona,
     eventosData: ()=>eventosData, kanbanData: ()=>kanbanData, eventosSinFloreria: ()=>eventosSinFloreria,
     stockData: ()=>stockData, recetasData: ()=>recetasData,
     comprasFlore: ()=>comprasFlore, comprasJard: ()=>comprasJard, proveedoresList: ()=>proveedoresList,
@@ -9912,8 +9937,8 @@ function calcularResumenSemanal(desde, hasta){
   // Zona con el Nuevo más atrasado
   const map = mapUltimoNuevoPorZona();
   let peorZona=null, peorDias=-1;
-  [...new Map(CL_TASKS.filter(t=>String(t.actividad).toLowerCase()!=='riego').map(t=>[t.sec+'|'+t.zona,t])).values()].forEach(t=>{
-    const f = map[t.sec+'|'+t.zona];
+  [...new Map(CL_TASKS.filter(t=>String(t.actividad).toLowerCase()!=='riego').map(t=>[_zonaKey(t.sec,t.zona),t])).values()].forEach(t=>{
+    const f = map[_zonaKey(t.sec,t.zona)];
     const dias = f ? Math.floor((new Date(TODAY_ISO)-new Date(f))/86400000) : 999;
     if(dias>peorDias){ peorDias=dias; peorZona=t.zona; }
   });
