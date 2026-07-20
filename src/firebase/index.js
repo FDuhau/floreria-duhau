@@ -345,6 +345,12 @@
         window.checklistHistory = Array.isArray(val) ? val : Object.values(val||{});
       });
 
+      // Registro persistente del último Nuevo por zona (sobrevive a cambios de semana)
+      fbListen('ultimoNuevoZona', val => {
+        if(window._setUltimoNuevoZona) window._setUltimoNuevoZona(val || {});
+        if(document.getElementById('page-checklist')?.classList.contains('active') && !window.estaEditando('page-checklist')) window.renderChecklistTable?.();
+      });
+
       fbListen('clTiemposRef', val => {
         if(window._setClTiemposRef) window._setClTiemposRef(val || []);
         // Re-render si el checklist está activo y nadie está editando un campo
