@@ -2514,6 +2514,11 @@ function addCompra(type){
     });
   }
 
+  // Persistir en Firebase (antes no se guardaba al agregar: los ítems se
+  // perdían al refrescar y el usuario compras no los veía en su dispositivo)
+  if(type==='floreria'){ window._comprasFloreLastSave = Date.now(); fbSave('comprasFlore', comprasFlore); }
+  else { window._comprasJardLastSave = Date.now(); fbSave('comprasJard', comprasJard); }
+
   ['fecha','pedidopor','producto','cantidad','desc','costo','proveedor','sector'].forEach(id=>{
     const el=document.getElementById(p+'-'+id);
     if(el) el.value='';
@@ -3273,7 +3278,15 @@ function showToast(msg, type){
   clearTimeout(t._timer);
   t._timer=setTimeout(()=>{ t.style.opacity='0'; }, type==='error'?5000:3500);
 }
-async function delC(type,i){ if(!await confirmModal('¿Eliminar esta orden?')) return; getArr(type).splice(i,1); renderCompras(type); updateKpiCompras(); }
+async function delC(type,i){
+  if(!await confirmModal('¿Eliminar esta orden?')) return;
+  getArr(type).splice(i,1);
+  // Persistir la eliminación (antes no se guardaba: la orden reaparecía al refrescar)
+  if(type==='floreria'){ window._comprasFloreLastSave = Date.now(); fbSave('comprasFlore', comprasFlore); }
+  else { window._comprasJardLastSave = Date.now(); fbSave('comprasJard', comprasJard); }
+  renderCompras(type);
+  updateKpiCompras();
+}
 function updateKpiCompras(){
   const pend=[...comprasFlore,...comprasJard].filter(c=>c.estado!=='recibido').length;
   const el=document.getElementById('kpi-compras-pend');
