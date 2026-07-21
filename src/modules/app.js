@@ -12419,9 +12419,12 @@ async function eliminarLegajo(idx){
   renderLegajo();
 }
 
+let _legDetIdx = -1;
+
 function verDetalleLegajo(idx){
   const e = legajoData[idx];
   if(!e) return;
+  _legDetIdx = idx;
   const vac = (e.vacacionesAnuales||14) - (e.vacacionesTomadas||0);
   document.getElementById('leg-det-titulo').textContent = `${e.nombre} ${e.apellido}`;
   document.getElementById('leg-det-body').innerHTML = `
@@ -12433,10 +12436,123 @@ function verDetalleLegajo(idx){
       <div><div class="card-label">Horas por contrato</div><div>${(+e.horasContrato||0)}h/mes</div></div>
       <div><div class="card-label">Vacaciones Restantes</div><div>${vac} días (${e.vacacionesAnuales||14} anuales / ${e.vacacionesTomadas||0} tomadas)</div></div>
     </div>
-    ${e.notas ? `<div class="card-label">Notas</div><div style="white-space:pre-wrap;font-size:13px">${esc(e.notas)}</div>` : ''}
-    ${(e.documentos||[]).length ? `<div class="card-label" style="margin-top:12px">Documentos</div>${e.documentos.map(d=>`<div><a href="${esc(d.url)}" target="_blank">${esc(d.nombre)}</a></div>`).join('')}` : ''}
+    ${e.notas ? `<div class="card-label">Notas</div><div style="white-space:pre-wrap;font-size:13px;margin-bottom:8px">${esc(e.notas)}</div>` : ''}
+    ${_legDocsHTML(e, idx)}
   `;
   document.getElementById('legajo-detalle-modal').classList.add('open');
+}
+
+// ── Documentación del legajo (contrato, alta de ARCA, otros) ──────────────────
+// Los archivos se guardan como data URI en Firebase (imágenes comprimidas, PDFs
+// tal cual). Límite por archivo para no inflar la base.
+const _LEG_DOC_MAX = 5 * 1024 * 1024; // 5 MB
+
+function _legDocNombre(tipo, fileName){
+  if(tipo==='contrato') return 'Contrato de trabajo';
+  if(tipo==='arca')     return 'Alta de ARCA';
+  return fileName || 'Documento';
+}
+
+function _legDocMimeLabel(d){ return (d.mime==='application/pdf') ? 'PDF' : 'Imagen'; }
+
+function _legDocSlot(e, idx, tipo, icon, label){
+  const doc = (e.documentos||[]).find(d=>d.tipo===tipo);
+  if(doc){
+    return `<div class="leg-doc-row">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600">${icon} ${esc(label)}</div>
+        <div style="font-size:11px;color:var(--mid-gray)">${esc(doc.nombre)}${doc.fecha?' · '+fmtDate(doc.fecha):''} · ${_legDocMimeLabel(doc)}</div>
+      </div>
+      <button class="btn-secondary" style="font-size:11px" onclick="legVerDoc(${idx},${doc.id})">Ver</button>
+      <label class="btn-secondary" style="font-size:11px;cursor:pointer;margin:0">Reemplazar<input type="file" accept="image/*,application/pdf" style="display:none" onchange="legSubirDoc('${tipo}',this)"></label>
+      <button class="btn-icon" style="color:var(--red-alert)" title="Eliminar" onclick="legEliminarDoc(${idx},${doc.id})">✕</button>
+    </div>`;
+  }
+  return `<div class="leg-doc-row leg-doc-empty">
+    <div style="flex:1;min-width:0">
+      <div style="font-size:13px;font-weight:600;color:var(--mid-gray)">${icon} ${esc(label)}</div>
+      <div style="font-size:11px;color:var(--mid-gray)">Sin cargar</div>
+    </div>
+    <label class="btn-add" style="font-size:11px;cursor:pointer;margin:0">⬆ Subir<input type="file" accept="image/*,application/pdf" style="display:none" onchange="legSubirDoc('${tipo}',this)"></label>
+  </div>`;
+}
+
+function _legDocsHTML(e, idx){
+  const otros = (e.documentos||[]).filter(d=>d.tipo==='otro');
+  const otrosHTML = otros.map(d=>`<div class="leg-doc-row">
+    <div style="flex:1;min-width:0">
+      <div style="font-size:13px">📎 ${esc(d.nombre)}</div>
+      <div style="font-size:11px;color:var(--mid-gray)">${d.fecha?fmtDate(d.fecha):''} · ${_legDocMimeLabel(d)}</div>
+    </div>
+    <button class="btn-secondary" style="font-size:11px" onclick="legVerDoc(${idx},${d.id})">Ver</button>
+    <button class="btn-icon" style="color:var(--red-alert)" title="Eliminar" onclick="legEliminarDoc(${idx},${d.id})">✕</button>
+  </div>`).join('');
+  return `<div class="card-label" style="margin-top:14px">Documentación</div>
+    ${_legDocSlot(e, idx, 'contrato', '📄', 'Contrato de trabajo')}
+    ${_legDocSlot(e, idx, 'arca', '🏛️', 'Alta de ARCA')}
+    ${otrosHTML}
+    <label class="btn-secondary" style="font-size:11px;cursor:pointer;margin-top:4px;display:inline-block">+ Agregar otro documento<input type="file" accept="image/*,application/pdf" style="display:none" onchange="legSubirDoc('otro',this)"></label>
+    <div style="font-size:10.5px;color:var(--mid-gray);margin-top:6px">PDF o foto, hasta 5 MB por archivo. Se sincroniza con el equipo.</div>`;
+}
+
+function legSubirDoc(tipo, input){
+  const file = input.files && input.files[0]; if(!file) return;
+  const idx = _legDetIdx;
+  const e = legajoData[idx];
+  if(!e){ input.value=''; return; }
+  if(file.size > _LEG_DOC_MAX){
+    showToast('El archivo supera 5 MB. Subí un PDF más liviano o una foto de menor calidad.','error');
+    input.value=''; return;
+  }
+  input.value='';
+  const finalizar = (dataUrl, mime) => {
+    if(!Array.isArray(e.documentos)) e.documentos = [];
+    const doc = { id: Date.now(), tipo, nombre: _legDocNombre(tipo, file.name), mime, url: dataUrl, fecha: new Date().toISOString().slice(0,10) };
+    if(tipo === 'otro'){
+      e.documentos.push(doc);
+    } else {
+      const ex = e.documentos.findIndex(d=>d.tipo===tipo);
+      if(ex>=0) e.documentos[ex] = doc; else e.documentos.push(doc);
+    }
+    fbSave('legajoData', legajoData);
+    verDetalleLegajo(idx);
+    showToast('Documento cargado ✅');
+  };
+  if(file.type === 'application/pdf'){
+    const r = new FileReader();
+    r.onload = ev => finalizar(ev.target.result, 'application/pdf');
+    r.readAsDataURL(file);
+  } else if(file.type.startsWith('image/')){
+    comprimirImagen(file, 1400, 0.72, data => finalizar(data, 'image/jpeg'));
+  } else {
+    showToast('Formato no soportado. Subí un PDF o una imagen.','error');
+  }
+}
+
+function legVerDoc(idx, docId){
+  const e = legajoData[idx]; if(!e) return;
+  const doc = (e.documentos||[]).find(d=>d.id===docId); if(!doc || !doc.url) return;
+  try{
+    const [meta, b64] = doc.url.split(',');
+    const mime = (meta.match(/data:([^;]+)/)||[])[1] || doc.mime || 'application/octet-stream';
+    const bin = atob(b64);
+    const arr = new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) arr[i] = bin.charCodeAt(i);
+    const blob = new Blob([arr], { type: mime });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    setTimeout(()=>URL.revokeObjectURL(url), 60000);
+  }catch(err){
+    window.open(doc.url, '_blank');
+  }
+}
+
+async function legEliminarDoc(idx, docId){
+  const e = legajoData[idx]; if(!e) return;
+  if(!await confirmModal('¿Eliminar este documento del legajo?')) return;
+  e.documentos = (e.documentos||[]).filter(d=>d.id!==docId);
+  fbSave('legajoData', legajoData);
+  verDetalleLegajo(idx);
 }
 
 // ════════════════════════════════════════
@@ -13958,6 +14074,7 @@ Object.assign(window, {
   updateKpiCompras, urgenciaPanelHTML, vdAutoPrice, zonaHoraBtn, zonaResetHora, zonaSetHora,
   toggleStockSugerencias,
   renderLegajo, openLegajoModal, guardarLegajo, eliminarLegajo, verDetalleLegajo,
+  legSubirDoc, legVerDoc, legEliminarDoc,
   renderEvaluaciones, openEvaluacionModal, guardarEvaluacion, eliminarEvaluacion,
   renderLiquidacion, saveLiquidacionHoras, exportLiquidacion,
   generarOrdenCompra,
