@@ -352,8 +352,10 @@ function navigate(pageId, navEl){
   if(pageId==='dashboard-gerencia') renderDashboardGerencia();
   if(pageId==='tv-dashboard') renderTVDashboard();
 
-  // En mobile, cerrar el sidebar automáticamente al navegar
-  if(window.innerWidth <= 768) closeSidebar();
+  // En mobile, cerrar el sidebar automáticamente al navegar — salvo si el ítem
+  // es un encabezado de grupo (acordeón): esos solo despliegan sus áreas y el
+  // sidebar queda abierto para que el usuario elija una.
+  if(window.innerWidth <= 768 && !navEl?.classList?.contains('nav-group-hdr')) closeSidebar();
 }
 
 function closeModal(id){ document.getElementById(id).classList.remove('open'); }
@@ -8904,9 +8906,13 @@ function closeSidebar(){
   document.body.style.overflow = '';
 }
 
-// Close sidebar on nav item click (mobile)
+// Close sidebar on nav item click (mobile).
+// Los encabezados de grupo (acordeón) NO cierran el sidebar: solo despliegan
+// su submenú, así el usuario puede ver las áreas y elegir una sin que se
+// cierre el listado. Solo los ítems que navegan a una página lo cierran.
 document.querySelectorAll('.nav-item, .nav-sub-item').forEach(el => {
   el.addEventListener('click', () => {
+    if(el.classList.contains('nav-group-hdr')) return;
     if(window.innerWidth <= 768) closeSidebar();
   });
 });
