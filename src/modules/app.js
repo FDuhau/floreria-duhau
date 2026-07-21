@@ -619,6 +619,189 @@ window._setClTiemposRef = (val) => {
 };
 function getTiempoRef(i){ return parseInt(clTiemposRef[i])||0; }
 
+// ── Zonas/secciones editables por gerencia (persistidas en Firebase) ──────────
+// CL_TASKS y SEC_HEADERS arrancan con los valores por defecto; si hay config
+// guardada en Firebase, la reemplaza. Ojo: el estado del checklist (por día) y
+// clTiemposRef se indexan por POSICIÓN, así que al agregar/borrar zonas hay que
+// reindexar todos esos arrays para no desalinear.
+const _CL_TASKS_DEFAULT = JSON.parse(JSON.stringify(CL_TASKS));
+
+window._setChecklistTareas = (arr) => {
+  if(!Array.isArray(arr) || !arr.length) return;
+  CL_TASKS.splice(0, CL_TASKS.length, ...arr.map(t=>({
+    sec: t.sec||'a', zona: String(t.zona||''), actividad: t.actividad||'Retoque',
+    obs: t.obs||'', tiempo:'', responsable:''
+  })));
+  if(document.getElementById('page-checklist')?.classList.contains('active') && !(window.estaEditando&&window.estaEditando('page-checklist'))) renderChecklistTable?.();
+};
+window._setChecklistSecciones = (obj) => {
+  if(!obj || typeof obj !== 'object') return;
+  Object.keys(obj).forEach(sec => {
+    SEC_HEADERS[sec] = {
+      label: obj[sec].label || SEC_HEADERS[sec]?.label || sec.toUpperCase(),
+      icon:  obj[sec].icon  || SEC_HEADERS[sec]?.icon  || '📍',
+      cls:    SEC_HEADERS[sec]?.cls    || ('cl-sec-'+sec),
+      rowCls: SEC_HEADERS[sec]?.rowCls || ('row-sec-'+sec),
+    };
+  });
+  if(document.getElementById('page-checklist')?.classList.contains('active')) renderChecklistTable?.();
+};
+
+function _persistChecklistConfig(){
+  fbSave('checklistTareas', CL_TASKS.map(t=>({sec:t.sec, zona:t.zona, actividad:t.actividad, obs:t.obs||''})));
+  const secObj = {};
+  Object.keys(SEC_HEADERS).forEach(s=>{ secObj[s] = {label:SEC_HEADERS[s].label, icon:SEC_HEADERS[s].icon}; });
+  fbSave('checklistSecciones', secObj);
+}
+
+const _CL_FIELDS = ['checked','actividad','obs','tiempo','inicio','fin','responsable'];
+
+// Inserta una zona en CL_TASKS y reindexa el estado de cada día + clTiemposRef
+function _clInsertTaskAt(index, task){
+  Object.keys(clStateByDay).forEach(d => getOrCreateDayState(d)); // normalizar largos
+  CL_TASKS.splice(index, 0, {sec:task.sec, zona:task.zona, actividad:task.actividad||'Retoque', obs:task.obs||'', tiempo:'', responsable:''});
+  Object.values(clStateByDay).forEach(ds=>{
+    _CL_FIELDS.forEach(k=>{
+      if(!Array.isArray(ds[k])) return;
+      const def = k==='checked' ? false : (k==='actividad' ? (task.actividad||'Retoque') : (k==='obs' ? (task.obs||'') : ''));
+      ds[k].splice(index, 0, def);
+    });
+  });
+  while(clTiemposRef.length < index) clTiemposRef.push(0);
+  clTiemposRef.splice(index, 0, 0);
+}
+
+// Borra una zona y reindexa todo el estado
+function _clRemoveTaskAt(index){
+  Object.keys(clStateByDay).forEach(d => getOrCreateDayState(d));
+  CL_TASKS.splice(index, 1);
+  Object.values(clStateByDay).forEach(ds=>{
+    _CL_FIELDS.forEach(k=>{ if(Array.isArray(ds[k])) ds[k].splice(index, 1); });
+  });
+  if(clTiemposRef.length > index) clTiemposRef.splice(index, 1);
+}
+
+// Persiste el estado completo (todos los días + tiempos + config) tras un cambio estructural
+function _clPersistTrasCambio(){
+  try{ localStorage.setItem(CL_STORAGE_KEY, JSON.stringify(clStateByDay)); }catch(e){}
+  window._checklistLastSave = Date.now();
+  Object.keys(clStateByDay).forEach(d=>{ if(window.fbSetPath) window.fbSetPath('checklist/'+d, clStateByDay[d]); });
+  fbSave('clTiemposRef', clTiemposRef);
+  _persistChecklistConfig();
+}
+
+// ── Acciones de gestión (solo gerencia) ──
+async function clAddZona(sec){
+  if(userRole!=='gerencia') return;
+  const nombre = await promptModal('Nombre de la nueva zona / arreglo:', { title:'Agregar zona' });
+  if(!nombre || !nombre.trim()) return;
+  const actividad = await promptModal('Actividad por defecto (Retoque / Nuevo / Riego):', { title:'Agregar zona', default:'Retoque' });
+  // Insertar al final del grupo de esa sección para mantener el orden visual
+  let insertIdx = CL_TASKS.length;
+  for(let i=CL_TASKS.length-1;i>=0;i--){ if(CL_TASKS[i].sec===sec){ insertIdx=i+1; break; } }
+  _clInsertTaskAt(insertIdx, { sec, zona:nombre.trim(), actividad:(actividad||'Retoque').trim() });
+  _clPersistTrasCambio();
+  clState = getOrCreateDayState(currentDay);
+  renderChecklistTable();
+  openGestionZonas();
+  showToast(`✅ Zona "${nombre.trim()}" agregada a ${SEC_HEADERS[sec]?.label||sec}`);
+}
+
+async function clRenameZona(index){
+  if(userRole!=='gerencia') return;
+  const t = CL_TASKS[index]; if(!t) return;
+  const nuevo = await promptModal('Nuevo nombre para la zona:', { title:'Renombrar zona', default:t.zona });
+  if(!nuevo || !nuevo.trim() || nuevo.trim()===t.zona) return;
+  // Migrar el registro persistente de "último Nuevo" al nuevo nombre
+  const kOld=_zonaKey(t.sec,t.zona), kNew=_zonaKey(t.sec,nuevo.trim());
+  if(ultimoNuevoZona[kOld]){ ultimoNuevoZona[kNew]=ultimoNuevoZona[kOld]; delete ultimoNuevoZona[kOld]; fbSave('ultimoNuevoZona', ultimoNuevoZona); }
+  t.zona = nuevo.trim();
+  _persistChecklistConfig();
+  renderChecklistTable();
+  openGestionZonas();
+  showToast('✏️ Zona renombrada');
+}
+
+async function clDeleteZona(index){
+  if(userRole!=='gerencia') return;
+  const t = CL_TASKS[index]; if(!t) return;
+  if(!await confirmModal(`¿Eliminar la zona "${t.zona}" del checklist?\nSe quita para todos los días.`)) return;
+  _clRemoveTaskAt(index);
+  _clPersistTrasCambio();
+  clState = getOrCreateDayState(currentDay);
+  renderChecklistTable();
+  openGestionZonas();
+  showToast('🗑️ Zona eliminada');
+}
+
+async function clRenameSeccion(sec){
+  if(userRole!=='gerencia') return;
+  const nuevo = await promptModal('Nuevo nombre para la sección:', { title:'Renombrar sección', default:SEC_HEADERS[sec]?.label||'' });
+  if(!nuevo || !nuevo.trim()) return;
+  if(SEC_HEADERS[sec]) SEC_HEADERS[sec].label = nuevo.trim();
+  _persistChecklistConfig();
+  renderChecklistTable();
+  openGestionZonas();
+  showToast('✏️ Sección renombrada');
+}
+
+async function clAddSeccion(){
+  if(userRole!=='gerencia') return;
+  const nombre = await promptModal('Nombre de la nueva sección / área (ej. Palacio):', { title:'Agregar sección' });
+  if(!nombre || !nombre.trim()) return;
+  // Nuevo código de sección libre
+  let code='d'; for(let c=100;c<123;c++){ const ch=String.fromCharCode(c); if(!SEC_HEADERS[ch]){ code=ch; break; } }
+  SEC_HEADERS[code] = { label:nombre.trim(), icon:'📍', cls:'cl-sec-'+code, rowCls:'row-sec-'+code };
+  _persistChecklistConfig();
+  openGestionZonas();
+  showToast(`✅ Sección "${nombre.trim()}" creada — agregá zonas`);
+}
+
+function openGestionZonas(){
+  if(userRole!=='gerencia'){ showToast('⛔ Solo gerencia'); return; }
+  let ov = document.getElementById('gestion-zonas-modal');
+  if(!ov){
+    ov = document.createElement('div');
+    ov.id = 'gestion-zonas-modal';
+    ov.className = 'modal-overlay';
+    document.body.appendChild(ov);
+  }
+  // Agrupar índices por sección
+  const bySec = {};
+  CL_TASKS.forEach((t,i)=>{ (bySec[t.sec]=bySec[t.sec]||[]).push(i); });
+  const secOrder = Object.keys(SEC_HEADERS);
+  const seccionesHTML = secOrder.map(sec=>{
+    const sh = SEC_HEADERS[sec];
+    const idxs = bySec[sec] || [];
+    const zonasHTML = idxs.map(i=>{
+      const t = CL_TASKS[i];
+      return `<div style="display:flex;align-items:center;gap:8px;padding:7px 12px;background:var(--warm-white)">
+        <div style="flex:1;min-width:0;font-size:13px;color:var(--charcoal)">${esc(t.zona)} <span style="font-size:10px;color:var(--mid-gray)">· ${esc(t.actividad)}</span></div>
+        <button class="btn-icon" title="Renombrar" onclick="clRenameZona(${i})">✏️</button>
+        <button class="btn-icon" title="Eliminar" style="color:var(--red-alert)" onclick="clDeleteZona(${i})">✕</button>
+      </div>`;
+    }).join('');
+    return `<div style="margin-bottom:14px;border:1px solid var(--light-gray);border-radius:10px;overflow:hidden">
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--cream)">
+        <span style="font-size:15px">${sh.icon||'📍'}</span>
+        <strong style="flex:1;font-size:13.5px;color:var(--charcoal)">${esc(sh.label)}</strong>
+        <button class="btn-icon" title="Renombrar sección" onclick="clRenameSeccion('${sec}')">✏️</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:1px;background:var(--light-gray)">${zonasHTML || '<div style="padding:10px 12px;background:var(--warm-white);font-size:12px;color:var(--mid-gray)">Sin zonas todavía</div>'}</div>
+      <div style="padding:8px 12px;background:var(--warm-white)"><button class="btn-secondary" style="font-size:11.5px;padding:5px 12px" onclick="clAddZona('${sec}')">+ Agregar zona a ${esc(sh.label)}</button></div>
+    </div>`;
+  }).join('');
+
+  ov.innerHTML = `<div class="modal" style="max-width:600px;max-height:88vh;overflow-y:auto">
+    <button class="modal-close" onclick="document.getElementById('gestion-zonas-modal').classList.remove('open')">✕</button>
+    <div class="modal-title">🗂 Gestionar zonas del checklist</div>
+    <div style="font-size:12px;color:var(--mid-gray);margin-bottom:14px">Renombrá o agregá zonas y secciones. Los cambios se aplican a todos los días y se sincronizan con el equipo.</div>
+    ${seccionesHTML}
+    <div style="margin-top:8px"><button class="btn-add" style="font-size:12px;padding:8px 16px" onclick="clAddSeccion()">+ Agregar sección / área</button></div>
+  </div>`;
+  ov.classList.add('open');
+}
+
 function updTiempoRef(i, val){
   while(clTiemposRef.length < CL_TASKS.length) clTiemposRef.push(0);
   clTiemposRef[i] = parseInt(val)||0;
@@ -8736,6 +8919,7 @@ document.querySelectorAll('.nav-item, .nav-sub-item').forEach(el => {
 function descargarBackup(){
   const fuentes = {
     checklist: ()=>clStateByDay, checklistHistory: ()=>checklistHistory, clTiemposRef: ()=>clTiemposRef, ultimoNuevoZona: ()=>ultimoNuevoZona,
+    checklistTareas: ()=>CL_TASKS.map(t=>({sec:t.sec,zona:t.zona,actividad:t.actividad,obs:t.obs||''})),
     eventosData: ()=>eventosData, kanbanData: ()=>kanbanData, eventosSinFloreria: ()=>eventosSinFloreria,
     stockData: ()=>stockData, recetasData: ()=>recetasData,
     comprasFlore: ()=>comprasFlore, comprasJard: ()=>comprasJard, proveedoresList: ()=>proveedoresList,
@@ -13761,6 +13945,7 @@ Object.assign(window, {
   generarPresupuestoPDF, checkOnboarding, nextOnboardingStep, finishOnboarding,
   toggleProvManager, toggleSidebar, toggleTask, updC, updCL, updActividad, updTiempoRef, updCaja, updCajaMonto, updCajaTipo,
   openVistaSemanal, vsToggleActividad, vsSetResp, descargarBackup, clFotoPreview, guardarFotoChecklist, verFotoChecklist,
+  openGestionZonas, clAddZona, clRenameZona, clDeleteZona, clRenameSeccion, clAddSeccion,
   activarNotificaciones, openGaleriaNuevos, renderGaleriaNuevos, moveKanbanCard, clSetFiltro,
   cerrarBriefing, mostrarResumenSemanal,
   updPedidoHabEstado, updTipoEvento, updV, updateInsumoCount, updateInsumoRow,
