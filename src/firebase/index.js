@@ -552,6 +552,12 @@
         if(document.getElementById('page-rentabilidad-eventos')?.classList.contains('active')) window.renderRentabilidadHotel?.();
       });
 
+      fbListen('arreglosComposicion', val => {
+        if(!val) return;
+        if(window._setArreglosComposicion) window._setArreglosComposicion(val);
+        if(document.getElementById('page-rentabilidad-eventos')?.classList.contains('active')) window.renderRentabilidadHotel?.();
+      });
+
       fbListen('listaPreciosData', val => {
         if(!val) return;
         const arr = Array.isArray(val) ? val : Object.values(val||{});
