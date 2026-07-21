@@ -351,6 +351,13 @@
         if(document.getElementById('page-checklist')?.classList.contains('active') && !window.estaEditando('page-checklist')) window.renderChecklistTable?.();
       });
 
+      // Zonas/secciones del checklist editadas por gerencia
+      fbListen('checklistSecciones', val => { if(window._setChecklistSecciones) window._setChecklistSecciones(val); });
+      fbListen('checklistTareas', val => {
+        const arr = Array.isArray(val) ? val : Object.values(val||{});
+        if(window._setChecklistTareas) window._setChecklistTareas(arr);
+      });
+
       fbListen('clTiemposRef', val => {
         if(window._setClTiemposRef) window._setClTiemposRef(val || []);
         // Re-render si el checklist está activo y nadie está editando un campo
