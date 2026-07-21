@@ -1051,6 +1051,7 @@ function initChecklist(){
   renderChecklistTable();
   renderHistoryPanel();
   renderFlorTurnoCard();
+  renderLlamadosChecklist();
   const _htc = document.getElementById('home-tasks-count'); if(_htc) _htc.textContent = CL_TASKS.length;
 }
 
@@ -5987,6 +5988,186 @@ function verFotoAlerta(id){
   document.body.appendChild(ov);
 }
 
+// ── LLAMADOS DE ATENCIÓN (checklist floreria) ────────────────────────────────
+// Gerencia saca una foto de un error en un arreglo y se lo envía al responsable.
+// Queda registrado en RRHH › Evaluaciones como historial de errores por persona.
+let llamadosData = [];
+window._setLlamadosData = (arr) => {
+  llamadosData.splice(0, llamadosData.length, ...(Array.isArray(arr)?arr:Object.values(arr||{})));
+  if(document.getElementById('page-checklist')?.classList.contains('active')) renderLlamadosChecklist();
+  if(document.getElementById('page-evaluaciones')?.classList.contains('active')) renderLlamadosEval();
+  notificarLlamados();
+};
+
+function _llamadosActivos(){ return llamadosData.filter(l=>l && !l.resuelto); }
+
+let _fotoLlamadoData = '';
+function openLlamadoModal(){
+  if(userRole!=='gerencia'){ showToast('⛔ Solo gerencia'); return; }
+  _fotoLlamadoData = '';
+  const zonaSel = document.getElementById('llamado-zona');
+  if(zonaSel){
+    const zonas = [...new Set(CL_TASKS.map(t=>t.zona))];
+    zonaSel.innerHTML = '<option value="">— Arreglo / zona —</option>' + zonas.map(z=>`<option value="${esc(z)}">${esc(z)}</option>`).join('');
+  }
+  const persSel = document.getElementById('llamado-persona');
+  if(persSel){
+    persSel.innerHTML = '<option value="">— Responsable —</option>' + CL_RESP_OPTS.filter(n=>n!=='Jardineria').map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  }
+  document.getElementById('llamado-nota').value = '';
+  document.getElementById('llamado-file').value = '';
+  const p = document.getElementById('llamado-preview'); if(p){ p.src=''; p.style.display='none'; }
+  document.getElementById('llamado-modal').classList.add('open');
+}
+
+// Al elegir el arreglo, autoseleccionar el responsable de esa zona (día actual)
+function llamadoOnZonaChange(){
+  const zona = document.getElementById('llamado-zona').value;
+  if(!zona) return;
+  const idx = CL_TASKS.findIndex(t=>t.zona===zona);
+  if(idx<0) return;
+  const resp = (clState && clState.responsable && clState.responsable[idx]) || CL_TASKS[idx].responsable || '';
+  const persSel = document.getElementById('llamado-persona');
+  if(resp && persSel && [...persSel.options].some(o=>o.value===resp)) persSel.value = resp;
+}
+
+function llamadoFotoPreview(input){
+  const file = input.files[0]; if(!file) return;
+  comprimirImagen(file, 1200, 0.7, data => {
+    _fotoLlamadoData = data;
+    const p = document.getElementById('llamado-preview');
+    if(p){ p.src = data; p.style.display='block'; }
+  });
+}
+
+function guardarLlamado(){
+  const zona = document.getElementById('llamado-zona').value;
+  const persona = document.getElementById('llamado-persona').value;
+  const nota = document.getElementById('llamado-nota').value.trim();
+  if(!persona){ showToast('⚠️ Elegí el responsable'); return; }
+  if(!nota && !_fotoLlamadoData){ showToast('⚠️ Agregá una nota o una foto'); return; }
+  const leg = legajoData.find(l=>(l.nombre+' '+l.apellido).trim()===persona || l.nombre===persona);
+  const ll = {
+    id: Date.now(),
+    empleadoNombre: persona,
+    empleadoId: leg?leg.id:'',
+    zona: zona||'',
+    nota,
+    foto: _fotoLlamadoData||'',
+    fecha: TODAY_ISO,
+    creado: Date.now(),
+    por: window.currentUserLabel||'Gerencia',
+    resuelto: false,
+    visto: false,
+  };
+  llamadosData.unshift(ll);
+  fbSave('llamadosData', llamadosData);
+  window.pushSend?.('⚠️ Llamado de atención', `${zona?zona+': ':''}${nota||'Revisá tu arreglo'}`, 'llamado', persona);
+  closeModal('llamado-modal');
+  renderLlamadosChecklist();
+  showToast('⚠️ Llamado enviado a '+persona+' y registrado en Evaluaciones');
+}
+
+const _llamadosAvisados = new Set();
+function notificarLlamados(){
+  if(userRole==='gerencia' || !floristaNombre) return;
+  _llamadosActivos().filter(l=>l.empleadoNombre===floristaNombre && !l.visto).forEach(l=>{
+    if(_llamadosAvisados.has(l.id)) return;
+    _llamadosAvisados.add(l.id);
+    showToast('⚠️ Tenés un llamado de atención de gerencia');
+    if(typeof Notification!=='undefined' && Notification.permission==='granted'){
+      try{ new Notification('⚠️ Llamado de atención', {body:`${l.zona?l.zona+': ':''}${l.nota||''}`, icon:'/icon-192.png', tag:'llamado'}); }catch(e){}
+    }
+  });
+}
+
+function renderLlamadosChecklist(){
+  const el = document.getElementById('cl-llamados');
+  if(!el) return;
+  let lista;
+  if(userRole==='gerencia') lista = _llamadosActivos();
+  else if(floristaNombre) lista = _llamadosActivos().filter(l=>l.empleadoNombre===floristaNombre);
+  else lista = [];
+  if(!lista.length){ el.innerHTML=''; return; }
+  el.innerHTML = `<div class="jalert-wrap" style="border-color:#C99A00;background:#FFFBF0">
+    <div class="jalert-hdr" style="color:#8A6D00">⚠️ ${lista.length} ${lista.length===1?'llamado de atención':'llamados de atención'}</div>
+    ${lista.map(l=>`<div class="jalert-card">
+      ${l.foto?`<img src="${l.foto}" class="jalert-foto" onclick="verFotoLlamado(${l.id})" alt="">`:''}
+      <div class="jalert-body">
+        <div class="jalert-tipo">⚠️ ${esc(l.zona||'Arreglo')}</div>
+        ${userRole==='gerencia'?`<div class="jalert-zona">Para: ${esc(l.empleadoNombre)}</div>`:''}
+        ${l.nota?`<div class="jalert-nota">${esc(l.nota)}</div>`:''}
+        <div class="jalert-meta">${fmtDate(l.fecha)} · por ${esc(l.por||'gerencia')}</div>
+      </div>
+      <button class="jalert-btn" onclick="resolverLlamado(${l.id})">${userRole==='gerencia'?'✓ Cerrar':'✓ Entendido'}</button>
+    </div>`).join('')}
+  </div>`;
+}
+
+function verFotoLlamado(id){
+  const l = llamadosData.find(x=>x.id===id);
+  if(!l?.foto) return;
+  const ov = document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9998;display:flex;align-items:center;justify-content:center;padding:20px;cursor:pointer';
+  ov.innerHTML=`<img src="${l.foto}" style="max-width:94vw;max-height:90vh;border-radius:12px">`;
+  ov.onclick=()=>ov.remove();
+  document.body.appendChild(ov);
+}
+
+async function resolverLlamado(id){
+  const l = llamadosData.find(x=>x.id===id);
+  if(!l) return;
+  if(userRole==='gerencia' && !await confirmModal('¿Cerrar este llamado? Queda en el registro de Evaluaciones.')) return;
+  l.resuelto = true; l.visto = true; l.resueltoFecha = TODAY_ISO;
+  fbSave('llamadosData', llamadosData);
+  renderLlamadosChecklist();
+  if(document.getElementById('page-evaluaciones')?.classList.contains('active')) renderLlamadosEval();
+  showToast('✅ Listo');
+}
+
+async function eliminarLlamado(id){
+  if(userRole!=='gerencia') return;
+  if(!await confirmModal('¿Eliminar este llamado del registro? Se borra la foto para siempre.')) return;
+  const i = llamadosData.findIndex(x=>x.id===id);
+  if(i>=0) llamadosData.splice(i,1);
+  fbSave('llamadosData', llamadosData);
+  renderLlamadosEval();
+  showToast('🗑️ Registro eliminado');
+}
+
+// Registro de llamados en RRHH › Evaluaciones (agrupado por persona)
+function renderLlamadosEval(){
+  const el = document.getElementById('eval-llamados');
+  if(!el) return;
+  const search = (document.getElementById('ev-search')?.value||'').toLowerCase();
+  let data = [...llamadosData];
+  if(search) data = data.filter(l=>(l.empleadoNombre||'').toLowerCase().includes(search));
+  if(!data.length){ el.innerHTML = `<div style="padding:16px;text-align:center;color:var(--mid-gray);font-size:13px">Sin llamados de atención registrados.</div>`; return; }
+  const byPers = {};
+  data.forEach(l=>{ (byPers[l.empleadoNombre]=byPers[l.empleadoNombre]||[]).push(l); });
+  const personas = Object.keys(byPers).sort((a,b)=>byPers[b].length-byPers[a].length);
+  el.innerHTML = personas.map(pers=>{
+    const items = byPers[pers].sort((a,b)=>b.creado-a.creado);
+    return `<div style="border:1px solid var(--light-gray);border-radius:10px;margin-bottom:12px;overflow:hidden">
+      <div style="padding:10px 14px;background:#FFFBF0;display:flex;justify-content:space-between;align-items:center">
+        <strong style="color:#8A6D00">⚠️ ${esc(pers)}</strong>
+        <span style="font-size:12px;color:var(--mid-gray)">${items.length} llamado${items.length!==1?'s':''}</span>
+      </div>
+      <div style="display:flex;flex-direction:column">
+        ${items.map(l=>`<div style="display:flex;gap:10px;align-items:center;padding:9px 14px;border-top:1px solid #F0EDE8">
+          ${l.foto?`<img src="${l.foto}" onclick="verFotoLlamado(${l.id})" style="width:52px;height:52px;object-fit:cover;border-radius:6px;cursor:pointer;flex-shrink:0" alt="">`:'<div style="width:52px;height:52px;border-radius:6px;background:#F0EDE8;display:flex;align-items:center;justify-content:center;flex-shrink:0">⚠️</div>'}
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600;color:var(--charcoal)">${esc(l.zona||'Arreglo')} ${l.resuelto?'<span style="font-size:10px;color:var(--green-ok)">✓ visto</span>':'<span style="font-size:10px;color:var(--amber)">pendiente</span>'}</div>
+            ${l.nota?`<div style="font-size:12px;color:#7A7A72">${esc(l.nota)}</div>`:''}
+            <div style="font-size:11px;color:var(--mid-gray)">${fmtDate(l.fecha)} · por ${esc(l.por||'gerencia')}</div>
+          </div>
+          <button class="btn-icon" style="color:var(--red-alert)" title="Eliminar del registro" onclick="eliminarLlamado(${l.id})">✕</button>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
 const JARD_TIPOS_ICON = { 'Riego':'💧','Fertilización':'🌱','Desmalezado':'🌿','Poda':'✂️' };
 const JARD_TIPO_STYLE = {
   'Riego':        'background:#E8F4FD;color:#1A6B9A',
@@ -9079,7 +9260,7 @@ function descargarBackup(){
     habitacionesData: ()=>habitacionesData, habitacionesLog: ()=>habitacionesLog, zonaHorasData: ()=>zonaHorasData,
     horariosData: ()=>window.horariosData, horariosPlantilla: ()=>horariosPlantilla,
     florTurnos: ()=>window.florTurnos, jardHorarios: ()=>window.jardHorarios,
-    legajoData: ()=>legajoData, evaluacionesData: ()=>evaluacionesData, liquidacionConfig: ()=>liquidacionConfig,
+    legajoData: ()=>legajoData, evaluacionesData: ()=>evaluacionesData, llamadosData: ()=>llamadosData, liquidacionConfig: ()=>liquidacionConfig,
     sucursalesConfig: ()=>sucursalesConfig, loginPasswords: ()=>loginPasswords, auditLogData: ()=>auditLogData,
   };
   const data = { _meta: { app:'Florería Duhau', fecha:new Date().toISOString(), generadoPor: window.currentUserLabel||userRole||'' } };
@@ -12790,6 +12971,7 @@ let evaluacionesData = [];
 window._setEvaluacionesData = arr => { evaluacionesData = arr; };
 
 function renderEvaluaciones(){
+  renderLlamadosEval();
   const tbody = document.getElementById('eval-tbody');
   if(!tbody) return;
   const search = (document.getElementById('ev-search')?.value||'').toLowerCase();
@@ -14254,6 +14436,7 @@ Object.assign(window, {
   limpiarCarritoOps, limpiarDiaHorario, loadWeekState, lpAddPhotos, lpDelCat, lpDelItem,
   lpOpenViewer, lpRemovePhoto, lpUpdItem, markHabDone, markJardDone, marcarRecordatorioHecho, navToggleGroup, navExpandGroup, navCollapseGroup, finalizeNavGroups, navigate, openRecordatorioModal, renderBottomNav, renderRecordatoriosJard, saveRecordatorio, deleteRecordatorio, updateBottomNav, openCajaModal,
   openAlertaJardinModal, alertaJardFotoPreview, guardarAlertaJardin, resolverAlertaJardin, verFotoAlerta, renderAlertasUrgentesJard, toggleRecepAgrupado,
+  openLlamadoModal, llamadoOnZonaChange, llamadoFotoPreview, guardarLlamado, renderLlamadosChecklist, verFotoLlamado, resolverLlamado, eliminarLlamado, renderLlamadosEval,
   openDiaHorario, openEditSaleModal, openEventModal, openEventoDetail, openGestionPasswords,
   openGaleriaModal, openLpCatModal, openLpModal, openRamoModal, openRamoPhoto,
   openRecetaModal, openSaleModal, openSidebar, openTaskModal, openVentaRamo, parseMoney,
