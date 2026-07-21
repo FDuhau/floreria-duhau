@@ -7642,16 +7642,14 @@ function saveRamo(){
     foto: '',
     creado: TODAY_ISO
   };
-  const reader = new FileReader();
-  reader.onload = e => {
-    ramo.foto = e.target.result;
+  comprimirImagen(file, 1000, 0.7, data => {
+    ramo.foto = data;
     ramosDispData.push(ramo);
     fbSave('ramosDispData', ramosDispData);
     closeModal('ramo-modal');
     renderRamosDisp();
     showToast('💐 Ramo cargado');
-  };
-  reader.readAsDataURL(file);
+  });
 }
 
 async function delRamo(i){
@@ -7662,24 +7660,35 @@ async function delRamo(i){
 }
 
 // Cambiar la foto de un ramo ya cargado (sin tener que borrarlo y recargarlo).
+// El input se agrega al DOM antes de abrirlo: si queda desconectado, varios
+// navegadores móviles (iOS Safari) no disparan el onchange y "no deja" cambiarla.
+// La imagen se comprime para no exceder el límite de escritura de Firebase.
 function cambiarFotoRamo(i){
   if(!ramosDispData[i]) return;
   const input = document.createElement('input');
   input.type = 'file';
   input.accept = 'image/*';
+  input.style.display = 'none';
+  document.body.appendChild(input);
+  const cleanup = () => { if(input.isConnected) input.remove(); };
   input.onchange = () => {
     const file = input.files?.[0];
-    if(!file){ return; }
-    const reader = new FileReader();
-    reader.onload = e => {
-      if(!ramosDispData[i]) return;
-      ramosDispData[i].foto = e.target.result;
-      fbSave('ramosDispData', ramosDispData);
-      renderRamosDisp();
-      showToast('📷 Foto actualizada');
-    };
-    reader.readAsDataURL(file);
+    if(!file){ cleanup(); return; }
+    comprimirImagen(file, 1000, 0.7, data => {
+      if(ramosDispData[i]){
+        ramosDispData[i].foto = data;
+        fbSave('ramosDispData', ramosDispData);
+        renderRamosDisp();
+        showToast('📷 Foto actualizada');
+      }
+      cleanup();
+    });
   };
+  // Si el usuario cancela el selector, limpiamos el input al volver el foco.
+  window.addEventListener('focus', function onFocus(){
+    window.removeEventListener('focus', onFocus);
+    setTimeout(()=>{ if(input.isConnected && !input.files.length) cleanup(); }, 600);
+  });
   input.click();
 }
 window.cambiarFotoRamo = cambiarFotoRamo;
