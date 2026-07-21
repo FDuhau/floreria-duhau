@@ -226,9 +226,11 @@
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <button class="filter-btn active" id="jops-btn-all"   onclick="setJopsFilter('all')">Todas</button>
+        <button class="filter-btn"        id="jops-btn-plan"  onclick="setJopsFilter('plan')">📋 Plan de hoy</button>
         <button class="filter-btn"        id="jops-btn-alert" onclick="setJopsFilter('alert')">🔴 Urgente</button>
         <button class="filter-btn"        id="jops-btn-warn"  onclick="setJopsFilter('warn')">🟡 Próxima</button>
         <button class="filter-btn"        id="jops-btn-ok"    onclick="setJopsFilter('ok')">🟢 Al día</button>
+        <button class="btn-secondary gerencia-only" onclick="openGestionTareasJard()" style="font-size:12px">🗂 Tareas</button>
         <button class="btn-secondary" onclick="toggleJordProd()" id="jops-prod-btn" style="font-size:12px;background:#2C4A3E;color:white;border-color:#2C4A3E;display:none">📊 Productividad</button>
       </div>
     </div>
