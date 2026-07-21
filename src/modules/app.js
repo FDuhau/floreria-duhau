@@ -6372,9 +6372,9 @@ function renderJardOps(){
   });
   const kpisEl = document.getElementById('jops-kpis');
   if(kpisEl) kpisEl.innerHTML=`
-    <div class="card"><div class="card-label">🔴 Urgente (+7d)</div><div class="card-value red" style="font-size:32px">${kAlert}</div><div class="card-sub">intervenir hoy</div></div>
-    <div class="card"><div class="card-label">🟡 Próxima (4-7d)</div><div class="card-value amber" style="font-size:32px">${kWarn}</div><div class="card-sub">requieren visita pronto</div></div>
-    <div class="card"><div class="card-label">🟢 Al día (≤3d)</div><div class="card-value green" style="font-size:32px">${kOk}</div><div class="card-sub">zonas recientes</div></div>`;
+    <div class="card"><div class="card-label">🔴 Urgente</div><div class="card-value red" style="font-size:32px">${kAlert}</div><div class="card-sub">intervenir hoy</div></div>
+    <div class="card"><div class="card-label">🟡 Próxima</div><div class="card-value amber" style="font-size:32px">${kWarn}</div><div class="card-sub">requieren visita pronto</div></div>
+    <div class="card"><div class="card-label">🟢 Al día</div><div class="card-value green" style="font-size:32px">${kOk}</div><div class="card-sub">zonas recientes</div></div>`;
 
   const statusOrder = {alert:0, warn:1, ok:2, none:3};
 
@@ -6448,7 +6448,7 @@ function renderJardOps(){
       taskEl.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
           <div style="font-size:12px;font-weight:600;color:var(--charcoal);flex:1;line-height:1.4">${esc(r.task)}</div>
-          <span class="days-badge ${badge.cls}" style="flex-shrink:0">${badge.label}</span>
+          <span style="flex-shrink:0;font-size:15px" title="Estado">${badge.status==='ok'?'🟢':badge.status==='warn'?'🟡':badge.status==='alert'?'🔴':'⚪'}</span>
         </div>
         <div style="font-size:11px;color:var(--mid-gray)">📅 ${r.last?fmtDate(r.last):'<em>Sin registro</em>'} · 📊 ${getMonthVisits(r)} este mes</div>
         <textarea id="jops-obs-${i}" class="cl-obs-input" placeholder="Observaciones..." style="width:100%;font-size:12px;resize:vertical;min-height:44px;padding:5px 7px;border-radius:4px;border:1px solid var(--light-gray);font-family:inherit;background:var(--warm-white)"
@@ -6867,9 +6867,9 @@ function renderCtrlJard(){
   });
   const totalMesJard = jardineriaData.reduce((s,r)=>s+getMonthVisits(r),0);
   document.getElementById('ctrl-jard-kpis').innerHTML=urgenciaPanelHTML('jard')+`
-    <div class="card"><div class="card-label">🟢 Al día (≤${urgenciaConfig.okMax}d)</div><div class="card-value green" style="font-size:32px">${kOk}</div><div class="card-sub">zonas recientes</div></div>
-    <div class="card"><div class="card-label">🟡 Próxima (${urgenciaConfig.okMax+1}-${urgenciaConfig.warnMax}d)</div><div class="card-value amber" style="font-size:32px">${kWarn}</div><div class="card-sub">requieren visita pronto</div></div>
-    <div class="card"><div class="card-label">🔴 Urgente (+${urgenciaConfig.warnMax}d)</div><div class="card-value red" style="font-size:32px">${kAlert}</div><div class="card-sub">intervenir hoy</div></div>
+    <div class="card"><div class="card-label">🟢 Al día</div><div class="card-value green" style="font-size:32px">${kOk}</div><div class="card-sub">zonas recientes</div></div>
+    <div class="card"><div class="card-label">🟡 Próxima</div><div class="card-value amber" style="font-size:32px">${kWarn}</div><div class="card-sub">requieren visita pronto</div></div>
+    <div class="card"><div class="card-label">🔴 Urgente</div><div class="card-value red" style="font-size:32px">${kAlert}</div><div class="card-sub">intervenir hoy</div></div>
     <div class="card"><div class="card-label">⚪ Sin registro</div><div class="card-value" style="font-size:32px;color:var(--mid-gray)">${kNone}</div><div class="card-sub">primer registro pendiente</div></div>
     <div class="card"><div class="card-label">📊 Visitas este mes</div><div class="card-value" style="font-size:32px;color:var(--charcoal)">${totalMesJard}</div><div class="card-sub">${fmtMonth(CURR_MONTH)}</div></div>`;
 
@@ -6894,7 +6894,7 @@ function renderCtrlJard(){
       lastSec=r.section; lastGroup='';
       const sr=document.createElement('tr');
       sr.className='ctrl-section-row';
-      sr.innerHTML=`<td colspan="8">${getSectionEmoji(r.section)} ZONA ${esc(r.section.toUpperCase())}</td>`;
+      sr.innerHTML=`<td colspan="7">${getSectionEmoji(r.section)} ZONA ${esc(r.section.toUpperCase())}</td>`;
       tbody.appendChild(sr);
     }
     // Group header
@@ -6902,7 +6902,7 @@ function renderCtrlJard(){
       lastGroup=r.group;
       const gr=document.createElement('tr');
       gr.className='ctrl-group-row';
-      gr.innerHTML=`<td colspan="8">🌿 ${esc(r.group)}</td>`;
+      gr.innerHTML=`<td colspan="7">🌿 ${esc(r.group)}</td>`;
       tbody.appendChild(gr);
     }
 
@@ -6923,10 +6923,6 @@ function renderCtrlJard(){
                title="Editar fecha de última visita"
                style="font-size:12px;padding:4px 6px;border:1px solid #E5E3DC;border-radius:6px;color:#1A1A1A">`
           : (r.last ? fmtDate(r.last) : '<em style="color:#B0AFA5;font-size:11px">Sin registro</em>') }
-      </td>
-      <td>
-        <span class="days-badge ${badge.cls}">${badge.label}</span>
-        <div class="ctrl-bar"><div class="ctrl-bar-fill" style="width:${badge.bar}%;${badge.barCls}"></div></div>
       </td>
       <td>
         <span class="alerta-badge ${alCls}"
@@ -6956,7 +6952,7 @@ function renderCtrlJard(){
   });
 
   if(!renderedAny){
-    tbody.innerHTML='<tr><td colspan="8" style="padding:20px;text-align:center;color:var(--mid-gray)">Sin resultados para este filtro.</td></tr>';
+    tbody.innerHTML='<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--mid-gray)">Sin resultados para este filtro.</td></tr>';
   }
   renderJardReporte();
 }
@@ -7048,9 +7044,9 @@ function renderHabOps(){
   });
   const kpisEl = document.getElementById('hops-kpis');
   if(kpisEl) kpisEl.innerHTML=`
-    <div class="card"><div class="card-label">🔴 Urgente (+7d)</div><div class="card-value red" style="font-size:32px">${kAlert}</div><div class="card-sub">visitar hoy</div></div>
-    <div class="card"><div class="card-label">🟡 Próxima (4-7d)</div><div class="card-value amber" style="font-size:32px">${kWarn}</div><div class="card-sub">próxima visita</div></div>
-    <div class="card"><div class="card-label">🟢 Al día (≤3d)</div><div class="card-value green" style="font-size:32px">${kOk}</div><div class="card-sub">al día</div></div>`;
+    <div class="card"><div class="card-label">🔴 Urgente</div><div class="card-value red" style="font-size:32px">${kAlert}</div><div class="card-sub">visitar hoy</div></div>
+    <div class="card"><div class="card-label">🟡 Próxima</div><div class="card-value amber" style="font-size:32px">${kWarn}</div><div class="card-sub">próxima visita</div></div>
+    <div class="card"><div class="card-label">🟢 Al día</div><div class="card-value green" style="font-size:32px">${kOk}</div><div class="card-sub">al día</div></div>`;
 
   const statusOrder = {alert:0, warn:1, ok:2, none:3};
   const sorted = habitacionesData
@@ -7152,9 +7148,9 @@ function renderCtrlHab(){
 
   const totalMesHab = habitacionesData.reduce((s,r)=>s+getMonthVisits(r),0);
   document.getElementById('ctrl-hab-kpis').innerHTML=urgenciaPanelHTML('hab')+`
-    <div class="card"><div class="card-label">🟢 Al día (≤${urgenciaConfig.okMax}d)</div><div class="card-value green" style="font-size:32px">${kOk}</div><div class="card-sub">visitadas recientemente</div></div>
-    <div class="card"><div class="card-label">🟡 Próxima (${urgenciaConfig.okMax+1}-${urgenciaConfig.warnMax}d)</div><div class="card-value amber" style="font-size:32px">${kWarn}</div><div class="card-sub">programar ingreso</div></div>
-    <div class="card"><div class="card-label">🔴 Urgente (+${urgenciaConfig.warnMax}d)</div><div class="card-value red" style="font-size:32px">${kAlert}</div><div class="card-sub">ingresar esta semana</div></div>
+    <div class="card"><div class="card-label">🟢 Al día</div><div class="card-value green" style="font-size:32px">${kOk}</div><div class="card-sub">visitadas recientemente</div></div>
+    <div class="card"><div class="card-label">🟡 Próxima</div><div class="card-value amber" style="font-size:32px">${kWarn}</div><div class="card-sub">programar ingreso</div></div>
+    <div class="card"><div class="card-label">🔴 Urgente</div><div class="card-value red" style="font-size:32px">${kAlert}</div><div class="card-sub">ingresar esta semana</div></div>
     <div class="card"><div class="card-label">Total registradas</div><div class="card-value" style="font-size:32px">${habitacionesData.length}</div><div class="card-sub">habitaciones con plantas</div></div>
     <div class="card"><div class="card-label">📊 Visitas este mes</div><div class="card-value" style="font-size:32px;color:var(--charcoal)">${totalMesHab}</div><div class="card-sub">${fmtMonth(CURR_MONTH)}</div></div>`;
 
@@ -7193,10 +7189,6 @@ function renderCtrlHab(){
           : (r.last ? fmtDate(r.last) : '<em style="color:#B0AFA5">—</em>') }
       </td>
       <td>
-        <span class="days-badge ${badge.cls}">${badge.label}</span>
-        <div class="ctrl-bar"><div class="ctrl-bar-fill" style="width:${badge.bar}%;${badge.barCls}"></div></div>
-      </td>
-      <td>
         <span class="alerta-badge ${alCls}" style="font-size:11px;padding:3px 10px">${alLbl}</span>
       </td>
       <td style="text-align:center;font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400;color:#1A1A1A">
@@ -7220,7 +7212,7 @@ function renderCtrlHab(){
   });
 
   if(!renderedAny){
-    tbody.innerHTML='<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--mid-gray)">Sin resultados para este filtro.</td></tr>';
+    tbody.innerHTML='<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--mid-gray)">Sin resultados para este filtro.</td></tr>';
   }
   renderHabReporte();
   renderHabLog();
