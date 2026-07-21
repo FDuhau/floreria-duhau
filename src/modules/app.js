@@ -3257,9 +3257,10 @@ function renderHistorialCompras(){
           <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:10px">Total varas</th>
           <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:10px">Control</th>
           <th style="padding:6px 10px;text-align:right;color:var(--mid-gray);font-size:10px">Precio de compra</th>
+          <th style="padding:6px 10px;text-align:right;color:var(--mid-gray);font-size:10px">Costo/vara</th>
           <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:10px"></th>
         </tr></thead>
-        <tbody>${items.map(r => { const idx = comprasFlore.indexOf(r); const an = !!r.anulado; const rowStyle = an ? 'border-top:1px solid #F0EDE8;opacity:.5' : 'border-top:1px solid #F0EDE8'; return `<tr style="${rowStyle}">
+        <tbody>${items.map(r => { const idx = comprasFlore.indexOf(r); const an = !!r.anulado; const rowStyle = an ? 'border-top:1px solid #F0EDE8;opacity:.5' : 'border-top:1px solid #F0EDE8'; const cvDiv = parseFloat(r.varasPorPaq)||parseFloat(r.totalVaras)||parseFloat(r.qty)||0; const cvVal = (parseMoney(r.costo)>0 && cvDiv>0) ? Math.round(parseMoney(r.costo)/cvDiv) : null; return `<tr style="${rowStyle}">
           <td style="padding:6px 10px;font-weight:500;${an?'text-decoration:line-through':''}">${esc(r.prod)}</td>
           <td style="padding:6px 10px;color:var(--mid-gray)">${esc(r.prov||'—')}</td>
           <td style="padding:6px 10px;color:var(--mid-gray)">${esc(r.sector||'—')}</td>
@@ -3268,6 +3269,7 @@ function renderHistorialCompras(){
           <td style="padding:6px 10px;text-align:center;font-weight:600">${r.totalVaras||r.qty||'—'}</td>
           <td style="padding:6px 10px;text-align:center">${an ? '<span style="font-size:9px;font-weight:700;background:#7A7A72;color:#fff;padding:2px 7px;border-radius:5px;white-space:nowrap">🚫 Anulado</span>' : controlBadgeCompra(r)}</td>
           <td style="padding:6px 10px;text-align:right"><input class="form-input" value="${esc(r.costo||'')}" placeholder="$" onchange="updHistCostoCompra(${idx},this.value)" style="width:90px;text-align:right" ${an?'disabled':''}></td>
+          <td style="padding:6px 10px;text-align:right;font-weight:700;color:var(--sage-dark)">${cvVal!=null?'$'+cvVal.toLocaleString('es-AR'):'<span style="color:var(--mid-gray);font-weight:400">—</span>'}</td>
           <td style="padding:6px 10px;text-align:center;white-space:nowrap"><button class="btn-secondary" style="font-size:10px;padding:3px 8px" onclick="toggleAnularCompra(${idx})">${an?'↩️ Reactivar':'🚫 Anular'}</button></td>
         </tr>`; }).join('')}</tbody>
       </table>
@@ -12171,8 +12173,15 @@ async function eliminarProveedor(idx){
 // ── RENTABILIDAD TABS ─────────────────────────────────────────────────────────
 let _rentTab = 'eventos';
 let arreglosHotelConfig = {}; // { nombreArreglo: { precioHyatt, cantMensual } }
+let arreglosComposicion = {}; // { zonaChecklist: [{prod, qty}] } — qué flores/varas lleva cada arreglo
 
 window._setArreglosHotelConfig = v => { arreglosHotelConfig = v || {}; };
+window._setArreglosComposicion = v => { arreglosComposicion = v || {}; };
+
+// Costo de un arreglo = Σ varas × costo por vara (cotizadorPrecios, que sale de compras)
+function calcCostoArreglo(zona){
+  return (arreglosComposicion[zona]||[]).reduce((s,ing)=>s+(cotizadorPrecios[ing.prod]||0)*(+ing.qty||0),0);
+}
 
 function rentSetTab(tab){
   _rentTab = tab;
@@ -12203,57 +12212,137 @@ function renderRentabilidadHotel(){
   const kpisEl  = document.getElementById('rent-hotel-kpis');
   if(!tbody) return;
 
-  // Mes seleccionado (default: mes actual)
-  const mesEl = document.getElementById('rent-hotel-mes');
-  if(mesEl && !mesEl.value){
-    const n = new Date();
-    mesEl.value = n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0');
+  // Selector "+ definir arreglo": zonas del checklist que aún no tienen composición
+  const selAdd = document.getElementById('rent-arreglo-add');
+  if(selAdd){
+    const zonasCheck = [...new Set(CL_TASKS.map(t=>t.zona))].sort((a,b)=>a.localeCompare(b,'es'));
+    const pendientes = zonasCheck.filter(z => !((arreglosComposicion[z]||[]).length));
+    selAdd.innerHTML = '<option value="">+ Definir composición de un arreglo…</option>' +
+      pendientes.map(z=>`<option value="${esc(z)}">${esc(z)}</option>`).join('');
   }
-  const mes = mesEl?.value || '';
 
-  // Costo REAL de insumos por área de uso (sector) — compras de florería del mes
-  const costoPorArea = {};
-  (comprasFlore||[]).forEach(c => {
-    if(c.anulado) return;
-    if(mes && (c.fecha||'').slice(0,7) !== mes) return;
-    const area = (c.sector||'').trim() || 'Sin área asignada';
-    costoPorArea[area] = (costoPorArea[area]||0) + parseMoney(c.costo);
-  });
-
-  // Áreas a mostrar: las que tienen compras este mes + las que ya tienen precio cargado
-  const areas = [...new Set([...Object.keys(costoPorArea), ...Object.keys(arreglosHotelConfig)])]
-    .filter(Boolean)
-    .sort((a,b)=>a.localeCompare(b,'es'));
+  // Arreglos a mostrar: los que tienen composición cargada o un precio Hyatt definido
+  const conComp   = Object.keys(arreglosComposicion).filter(z => (arreglosComposicion[z]||[]).length);
+  const conPrecio = Object.keys(arreglosHotelConfig).filter(z => arreglosHotelConfig[z]?.precioHyatt);
+  const arreglos  = [...new Set([...conComp, ...conPrecio])].filter(Boolean).sort((a,b)=>a.localeCompare(b,'es'));
 
   let totalCosto = 0, totalFact = 0;
   const th = 'padding:9px 14px;border-bottom:1px solid var(--light-gray)';
-  tbody.innerHTML = areas.map(area => {
-    const costo       = Math.round(costoPorArea[area]||0);
-    const cfg         = arreglosHotelConfig[area] || {};
+  tbody.innerHTML = arreglos.map(zona => {
+    const ings        = arreglosComposicion[zona] || [];
+    const costo       = Math.round(calcCostoArreglo(zona));
+    const cfg         = arreglosHotelConfig[zona] || {};
     const precioHyatt = cfg.precioHyatt || 0;
     const margen      = precioHyatt - costo;
     const margenPct   = precioHyatt > 0 ? (margen / precioHyatt * 100).toFixed(1) : null;
     totalCosto += costo; totalFact += precioHyatt;
     const mc = margenPct != null ? (+margenPct > 40 ? 'var(--green-ok)' : +margenPct > 20 ? 'var(--amber)' : 'var(--red-alert)') : 'var(--mid-gray)';
+    const zEsc = esc(zona).replace(/'/g,"\\'");
+    const resumen = ings.length
+      ? ings.map(g=>`${g.qty} ${esc(g.prod)}`).join(', ')
+      : '<span style="color:var(--amber)">Sin composición cargada</span>';
+    const faltaPrecio = ings.some(g => !cotizadorPrecios[g.prod]);
     return `<tr>
-      <td style="${th};font-weight:500">📍 ${esc(area)}</td>
+      <td style="${th};font-weight:500;white-space:nowrap">📍 ${esc(zona)}</td>
+      <td style="${th};font-size:11px;color:var(--mid-gray);max-width:280px">${resumen}${faltaPrecio?' <span title="Falta el costo por vara de alguna flor (cargá su compra recibida)">⚠️</span>':''}</td>
       <td style="${th};text-align:right;color:var(--mid-gray)">$${costo.toLocaleString('es-AR')}</td>
       <td style="${th};text-align:right">
         <input type="number" min="0" value="${precioHyatt||''}" placeholder="$"
-          style="width:110px;text-align:right;border:1px solid var(--light-gray);border-radius:6px;padding:4px 8px;font-size:13px;outline:none;background:var(--warm-white);color:var(--charcoal)"
-          onchange="saveArregloHotelConfig('${esc(area)}','precioHyatt',this.value)">
+          style="width:100px;text-align:right;border:1px solid var(--light-gray);border-radius:6px;padding:4px 8px;font-size:13px;outline:none;background:var(--warm-white);color:var(--charcoal)"
+          onchange="saveArregloHotelConfig('${zEsc}','precioHyatt',this.value)">
       </td>
       <td style="${th};text-align:right;font-weight:600;color:${precioHyatt? (margen>=0?'var(--green-ok)':'var(--red-alert)') : 'var(--mid-gray)'}">${precioHyatt ? '$'+margen.toLocaleString('es-AR') : '—'}</td>
       <td style="${th};text-align:right;font-weight:700;color:${mc}">${margenPct != null ? margenPct+'%' : '—'}</td>
+      <td style="${th};text-align:center;white-space:nowrap"><button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="openArregloComposicion('${zEsc}')">✏️ Composición</button></td>
     </tr>`;
-  }).join('') || `<tr><td colspan="5" style="padding:22px;text-align:center;color:var(--mid-gray)">Sin compras cargadas para este mes. Cargá insumos en <strong>Compras › Florería</strong> indicando el <strong>Área / uso</strong> de cada uno.</td></tr>`;
+  }).join('') || `<tr><td colspan="7" style="padding:22px;text-align:center;color:var(--mid-gray)">Todavía no hay arreglos definidos. Elegí uno del checklist en el selector de arriba para cargar qué flores lleva.</td></tr>`;
 
   const margenGlobal = totalFact > 0 ? ((totalFact - totalCosto) / totalFact * 100).toFixed(1) : '—';
   if(kpisEl) kpisEl.innerHTML = `
-    <div class="card"><div class="card-label">Áreas con arreglo</div><div class="card-value" style="font-size:32px">${areas.length}</div></div>
-    <div class="card"><div class="card-label">Facturación mensual</div><div class="card-value" style="font-size:26px">$${totalFact.toLocaleString('es-AR')}</div></div>
-    <div class="card"><div class="card-label">Costo insumos (mes)</div><div class="card-value" style="font-size:26px">$${totalCosto.toLocaleString('es-AR')}</div></div>
+    <div class="card"><div class="card-label">Arreglos definidos</div><div class="card-value" style="font-size:32px">${arreglos.length}</div></div>
+    <div class="card"><div class="card-label">Facturación (Hyatt)</div><div class="card-value" style="font-size:26px">$${totalFact.toLocaleString('es-AR')}</div></div>
+    <div class="card"><div class="card-label">Costo insumos</div><div class="card-value" style="font-size:26px">$${totalCosto.toLocaleString('es-AR')}</div></div>
     <div class="card"><div class="card-label">Margen global hotel</div><div class="card-value ${+margenGlobal>40?'green':+margenGlobal>20?'amber':'red'}" style="font-size:32px">${margenGlobal}%</div></div>`;
+}
+
+// Elegir un arreglo del checklist desde el selector para cargarle la composición
+function rentAddArreglo(sel){
+  const z = sel.value;
+  if(!z) return;
+  sel.value = '';
+  openArregloComposicion(z);
+}
+
+// ── Editor de composición de un arreglo (qué flores/varas lleva) ──────────────
+let _compEditZona = null;
+let _compEditRows = [];
+
+function _floresDatalistOpts(){
+  const all = [...new Set([...insumosBDBase, ...(typeof insumosCustom!=='undefined'?insumosCustom:[]), ...Object.keys(cotizadorPrecios||{})])]
+    .filter(Boolean).sort((a,b)=>a.localeCompare(b,'es'));
+  return all.map(n=>`<option value="${esc(n)}">`).join('');
+}
+
+function openArregloComposicion(zona){
+  if(userRole!=='gerencia'){ showToast('⛔ Solo gerencia'); return; }
+  _compEditZona = zona;
+  _compEditRows = JSON.parse(JSON.stringify(arreglosComposicion[zona] || []));
+  if(!_compEditRows.length) _compEditRows = [{prod:'', qty:''}];
+  _renderCompModal();
+}
+
+function _renderCompModal(){
+  let ov = document.getElementById('arreglo-comp-modal');
+  if(!ov){ ov = document.createElement('div'); ov.id='arreglo-comp-modal'; ov.className='modal-overlay'; document.body.appendChild(ov); }
+  const rowsHTML = _compEditRows.map((r,i)=>{
+    const cv  = cotizadorPrecios[r.prod] || 0;
+    const sub = cv * (+r.qty||0);
+    const sinCosto = r.prod && !cv;
+    return `<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+      <input list="comp-flor-list" value="${esc(r.prod)}" placeholder="Flor / follaje" onchange="compUpdRow(${i},'prod',this.value)"
+        style="flex:1;min-width:0;border:1px solid var(--light-gray);border-radius:6px;padding:5px 8px;font-size:12.5px;background:var(--warm-white);color:var(--charcoal)">
+      <input type="number" min="0" value="${esc(r.qty)}" placeholder="varas" onchange="compUpdRow(${i},'qty',this.value)"
+        style="width:64px;text-align:center;border:1px solid var(--light-gray);border-radius:6px;padding:5px 4px;font-size:12.5px;background:var(--warm-white);color:var(--charcoal)">
+      <span style="width:66px;text-align:right;font-size:11px;color:${sinCosto?'var(--amber)':'var(--mid-gray)'}">${cv?'$'+cv.toLocaleString('es-AR')+'/v':(r.prod?'sin costo':'—')}</span>
+      <span style="width:78px;text-align:right;font-size:12.5px;font-weight:600">${sub?'$'+Math.round(sub).toLocaleString('es-AR'):''}</span>
+      <button class="btn-icon" style="color:var(--red-alert)" title="Quitar" onclick="compRemoveRow(${i})">✕</button>
+    </div>`;
+  }).join('');
+  const total  = _compEditRows.reduce((s,r)=>s+(cotizadorPrecios[r.prod]||0)*(+r.qty||0),0);
+  const faltan = [...new Set(_compEditRows.filter(r=>r.prod && !cotizadorPrecios[r.prod]).map(r=>r.prod))];
+  ov.innerHTML = `<div class="modal" style="max-width:560px;max-height:88vh;overflow-y:auto">
+    <button class="modal-close" onclick="closeModal('arreglo-comp-modal')">✕</button>
+    <div class="modal-title">🫙 Composición · ${esc(_compEditZona)}</div>
+    <div style="font-size:12px;color:var(--mid-gray);margin-bottom:14px">Cargá qué flores lleva este arreglo y cuántas varas de cada una. El costo por vara sale solo de <strong>Compras › Florería</strong>.</div>
+    <datalist id="comp-flor-list">${_floresDatalistOpts()}</datalist>
+    <div style="display:flex;gap:6px;font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--mid-gray);margin-bottom:5px">
+      <span style="flex:1">Flor / follaje</span><span style="width:64px;text-align:center">Varas</span><span style="width:66px;text-align:right">$/vara</span><span style="width:78px;text-align:right">Subtotal</span><span style="width:28px"></span>
+    </div>
+    ${rowsHTML}
+    <button class="btn-secondary" style="font-size:11px;margin-top:4px" onclick="compAddRow()">+ Agregar flor</button>
+    ${faltan.length?`<div style="font-size:11px;color:var(--amber);margin-top:10px">⚠️ Sin costo por vara todavía: ${esc(faltan.join(', '))}. Cargá su compra recibida en Compras para que se calcule.</div>`:''}
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding-top:12px;border-top:1px solid var(--light-gray)">
+      <div style="font-size:13px;color:var(--mid-gray)">Costo del arreglo: <strong style="font-size:17px;color:var(--charcoal)">$${Math.round(total).toLocaleString('es-AR')}</strong></div>
+      <button class="btn-add" onclick="guardarArregloComposicion()">Guardar</button>
+    </div>
+  </div>`;
+  ov.classList.add('open');
+}
+
+function compUpdRow(i, field, val){ if(_compEditRows[i]){ _compEditRows[i][field] = val; _renderCompModal(); } }
+function compAddRow(){ _compEditRows.push({prod:'', qty:''}); _renderCompModal(); }
+function compRemoveRow(i){ _compEditRows.splice(i,1); if(!_compEditRows.length) _compEditRows=[{prod:'',qty:''}]; _renderCompModal(); }
+
+function guardarArregloComposicion(){
+  const rows = _compEditRows
+    .filter(r => r.prod && r.prod.trim() && (+r.qty)>0)
+    .map(r => ({prod:r.prod.trim(), qty:+r.qty}));
+  if(rows.length) arreglosComposicion[_compEditZona] = rows;
+  else delete arreglosComposicion[_compEditZona];
+  fbSave('arreglosComposicion', arreglosComposicion);
+  closeModal('arreglo-comp-modal');
+  renderRentabilidadHotel();
+  showToast('✅ Composición guardada');
 }
 
 function renderRentabilidad(){
@@ -14061,6 +14150,7 @@ Object.assign(window, {
   renderCalendario, calPrevMonth, calNextMonth,
   renderProveedores, openProveedorModal, guardarProveedor, eliminarProveedor,
   renderRentabilidad, renderRentabilidadHotel, rentSetTab, saveArregloHotelConfig, alertasAutomaticas,
+  rentAddArreglo, openArregloComposicion, compUpdRow, compAddRow, compRemoveRow, guardarArregloComposicion,
   renderStock, renderStockAdmin, renderVentaHoraCell, renderVentas, renderZonasPicker,
   resetHora, resetWeekState, resetearPassword, resetearTodasPasswords, saleAutoFillPrice,
   saveEvent, saveInsumosCustom, saveKanbanTask, saveLpItem, saveRamo, saveReceta, saveUrgenciaConfig,
