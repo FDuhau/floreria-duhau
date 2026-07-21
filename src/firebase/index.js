@@ -443,6 +443,10 @@
         if(document.getElementById('page-jardineria-ops')?.classList.contains('active') && !window.estaEditando('page-jardineria-ops')) window.renderJardOps();
       });
 
+      fbListen('llamadosData', val => {
+        if(window._setLlamadosData) window._setLlamadosData(Array.isArray(val) ? val : Object.values(val||{}));
+      });
+
       fbListen('habitacionesData', val => {
         if(!val) return;
         const arr = Array.isArray(val) ? val : Object.values(val||{});
