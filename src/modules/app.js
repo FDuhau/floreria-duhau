@@ -7983,6 +7983,23 @@ function renderAuditoria(){
   }).join('');
 }
 
+// Horas del mes de un empleado: PROGRAMADAS (horario que carga gerencia) y
+// TRABAJADAS (jornada real fichada — misma fuente `jornadaRealDia` que usan
+// Productividad y la Liquidación, para que todos los reportes coincidan).
+function _horasMesEmpleado(nombre, mesISO){
+  const [anio, mes] = mesISO.split('-').map(Number);
+  const diasMes = new Date(anio, mes, 0).getDate();
+  let hsProg=0, hsTrab=0, dias=0;
+  for(let d=1; d<=diasMes; d++){
+    const iso = `${mesISO}-${String(d).padStart(2,'0')}`;
+    const h = (window.horariosData||{})[nombre]?.[iso];
+    if(h?.desde && h?.hasta){ hsProg += calcHorasDia(h.desde,h.hasta); dias++; }
+    const real = jornadaRealDia(nombre, iso);
+    if(real) hsTrab += real.horas;
+  }
+  return { hsProg, hsTrab, dias };
+}
+
 function renderReportesEquipo(){
   _repMeses('rep-eq-mes');
   const mesISO = document.getElementById('rep-eq-mes')?.value || TODAY_ISO.slice(0,7);
@@ -7996,38 +8013,10 @@ function renderReportesEquipo(){
   const filtroEmp = document.getElementById('rep-eq-empleado')?.value || '';
   const lista = filtroEmp ? [filtroEmp] : empleados;
 
-  // Calcular días del mes
-  const [anio, mes] = mesISO.split('-').map(Number);
-  const diasMes = new Date(anio, mes, 0).getDate();
   let totalHsProg=0, totalHsTrab=0, diasConTurno=0, empleadosActivos=0;
 
   const datosEmpleado = lista.map(nombre => {
-    let hsProg=0, hsTrab=0, dias=0;
-    for(let d=1; d<=diasMes; d++){
-      const iso = `${mesISO}-${String(d).padStart(2,'0')}`;
-      if(isJardinero(nombre)){
-        const hp = (window.horariosData||{})[nombre]?.[iso];
-        if(hp?.desde && hp?.hasta){ hsProg += calcHorasDia(hp.desde,hp.hasta); dias++; }
-        const jt = (window.jardHorarios||{})[nombre]?.[iso];
-        if(jt?.inicio && jt?.fin) hsTrab += calcHorasDia(jt.inicio,jt.fin);
-      } else {
-        const h = (window.horariosData||{})[nombre]?.[iso];
-        if(h?.desde && h?.hasta){ hsProg += calcHorasDia(h.desde,h.hasta); dias++; }
-        // Horas reales: florTurnos check-in/out
-        const ft=(window.florTurnos||{})[nombre]?.[iso];
-        if(ft?.inicio && ft?.fin) hsTrab += calcHorasDia(ft.inicio,ft.fin);
-        else {
-        // Fallback: tareas con inicio/fin en checklist
-        const dayName = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'][new Date(anio,mes-1,d).getDay()];
-        const dayState = (window.clStateByDay||{})[dayName];
-        if(dayState) CL_TASKS.forEach((_,i)=>{
-          if((dayState.responsable||[])[i]!==nombre) return;
-          const ini=dayState.inicio?.[i], fin=dayState.fin?.[i];
-          if(ini&&fin){ const [h1,m1]=ini.split(':').map(Number);const [h2,m2]=fin.split(':').map(Number);const dd=(h2*60+m2)-(h1*60+m1);if(dd>0)hsTrab+=dd/60; }
-        });
-        } // end else (no florTurnos)
-      }
-    }
+    const { hsProg, hsTrab, dias } = _horasMesEmpleado(nombre, mesISO);
     totalHsProg+=hsProg; totalHsTrab+=hsTrab; diasConTurno+=dias;
     if(hsProg>0) empleadosActivos++;
     return { nombre, hsProg: Math.round(hsProg*10)/10, hsTrab: Math.round(hsTrab*10)/10, dias };
@@ -8164,18 +8153,7 @@ function exportReporteEquipo(){
   const mesISO = document.getElementById('rep-eq-mes')?.value || TODAY_ISO.slice(0,7);
   const rows = [['Empleado','Área','Hs Programadas','Hs Trabajadas','Cumplimiento%']];
   getEmpleadosActivos().forEach(nombre=>{
-    const [anio,mes]=mesISO.split('-').map(Number);
-    const diasMes=new Date(anio,mes,0).getDate();
-    let hsProg=0,hsTrab=0;
-    for(let d=1;d<=diasMes;d++){
-      const iso=`${mesISO}-${String(d).padStart(2,'0')}`;
-      if(isJardinero(nombre)){
-        const hp=(window.horariosData||{})[nombre]?.[iso];if(hp?.desde&&hp?.hasta)hsProg+=calcHorasDia(hp.desde,hp.hasta);
-        const jt=(window.jardHorarios||{})[nombre]?.[iso];if(jt?.inicio&&jt?.fin)hsTrab+=calcHorasDia(jt.inicio,jt.fin);
-      } else {
-        const h=(window.horariosData||{})[nombre]?.[iso];if(h?.desde&&h?.hasta)hsProg+=calcHorasDia(h.desde,h.hasta);
-      }
-    }
+    const { hsProg, hsTrab } = _horasMesEmpleado(nombre, mesISO);
     const pct=hsProg>0?Math.round(hsTrab/hsProg*100):0;
     rows.push([nombre,isJardinero(nombre)?'Jardinería':'Florería',hsProg.toFixed(1),hsTrab.toFixed(1),hsProg>0?pct:'—']);
   });
