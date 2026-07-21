@@ -429,10 +429,18 @@
 
       fbListen('jardineriaData', val => {
         if(!val) return;
+        // No pisar cambios locales de estructura recién guardados (agregar/borrar tareas)
+        if(window._jardDataLastSave && Date.now() - window._jardDataLastSave < 2000) return;
         const arr = Array.isArray(val) ? val : Object.values(val||{});
         if(window._setJardineriaData) window._setJardineriaData(arr);
         if(document.getElementById('page-jardineria-ops')?.classList.contains('active') && !window.estaEditando('page-jardineria-ops')) window.renderJardOps();
         if(document.getElementById('page-control-jardineria')?.classList.contains('active') && !window.estaEditando('page-control-jardineria')) window.renderCtrlJard();
+      });
+
+      fbListen('jardPlanDia', val => {
+        if(!val) return;
+        if(window._setJardPlanDia) window._setJardPlanDia(val);
+        if(document.getElementById('page-jardineria-ops')?.classList.contains('active') && !window.estaEditando('page-jardineria-ops')) window.renderJardOps();
       });
 
       fbListen('habitacionesData', val => {
