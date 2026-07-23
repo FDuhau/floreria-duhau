@@ -8376,6 +8376,84 @@ function _horasMesEmpleado(nombre, mesISO){
   return { hsProg, hsTrab, dias };
 }
 
+function _hhmmToMin(s){ if(!s || !/^\d{1,2}:\d{2}/.test(String(s))) return null; const [h,m]=String(s).split(':').map(Number); return h*60+m; }
+function _mesPrevio(mesISO){ const [a,m]=mesISO.split('-').map(Number); const d=new Date(a,m-2,1); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+
+// Métricas mensuales consolidadas de un empleado (ficha 360 + ranking):
+// asistencia, puntualidad, horas/cumplimiento, productividad, evaluación y llamados.
+function _metricasEmpleadoMes(nombre, mesISO){
+  const [anio,mes] = mesISO.split('-').map(Number);
+  const diasMes = new Date(anio,mes,0).getDate();
+  const GRACIA = 5; // minutos de tolerancia antes de contar "tarde"
+  let hsProg=0, hsTrab=0, diasProg=0, diasFichados=0, diasTarde=0, minTarde=0;
+  for(let d=1; d<=diasMes; d++){
+    const iso = `${mesISO}-${String(d).padStart(2,'0')}`;
+    const h = (window.horariosData||{})[nombre]?.[iso];
+    if(h?.desde && h?.hasta){ hsProg += calcHorasDia(h.desde,h.hasta); diasProg++; }
+    const real = jornadaRealDia(nombre, iso);
+    if(real){
+      hsTrab += real.horas; diasFichados++;
+      const prog = h?.desde ? _hhmmToMin(h.desde) : null;
+      const ini  = _hhmmToMin(real.inicio);
+      if(prog!=null && ini!=null && ini > prog + GRACIA){ diasTarde++; minTarde += (ini - prog); }
+    }
+  }
+  let tareasHechas=0, tareasExcedidas=0, minTareas=0;
+  (checklistHistory||[]).forEach(e=>{
+    if(e.who!==nombre || (e.date||'').slice(0,7)!==mesISO) return;
+    tareasHechas++; if(e.excedida) tareasExcedidas++; minTareas += parseInt(e.duracion)||0;
+  });
+  (window.jardineriaLog||[]).forEach(e=>{
+    if(e.quien!==nombre || (e.fecha||'').slice(0,7)!==mesISO) return;
+    tareasHechas++;
+  });
+  const evs = (typeof evaluacionesData!=='undefined'?evaluacionesData:[]).filter(e=>e.empleadoNombre===nombre);
+  const evalProm = evs.length ? evs.reduce((s,e)=>s+((+e.puntualidad||0)+(+e.calidad||0)+(+e.actitud||0)+(+e.productividad||0))/4,0)/evs.length : null;
+  const llamados = (typeof llamadosData!=='undefined'?llamadosData:[]).filter(l=>l.empleadoNombre===nombre && (l.fecha||'').slice(0,7)===mesISO);
+  return {
+    hsProg:Math.round(hsProg*10)/10, hsTrab:Math.round(hsTrab*10)/10,
+    cumplimiento: hsProg>0 ? Math.round(hsTrab/hsProg*100) : null,
+    diasProg, diasFichados,
+    asistencia: diasProg>0 ? Math.round(diasFichados/diasProg*100) : null,
+    diasTarde, minTarde,
+    tareasHechas, tareasExcedidas, minTareas,
+    evalProm, evalCount:evs.length,
+    llamados: llamados.length, llamadosList: llamados,
+  };
+}
+
+function openFichaEmpleado(nombre, mesISO){
+  mesISO = mesISO || (document.getElementById('rep-eq-mes')?.value || TODAY_ISO.slice(0,7));
+  const m = _metricasEmpleadoMes(nombre, mesISO);
+  const prev = _metricasEmpleadoMes(nombre, _mesPrevio(mesISO));
+  let ov = document.getElementById('ficha-empleado-modal');
+  if(!ov){ ov=document.createElement('div'); ov.id='ficha-empleado-modal'; ov.className='modal-overlay'; document.body.appendChild(ov); }
+  const trend = (cur,prv)=>{ if(cur==null||prv==null) return ''; const dd=cur-prv; if(Math.abs(dd)<1) return ' <span style="color:var(--mid-gray);font-size:12px">→</span>'; return dd>0?` <span style="color:var(--green-ok);font-size:12px">▲${dd}</span>`:` <span style="color:var(--red-alert);font-size:12px">▼${Math.abs(dd)}</span>`; };
+  const card = (label, value, sub, color) => `<div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:10px;padding:12px 14px">
+    <div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:6px">${label}</div>
+    <div style="font-size:23px;font-weight:700;color:${color||'var(--charcoal)'};line-height:1.1">${value}</div>
+    <div style="font-size:11px;color:var(--mid-gray);margin-top:4px">${sub||''}</div>
+  </div>`;
+  const cumplCol = m.cumplimiento==null?'var(--mid-gray)':m.cumplimiento>=80?'var(--green-ok)':m.cumplimiento>=50?'#D4A820':'var(--red-alert)';
+  const asisCol  = m.asistencia==null?'var(--mid-gray)':m.asistencia>=90?'var(--green-ok)':m.asistencia>=70?'#D4A820':'var(--red-alert)';
+  const stars = m.evalProm!=null ? '★'.repeat(Math.round(m.evalProm))+'☆'.repeat(5-Math.round(m.evalProm)) : '—';
+  ov.innerHTML = `<div class="modal" style="max-width:640px;max-height:88vh;overflow-y:auto">
+    <button class="modal-close" onclick="closeModal('ficha-empleado-modal')">✕</button>
+    <div class="modal-title">👤 ${esc(nombre)}</div>
+    <div style="font-size:12px;color:var(--mid-gray);margin-bottom:16px">Ficha del mes · ${esc(fmtMonth(mesISO))} · ${isJardinero(nombre)?'Jardinería':'Florería'}</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px">
+      ${card('Asistencia', (m.asistencia!=null?m.asistencia+'%':'—'), `${m.diasFichados}/${m.diasProg} días fichados`, asisCol)}
+      ${card('Puntualidad', m.diasTarde+(m.diasTarde===1?' tarde':' tarde'), m.minTarde?`${m.minTarde} min acumulados`:'sin demoras', m.diasTarde?'#D4A820':'var(--green-ok)')}
+      ${card('Cumplimiento hs', (m.cumplimiento!=null?m.cumplimiento+'%'+trend(m.cumplimiento,prev.cumplimiento):'—'), `${m.hsTrab}h de ${m.hsProg}h`, cumplCol)}
+      ${card('Tareas hechas', m.tareasHechas, m.tareasExcedidas?`${m.tareasExcedidas} pasadas de tiempo`:'en tiempo', 'var(--charcoal)')}
+      ${card('Evaluación', stars, m.evalCount?`prom ${m.evalProm.toFixed(1)} · ${m.evalCount} eval`:'sin evaluar', 'var(--charcoal)')}
+      ${card('Llamados de atención', m.llamados, 'este mes', m.llamados?'var(--red-alert)':'var(--green-ok)')}
+    </div>
+    ${m.llamadosList.length?`<div style="margin-top:18px"><div class="card-label">Llamados de atención del mes</div>${m.llamadosList.map(l=>`<div style="display:flex;gap:8px;align-items:center;padding:7px 0;border-top:1px solid #F0EDE8;font-size:12px">${l.foto?`<img src="${l.foto}" onclick="verFotoLlamado(${l.id})" style="width:34px;height:34px;object-fit:cover;border-radius:5px;cursor:pointer">`:'<span style="color:var(--amber)">⚠️</span>'}<span style="flex:1">${esc(l.zona||'Arreglo')}${l.nota?' — '+esc(l.nota):''}</span><span style="color:var(--mid-gray);font-size:11px">${fmtDate(l.fecha)}</span></div>`).join('')}</div>`:''}
+  </div>`;
+  ov.classList.add('open');
+}
+
 function renderReportesEquipo(){
   _repMeses('rep-eq-mes');
   const mesISO = document.getElementById('rep-eq-mes')?.value || TODAY_ISO.slice(0,7);
@@ -8391,12 +8469,16 @@ function renderReportesEquipo(){
 
   let totalHsProg=0, totalHsTrab=0, diasConTurno=0, empleadosActivos=0;
 
+  const prevMes = _mesPrevio(mesISO);
   const datosEmpleado = lista.map(nombre => {
-    const { hsProg, hsTrab, dias } = _horasMesEmpleado(nombre, mesISO);
-    totalHsProg+=hsProg; totalHsTrab+=hsTrab; diasConTurno+=dias;
-    if(hsProg>0) empleadosActivos++;
-    return { nombre, hsProg: Math.round(hsProg*10)/10, hsTrab: Math.round(hsTrab*10)/10, dias };
+    const m = _metricasEmpleadoMes(nombre, mesISO);
+    const cumplPrev = _metricasEmpleadoMes(nombre, prevMes).cumplimiento;
+    totalHsProg+=m.hsProg; totalHsTrab+=m.hsTrab; diasConTurno+=m.diasProg;
+    if(m.hsProg>0) empleadosActivos++;
+    return { nombre, hsProg:m.hsProg, hsTrab:m.hsTrab, dias:m.diasProg, m, cumplPrev };
   });
+  // Ranking: mayor cumplimiento primero (los que no tienen datos, al final)
+  datosEmpleado.sort((a,b)=>(b.m.cumplimiento??-1)-(a.m.cumplimiento??-1));
 
   // KPIs
   const pctGlobal = totalHsProg>0 ? Math.round(totalHsTrab/totalHsProg*100) : 0;
@@ -8437,13 +8519,30 @@ function renderReportesEquipo(){
     });
   }
 
-  // Tabla detalle
-  document.getElementById('rep-eq-tabla').innerHTML = `<div class="table-wrapper"><table class="stock-table">
-    <thead><tr><th>Empleado</th><th>Área</th><th>Días asignados</th><th>Hs programadas</th><th>Hs registradas</th><th>Cumplimiento</th></tr></thead>
-    <tbody>${datosEmpleado.map(d=>{
-      const pct = d.hsProg>0 ? Math.round(d.hsTrab/d.hsProg*100) : 0;
-      const col = pct>=80?'var(--green-ok)':pct>=50?'#D4A820':'var(--mid-gray)';
-      return `<tr><td><strong>${esc(d.nombre)}</strong></td><td>${isJardinero(d.nombre)?'Jardinería':'Florería'}</td><td>${d.dias}</td><td>${d.hsProg}h</td><td>${d.hsTrab}h</td><td style="color:${col};font-weight:600">${d.hsProg>0?pct+'%':'—'}</td></tr>`;
+  // Tabla ranking (ordenada por cumplimiento) — clic en la fila abre la ficha 360
+  document.getElementById('rep-eq-tabla').innerHTML = `<div style="font-size:11px;color:var(--mid-gray);margin-bottom:8px">🏆 Ranking del mes — tocá una fila para ver la ficha completa de la persona</div>
+  <div class="table-wrapper"><table class="stock-table">
+    <thead><tr><th>#</th><th>Empleado</th><th>Área</th><th>Asist.</th><th>Puntualidad</th><th>Hs prog</th><th>Hs reg</th><th>Cumplimiento</th><th>Llamados</th><th></th></tr></thead>
+    <tbody>${datosEmpleado.map((d,rank)=>{
+      const m = d.m;
+      const pct = m.cumplimiento;
+      const col = pct==null?'var(--mid-gray)':pct>=80?'var(--green-ok)':pct>=50?'#D4A820':'var(--red-alert)';
+      const trend = (pct!=null && d.cumplPrev!=null && Math.abs(pct-d.cumplPrev)>=1)
+        ? (pct-d.cumplPrev>0?' <span style="color:var(--green-ok);font-size:10px">▲</span>':' <span style="color:var(--red-alert);font-size:10px">▼</span>') : '';
+      const asisCol = m.asistencia==null?'var(--mid-gray)':m.asistencia>=90?'var(--green-ok)':m.asistencia>=70?'#D4A820':'var(--red-alert)';
+      const nEsc = esc(d.nombre).replace(/'/g,"\\'");
+      return `<tr style="cursor:pointer" onclick="openFichaEmpleado('${nEsc}')">
+        <td style="color:var(--mid-gray);font-weight:600">${pct!=null?rank+1:'—'}</td>
+        <td><strong>${esc(d.nombre)}</strong></td>
+        <td>${isJardinero(d.nombre)?'Jardinería':'Florería'}</td>
+        <td style="color:${asisCol};font-weight:600">${m.asistencia!=null?m.asistencia+'%':'—'}</td>
+        <td>${m.diasTarde?`<span style="color:#D4A820">⏰ ${m.diasTarde} (${m.minTarde}min)</span>`:(m.diasFichados?'<span style="color:var(--green-ok)">✓ en hora</span>':'—')}</td>
+        <td>${d.hsProg}h</td>
+        <td>${d.hsTrab}h</td>
+        <td style="color:${col};font-weight:600">${pct!=null?pct+'%'+trend:'—'}</td>
+        <td>${m.llamados?`<span style="color:var(--red-alert);font-weight:600">${m.llamados}</span>`:'—'}</td>
+        <td><button class="btn-secondary" style="font-size:11px;padding:3px 10px" onclick="event.stopPropagation();openFichaEmpleado('${nEsc}')">Ficha</button></td>
+      </tr>`;
     }).join('')}</tbody>
   </table></div>`;
 
@@ -14501,7 +14600,7 @@ Object.assign(window, {
   renderLPenCotizador, renderListaPrecios,
   renderPedidosHab, renderPeriodTabs, renderPlantilla, renderPreciosList, renderProductividad,
   renderProductividadHome, renderProductividadCL, renderProductividadHorarios, renderProvTags, renderRamosDisp, renderRecepcionPedidos,
-  renderRecetas, renderReportesEquipo, renderReportesVentas, renderReportesStock,
+  renderRecetas, renderReportesEquipo, renderReportesVentas, renderReportesStock, openFichaEmpleado,
   exportReporteEquipo, exportReporteVentas, exportReporteStock,
   openPushNotifModal, enviarPushNotif, initPushForUser,
   renderCalendario, calPrevMonth, calNextMonth,
