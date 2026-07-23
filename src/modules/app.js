@@ -12839,10 +12839,39 @@ function guardarArregloComposicion(){
   showToast('✅ Composición guardada');
 }
 
+// Valor hora del equipo para el costo de mano de obra de eventos
+let eventLaborRate = 0;
+window._setEventLaborRate = v => { eventLaborRate = +v || 0; };
+function saveEventLaborRate(val){
+  eventLaborRate = +val || 0;
+  fbSave('eventLaborRate', eventLaborRate);
+  renderRentabilidad();
+}
+function updEventoTraslado(idx, val){
+  if(!eventosData[idx]) return;
+  eventosData[idx].traslado = +val || 0;
+  fbSave('eventosData', eventosData);
+  renderRentabilidad();
+}
+// Horas cronometradas del evento: armado + colocación + retiro
+function _eventoHorasTrabajo(ev){
+  const dur=(a,b)=>{ if(!a||!b) return 0; const [h1,m1]=String(a).split(':').map(Number),[h2,m2]=String(b).split(':').map(Number); const d=(h2*60+m2)-(h1*60+m1); return d>0?d:0; };
+  return (dur(ev.inicio,ev.fin) + dur(ev.colocacionInicio,ev.colocacionFin) + dur(ev.retiroInicio,ev.retiroFin))/60;
+}
+// Costo real del evento = insumos (costo estimado) + mano de obra + traslado
+function _eventoCostoReal(ev){
+  const insumos = +ev.costoEstimado||0;
+  const manoObra = Math.round(_eventoHorasTrabajo(ev) * eventLaborRate);
+  const traslado = +ev.traslado||0;
+  return { insumos, manoObra, traslado, total: insumos+manoObra+traslado, horas: _eventoHorasTrabajo(ev) };
+}
+
 function renderRentabilidad(){
   const search = (document.getElementById('rent-search')?.value||'').toLowerCase();
   const tipoSel = document.getElementById('rent-tipo');
   const tipo = tipoSel?.value||'';
+  const vhEl = document.getElementById('rent-valorhora');
+  if(vhEl && document.activeElement!==vhEl) vhEl.value = eventLaborRate || '';
 
   if(tipoSel){
     const cur = tipoSel.value;
@@ -12858,38 +12887,78 @@ function renderRentabilidad(){
   }).sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
 
   const withPpto = filtered.filter(ev => +ev.presupuesto > 0);
-  const totalPpto = withPpto.reduce((s,e)=>s+(+e.presupuesto||0),0);
-  const totalCosto = withPpto.reduce((s,e)=>s+(+e.costoEstimado||0),0);
-  const margenGlobal = totalPpto > 0 ? ((totalPpto - totalCosto)/totalPpto*100).toFixed(1) : '—';
+  const totalPpto  = withPpto.reduce((s,e)=>s+(+e.presupuesto||0),0);
+  const totalReal  = withPpto.reduce((s,e)=>s+_eventoCostoReal(e).total,0);
+  const margenGlobal = totalPpto > 0 ? ((totalPpto - totalReal)/totalPpto*100).toFixed(1) : '—';
   const kpisEl = document.getElementById('rent-kpis');
   if(kpisEl) kpisEl.innerHTML = `
     <div class="card"><div class="card-label">Eventos con presupuesto</div><div class="card-value" style="font-size:32px">${withPpto.length}</div></div>
-    <div class="card"><div class="card-label">Total presupuestado</div><div class="card-value" style="font-size:28px">$${totalPpto.toLocaleString('es-AR')}</div></div>
-    <div class="card"><div class="card-label">Total costo estimado</div><div class="card-value" style="font-size:28px">$${totalCosto.toLocaleString('es-AR')}</div></div>
-    <div class="card"><div class="card-label">Margen bruto global</div><div class="card-value ${+margenGlobal>40?'green':+margenGlobal>20?'amber':'red'}" style="font-size:32px">${margenGlobal}%</div></div>`;
+    <div class="card"><div class="card-label">Total facturado</div><div class="card-value" style="font-size:28px">$${totalPpto.toLocaleString('es-AR')}</div></div>
+    <div class="card"><div class="card-label">Costo real total</div><div class="card-value" style="font-size:28px">$${Math.round(totalReal).toLocaleString('es-AR')}</div></div>
+    <div class="card"><div class="card-label">Margen real global</div><div class="card-value ${+margenGlobal>40?'green':+margenGlobal>20?'amber':'red'}" style="font-size:32px">${margenGlobal}%</div></div>`;
 
   const tbody = document.getElementById('rent-body');
   if(!tbody) return;
   if(!filtered.length){
-    tbody.innerHTML = '<tr><td colspan="7" style="padding:24px;text-align:center;color:var(--mid-gray)">Sin eventos para mostrar.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" style="padding:24px;text-align:center;color:var(--mid-gray)">Sin eventos para mostrar.</td></tr>';
+    _renderRentTiposSummary([]);
     return;
   }
+  const td = 'padding:9px 12px;border-bottom:1px solid var(--light-gray)';
   tbody.innerHTML = filtered.map(ev=>{
     const idx = eventosData.indexOf(ev);
     const ppto = +ev.presupuesto||0;
-    const costo = +ev.costoEstimado||0;
-    const margen = ppto > 0 ? ((ppto - costo)/ppto*100).toFixed(1) : null;
+    const cr = _eventoCostoReal(ev);
+    const margen = ppto > 0 ? ((ppto - cr.total)/ppto*100).toFixed(1) : null;
     const margenColor = margen != null ? (+margen > 40 ? 'var(--green-ok)' : +margen > 20 ? 'var(--amber)' : 'var(--red-alert)') : 'var(--mid-gray)';
-    return `<tr style="cursor:pointer" onclick="openEventoDetail(${idx})">
-      <td style="padding:9px 14px;border-bottom:1px solid var(--light-gray);font-weight:500">${esc(ev.nombre||'—')}</td>
-      <td style="padding:9px 14px;border-bottom:1px solid var(--light-gray)">${fmtDate(ev.fecha)}</td>
-      <td style="padding:9px 14px;border-bottom:1px solid var(--light-gray)">${esc(ev.tipo||'—')}</td>
-      <td style="padding:9px 14px;border-bottom:1px solid var(--light-gray);text-align:right;font-weight:500">${ppto?'$'+ppto.toLocaleString('es-AR'):'<span style="color:var(--mid-gray)">—</span>'}</td>
-      <td style="padding:9px 14px;border-bottom:1px solid var(--light-gray);text-align:right">${costo?'$'+costo.toLocaleString('es-AR'):'<span style="color:var(--mid-gray)">—</span>'}</td>
-      <td style="padding:9px 14px;border-bottom:1px solid var(--light-gray);text-align:right;font-weight:700;color:${margenColor}">${margen!=null?margen+'%':'—'}</td>
-      <td style="padding:9px 14px;border-bottom:1px solid var(--light-gray)"><span style="padding:2px 10px;border-radius:20px;font-size:11px;font-weight:500;${ESTADO_COLORS[ev.estado]||''}">${esc(ev.estado||'—')}</span></td>
+    const mo = cr.manoObra ? '$'+cr.manoObra.toLocaleString('es-AR')+`<div style="font-size:9px;color:var(--mid-gray)">${cr.horas.toFixed(1)}h</div>` : (cr.horas?`<span style="color:var(--mid-gray)">${cr.horas.toFixed(1)}h</span>`:'<span style="color:var(--mid-gray)">—</span>');
+    return `<tr>
+      <td style="${td};font-weight:500;cursor:pointer" onclick="openEventoDetail(${idx})">${esc(ev.nombre||'—')}</td>
+      <td style="${td}">${fmtDate(ev.fecha)}</td>
+      <td style="${td}">${esc(ev.tipo||'—')}</td>
+      <td style="${td};text-align:right;font-weight:500">${ppto?'$'+ppto.toLocaleString('es-AR'):'<span style="color:var(--mid-gray)">—</span>'}</td>
+      <td style="${td};text-align:right;color:var(--mid-gray)">${cr.insumos?'$'+cr.insumos.toLocaleString('es-AR'):'—'}</td>
+      <td style="${td};text-align:right;color:var(--mid-gray)">${mo}</td>
+      <td style="${td};text-align:right"><input type="number" min="0" value="${ev.traslado||''}" placeholder="$" onchange="updEventoTraslado(${idx},this.value)" style="width:76px;text-align:right;border:1px solid var(--light-gray);border-radius:6px;padding:3px 6px;font-size:12px;background:var(--warm-white);color:var(--charcoal)"></td>
+      <td style="${td};text-align:right;font-weight:600">${cr.total?'$'+Math.round(cr.total).toLocaleString('es-AR'):'—'}</td>
+      <td style="${td};text-align:right;font-weight:700;color:${margenColor}">${margen!=null?margen+'%':'—'}</td>
+      <td style="${td}"><span style="padding:2px 10px;border-radius:20px;font-size:11px;font-weight:500;${ESTADO_COLORS[ev.estado]||''}">${esc(ev.estado||'—')}</span></td>
     </tr>`;
   }).join('');
+
+  _renderRentTiposSummary(withPpto);
+}
+
+// Rentabilidad promedio por tipo de evento
+function _renderRentTiposSummary(eventos){
+  const el = document.getElementById('rent-tipos-summary');
+  if(!el) return;
+  const porTipo = {};
+  eventos.forEach(ev=>{
+    const t = ev.tipo || 'Sin tipo';
+    const ppto = +ev.presupuesto||0;
+    const real = _eventoCostoReal(ev).total;
+    if(!porTipo[t]) porTipo[t] = { n:0, ppto:0, real:0 };
+    porTipo[t].n++; porTipo[t].ppto+=ppto; porTipo[t].real+=real;
+  });
+  const tipos = Object.keys(porTipo).sort((a,b)=>{
+    const ma = porTipo[a].ppto>0?(porTipo[a].ppto-porTipo[a].real)/porTipo[a].ppto:-1;
+    const mb = porTipo[b].ppto>0?(porTipo[b].ppto-porTipo[b].real)/porTipo[b].ppto:-1;
+    return mb-ma;
+  });
+  if(!tipos.length){ el.innerHTML=''; return; }
+  el.innerHTML = `<div class="section-title" style="margin-bottom:10px">📊 Rentabilidad por tipo de evento</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px">
+    ${tipos.map(t=>{
+      const o=porTipo[t];
+      const margen = o.ppto>0 ? ((o.ppto-o.real)/o.ppto*100) : null;
+      const col = margen==null?'var(--mid-gray)':margen>40?'var(--green-ok)':margen>20?'var(--amber)':'var(--red-alert)';
+      return `<div class="card" style="padding:14px 16px">
+        <div style="font-size:13px;font-weight:600;color:var(--charcoal);margin-bottom:6px">${esc(t)}</div>
+        <div style="font-size:28px;font-weight:700;color:${col};line-height:1">${margen!=null?margen.toFixed(1)+'%':'—'}</div>
+        <div style="font-size:11px;color:var(--mid-gray);margin-top:5px">${o.n} evento${o.n!==1?'s':''} · factura $${Math.round(o.ppto).toLocaleString('es-AR')}</div>
+      </div>`;
+    }).join('')}</div>`;
 }
 
 // ── ALERTAS AUTOMÁTICAS ───────────────────────────────────────────────────────
@@ -14646,7 +14715,7 @@ Object.assign(window, {
   openPushNotifModal, enviarPushNotif, initPushForUser,
   renderCalendario, calPrevMonth, calNextMonth,
   renderProveedores, openProveedorModal, guardarProveedor, eliminarProveedor,
-  renderRentabilidad, renderRentabilidadHotel, rentSetTab, saveArregloHotelConfig, alertasAutomaticas,
+  renderRentabilidad, renderRentabilidadHotel, rentSetTab, saveArregloHotelConfig, saveEventLaborRate, updEventoTraslado, alertasAutomaticas,
   rentAddArreglo, openArregloComposicion, compUpdRow, compAddRow, compRemoveRow, guardarArregloComposicion,
   renderStock, renderStockAdmin, renderVentaHoraCell, renderVentas, renderZonasPicker,
   resetHora, resetWeekState, resetearPassword, resetearTodasPasswords, saleAutoFillPrice,

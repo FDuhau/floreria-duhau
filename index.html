@@ -2066,23 +2066,30 @@
       <div id="rent-kpis" class="cards-grid cards-grid-4" style="margin-bottom:24px"></div>
       <div class="card">
         <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
-          <input class="stock-search" id="rent-search" placeholder="Buscar evento..." oninput="renderRentabilidad()" style="width:200px">
-          <select class="form-select" id="rent-tipo" onchange="renderRentabilidad()" style="width:160px">
+          <input class="stock-search" id="rent-search" placeholder="Buscar evento..." oninput="renderRentabilidad()" style="width:180px">
+          <select class="form-select" id="rent-tipo" onchange="renderRentabilidad()" style="width:150px">
             <option value="">Todos los tipos</option>
           </select>
+          <label style="font-size:12px;color:var(--mid-gray);display:flex;align-items:center;gap:6px;margin-left:auto">Valor hora equipo $
+            <input class="form-input" type="number" min="0" id="rent-valorhora" onchange="saveEventLaborRate(this.value)" style="width:100px;padding:6px 8px;font-size:13px" placeholder="0">
+          </label>
         </div>
         <div class="table-wrapper"><table style="width:100%;border-collapse:collapse;font-size:13px">
           <thead><tr>
-            <th style="text-align:left;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Evento</th>
-            <th style="text-align:left;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Fecha</th>
-            <th style="text-align:left;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Tipo</th>
-            <th style="text-align:right;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Presupuesto</th>
-            <th style="text-align:right;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Costo Est.</th>
-            <th style="text-align:right;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Margen</th>
-            <th style="text-align:left;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Estado</th>
+            <th style="text-align:left;padding:10px 12px;font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Evento</th>
+            <th style="text-align:left;padding:10px 12px;font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Fecha</th>
+            <th style="text-align:left;padding:10px 12px;font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Tipo</th>
+            <th style="text-align:right;padding:10px 12px;font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Presup.</th>
+            <th style="text-align:right;padding:10px 12px;font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)" title="Costo de insumos (estimado)">Insumos</th>
+            <th style="text-align:right;padding:10px 12px;font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)" title="Horas cronometradas (armado+colocación+retiro) × valor hora">M. obra</th>
+            <th style="text-align:right;padding:10px 12px;font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Traslado</th>
+            <th style="text-align:right;padding:10px 12px;font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Costo total</th>
+            <th style="text-align:right;padding:10px 12px;font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Margen real</th>
+            <th style="text-align:left;padding:10px 12px;font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Estado</th>
           </tr></thead>
           <tbody id="rent-body"></tbody>
         </table></div>
+        <div id="rent-tipos-summary" style="margin-top:22px"></div>
       </div>
     </div>
 
