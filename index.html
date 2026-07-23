@@ -1710,8 +1710,12 @@
         <div class="page-title">Composiciones</div>
         <div class="page-subtitle">Ingredientes por arreglo · al confirmar un evento se descuenta del stock automáticamente</div>
       </div>
-      <button class="btn-add" onclick="openRecetaModal(-1)">+ Nueva composición</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-secondary gerencia-only" onclick="seedComposicionesBase()" style="font-size:12px" title="Carga las composiciones Upgrade + Eventos (después las podés editar)">📋 Cargar catálogo base</button>
+        <button class="btn-add" onclick="openRecetaModal(-1)">+ Nueva composición</button>
+      </div>
     </div>
+    <datalist id="rec-flor-list"></datalist>
     <div id="recetas-grid"></div>
 
     <!-- Modal receta -->

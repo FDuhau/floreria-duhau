@@ -4142,7 +4142,7 @@ function renderCotEventos(){
       const costoBase = calcCostoComposicion(r);
       const pFinal = Math.round(costoBase*(1+margen/100));
       const emoji = arregloEmoji(r.nombre);
-      const ingsList = r.ings.map(g => `${g.qty} ${g.prod}`).join(', ');
+      const ingsList = r.ings.map(g => `${_fmtCant(g.qty)} ${g.prod}`).join(', ');
       const sinCosto = r.ings.some(g => !cotizadorPrecios[g.prod]);
       return `<div style="background:var(--cream);border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:8px">
         <div style="flex:1;min-width:0">
@@ -11078,6 +11078,61 @@ const ARREGLOS_BASE = ['Bochita','Cuenco','Pecera','Paila','Buffet'];
 
 let recetasData = [];
 
+// ── Cantidades con fracción de vara (ej. 1/3 = una vara alcanza para 3 arreglos) ─
+function _parseCant(str){
+  str = String(str==null?'':str).trim().replace(',', '.');
+  if(!str) return 0;
+  const mixto = str.match(/^(\d+)\s+(\d+)\/(\d+)$/);      // "1 1/2"
+  if(mixto) return (+mixto[1]) + (+mixto[2])/(+mixto[3]);
+  const frac = str.match(/^(\d+)\/(\d+)$/);               // "1/3"
+  if(frac) return (+frac[1])/(+frac[2]);
+  return parseFloat(str) || 0;
+}
+function _fmtCant(q){
+  q = +q || 0;
+  if(q === 0) return '0';
+  if(Number.isInteger(q)) return String(q);
+  const ent = Math.floor(q), frac = q - ent;
+  const tabla = [[0.5,'1/2'],[1/3,'1/3'],[2/3,'2/3'],[0.25,'1/4'],[0.75,'3/4'],[0.2,'1/5'],[1/6,'1/6'],[1/8,'1/8']];
+  let f = ''; for(const [v,s] of tabla){ if(Math.abs(frac-v) < 0.02){ f = s; break; } }
+  if(!f) return String(Math.round(q*100)/100);
+  return ent > 0 ? ent + ' ' + f : f;
+}
+
+// ── Catálogo base de composiciones (Upgrade + Eventos) ─
+// Los ingredientes con "/" son opciones (se usa la que haya). Las fracciones
+// significan qué parte de una vara lleva (1/3 = una vara rinde para 3 arreglos).
+const _CN='Conejito / Nardos / Alhelí', _MS='Margarita / Sanvicente',
+      _DCR='Dianthus / Cresta de gallo / Rosa nacional', _SLS='Solidago / Limonium / Statice',
+      _LA='Laurentino / Azarero', _LRC='Lilium / Repollo / Crisantemo fideo o pomposo';
+const COMPOSICIONES_BASE = [
+  { nombre:'Upgrade · Bochita', ings:[{prod:_CN,qty:1},{prod:_MS,qty:2},{prod:_DCR,qty:2},{prod:'Astromelia',qty:1},{prod:_SLS,qty:1/5},{prod:_LA,qty:1/3},{prod:'Thuja',qty:1/6}] },
+  { nombre:'Upgrade · Pecera', ings:[{prod:_CN,qty:3},{prod:_MS,qty:4},{prod:'Astromelia',qty:4},{prod:_DCR,qty:3},{prod:_LRC,qty:1},{prod:'Laurentino',qty:1},{prod:'Azarero',qty:1},{prod:'Thuja',qty:1/2}] },
+  { nombre:'Upgrade · Arreglo alto de follaje', ings:[{prod:'Florero alto en cono',qty:1},{prod:'Monstera',qty:2}] },
+  { nombre:'Evento · Bochita de follaje', ings:[{prod:'Laurentino',qty:1/3},{prod:'Azarero',qty:1/3},{prod:'Thuja',qty:1/6}] },
+  { nombre:'Evento · Bochita de flores', ings:[{prod:_CN,qty:3},{prod:_MS,qty:3},{prod:_DCR,qty:2},{prod:'Astromelia',qty:1},{prod:_SLS,qty:1/5},{prod:_LA,qty:1/3},{prod:'Thuja',qty:1/6}] },
+  { nombre:'Evento · Cuenco de follaje', ings:[{prod:'Laurentino',qty:2},{prod:'Azarero',qty:1},{prod:'Thuja',qty:1/3}] },
+  { nombre:'Evento · Cuenco de flores', ings:[{prod:_CN,qty:3},{prod:_MS,qty:3},{prod:_DCR,qty:2},{prod:'Astromelia',qty:3},{prod:_SLS,qty:1/2},{prod:'Laurentino',qty:1/2},{prod:'Azarero',qty:1/2},{prod:'Thuja',qty:1/3}] },
+  { nombre:'Evento · Pecera de follaje', ings:[{prod:'Laurentino',qty:3},{prod:'Azarero',qty:3},{prod:'Thuja',qty:1/2}] },
+  { nombre:'Evento · Pecera de flores', ings:[{prod:_CN,qty:3},{prod:_MS,qty:4},{prod:'Astromelia',qty:4},{prod:_DCR,qty:6},{prod:_SLS,qty:1},{prod:'Laurentino',qty:1},{prod:'Azarero',qty:1},{prod:'Thuja',qty:1/2}] },
+  { nombre:'Evento · Paila de follaje', ings:[{prod:'Laurentino',qty:3},{prod:'Azarero',qty:3},{prod:'Thuja',qty:1/2}] },
+  { nombre:'Evento · Paila de flores', ings:[{prod:_CN,qty:3},{prod:_MS,qty:4},{prod:'Astromelia',qty:4},{prod:_DCR,qty:6},{prod:_SLS,qty:1},{prod:'Laurentino',qty:1},{prod:'Azarero',qty:2},{prod:'Thuja',qty:1/2}] },
+  { nombre:'Evento · Arreglo alto Buffet de follaje', ings:[{prod:'Laurentino',qty:3},{prod:'Azarero',qty:3},{prod:'Thuja',qty:2}] },
+  { nombre:'Evento · Arreglo alto Buffet de flores', ings:[{prod:_CN,qty:3},{prod:_MS,qty:3},{prod:'Astromelia',qty:3},{prod:_DCR,qty:3},{prod:'Laurentino',qty:2},{prod:'Azarero',qty:2},{prod:'Thuja',qty:2}] },
+];
+
+async function seedComposicionesBase(){
+  if(userRole!=='gerencia'){ showToast('⛔ Solo gerencia'); return; }
+  const existentes = new Set(recetasData.map(r=>r.nombre));
+  const nuevas = COMPOSICIONES_BASE.filter(c=>!existentes.has(c.nombre));
+  if(!nuevas.length){ showToast('Las composiciones base ya están cargadas'); return; }
+  if(!await confirmModal(`¿Cargar ${nuevas.length} composición${nuevas.length!==1?'es':''} base (Upgrade + Eventos)? Después las podés editar.`)) return;
+  nuevas.forEach(c=>recetasData.push({ nombre:c.nombre, ings:c.ings.map(g=>({prod:g.prod, qty:g.qty})), img:'' }));
+  fbSave('recetasData', recetasData);
+  renderRecetas();
+  showToast(`✅ ${nuevas.length} composiciones cargadas`);
+}
+
 // ── renderRecetas ─────────────────────────────────────────────────────────────
 function renderRecetas(){
   const grid = document.getElementById('recetas-grid');
@@ -11098,7 +11153,7 @@ function renderRecetas(){
           <div class="receta-ing-row">
             <span style="font-size:18px;line-height:1">🌿</span>
             <span style="flex:1;font-weight:500">${esc(ing.prod)}</span>
-            <span style="background:#F0EEE8;border-radius:4px;padding:2px 8px;font-size:12px;font-weight:600">${ing.qty} ud${ing.qty>1?'s':''}</span>
+            <span style="background:#F0EEE8;border-radius:4px;padding:2px 8px;font-size:12px;font-weight:600">${_fmtCant(ing.qty)} vara${(+ing.qty)===1?'':'s'}</span>
           </div>`).join('')}
       </div>
     </div>`).join('');
@@ -11138,6 +11193,8 @@ function openRecetaModal(i){
   const ingsList = document.getElementById('rec-ings-list');
   const nombreSel = document.getElementById('rec-nombre');
   const nombreCustom = document.getElementById('rec-nombre-custom');
+  const dl = document.getElementById('rec-flor-list');
+  if(dl) dl.innerHTML = getAllInsumos().map(n=>`<option value="${esc(n)}">`).join('');
 
   // Custom nombre toggle
   nombreSel.onchange = ()=>{
@@ -11165,12 +11222,9 @@ function openRecetaModal(i){
 }
 
 function recetaIngRowHTML(prod, qty, ii){
-  const opts = getAllInsumos().map(n=>`<option value="${esc(n)}"${n===prod?' selected':''}>${esc(n)}</option>`).join('');
   return `<div class="ev-arreglo-row" id="rec-ing-${ii}">
-    <select style="flex:2;border:1px solid #E4E2DC;border-radius:4px;padding:5px 8px;font-family:'DM Sans',sans-serif;font-size:12.5px;outline:none">
-      <option value="">— Flor / Follaje —</option>${opts}
-    </select>
-    <input type="number" min="1" value="${qty||1}" placeholder="Cant." style="width:60px;border:1px solid #E4E2DC;border-radius:4px;padding:5px 6px;font-size:12.5px;text-align:center;outline:none;font-family:'DM Sans',sans-serif">
+    <input list="rec-flor-list" value="${esc(prod||'')}" placeholder="Flor / follaje (podés poner opciones: A / B / C)" style="flex:2;min-width:0;border:1px solid #E4E2DC;border-radius:4px;padding:5px 8px;font-family:'DM Sans',sans-serif;font-size:12.5px;outline:none">
+    <input type="text" value="${esc(_fmtCant(qty||1))}" placeholder="Cant." title="Varas por unidad. Podés poner fracciones: 1/3, 1/2…" style="width:56px;border:1px solid #E4E2DC;border-radius:4px;padding:5px 6px;font-size:12.5px;text-align:center;outline:none;font-family:'DM Sans',sans-serif">
     <button type="button" class="btn-icon" style="color:var(--red-alert)" onclick="this.closest('.ev-arreglo-row').remove()">✕</button>
   </div>`;
 }
@@ -11193,9 +11247,10 @@ function saveReceta(){
   const rows = document.getElementById('rec-ings-list').querySelectorAll('.ev-arreglo-row');
   const ings = [];
   rows.forEach(row=>{
-    const sel = row.querySelector('select');
-    const inp = row.querySelector('input[type=number]');
-    if(sel?.value) ings.push({ prod: sel.value, qty: +inp?.value||1 });
+    const prodInp = row.querySelector('input[list]');
+    const qtyInp  = row.querySelector('input[type=text]:not([list])');
+    const prod = prodInp?.value.trim();
+    if(prod) ings.push({ prod, qty: _parseCant(qtyInp?.value) || 1 });
   });
   if(ings.length===0){ showToast('Agregá al menos un ingrediente.','error'); return; }
 
@@ -14710,7 +14765,7 @@ Object.assign(window, {
   renderLPenCotizador, renderListaPrecios,
   renderPedidosHab, renderPeriodTabs, renderPlantilla, renderPreciosList, renderProductividad,
   renderProductividadHome, renderProductividadCL, renderProductividadHorarios, renderProvTags, renderRamosDisp, renderRecepcionPedidos,
-  renderRecetas, renderReportesEquipo, renderReportesVentas, renderReportesStock, openFichaEmpleado,
+  renderRecetas, seedComposicionesBase, renderReportesEquipo, renderReportesVentas, renderReportesStock, openFichaEmpleado,
   exportReporteEquipo, exportReporteVentas, exportReporteStock,
   openPushNotifModal, enviarPushNotif, initPushForUser,
   renderCalendario, calPrevMonth, calNextMonth,
