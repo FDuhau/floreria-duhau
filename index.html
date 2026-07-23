@@ -344,7 +344,10 @@
 
   <!-- ══════ STOCK ══════ -->
   <div id="page-stock" class="content">
-    <div class="page-header"><div class="page-title">Stock Florería</div><div class="page-subtitle">Inventario en tiempo real · pedidos en camino · stock comprometido por eventos</div></div>
+    <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px">
+      <div><div class="page-title">Stock Florería</div><div class="page-subtitle">Inventario en tiempo real · editable · pedidos en camino · stock comprometido por eventos</div></div>
+      <button class="btn-secondary" onclick="vaciarStock()" style="font-size:12px;color:var(--red-alert);border-color:var(--red-alert)">🗑 Vaciar stock (limpieza)</button>
+    </div>
     <div id="stock-alert-area"></div>
     <div class="cards-grid cards-grid-3" style="margin-bottom:24px">
       <div class="card"><div class="card-label">🟢 OK</div><div class="card-value green" id="sk-ok">—</div></div>

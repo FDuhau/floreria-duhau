@@ -2163,7 +2163,12 @@ function renderStock(){
       <td style="font-weight:500">${esc(item.prod)}</td>
       <td style="font-size:12px;color:var(--mid-gray)">${esc(item.area)}</td>
       <td>${item.min}</td><td>${item.max}</td>
-      <td style="font-weight:600;font-size:13px">${item.actual%1===0?item.actual:item.actual.toFixed(1)}</td>
+      <td><div style="display:flex;align-items:center;gap:4px">
+        <button class="btn-icon" style="width:24px;height:24px;border:1px solid var(--light-gray);border-radius:5px;font-size:15px" onclick="adjustStock(${i},-1)">−</button>
+        <input type="number" value="${item.actual%1===0?item.actual:item.actual.toFixed(1)}" onchange="setStock(${i},+this.value)"
+          style="width:56px;text-align:center;font-weight:600;font-size:13px;border:1px solid var(--light-gray);border-radius:5px;padding:3px 4px;background:var(--warm-white);color:var(--charcoal)" title="Editar cantidad actual">
+        <button class="btn-icon" style="width:24px;height:24px;border:1px solid var(--light-gray);border-radius:5px;font-size:15px" onclick="adjustStock(${i},1)">+</button>
+      </div></td>
       <td>${pedidoHtml}</td>
       <td>${compHtml}</td>
       <td><div style="display:flex;align-items:center;gap:6px">
@@ -2206,6 +2211,17 @@ function setStock(i,v){
   fbSave('stockData', stockData);
   renderStock();
   if(document.getElementById('page-stock-admin')?.classList.contains('active')) renderStockAdmin();
+}
+// Vaciar todo el stock (limpieza de martes/jueves antes del pedido nuevo).
+// Pone las cantidades en 0 pero conserva el listado de productos y sus mínimos.
+async function vaciarStock(){
+  if(!stockData.length){ showToast('El stock ya está vacío'); return; }
+  if(!await confirmModal(`¿Vaciar TODO el stock de florería?\n\nPone en 0 la cantidad de los ${stockData.length} producto${stockData.length!==1?'s':''} (para la limpieza de martes/jueves). El listado y los mínimos se conservan; cuando llegue el pedido nuevo se vuelve a cargar.`)) return;
+  stockData.forEach(s=>{ s.actual = 0; });
+  fbSave('stockData', stockData);
+  renderStock();
+  if(document.getElementById('page-stock-admin')?.classList.contains('active')) renderStockAdmin();
+  showToast('🗑 Stock vaciado — listo para el pedido nuevo');
 }
 function setStockMin(i,v){
   stockData[i].min=Math.max(0,+(+v).toFixed(1));
@@ -2762,6 +2778,19 @@ function addCompra(type){
   // perdían al refrescar y el usuario compras no los veía en su dispositivo)
   if(type==='floreria'){ window._comprasFloreLastSave = Date.now(); fbSave('comprasFlore', comprasFlore); }
   else { window._comprasJardLastSave = Date.now(); fbSave('comprasJard', comprasJard); }
+
+  // AUTO-PRECIO: al cargar la compra, actualizar el costo por vara del cotizador
+  // (flores/follaje) según lo que compras compró. En la recepción se ajusta fino
+  // con las varas por paquete reales.
+  if(type==='floreria' && costoTotal > 0){
+    const totalQty = splits.length
+      ? splits.reduce((s,r)=>s+(parseFloat(r.qty)||0),0)
+      : (parseFloat(document.getElementById('cf-cantidad')?.value) || 0);
+    if(totalQty > 0){
+      cotizadorPrecios[prod] = Math.round(costoTotal / totalQty);
+      fbSave('cotizadorPrecios', cotizadorPrecios);
+    }
+  }
 
   ['fecha','pedidopor','producto','cantidad','desc','costo','proveedor','sector'].forEach(id=>{
     const el=document.getElementById(p+'-'+id);
@@ -14911,7 +14940,7 @@ Object.assign(window, {
   resetHora, resetWeekState, resetearPassword, resetearTodasPasswords, saleAutoFillPrice,
   saveEvent, saveInsumosCustom, saveKanbanTask, saveLpItem, saveRamo, saveReceta, saveUrgenciaConfig,
   saveWeekState, setCotTab, setHabReporteMes, setHopsFilter, setJardReporteMes, setJopsFilter,
-  setPlantilla, setStock, setStockMax, setStockMin, setUrgenciaPreset, showAlertaHorario,
+  setPlantilla, setStock, setStockMax, setStockMin, vaciarStock, setUrgenciaPreset, showAlertaHorario,
   showToast, syncEventosToKanban, toggleCtrlSection, toggleEvZona, toggleHistorialCompras,
   toggleHistory, toggleInsumosGrid, toggleJordProd, togglePlantilla, toggleProductividad,
   toggleDarkMode, initDarkMode, openGlobalSearch, closeGlobalSearch, handleSearchKey, runGlobalSearch, _gsearchGo, exportPDF,
