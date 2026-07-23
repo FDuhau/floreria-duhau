@@ -189,13 +189,25 @@
         const ident = window._pushIdentity || {};
         const id = _pushDeviceId();
         const key = String(ident.label || 'anon').toLowerCase().replace(/[.#$/\[\]\s]/g,'_') + '_' + id;
+        const subJson = sub.toJSON();
+        const newEndpoint = subJson && subJson.endpoint || '';
         fbSetPath('pushSubs/' + key, {
-          sub: sub.toJSON(),
+          sub: subJson,
           label: ident.label || '',
           roles: ident.roles || [],
           deviceId: id,
           ts: Date.now(),
           ua: (navigator.userAgent || '').slice(0, 80),
+        });
+        // Limpiar suscripciones viejas de ESTE mismo dispositivo (mismo deviceId o
+        // mismo endpoint push) que tengan otro label: si antes lo usó otra persona,
+        // su entrada quedaba viva y este dispositivo recibía también los avisos
+        // dirigidos a ella. Un dispositivo/endpoint = un solo usuario.
+        Object.entries(pushSubsCache).forEach(([k, e]) => {
+          if(!e || k === key) return;
+          const mismoDevice   = e.deviceId === id;
+          const mismoEndpoint = newEndpoint && e.sub && e.sub.endpoint === newEndpoint;
+          if(mismoDevice || mismoEndpoint) fbSetPath('pushSubs/' + k, null);
         });
         return true;
       } catch(e){ console.warn('push subscribe error:', e); return false; }
