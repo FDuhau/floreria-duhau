@@ -173,7 +173,7 @@ const PAGE_LABELS = {control:'Control','control-jardineria':'Control › Seguimi
   'recepcion-pedidos':'Operaciones › Recepción de Pedidos',
   compras:'Compras', 'compras-floreria':'Compras › Florería',
   'compras-jardineria':'Compras › Jardinería',
-  'stock-admin':'Compras › Gestión de Stock',
+  'stock-admin':'Compras › Gestión de Stock', floreros:'Compras › Stock de Floreros',
   comercial:'Área Comercial', 'eventos-comercial':'Comercial › Eventos',
   'historial-eventos':'Comercial › Historial de Eventos',
   'eventos-sin-floreria':'Comercial › Eventos sin Florería',
@@ -310,6 +310,7 @@ function navigate(pageId, navEl){
   if(pageId==='compras-floreria')   renderCompras('floreria');
   if(pageId==='compras-jardineria') renderCompras('jardineria');
   if(pageId==='stock-admin')        renderStockAdmin();
+  if(pageId==='floreros')           renderFloreros();
   if(pageId==='eventos-comercial'){ initEventosToggle(); if(eventosView==='calendario') renderCalendario(); else renderEventos(); }
   if(pageId==='historial-eventos')   renderHistorialEventos();
   if(pageId==='eventos-sin-floreria') renderEventosSinFloreria();
@@ -8071,6 +8072,139 @@ function cambiarFotoRamo(i){
 }
 window.cambiarFotoRamo = cambiarFotoRamo;
 
+// ══ STOCK DE FLOREROS ══════════════════════════════════════════════════════
+// Inventario de floreros con foto y cantidad, editable.
+let florerosData = [];
+let _florFotoTmp = '';
+window._setFlorerosData = (arr) => {
+  if(window._florerosLastSave && Date.now() - window._florerosLastSave < 2000) return;
+  florerosData.splice(0, florerosData.length, ...(Array.isArray(arr)?arr:Object.values(arr||{})));
+  if(document.getElementById('page-floreros')?.classList.contains('active')) renderFloreros();
+};
+
+function renderFloreros(){
+  const grid = document.getElementById('floreros-grid');
+  if(!grid) return;
+  const search = (document.getElementById('floreros-search')?.value||'').toLowerCase();
+  const total = florerosData.reduce((s,f)=>s+(+f.cantidad||0),0);
+  const kpi = document.getElementById('floreros-kpi');
+  if(kpi) kpi.textContent = `${florerosData.length} modelo${florerosData.length!==1?'s':''} · ${total} floreros en total`;
+  if(!florerosData.length){
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:48px 20px;color:var(--mid-gray)">
+      <div style="font-size:40px;margin-bottom:10px">🏺</div>
+      <div style="font-size:15px;font-weight:600;color:#7A7A72">Todavía no cargaste floreros</div>
+      <div style="font-size:13px;margin-top:6px">Cargá tus floreros con foto y cantidad con "+ Agregar florero".</div></div>`;
+    return;
+  }
+  const vis = florerosData.map((f,i)=>({f,i})).filter(({f})=>!search || (f.nombre||'').toLowerCase().includes(search) || (f.notas||'').toLowerCase().includes(search));
+  if(!vis.length){ grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:32px;color:var(--mid-gray)">Sin resultados para "${esc(search)}".</div>`; return; }
+  grid.innerHTML = vis.map(({f,i})=>{
+    const cant = +f.cantidad||0;
+    const foto = f.foto
+      ? `<img class="lp-card-photo" src="${f.foto}" style="cursor:pointer" onclick="openFlorFoto(${i})">`
+      : `<div class="lp-card-photo-placeholder"><span style="font-size:30px">🏺</span></div>`;
+    return `<div class="lp-card">
+      ${foto}
+      <div class="lp-card-body">
+        <div class="lp-card-name" style="font-weight:600">${esc(f.nombre||'Florero')}</div>
+        ${f.notas?`<div style="font-size:12px;color:#7A7A72;margin:2px 0 6px">${esc(f.notas)}</div>`:''}
+        <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+          <button class="btn-icon" style="border:1px solid var(--light-gray);border-radius:6px;width:30px;height:30px;font-size:18px" onclick="florAjustar(${i},-1)">−</button>
+          <span style="min-width:44px;text-align:center;font-size:22px;font-weight:700;color:${cant>0?'var(--charcoal)':'var(--red-alert)'}">${cant}</span>
+          <button class="btn-icon" style="border:1px solid var(--light-gray);border-radius:6px;width:30px;height:30px;font-size:18px" onclick="florAjustar(${i},1)">+</button>
+          <span style="font-size:11px;color:var(--mid-gray)">en stock</span>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+          <button class="btn-secondary" style="font-size:11px" onclick="openFloreroModal(${i})">✏️ Editar</button>
+          <button class="btn-icon" onclick="cambiarFotoFlorero(${i})" title="Cambiar foto">📷</button>
+          <button class="btn-icon" style="color:var(--red-alert)" onclick="delFlorero(${i})" title="Eliminar">✕</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function florAjustar(i, delta){
+  if(!florerosData[i]) return;
+  florerosData[i].cantidad = Math.max(0, (+florerosData[i].cantidad||0) + delta);
+  window._florerosLastSave = Date.now();
+  fbSave('florerosData', florerosData);
+  renderFloreros();
+}
+
+function openFlorFoto(i){
+  const f = florerosData[i]; if(!f?.foto) return;
+  const ov = document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9998;display:flex;align-items:center;justify-content:center;padding:20px;cursor:pointer';
+  ov.innerHTML=`<img src="${f.foto}" style="max-width:94vw;max-height:90vh;border-radius:12px">`;
+  ov.onclick=()=>ov.remove(); document.body.appendChild(ov);
+}
+
+function openFloreroModal(idx){
+  const f = idx>=0 ? florerosData[idx] : {};
+  _florFotoTmp = f.foto||'';
+  document.getElementById('florero-modal-title').textContent = idx>=0 ? 'Editar florero' : 'Nuevo florero';
+  document.getElementById('flor-idx').value = idx;
+  document.getElementById('flor-nombre').value = f.nombre||'';
+  document.getElementById('flor-cantidad').value = f.cantidad!=null ? f.cantidad : '';
+  document.getElementById('flor-notas').value = f.notas||'';
+  document.getElementById('flor-file').value = '';
+  const p = document.getElementById('flor-preview');
+  if(_florFotoTmp){ p.src=_florFotoTmp; p.style.display='block'; } else { p.src=''; p.style.display='none'; }
+  document.getElementById('florero-modal').classList.add('open');
+}
+
+function florFotoPreview(input){
+  const file = input.files[0]; if(!file) return;
+  comprimirImagen(file, 1000, 0.7, data => { _florFotoTmp = data; const p=document.getElementById('flor-preview'); p.src=data; p.style.display='block'; });
+}
+
+function guardarFlorero(){
+  const nombre = document.getElementById('flor-nombre').value.trim();
+  if(!nombre){ showToast('Poné un nombre al florero','error'); return; }
+  const idx = +document.getElementById('flor-idx').value;
+  const obj = {
+    id: idx>=0 ? florerosData[idx].id : Date.now(),
+    nombre,
+    cantidad: Math.max(0, +document.getElementById('flor-cantidad').value||0),
+    notas: document.getElementById('flor-notas').value.trim(),
+    foto: _florFotoTmp||'',
+  };
+  if(idx>=0) florerosData[idx]=obj; else florerosData.push(obj);
+  window._florerosLastSave = Date.now();
+  fbSave('florerosData', florerosData);
+  closeModal('florero-modal');
+  renderFloreros();
+  showToast('🏺 Florero guardado');
+}
+
+async function delFlorero(i){
+  if(!florerosData[i]) return;
+  if(!await confirmModal(`¿Eliminar "${florerosData[i].nombre||'este florero'}" del stock?`)) return;
+  florerosData.splice(i,1);
+  window._florerosLastSave = Date.now();
+  fbSave('florerosData', florerosData);
+  renderFloreros();
+}
+
+// Cambiar la foto de un florero ya cargado (input conectado al DOM, ver cambiarFotoRamo)
+function cambiarFotoFlorero(i){
+  if(!florerosData[i]) return;
+  const input = document.createElement('input');
+  input.type='file'; input.accept='image/*'; input.style.display='none';
+  document.body.appendChild(input);
+  const cleanup=()=>{ if(input.isConnected) input.remove(); };
+  input.onchange=()=>{
+    const file=input.files?.[0]; if(!file){ cleanup(); return; }
+    comprimirImagen(file, 1000, 0.7, data=>{
+      if(florerosData[i]){ florerosData[i].foto=data; window._florerosLastSave=Date.now(); fbSave('florerosData', florerosData); renderFloreros(); showToast('📷 Foto actualizada'); }
+      cleanup();
+    });
+  };
+  window.addEventListener('focus', function onF(){ window.removeEventListener('focus',onF); setTimeout(()=>{ if(input.isConnected && !input.files.length) cleanup(); }, 600); });
+  input.click();
+}
+
 function openVentaRamo(i){
   const r = ramosDispData[i];
   if(!r) return;
@@ -9396,7 +9530,7 @@ function descargarBackup(){
     ventasData: ()=>ventasData, cajaData: ()=>cajaData, cierresCajaData: ()=>cierresCajaData,
     cierresMensualesData: ()=>cierresMensualesData, presupuestosData: ()=>presupuestosData,
     clientesData: ()=>clientesData, listaPreciosData: ()=>listaPreciosData,
-    ramosDispData: ()=>ramosDispData, pedidosHabData: ()=>pedidosHabData, galeriaData: ()=>galeriaData,
+    ramosDispData: ()=>ramosDispData, florerosData: ()=>florerosData, pedidosHabData: ()=>pedidosHabData, galeriaData: ()=>galeriaData,
     cotizadorPrecios: ()=>cotizadorPrecios, eventoPricing: ()=>eventoPricing,
     jardineriaData: ()=>jardineriaData, jardineriaLog: ()=>jardineriaLog, jardRecordatorios: ()=>jardRecordatorios,
     habitacionesData: ()=>habitacionesData, habitacionesLog: ()=>habitacionesLog, zonaHorasData: ()=>zonaHorasData,
@@ -14766,6 +14900,7 @@ Object.assign(window, {
   renderPedidosHab, renderPeriodTabs, renderPlantilla, renderPreciosList, renderProductividad,
   renderProductividadHome, renderProductividadCL, renderProductividadHorarios, renderProvTags, renderRamosDisp, renderRecepcionPedidos,
   renderRecetas, seedComposicionesBase, renderReportesEquipo, renderReportesVentas, renderReportesStock, openFichaEmpleado,
+  renderFloreros, openFloreroModal, guardarFlorero, delFlorero, florAjustar, florFotoPreview, cambiarFotoFlorero, openFlorFoto,
   exportReporteEquipo, exportReporteVentas, exportReporteStock,
   openPushNotifModal, enviarPushNotif, initPushForUser,
   renderCalendario, calPrevMonth, calNextMonth,
