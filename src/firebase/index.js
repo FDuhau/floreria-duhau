@@ -459,6 +459,10 @@
         if(window._setLlamadosData) window._setLlamadosData(Array.isArray(val) ? val : Object.values(val||{}));
       });
 
+      fbListen('florerosData', val => {
+        if(window._setFlorerosData) window._setFlorerosData(Array.isArray(val) ? val : Object.values(val||{}));
+      });
+
       fbListen('habitacionesData', val => {
         if(!val) return;
         const arr = Array.isArray(val) ? val : Object.values(val||{});
