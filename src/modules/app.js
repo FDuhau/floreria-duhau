@@ -6409,6 +6409,14 @@ function daysSince(isoDate){
   return Math.floor(ms/86400000);
 }
 
+// Texto "hace X días" desde la última visita (sin color de umbral)
+function _diasDesdeTxt(isoDate){
+  const d = daysSince(isoDate);
+  if(d===null || d===undefined) return '';
+  if(d<=0) return 'hoy';
+  return d===1 ? 'hace 1 día' : `hace ${d} días`;
+}
+
 // Umbrales de urgencia configurables por gerencia (regulables por estación).
 // okMax: hasta N días = 🟢 Al día · warnMax: hasta N días = 🟡 Próxima · más allá = 🔴 Urgente
 let urgenciaConfig = { okMax:3, warnMax:7 };
@@ -7264,6 +7272,7 @@ function renderCtrlJard(){
                title="Editar fecha de última visita"
                style="font-size:12px;padding:4px 6px;border:1px solid #E5E3DC;border-radius:6px;color:#1A1A1A">`
           : (r.last ? fmtDate(r.last) : '<em style="color:#B0AFA5;font-size:11px">Sin registro</em>') }
+        ${ r.last ? `<div style="font-size:11px;color:#B0AFA5;margin-top:3px">${_diasDesdeTxt(r.last)}</div>` : '' }
       </td>
       <td>
         <span class="alerta-badge ${alCls}"
@@ -7529,6 +7538,7 @@ function renderCtrlHab(){
                title="Editar fecha de última visita"
                style="font-size:12px;padding:4px 6px;border:1px solid #E5E3DC;border-radius:6px;color:#1A1A1A">`
           : (r.last ? fmtDate(r.last) : '<em style="color:#B0AFA5">—</em>') }
+        ${ r.last ? `<div style="font-size:11px;color:#B0AFA5;margin-top:3px">${_diasDesdeTxt(r.last)}</div>` : '' }
       </td>
       <td>
         <span class="alerta-badge ${alCls}" style="font-size:11px;padding:3px 10px">${alLbl}</span>
