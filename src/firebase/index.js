@@ -582,6 +582,11 @@
         if(document.getElementById('page-rentabilidad-eventos')?.classList.contains('active')) window.renderRentabilidadHotel?.();
       });
 
+      fbListen('eventLaborRate', val => {
+        if(window._setEventLaborRate) window._setEventLaborRate(val);
+        if(document.getElementById('page-rentabilidad-eventos')?.classList.contains('active')) window.renderRentabilidad?.();
+      });
+
       fbListen('listaPreciosData', val => {
         if(!val) return;
         const arr = Array.isArray(val) ? val : Object.values(val||{});
