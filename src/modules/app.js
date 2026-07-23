@@ -683,6 +683,20 @@ function _clRemoveTaskAt(index){
   if(clTiemposRef.length > index) clTiemposRef.splice(index, 1);
 }
 
+// Intercambia dos zonas (y todo su estado por día + tiempos) para reordenar
+function _clSwapTasks(i, j){
+  if(i===j) return;
+  Object.keys(clStateByDay).forEach(d => getOrCreateDayState(d));
+  const tmp = CL_TASKS[i]; CL_TASKS[i] = CL_TASKS[j]; CL_TASKS[j] = tmp;
+  Object.values(clStateByDay).forEach(ds=>{
+    _CL_FIELDS.forEach(k=>{
+      if(Array.isArray(ds[k]) && ds[k].length>Math.max(i,j)){ const t=ds[k][i]; ds[k][i]=ds[k][j]; ds[k][j]=t; }
+    });
+  });
+  while(clTiemposRef.length <= Math.max(i,j)) clTiemposRef.push(0);
+  const t = clTiemposRef[i]; clTiemposRef[i]=clTiemposRef[j]; clTiemposRef[j]=t;
+}
+
 // Persiste el estado completo (todos los días + tiempos + config) tras un cambio estructural
 function _clPersistTrasCambio(){
   try{ localStorage.setItem(CL_STORAGE_KEY, JSON.stringify(clStateByDay)); }catch(e){}
@@ -722,6 +736,20 @@ async function clRenameZona(index){
   renderChecklistTable();
   openGestionZonas();
   showToast('✏️ Zona renombrada');
+}
+
+// Subir/bajar una zona dentro de su sección (dir = -1 arriba, +1 abajo)
+function clMoveZona(index, dir){
+  if(userRole!=='gerencia') return;
+  const t = CL_TASKS[index]; if(!t) return;
+  const j = index + dir;
+  if(j<0 || j>=CL_TASKS.length) return;
+  if(CL_TASKS[j].sec !== t.sec) return;  // no cruzar de sección
+  _clSwapTasks(index, j);
+  _clPersistTrasCambio();
+  clState = getOrCreateDayState(currentDay);
+  renderChecklistTable();
+  openGestionZonas();
 }
 
 async function clDeleteZona(index){
@@ -775,10 +803,14 @@ function openGestionZonas(){
   const seccionesHTML = secOrder.map(sec=>{
     const sh = SEC_HEADERS[sec];
     const idxs = bySec[sec] || [];
-    const zonasHTML = idxs.map(i=>{
+    const zonasHTML = idxs.map((i,pos)=>{
       const t = CL_TASKS[i];
-      return `<div style="display:flex;align-items:center;gap:8px;padding:7px 12px;background:var(--warm-white)">
+      const upDis = pos===0 ? 'disabled style="opacity:.25;cursor:default"' : '';
+      const dnDis = pos===idxs.length-1 ? 'disabled style="opacity:.25;cursor:default"' : '';
+      return `<div style="display:flex;align-items:center;gap:6px;padding:7px 12px;background:var(--warm-white)">
         <div style="flex:1;min-width:0;font-size:13px;color:var(--charcoal)">${esc(t.zona)} <span style="font-size:10px;color:var(--mid-gray)">· ${esc(t.actividad)}</span></div>
+        <button class="btn-icon" title="Subir" ${upDis} onclick="clMoveZona(${i},-1)">▲</button>
+        <button class="btn-icon" title="Bajar" ${dnDis} onclick="clMoveZona(${i},1)">▼</button>
         <button class="btn-icon" title="Renombrar" onclick="clRenameZona(${i})">✏️</button>
         <button class="btn-icon" title="Eliminar" style="color:var(--red-alert)" onclick="clDeleteZona(${i})">✕</button>
       </div>`;
@@ -14491,7 +14523,7 @@ Object.assign(window, {
   generarPresupuestoPDF, checkOnboarding, nextOnboardingStep, finishOnboarding,
   toggleProvManager, toggleSidebar, toggleTask, updC, updCL, updActividad, updTiempoRef, updCaja, updCajaMonto, updCajaTipo,
   openVistaSemanal, vsToggleActividad, vsSetResp, descargarBackup, clFotoPreview, guardarFotoChecklist, verFotoChecklist,
-  openGestionZonas, clAddZona, clRenameZona, clDeleteZona, clRenameSeccion, clAddSeccion,
+  openGestionZonas, clAddZona, clRenameZona, clDeleteZona, clMoveZona, clRenameSeccion, clAddSeccion,
   activarNotificaciones, openGaleriaNuevos, renderGaleriaNuevos, moveKanbanCard, clSetFiltro,
   cerrarBriefing, mostrarResumenSemanal,
   updPedidoHabEstado, updTipoEvento, updV, updateInsumoCount, updateInsumoRow,
