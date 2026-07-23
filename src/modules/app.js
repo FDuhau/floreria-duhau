@@ -12674,47 +12674,88 @@ function renderRentabilidadHotel(){
       pendientes.map(z=>`<option value="${esc(z)}">${esc(z)}</option>`).join('');
   }
 
+  // Mes para el costo real (default: mes actual)
+  const mesEl = document.getElementById('rent-hotel-mes');
+  if(mesEl && !mesEl.value){ const n=new Date(); mesEl.value = n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0'); }
+  const mes = mesEl?.value || '';
+
+  // Costo REAL por arreglo = compras de florería asignadas a esa área en el mes
+  const costoRealPorArea = {};
+  (comprasFlore||[]).forEach(c => {
+    if(c.anulado) return;
+    if(mes && (c.fecha||'').slice(0,7) !== mes) return;
+    const area = (c.sector||'').trim();
+    if(area) costoRealPorArea[area] = (costoRealPorArea[area]||0) + parseMoney(c.costo);
+  });
+
   // Arreglos a mostrar: los que tienen composición cargada o un precio Hyatt definido
   const conComp   = Object.keys(arreglosComposicion).filter(z => (arreglosComposicion[z]||[]).length);
   const conPrecio = Object.keys(arreglosHotelConfig).filter(z => arreglosHotelConfig[z]?.precioHyatt);
   const arreglos  = [...new Set([...conComp, ...conPrecio])].filter(Boolean).sort((a,b)=>a.localeCompare(b,'es'));
 
-  let totalCosto = 0, totalFact = 0;
+  const alertasMargen = [], alertasSinCosto = [], alertasDesvio = [];
+  let totalCosto = 0, totalFact = 0, totalReal = 0;
   const th = 'padding:9px 14px;border-bottom:1px solid var(--light-gray)';
   tbody.innerHTML = arreglos.map(zona => {
     const ings        = arreglosComposicion[zona] || [];
     const costo       = Math.round(calcCostoArreglo(zona));
+    const costoReal   = Math.round(costoRealPorArea[zona] || 0);
     const cfg         = arreglosHotelConfig[zona] || {};
     const precioHyatt = cfg.precioHyatt || 0;
     const margen      = precioHyatt - costo;
     const margenPct   = precioHyatt > 0 ? (margen / precioHyatt * 100).toFixed(1) : null;
-    totalCosto += costo; totalFact += precioHyatt;
+    totalCosto += costo; totalFact += precioHyatt; totalReal += costoReal;
     const mc = margenPct != null ? (+margenPct > 40 ? 'var(--green-ok)' : +margenPct > 20 ? 'var(--amber)' : 'var(--red-alert)') : 'var(--mid-gray)';
     const zEsc = esc(zona).replace(/'/g,"\\'");
     const resumen = ings.length
       ? ings.map(g=>`${g.qty} ${esc(g.prod)}`).join(', ')
       : '<span style="color:var(--amber)">Sin composición cargada</span>';
     const faltaPrecio = ings.some(g => !cotizadorPrecios[g.prod]);
+    // Desvío real vs teórico
+    let desvioHTML = '<span style="color:var(--mid-gray)">—</span>';
+    if(costo>0 && costoReal>0){
+      const dp = Math.round((costoReal-costo)/costo*100);
+      const dcol = Math.abs(dp)<=15 ? 'var(--green-ok)' : Math.abs(dp)<=35 ? 'var(--amber)' : 'var(--red-alert)';
+      desvioHTML = `<span style="color:${dcol};font-weight:600">${dp>0?'+':''}${dp}%</span>`;
+      if(dp>35) alertasDesvio.push(`${zona} (+${dp}% sobre lo previsto)`);
+    }
+    // Recolectar alertas
+    if(precioHyatt && margen<0) alertasMargen.push(zona);
+    if(faltaPrecio) alertasSinCosto.push(zona);
     return `<tr>
       <td style="${th};font-weight:500;white-space:nowrap">📍 ${esc(zona)}</td>
-      <td style="${th};font-size:11px;color:var(--mid-gray);max-width:280px">${resumen}${faltaPrecio?' <span title="Falta el costo por vara de alguna flor (cargá su compra recibida)">⚠️</span>':''}</td>
+      <td style="${th};font-size:11px;color:var(--mid-gray);max-width:240px">${resumen}${faltaPrecio?' <span title="Falta el costo por vara de alguna flor (cargá su compra recibida)">⚠️</span>':''}</td>
       <td style="${th};text-align:right;color:var(--mid-gray)">$${costo.toLocaleString('es-AR')}</td>
+      <td style="${th};text-align:right;color:var(--charcoal)">${costoReal?'$'+costoReal.toLocaleString('es-AR'):'<span style="color:var(--mid-gray)">—</span>'}</td>
+      <td style="${th};text-align:right">${desvioHTML}</td>
       <td style="${th};text-align:right">
         <input type="number" min="0" value="${precioHyatt||''}" placeholder="$"
-          style="width:100px;text-align:right;border:1px solid var(--light-gray);border-radius:6px;padding:4px 8px;font-size:13px;outline:none;background:var(--warm-white);color:var(--charcoal)"
+          style="width:96px;text-align:right;border:1px solid var(--light-gray);border-radius:6px;padding:4px 8px;font-size:13px;outline:none;background:var(--warm-white);color:var(--charcoal)"
           onchange="saveArregloHotelConfig('${zEsc}','precioHyatt',this.value)">
       </td>
       <td style="${th};text-align:right;font-weight:600;color:${precioHyatt? (margen>=0?'var(--green-ok)':'var(--red-alert)') : 'var(--mid-gray)'}">${precioHyatt ? '$'+margen.toLocaleString('es-AR') : '—'}</td>
       <td style="${th};text-align:right;font-weight:700;color:${mc}">${margenPct != null ? margenPct+'%' : '—'}</td>
       <td style="${th};text-align:center;white-space:nowrap"><button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="openArregloComposicion('${zEsc}')">✏️ Composición</button></td>
     </tr>`;
-  }).join('') || `<tr><td colspan="7" style="padding:22px;text-align:center;color:var(--mid-gray)">Todavía no hay arreglos definidos. Elegí uno del checklist en el selector de arriba para cargar qué flores lleva.</td></tr>`;
+  }).join('') || `<tr><td colspan="9" style="padding:22px;text-align:center;color:var(--mid-gray)">Todavía no hay arreglos definidos. Elegí uno del checklist en el selector de arriba para cargar qué flores lleva.</td></tr>`;
+
+  // Panel de alertas
+  const alEl = document.getElementById('rent-hotel-alertas');
+  if(alEl){
+    const bloques = [];
+    if(alertasMargen.length)  bloques.push(`<div style="color:#8B2020">🔴 <strong>Margen negativo</strong> (el costo supera el precio Hyatt): ${alertasMargen.map(esc).join(', ')}</div>`);
+    if(alertasDesvio.length)  bloques.push(`<div style="color:#8A6D00">⚠️ <strong>Costo real muy por encima del teórico</strong>: ${alertasDesvio.map(esc).join(', ')}</div>`);
+    if(alertasSinCosto.length)bloques.push(`<div style="color:#8A6D00">🌸 <strong>Flores sin costo por vara</strong> (cargá su compra recibida): ${[...new Set(alertasSinCosto)].map(esc).join(', ')}</div>`);
+    alEl.innerHTML = bloques.length
+      ? `<div style="background:#FFFBF0;border:1px solid #E9DCae;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:12.5px;display:flex;flex-direction:column;gap:6px">${bloques.join('')}</div>`
+      : '';
+  }
 
   const margenGlobal = totalFact > 0 ? ((totalFact - totalCosto) / totalFact * 100).toFixed(1) : '—';
   if(kpisEl) kpisEl.innerHTML = `
     <div class="card"><div class="card-label">Arreglos definidos</div><div class="card-value" style="font-size:32px">${arreglos.length}</div></div>
-    <div class="card"><div class="card-label">Facturación (Hyatt)</div><div class="card-value" style="font-size:26px">$${totalFact.toLocaleString('es-AR')}</div></div>
-    <div class="card"><div class="card-label">Costo insumos</div><div class="card-value" style="font-size:26px">$${totalCosto.toLocaleString('es-AR')}</div></div>
+    <div class="card"><div class="card-label">Costo teórico</div><div class="card-value" style="font-size:26px">$${totalCosto.toLocaleString('es-AR')}</div></div>
+    <div class="card"><div class="card-label">Costo real (mes)</div><div class="card-value" style="font-size:26px;color:${totalReal>totalCosto*1.15?'var(--red-alert)':'var(--charcoal)'}">$${totalReal.toLocaleString('es-AR')}</div></div>
     <div class="card"><div class="card-label">Margen global hotel</div><div class="card-value ${+margenGlobal>40?'green':+margenGlobal>20?'amber':'red'}" style="font-size:32px">${margenGlobal}%</div></div>`;
 }
 

@@ -2094,15 +2094,21 @@
           <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);font-weight:500;max-width:560px">
             Cada arreglo del <strong>checklist</strong> se muestra por separado. Cargá <strong>qué flores lleva</strong> (y cuántas varas) y el <strong>costo se calcula solo</strong> con el costo por vara de Compras. Completá el <strong>precio Hyatt</strong> para ver el margen.
           </div>
-          <select class="form-select" id="rent-arreglo-add" onchange="rentAddArreglo(this)" style="width:280px;padding:8px 12px;font-size:13px">
-            <option value="">+ Definir composición de un arreglo…</option>
-          </select>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input class="form-input" type="month" id="rent-hotel-mes" oninput="renderRentabilidadHotel()" style="padding:8px 12px;font-size:13px" title="Mes para comparar el costo real de compras">
+            <select class="form-select" id="rent-arreglo-add" onchange="rentAddArreglo(this)" style="width:250px;padding:8px 12px;font-size:13px">
+              <option value="">+ Definir composición de un arreglo…</option>
+            </select>
+          </div>
         </div>
+        <div id="rent-hotel-alertas"></div>
         <div class="table-wrapper"><table style="width:100%;border-collapse:collapse;font-size:13px">
           <thead><tr>
             <th style="text-align:left;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Arreglo</th>
             <th style="text-align:left;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Composición</th>
-            <th style="text-align:right;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Costo insumos</th>
+            <th style="text-align:right;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)" title="Costo calculado por la composición">Costo teórico</th>
+            <th style="text-align:right;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)" title="Compras reales asignadas a ese arreglo en el mes">Costo real</th>
+            <th style="text-align:right;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Desvío</th>
             <th style="text-align:right;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Precio Hyatt</th>
             <th style="text-align:right;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Margen $</th>
             <th style="text-align:right;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Margen %</th>
