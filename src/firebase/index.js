@@ -584,6 +584,7 @@
         if(!val) return;
         if(window._setArreglosComposicion) window._setArreglosComposicion(val);
         if(document.getElementById('page-rentabilidad-eventos')?.classList.contains('active')) window.renderRentabilidadHotel?.();
+        if(document.getElementById('page-recetas-arreglos')?.classList.contains('active')) window.renderComposicionesHotel?.();
       });
 
       fbListen('eventLaborRate', val => {
