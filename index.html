@@ -1752,13 +1752,23 @@
         <div class="page-title">Composiciones</div>
         <div class="page-subtitle">Ingredientes por arreglo · al confirmar un evento se descuenta del stock automáticamente</div>
       </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <div style="display:flex;gap:8px;flex-wrap:wrap" id="comp-header-btns">
         <button class="btn-secondary gerencia-only" onclick="seedComposicionesBase()" style="font-size:12px" title="Carga las composiciones Upgrade + Eventos (después las podés editar)">📋 Cargar catálogo base</button>
         <button class="btn-add" onclick="openRecetaModal(-1)">+ Nueva composición</button>
       </div>
     </div>
+    <div class="day-tabs" style="margin-bottom:16px">
+      <div class="day-tab active" id="comp-tab-eventos" onclick="setCompTab('eventos')">🎉 Arreglos de eventos</div>
+      <div class="day-tab" id="comp-tab-hotel" onclick="setCompTab('hotel')">🏨 Arreglos del hotel</div>
+    </div>
     <datalist id="rec-flor-list"></datalist>
-    <div id="recetas-grid"></div>
+    <div id="comp-sec-eventos">
+      <div id="recetas-grid"></div>
+    </div>
+    <div id="comp-sec-hotel" style="display:none">
+      <div class="page-subtitle" style="margin-bottom:14px">Composición de los arreglos fijos del hotel (tomados del checklist). El costo por vara sale de Compras › Florería.</div>
+      <div id="recetas-hotel-grid"></div>
+    </div>
 
     <!-- Modal receta -->
     <div class="modal-overlay" id="receta-modal">

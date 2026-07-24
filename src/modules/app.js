@@ -326,7 +326,7 @@ function navigate(pageId, navEl){
   if(pageId==='control-horarios') renderHorarios();
   if(pageId==='cotizador')          renderCotizador();
   if(pageId==='cotizador-ops')      renderCotizadorOps();
-  if(pageId==='recetas-arreglos')       renderRecetas();
+  if(pageId==='recetas-arreglos')       setCompTab(compTab);
   if(pageId==='recordatorios-jardineria') renderRecordatoriosJard();
   if(pageId==='control-jardineria') renderCtrlJard();
   if(pageId==='jardineria-ops') renderJardOps();
@@ -11589,6 +11589,58 @@ function renderRecetas(){
     </div>`).join('');
 }
 
+// ── Solapas de la página Composiciones: Eventos (recetasData) / Hotel (checklist) ──
+let compTab = 'eventos';
+function setCompTab(t){
+  compTab = t;
+  document.getElementById('comp-tab-eventos')?.classList.toggle('active', t==='eventos');
+  document.getElementById('comp-tab-hotel')?.classList.toggle('active', t==='hotel');
+  const secE = document.getElementById('comp-sec-eventos');
+  const secH = document.getElementById('comp-sec-hotel');
+  const btns = document.getElementById('comp-header-btns');
+  if(secE) secE.style.display = t==='eventos' ? '' : 'none';
+  if(secH) secH.style.display = t==='hotel' ? '' : 'none';
+  // Los botones "+ Nueva composición" y "Cargar catálogo base" son de eventos.
+  if(btns) btns.style.display = t==='eventos' ? '' : 'none';
+  if(t==='hotel') renderComposicionesHotel(); else renderRecetas();
+}
+
+// Composición de los arreglos fijos del hotel, tomados de las zonas del checklist.
+// Reutiliza arreglosComposicion (el mismo store que usa Rentabilidad Hotel).
+function renderComposicionesHotel(){
+  const grid = document.getElementById('recetas-hotel-grid');
+  if(!grid) return;
+  const zonas = getAreaUsoZonas();
+  const conComp = zonas.filter(z => (arreglosComposicion[z]||[]).length);
+  const sinComp = zonas.filter(z => !(arreglosComposicion[z]||[]).length);
+  const orden = [...conComp, ...sinComp];
+  if(!orden.length){
+    grid.innerHTML = '<div style="text-align:center;padding:40px;color:var(--mid-gray)">No hay arreglos definidos en el checklist todavía.</div>';
+    return;
+  }
+  grid.innerHTML = orden.map(zona=>{
+    const ings = arreglosComposicion[zona] || [];
+    const costo = Math.round(calcCostoArreglo(zona));
+    const zEsc = esc(zona).replace(/'/g,"\\'");
+    return `<div class="receta-card">
+      <div class="receta-header">
+        <div class="receta-nombre">📍 <b>${esc(zona)}</b></div>
+        <button class="btn-icon" onclick="openArregloComposicion('${zEsc}')" title="Editar composición">✏️</button>
+      </div>
+      ${ings.length ? `
+        <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);margin:8px 0;font-weight:600">Ingredientes por unidad · costo $${costo.toLocaleString('es-AR')}</div>
+        <div class="receta-ingredientes">
+          ${ings.map(ing=>`<div class="receta-ing-row">
+            <span style="font-size:18px;line-height:1">🌿</span>
+            <span style="flex:1;font-weight:500">${esc(ing.prod)}</span>
+            <span style="background:#F0EEE8;border-radius:4px;padding:2px 8px;font-size:12px;font-weight:600">${_fmtCant(ing.qty)} vara${(+ing.qty)===1?'':'s'}</span>
+          </div>`).join('')}
+        </div>`
+        : `<div style="color:var(--amber);font-size:12.5px;padding:10px 0">Sin composición cargada — tocá ✏️ para definir qué flores lleva.</div>`}
+    </div>`;
+  }).join('');
+}
+
 function previewRecetaImg(input){
   const file = input.files[0];
   if(!file) return;
@@ -13250,7 +13302,6 @@ function _floresDatalistOpts(){
 }
 
 function openArregloComposicion(zona){
-  if(userRole!=='gerencia'){ showToast('⛔ Solo gerencia'); return; }
   _compEditZona = zona;
   _compEditRows = JSON.parse(JSON.stringify(arreglosComposicion[zona] || []));
   if(!_compEditRows.length) _compEditRows = [{prod:'', qty:''}];
@@ -13307,7 +13358,8 @@ function guardarArregloComposicion(){
   else delete arreglosComposicion[_compEditZona];
   fbSave('arreglosComposicion', arreglosComposicion);
   closeModal('arreglo-comp-modal');
-  renderRentabilidadHotel();
+  renderRentabilidadHotel();       // refresca la vista de rentabilidad (si está activa)
+  renderComposicionesHotel();      // refresca la solapa Hotel de Composiciones (si está activa)
   showToast('✅ Composición guardada');
 }
 
@@ -15183,7 +15235,7 @@ Object.assign(window, {
   renderLPenCotizador, renderListaPrecios,
   renderPedidosHab, renderPeriodTabs, renderPlantilla, renderPreciosList, renderProductividad,
   renderProductividadHome, renderProductividadCL, renderProductividadHorarios, renderProvTags, renderRamosDisp, renderRecepcionPedidos,
-  renderRecetas, seedComposicionesBase, renderReportesEquipo, renderReportesVentas, renderReportesStock, openFichaEmpleado,
+  renderRecetas, seedComposicionesBase, setCompTab, renderComposicionesHotel, renderReportesEquipo, renderReportesVentas, renderReportesStock, openFichaEmpleado,
   renderFloreros, openFloreroModal, guardarFlorero, delFlorero, florAjustar, florFotoPreview, cambiarFotoFlorero, openFlorFoto,
   exportReporteEquipo, exportReporteVentas, exportReporteStock,
   openPushNotifModal, enviarPushNotif, initPushForUser,
