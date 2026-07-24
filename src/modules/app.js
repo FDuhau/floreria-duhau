@@ -4,7 +4,7 @@
 // Cuando un dispositivo detecta una versión distinta a la guardada,
 // limpia el localStorage viejo UNA sola vez y recarga. Sin borrar caché a mano.
 // ════════════════════════════════════════
-const APP_VERSION = '2026-07-24-a';
+const APP_VERSION = '2026-07-24-b';
 (function checkAppVersion(){
   try {
     const stored = localStorage.getItem('app_version');
@@ -1198,8 +1198,11 @@ function renderChecklistTable(){
     }
   });
 
-  // Update day tab active state + badge de progreso por día
-  document.querySelectorAll('.day-tab').forEach(tabEl=>{
+  // Update day tab active state + badge de progreso por día.
+  // OJO: acotado al contenedor del checklist. Antes usaba document.querySelectorAll
+  // ('.day-tab') global y pisaba el onclick de OTRAS solapas que comparten la clase
+  // (ej. las de Composiciones Eventos/Hotel), dejándolas sin funcionar.
+  (document.getElementById('day-tabs-container')?.querySelectorAll('.day-tab') || []).forEach(tabEl=>{
     const d = tabEl.dataset.day || tabEl.textContent.trim();
     tabEl.dataset.day = d;
     const ds = clStateByDay[d];
