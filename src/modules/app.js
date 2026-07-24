@@ -11590,24 +11590,16 @@ function openRecetaModal(i){
   const isNew = i===-1;
   document.getElementById('receta-modal-title').textContent = isNew ? 'Nueva Composición' : 'Editar Composición';
   const ingsList = document.getElementById('rec-ings-list');
-  const nombreSel = document.getElementById('rec-nombre');
-  const nombreCustom = document.getElementById('rec-nombre-custom');
+  const nombreInp = document.getElementById('rec-nombre');
   const dl = document.getElementById('rec-flor-list');
   if(dl) dl.innerHTML = getAllInsumos().map(n=>`<option value="${esc(n)}">`).join('');
 
-  // Custom nombre toggle
-  nombreSel.onchange = ()=>{
-    nombreCustom.style.display = nombreSel.value==='custom' ? 'block' : 'none';
-  };
-
   if(!isNew){
     const r = recetasData[i];
-    if(ARREGLOS_BASE.includes(r.nombre)) nombreSel.value = r.nombre;
-    else { nombreSel.value='custom'; nombreCustom.style.display='block'; nombreCustom.value=r.nombre; }
+    nombreInp.value = r.nombre || '';
     ingsList.innerHTML = r.ings.map((ing,ii)=>recetaIngRowHTML(ing.prod, ing.qty, ii)).join('');
   } else {
-    nombreSel.value = 'Bochita';
-    nombreCustom.style.display='none'; nombreCustom.value='';
+    nombreInp.value = '';
     ingsList.innerHTML = recetaIngRowHTML('',1,0);
   }
   // restore image
@@ -11637,10 +11629,7 @@ function addRecetaIngRow(){
 }
 
 function saveReceta(){
-  const nombreSel = document.getElementById('rec-nombre').value;
-  const nombre = nombreSel==='custom'
-    ? document.getElementById('rec-nombre-custom').value.trim()
-    : nombreSel;
+  const nombre = document.getElementById('rec-nombre').value.trim();
   if(!nombre){ showToast('Ingresá el nombre del arreglo.','error'); return; }
 
   const rows = document.getElementById('rec-ings-list').querySelectorAll('.ev-arreglo-row');
@@ -11706,8 +11695,7 @@ function addEvArregloRow(){
   const list = document.getElementById('ev-arreglos-list');
   const idx = evArreglosRows.length;
   evArreglosRows.push({arreglo:'', qty:1});
-  const arregloOpts = [...recetasData.map(r=>r.nombre), ...ARREGLOS_BASE.filter(a=>!recetasData.find(r=>r.nombre===a))]
-    .filter((v,i,a)=>a.indexOf(v)===i)
+  const arregloOpts = [...new Set(recetasData.map(r=>r.nombre))]
     .map(n=>`<option value="${esc(n)}">${arregloEmoji(n)} ${esc(n)}</option>`).join('');
 
   const div = document.createElement('div');
@@ -12096,8 +12084,7 @@ function openEventModal(i){
 function addEvArregloRowWithData(arreglo, qty){
   const list = document.getElementById('ev-arreglos-list');
   const idx = evArreglosRows.length-1;
-  const arregloOpts = [...recetasData.map(r=>r.nombre), ...ARREGLOS_BASE.filter(a=>!recetasData.find(r=>r.nombre===a))]
-    .filter((v,i,a)=>a.indexOf(v)===i)
+  const arregloOpts = [...new Set(recetasData.map(r=>r.nombre))]
     .map(n=>`<option value="${esc(n)}"${n===arreglo?' selected':''}>${arregloEmoji(n)} ${esc(n)}</option>`).join('');
   const div = document.createElement('div');
   div.className='ev-arreglo-row'; div.id='ev-arr-row-'+idx;
