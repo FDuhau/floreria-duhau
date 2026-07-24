@@ -2670,7 +2670,8 @@ function copiarUltimoPedido(type){
 // Cuando lo que llega en una orden se destina a más de un sector del hotel
 // (ej. 3 varas de Limonium: 2 al Lobby Alvear, 1 a Biblioteca), en vez de
 // cargar el mismo producto varias veces a mano se define el reparto acá y
-// addCompra() genera una línea de compra por área, prorrateando el costo.
+// addCompra() genera una línea de compra por área con su cantidad de paquetes.
+// El precio por paquete es el mismo en todas (el importe sale de precio × cant).
 let cfSplitRows = [];
 
 function toggleCfSplit(){
@@ -2730,29 +2731,25 @@ function addCompra(type){
   const pedidopor = document.getElementById(p+'-pedidopor').value||'—';
   const desc = document.getElementById(p+'-desc').value||'';
   const prov = document.getElementById(p+'-proveedor').value||'';
-  const costoTotal = parseMoney(document.getElementById(p+'-costo').value);
+  // El campo "costo" es el PRECIO POR PAQUETE (lo que sale un paquete),
+  // no el total del pedido. El importe de cada línea = precio × cantidad.
+  const precioPaq = parseMoney(document.getElementById(p+'-costo').value);
   const sucursal = getSucursalId();
 
   // Reparto entre varias áreas (solo florería): una línea de compra por área,
-  // con la cantidad de cada una y el costo prorrateado según esa cantidad.
+  // con la cantidad de paquetes de cada una. El precio por paquete es el mismo
+  // en todas las líneas (no se prorratea: cada paquete cuesta lo mismo).
   const splits = type==='floreria'
     ? cfSplitRows.filter(r=>r.sector && parseFloat(r.qty)>0)
     : [];
 
   if(splits.length > 0){
-    const totalQty = splits.reduce((s,r)=>s+(parseFloat(r.qty)||0),0);
-    let costoAsignado = 0;
-    splits.forEach((r,i)=>{
+    splits.forEach((r)=>{
       const qty = parseFloat(r.qty)||0;
-      // La última línea absorbe el redondeo para que la suma cierre exacto.
-      const costoLinea = i === splits.length-1
-        ? Math.round((costoTotal - costoAsignado)*100)/100
-        : Math.round(costoTotal * (qty/totalQty) * 100)/100;
-      costoAsignado += costoLinea;
       getArr(type).unshift({
         fecha, pedidopor, prod, desc,
         qty,
-        costo: costoTotal>0 ? String(costoLinea) : '',
+        costo: precioPaq>0 ? String(precioPaq) : '',
         prov,
         sector: r.sector,
         estado:'pedido',
@@ -2779,18 +2776,10 @@ function addCompra(type){
   if(type==='floreria'){ window._comprasFloreLastSave = Date.now(); fbSave('comprasFlore', comprasFlore); }
   else { window._comprasJardLastSave = Date.now(); fbSave('comprasJard', comprasJard); }
 
-  // AUTO-PRECIO: al cargar la compra, actualizar el costo por vara del cotizador
-  // (flores/follaje) según lo que compras compró. En la recepción se ajusta fino
-  // con las varas por paquete reales.
-  if(type==='floreria' && costoTotal > 0){
-    const totalQty = splits.length
-      ? splits.reduce((s,r)=>s+(parseFloat(r.qty)||0),0)
-      : (parseFloat(document.getElementById('cf-cantidad')?.value) || 0);
-    if(totalQty > 0){
-      cotizadorPrecios[prod] = Math.round(costoTotal / totalQty);
-      fbSave('cotizadorPrecios', cotizadorPrecios);
-    }
-  }
+  // El costo por vara del cotizador (flores/follaje) se calcula en la recepción,
+  // donde se conocen las varas por paquete reales (costo por paquete ÷ varas/paq).
+  // Al cargar el pedido todavía no se sabe cuántas varas trae cada paquete, así
+  // que no se toca el cotizador acá para no meter un precio por vara equivocado.
 
   ['fecha','pedidopor','producto','cantidad','desc','costo','proveedor','sector'].forEach(id=>{
     const el=document.getElementById(p+'-'+id);
@@ -3049,11 +3038,25 @@ function renderPeriodTabs(type){
   });
 }
 
+// Cantidad de paquetes de una compra (recibidos si ya llegó, si no lo pedido).
+// Fallback a 1 para filas viejas sin cantidad cargada, así no se anula su importe.
+function _compraCant(r){
+  if(!r) return 0;
+  if(r.estado==='recibido' && r.paqRecibidos!==undefined && r.paqRecibidos!==null && r.paqRecibidos!==''){
+    const pr = parseFloat(r.paqRecibidos);
+    if(!isNaN(pr)) return pr;
+  }
+  const q = parseFloat(r.qty);
+  return (!isNaN(q) && q>0) ? q : 1;
+}
+// Importe total de una línea de compra = precio por paquete × cantidad de paquetes.
+function _compraImporte(r){ return parseMoney(r && r.costo) * _compraCant(r); }
+
 function renderCompraSummary(type, filtered){
   const summaryEl = document.getElementById('compras-'+(type==='floreria'?'flore':'jard')+'-summary');
   const activas = filtered.filter(r=>!r.anulado);
-  const total = activas.reduce((s,r)=>s+parseMoney(r.costo),0);
-  const recibidos = activas.filter(r=>r.estado==='recibido').reduce((s,r)=>s+parseMoney(r.costo),0);
+  const total = activas.reduce((s,r)=>s+_compraImporte(r),0);
+  const recibidos = activas.filter(r=>r.estado==='recibido').reduce((s,r)=>s+_compraImporte(r),0);
   const enPedido = activas.filter(r=>r.estado!=='recibido').length;
   summaryEl.innerHTML = `
     <div class="card"><div class="card-label">💰 Total período</div><div class="card-value" style="font-size:26px">$${total.toLocaleString('es-AR')}</div><div class="card-sub">${activas.length} órdenes</div></div>
@@ -3138,7 +3141,7 @@ function renderCompras(type){
   const provSummaryEl = document.getElementById(p+'-prov-summary');
   if(provSummaryEl){
     if(fProv && filtered.length){
-      const totalProv = filtered.reduce((s,r)=>s+parseMoney(r.costo),0);
+      const totalProv = filtered.reduce((s,r)=>s+_compraImporte(r),0);
       const fechasProv = new Set(filtered.map(r=>r.fecha).filter(Boolean)).size;
       provSummaryEl.style.display='';
       provSummaryEl.innerHTML = `<strong>${esc(fProv)}</strong> · ${filtered.length} ítem${filtered.length!==1?'s':''} en ${fechasProv} pedido${fechasProv!==1?'s':''} · total <strong>$${totalProv.toLocaleString('es-AR')}</strong>`;
@@ -3165,7 +3168,7 @@ function renderCompras(type){
   let html = '';
   fechas.forEach(fecha => {
     const items = byDate[fecha];
-    const totalBloque = items.reduce((s,r) => s + parseMoney(r.costo), 0);
+    const totalBloque = items.reduce((s,r) => s + _compraImporte(r), 0);
     const cantItems = items.length;
     const cantTotal = items.reduce((s,r) => s + (+r.qty||0), 0);
     html += `<tr class="compra-date-header">
@@ -3272,7 +3275,7 @@ function renderHistorialCompras(){
   const summEl = document.getElementById('hist-compras-summary');
   if(summEl){
     if(fProv && recibidos.length){
-      const totalProv = recibidos.reduce((s,r)=>s+parseMoney(r.costo),0);
+      const totalProv = recibidos.reduce((s,r)=>s+_compraImporte(r),0);
       const nPedidos = new Set(recibidos.map(r=>r.fecha).filter(Boolean)).size;
       summEl.style.display = '';
       summEl.innerHTML = `<strong>${esc(fProv)}</strong> · ${recibidos.length} ítem${recibidos.length!==1?'s':''} en ${nPedidos} pedido${nPedidos!==1?'s':''} · total <strong>$${totalProv.toLocaleString('es-AR')}</strong>`;
@@ -3296,7 +3299,7 @@ function renderHistorialCompras(){
   let html = '';
   fechas.forEach(fecha => {
     const items = byDate[fecha];
-    const totalBloque = items.reduce((s,r) => s + parseMoney(r.costo), 0);
+    const totalBloque = items.reduce((s,r) => s + _compraImporte(r), 0);
     const totalVaras = items.reduce((s,r) => s + (+r.totalVaras||+r.qty||0), 0);
 
     html += `<div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:10px;margin-bottom:12px;overflow:hidden">
@@ -12903,7 +12906,7 @@ function renderRentabilidadHotel(){
     if(c.anulado) return;
     if(mes && (c.fecha||'').slice(0,7) !== mes) return;
     const area = (c.sector||'').trim();
-    if(area) costoRealPorArea[area] = (costoRealPorArea[area]||0) + parseMoney(c.costo);
+    if(area) costoRealPorArea[area] = (costoRealPorArea[area]||0) + _compraImporte(c);
   });
 
   // Arreglos a mostrar: los que tienen composición cargada o un precio Hyatt definido
@@ -13698,11 +13701,11 @@ function generarOrdenCompra(idx, tipo='flore'){
           <td>${esc(c.desc||'—')}</td>
           <td>${esc(String(c.qty||1))}</td>
           <td>${c.costo ? '$'+parseMoney(c.costo).toLocaleString('es-AR') : '—'}</td>
-          <td>${c.costo ? '$'+parseMoney(c.costo).toLocaleString('es-AR') : '—'}</td>
+          <td>${c.costo ? '$'+_compraImporte(c).toLocaleString('es-AR') : '—'}</td>
         </tr>
       </tbody>
     </table>
-    <div class="total">Total: ${c.costo ? '$'+parseMoney(c.costo).toLocaleString('es-AR') : '—'}</div>
+    <div class="total">Total: ${c.costo ? '$'+_compraImporte(c).toLocaleString('es-AR') : '—'}</div>
     ${c.notas ? `<div style="font-size:13px;margin-bottom:20px"><strong>Notas:</strong> ${esc(c.notas)}</div>` : ''}
     <div class="firma">
       <div class="firma-box">Firma Solicitante</div>
@@ -14682,7 +14685,7 @@ async function generarCierreMensual(){
   const ventas = (ventasData||[]).filter(v=>v.fecha&&v.fecha.startsWith(mes));
   const totalVentas = ventas.reduce((s,v)=>s+parseMoney(v.monto||v.total||0),0);
   const compras = [...(comprasFlore||[]),...(comprasJard||[])].filter(c=>c.fecha&&c.fecha.startsWith(mes)&&!c.anulado);
-  const totalCompras = compras.reduce((s,c)=>s+parseMoney(c.costo||0),0);
+  const totalCompras = compras.reduce((s,c)=>s+_compraImporte(c),0);
   const eventos = (eventosData||[]).filter(e=>e.fecha&&e.fecha.startsWith(mes));
   const cajaMov = (cajaData||[]).filter(m=>m.fecha&&m.fecha.startsWith(mes));
   const ingresos = cajaMov.filter(m=>m.tipo==='ingreso').reduce((s,m)=>s+parseMoney(m.monto||0),0);
@@ -14748,7 +14751,7 @@ function renderDashboardGerencia(){
   const ventas = (ventasData||[]).filter(v=>v.fecha&&v.fecha.startsWith(mes));
   const tvMes = ventas.reduce((s,v)=>s+parseMoney(v.monto||v.total||0),0);
   const compras = [...(comprasFlore||[]),...(comprasJard||[])].filter(c=>c.fecha&&c.fecha.startsWith(mes)&&!c.anulado);
-  const tcMes = compras.reduce((s,c)=>s+parseMoney(c.costo||0),0);
+  const tcMes = compras.reduce((s,c)=>s+_compraImporte(c),0);
   const evMes = (eventosData||[]).filter(e=>e.fecha&&e.fecha.startsWith(mes));
   const evHoy = (eventosData||[]).filter(e=>e.fecha===TODAY_ISO);
   const stockBajos = (stockData||[]).filter(s=>(s.cantidad||0)<=(s.min||0));
@@ -14826,7 +14829,7 @@ function exportComprasXLSX(){
   const mes = CURR_MONTH;
   const rows = [...(comprasFlore||[]),...(comprasJard||[])].filter(c=>c.fecha&&c.fecha.startsWith(mes)).map(c=>({
     Fecha: c.fecha||'', Proveedor: c.prov||'', Producto: c.prod||'', Cantidad: c.qty||1,
-    Costo: parseMoney(c.costo||0), Estado: c.anulado ? 'anulado' : (c.estado||''), Sector: c.sector||'', Notas: c.notas||c.desc||''
+    'Precio unit.': parseMoney(c.costo||0), Importe: _compraImporte(c), Estado: c.anulado ? 'anulado' : (c.estado||''), Sector: c.sector||'', Notas: c.notas||c.desc||''
   }));
   if(!rows.length){ showToast('Sin compras para exportar este mes'); return; }
   const ws = X.utils.json_to_sheet(rows);
