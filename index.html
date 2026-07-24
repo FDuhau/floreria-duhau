@@ -1338,8 +1338,16 @@
   <!-- ══════ GALERÍA DE TRABAJOS ══════ -->
   <div id="page-galeria" class="content">
     <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px">
-      <div><div class="page-title">Galería de Trabajos</div><div class="page-subtitle">Portfolio de arreglos florales realizados</div></div>
-      <button class="btn-add" onclick="openGaleriaModal()">+ Nuevo Trabajo</button>
+      <div><div class="page-title">Galería de Trabajos</div><div class="page-subtitle">Portfolio y glosario de arreglos · fichas técnicas por área</div></div>
+      <button class="btn-add" onclick="openGaleriaModal()">+ Nueva ficha</button>
+    </div>
+    <div class="day-tabs" style="margin-top:14px;margin-bottom:0">
+      <div class="day-tab active" id="gal-tab-hotel" onclick="setGaleriaSeccion('hotel')">🏨 Standard Hotel</div>
+      <div class="day-tab" id="gal-tab-eventos" onclick="setGaleriaSeccion('eventos')">🎉 Eventos</div>
+      <div class="day-tab" id="gal-tab-todos" onclick="setGaleriaSeccion('todos')">📚 Todos</div>
+    </div>
+    <div style="margin-top:12px">
+      <input class="form-input" id="gal-search" placeholder="🔍 Buscar por título, área o materia prima..." oninput="renderGaleria()" style="max-width:360px">
     </div>
     <div id="galeria-grid" style="columns:3 280px;gap:16px;margin-top:16px"></div>
     <!-- Lightbox -->

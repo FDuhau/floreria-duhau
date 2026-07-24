@@ -316,7 +316,7 @@ function navigate(pageId, navEl){
   if(pageId==='eventos-sin-floreria') renderEventosSinFloreria();
   if(pageId==='ventas-externas')    renderVentas();
   if(pageId==='caja')               renderCaja();
-  if(pageId==='galeria')            renderGaleria();
+  if(pageId==='galeria')            setGaleriaSeccion(galeriaSeccion);
   if(pageId==='lista-precios')      renderListaPrecios();
   if(pageId==='ramos-disponibles'){ initRamosToggle(); setRamosView(ramosView); }
   if(pageId==='pedidos-ramos'){ navigate('ramos-disponibles'); setRamosView('pedidos'); return; }
@@ -5176,45 +5176,92 @@ window._setGaleriaData = (arr) => { galeriaData.splice(0, galeriaData.length, ..
 
 let _galeriaLightboxIdx = 0;
 
+// Sección activa del glosario dentro de Galería de Trabajos.
+// 'hotel' = arreglos standard del hotel · 'eventos' = arreglos de eventos · 'todos' = ambos.
+// Las fichas viejas sin sección se consideran 'eventos' (histórico de trabajos).
+let galeriaSeccion = 'hotel';
+function galSecDe(g){ return g.seccion==='hotel' ? 'hotel' : 'eventos'; }
+
+function setGaleriaSeccion(s){
+  galeriaSeccion = s;
+  ['hotel','eventos','todos'].forEach(k=>{
+    document.getElementById('gal-tab-'+k)?.classList.toggle('active', k===s);
+  });
+  renderGaleria();
+}
+
+// Filas de la ficha técnica (glosario) — mismo modelo que la planilla impresa.
+const GLOSARIO_ROWS = [
+  ['Sector',            g=>g.sector],
+  ['Cantidad',          g=>g.cantidad],
+  ['Categoría',         g=>g.categoria || g.tipoEvento],
+  ['Composición',       g=>g.composicion],
+  ['Formato',           g=>g.formato],
+  ['Base o florero',    g=>g.base],
+  ['Tamaño',            g=>g.tamano],
+  ['Paleta de color',   g=>g.paleta || g.temporada],
+  ['Destinatario / uso',g=>g.destinatario],
+  ['Empaque',           g=>g.empaque],
+  ['Precio sugerido',   g=>g.precio],
+  ['Tiempo de armado',  g=>g.tiempoArmado],
+  ['Notas internas',    g=>g.notas],
+];
+
+// Materia prima de una ficha, ya formateada: "1 paquete de azarero", "3 Rosas"...
+function galMateriaPrima(g){
+  return (g.ings||[]).filter(i=>i && i.prod).map(i=>{
+    const q = (i.qty!=null && String(i.qty).trim()) ? String(i.qty).trim()+' ' : '';
+    return q + i.prod;
+  });
+}
+
+// Áreas del hotel ya pactadas (zonas del checklist) + las que ya se usaron en fichas.
+function getGaleriaSectorOpts(current){
+  const zonas = getAreaUsoZonas();
+  const usadas = [...new Set(galeriaData.map(g=>(g.sector||'').trim()).filter(Boolean))];
+  const all = [...new Set([...zonas, ...usadas])].sort((a,b)=>a.localeCompare(b,'es'));
+  const cur = (current||'').trim();
+  const extra = cur && !all.includes(cur) ? `<option value="${esc(cur)}" selected>${esc(cur)}</option>` : '';
+  return `<option value="">— Área del hotel —</option>` + extra +
+    all.map(z=>`<option value="${esc(z)}"${z===cur?' selected':''}>${esc(z)}</option>`).join('') +
+    `<option value="__otra__">✏️ Otra (escribir)...</option>`;
+}
+
 function renderGaleria(){
   const search  = (document.getElementById('gal-search')?.value||'').toLowerCase();
-  const tipoFil = document.getElementById('gal-tipo')?.value||'';
-  const tempFil = document.getElementById('gal-temp')?.value||'';
-
-  // Poblar filtro de tipos dinámicamente
-  const tipoSel = document.getElementById('gal-tipo');
-  if(tipoSel){
-    const cur = tipoSel.value;
-    const tipos = [...new Set(galeriaData.map(g=>g.tipoEvento).filter(Boolean))].sort();
-    tipoSel.innerHTML = '<option value="">Todos los eventos</option>' + tipos.map(t=>`<option${t===cur?' selected':''}>${esc(t)}</option>`).join('');
-    tipoSel.value = cur;
-  }
 
   const filtered = galeriaData.filter(g=>{
-    const ms = !search || g.titulo?.toLowerCase().includes(search) || (g.flores||[]).join(' ').toLowerCase().includes(search);
-    const mt = !tipoFil || g.tipoEvento === tipoFil;
-    const mtp = !tempFil || g.temporada === tempFil;
-    return ms && mt && mtp;
+    const matSec = galeriaSeccion==='todos' || galSecDe(g)===galeriaSeccion;
+    if(!matSec) return false;
+    if(!search) return true;
+    const hay = [g.titulo, g.sector, g.categoria, g.tipoEvento, g.destinatario,
+      (g.flores||[]).join(' '), galMateriaPrima(g).join(' ')].join(' ').toLowerCase();
+    return hay.includes(search);
   });
 
   const el = document.getElementById('galeria-grid');
   if(!el) return;
 
   if(!filtered.length){
+    const secLabel = galeriaSeccion==='hotel'?'standard del hotel':galeriaSeccion==='eventos'?'de eventos':'';
     el.innerHTML = `<div style="text-align:center;padding:60px 20px;color:var(--mid-gray)">
       <div style="font-size:48px;margin-bottom:16px">🌸</div>
-      <div style="font-size:14px">No hay trabajos en la galería todavía.<br>Agregá el primero con el botón de arriba.</div>
+      <div style="font-size:14px">No hay fichas de arreglos ${esc(secLabel)} todavía.<br>Agregá la primera con "＋ Nueva ficha".</div>
     </div>`;
     return;
   }
 
   const TEMP_ICON = {Primavera:'🌸',Verano:'☀️',Otoño:'🍂',Invierno:'❄️'};
-  el.innerHTML = `<div style="columns:3;column-gap:16px;orphans:1;widows:1">
+  el.innerHTML = `<div style="columns:3 280px;column-gap:16px;orphans:1;widows:1">
     ${filtered.map((g)=>{
       const realIdx = galeriaData.indexOf(g);
       const foto = (g.fotos&&g.fotos[0]) || g.foto || '';
       const flores = Array.isArray(g.flores) ? g.flores : (g.flores?g.flores.split(',').map(f=>f.trim()):[]);
-      return `<div style="break-inside:avoid;margin-bottom:16px;border-radius:var(--radius-md);overflow:hidden;background:var(--warm-white);border:1px solid var(--light-gray);box-shadow:var(--shadow-sm);cursor:pointer;transition:var(--transition)" onclick="abrirLightbox(${realIdx})" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='var(--shadow-md)'" onmouseout="this.style.transform='';this.style.boxShadow='var(--shadow-sm)'">
+      const chips = galMateriaPrima(g).length ? galMateriaPrima(g) : flores;
+      const secBadge = galSecDe(g)==='hotel'
+        ? `<span style="background:#E8EEF4;color:#2C5A80;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600">🏨 Hotel</span>`
+        : `<span style="background:var(--blush-light);color:#7A3A2A;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600">🎉 Evento</span>`;
+      return `<div style="break-inside:avoid;margin-bottom:16px;border-radius:var(--radius-md);overflow:hidden;background:var(--warm-white);border:1px solid var(--light-gray);box-shadow:var(--shadow-sm);cursor:pointer;transition:var(--transition)" onclick="openFichaGaleria(${realIdx})" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='var(--shadow-md)'" onmouseout="this.style.transform='';this.style.boxShadow='var(--shadow-sm)'">
         ${foto
           ? `<img src="${foto}" style="width:100%;display:block;object-fit:cover;max-height:380px" loading="lazy">`
           : `<div style="width:100%;height:200px;background:linear-gradient(135deg,var(--blush-light),var(--sage-light));display:flex;align-items:center;justify-content:center;font-size:52px">🌸</div>`
@@ -5222,12 +5269,14 @@ function renderGaleria(){
         <div style="padding:14px 16px">
           <div style="font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:500;color:var(--charcoal);margin-bottom:6px">${esc(g.titulo||'Sin título')}</div>
           <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px">
-            ${g.tipoEvento?`<span style="background:var(--blush-light);color:#7A3A2A;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500">${esc(g.tipoEvento)}</span>`:''}
+            ${secBadge}
+            ${g.sector?`<span style="background:var(--cream);color:var(--mid-gray);padding:2px 8px;border-radius:20px;font-size:10px">📍 ${esc(g.sector)}</span>`:''}
+            ${g.tamano?`<span style="background:var(--cream);color:var(--mid-gray);padding:2px 8px;border-radius:20px;font-size:10px">${esc(g.tamano)}</span>`:''}
             ${g.temporada?`<span style="background:var(--cream);color:var(--mid-gray);padding:2px 8px;border-radius:20px;font-size:10px">${TEMP_ICON[g.temporada]||''} ${esc(g.temporada)}</span>`:''}
-            ${flores.slice(0,3).map(f=>`<span style="background:var(--light-gray);color:var(--charcoal);padding:2px 8px;border-radius:20px;font-size:10px">${esc(f)}</span>`).join('')}
+            ${chips.slice(0,3).map(f=>`<span style="background:var(--light-gray);color:var(--charcoal);padding:2px 8px;border-radius:20px;font-size:10px">${esc(f)}</span>`).join('')}
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center">
-            <span style="font-size:11px;color:var(--mid-gray)">${g.fecha?fmtDate(g.fecha):''}${g.precio?' · $'+esc(g.precio):''}</span>
+            <span style="font-size:11px;color:var(--mid-gray)">${g.precio?esc(g.precio):(g.fecha?fmtDate(g.fecha):'')}</span>
             <div style="display:flex;gap:4px" onclick="event.stopPropagation()">
               ${(g.fotos&&g.fotos.length>1)?`<span style="font-size:10px;color:var(--mid-gray);padding:2px 6px">📷 ${g.fotos.length}</span>`:''}
               <button class="btn-icon" onclick="editarGaleria(${realIdx})" title="Editar">✏️</button>
@@ -5238,6 +5287,91 @@ function renderGaleria(){
       </div>`;
     }).join('')}
   </div>`;
+}
+
+// ── Ficha técnica (vista tipo planilla, como el glosario impreso) ──
+// Devuelve las filas [label, valorHTML] que tienen contenido, en el orden de la planilla.
+function fichaRows(g){
+  const mp = galMateriaPrima(g);
+  const rows = [];
+  GLOSARIO_ROWS.forEach(([label, get])=>{
+    const val = get(g);
+    if(label==='Composición'){
+      if(val) rows.push([label, esc(val)]);
+      // Después de "Composición" va la materia prima (verdes / flores) como lista
+      if(mp.length) rows.push(['Materia prima', '<ul style="margin:0;padding-left:18px">'+mp.map(m=>`<li>${esc(m)}</li>`).join('')+'</ul>']);
+    } else if(val){
+      rows.push([label, esc(val)]);
+    }
+  });
+  return rows;
+}
+
+function fichaGaleriaHTML(g){
+  return fichaRows(g).map(([l,v])=>`<tr>
+    <td style="border:1px solid #E4E2DC;padding:9px 12px;font-weight:600;background:#FAF8F4;width:38%;vertical-align:top">${l}</td>
+    <td style="border:1px solid #E4E2DC;padding:9px 12px;vertical-align:top">${v}</td>
+  </tr>`).join('');
+}
+
+function openFichaGaleria(idx){
+  const g = galeriaData[idx];
+  if(!g) return;
+  const fotos = g.fotos?.length ? g.fotos : (g.foto ? [g.foto] : []);
+  const rowsHTML = fichaGaleriaHTML(g);
+  let ov = document.getElementById('ficha-galeria-modal');
+  if(!ov){ ov=document.createElement('div'); ov.id='ficha-galeria-modal'; ov.className='modal-overlay'; document.body.appendChild(ov); }
+  ov.innerHTML = `<div class="modal" style="max-width:920px">
+    <button class="modal-close" onclick="closeModal('ficha-galeria-modal')">✕</button>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:6px">
+      <div class="modal-title" style="margin:0">${esc(g.titulo||'Ficha de arreglo')}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn-secondary" style="font-size:12px" onclick="imprimirFicha(${idx})">🖨 Imprimir</button>
+        <button class="btn-secondary" style="font-size:12px" onclick="closeModal('ficha-galeria-modal');editarGaleria(${idx})">✏️ Editar</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start">
+      <div style="flex:1;min-width:220px">
+        ${fotos.length
+          ? `<img src="${fotos[0]}" style="width:100%;border-radius:8px;object-fit:cover;cursor:zoom-in" onclick="abrirLightbox(${idx})">
+             ${fotos.length>1?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${fotos.slice(1).map(f=>`<img src="${f}" style="width:56px;height:56px;object-fit:cover;border-radius:5px;border:1px solid var(--light-gray)">`).join('')}</div>`:''}`
+          : `<div style="width:100%;height:200px;background:linear-gradient(135deg,var(--blush-light),var(--sage-light));display:flex;align-items:center;justify-content:center;font-size:52px;border-radius:8px">🌸</div>`}
+      </div>
+      <div style="flex:2;min-width:300px;overflow-x:auto">
+        ${rowsHTML
+          ? `<table style="width:100%;border-collapse:collapse;font-size:13px">${rowsHTML}</table>`
+          : `<div style="color:var(--mid-gray);padding:20px;text-align:center">Esta ficha todavía no tiene datos técnicos.<br>Tocá "Editar" para completarla.</div>`}
+      </div>
+    </div>
+  </div>`;
+  ov.classList.add('open');
+}
+
+function imprimirFicha(idx){
+  const g = galeriaData[idx];
+  if(!g) return;
+  const foto = (g.fotos&&g.fotos[0]) || g.foto || '';
+  const win = window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>${esc(g.titulo||'Ficha de arreglo')}</title><style>
+    body{font-family:Arial,sans-serif;margin:36px;color:#1a1a1a}
+    h1{font-size:22px;margin:0 0 18px}
+    .wrap{display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap}
+    .foto{flex:1;min-width:220px}
+    .foto img{width:100%;border-radius:8px;object-fit:cover}
+    table{flex:2;min-width:300px;border-collapse:collapse;font-size:13px}
+    td{border:1px solid #ccc;padding:8px 12px;vertical-align:top}
+    td.k{font-weight:bold;background:#f5f5f0;width:36%}
+    ul{margin:0;padding-left:18px}
+    @media print{button{display:none}}
+  </style></head><body>
+    <h1>${esc(g.titulo||'Ficha de arreglo')} — ${galSecDe(g)==='hotel'?'Standard Hotel':'Eventos'}</h1>
+    <div class="wrap">
+      ${foto?`<div class="foto"><img src="${foto}"></div>`:''}
+      <table>${fichaRows(g).map(([l,v])=>`<tr><td class="k">${l}</td><td>${v}</td></tr>`).join('')}</table>
+    </div>
+    <button onclick="window.print()" style="margin-top:24px;padding:8px 20px;cursor:pointer">🖨️ Imprimir</button>
+  </body></html>`);
+  win.document.close();
 }
 
 function abrirLightbox(idx){
@@ -5275,36 +5409,98 @@ function abrirLightbox(idx){
   showFoto();
 }
 
+function galIngRowHTML(prod, qty){
+  return `<div class="ev-arreglo-row" style="display:flex;gap:8px;margin-bottom:6px">
+    <input list="gal-insumos-list" value="${esc(prod||'')}" placeholder="Materia prima (flor / follaje)" style="flex:2;min-width:0;border:1px solid #E4E2DC;border-radius:4px;padding:6px 8px;font-family:'DM Sans',sans-serif;font-size:12.5px;outline:none">
+    <input type="text" value="${esc(qty||'')}" placeholder="Cant. (ej. 3, 1 paquete)" style="flex:1;min-width:0;border:1px solid #E4E2DC;border-radius:4px;padding:6px 8px;font-size:12.5px;outline:none;font-family:'DM Sans',sans-serif">
+    <button type="button" class="btn-icon" style="color:var(--red-alert)" onclick="this.closest('.ev-arreglo-row').remove()">✕</button>
+  </div>`;
+}
+function addGalIngRow(){
+  const list = document.getElementById('gal-ings-list');
+  if(!list) return;
+  const div = document.createElement('div');
+  div.innerHTML = galIngRowHTML('','');
+  list.appendChild(div.firstElementChild);
+}
+// Mostrar/ocultar el campo de área personalizada según el select
+function galSectorOnChange(){
+  const sel = document.getElementById('gal-sector-sel');
+  const custom = document.getElementById('gal-sector-custom');
+  if(!sel||!custom) return;
+  custom.style.display = sel.value==='__otra__' ? 'block' : 'none';
+  if(sel.value==='__otra__') custom.focus();
+}
+
 function openGaleriaModal(idx){
   const g = idx!=null ? galeriaData[idx] : {};
-  const flores = Array.isArray(g.flores) ? g.flores.join(', ') : (g.flores||'');
+  const sec = idx!=null ? galSecDe(g) : (galeriaSeccion==='eventos'?'eventos':'hotel');
   let ov = document.getElementById('galeria-modal');
   if(!ov){ ov=document.createElement('div'); ov.id='galeria-modal'; ov.className='modal-overlay'; document.body.appendChild(ov); }
-  ov.innerHTML = `<div class="modal" style="max-width:620px">
+  const ings = (g.ings&&g.ings.length) ? g.ings : [{prod:'',qty:''}];
+  const fld = (label, id, val, ph='') => `<div class="form-group"><label class="form-label">${label}</label>
+    <input class="form-input-modal" id="${id}" value="${esc(val||'')}" placeholder="${esc(ph)}"></div>`;
+  ov.innerHTML = `<div class="modal" style="max-width:640px">
     <button class="modal-close" onclick="closeModal('galeria-modal')">✕</button>
-    <div class="modal-title">${idx!=null?'Editar':'Nuevo'} Trabajo</div>
-    <div class="form-group"><label class="form-label">Título del trabajo *</label>
-      <input class="form-input-modal" id="gal-titulo" value="${esc(g.titulo||'')}" placeholder="ej. Centro de mesa boda García"></div>
+    <div class="modal-title">${idx!=null?'Editar ficha':'Nueva ficha de arreglo'}</div>
+
     <div class="modal-row">
-      <div class="form-group"><label class="form-label">Tipo de evento</label>
-        <input class="form-input-modal" id="gal-tipo-ev" value="${esc(g.tipoEvento||'')}" list="gal-tipos-list" placeholder="Boda, Cumpleaños, VIP...">
-        <datalist id="gal-tipos-list">${[...new Set(galeriaData.map(g=>g.tipoEvento).filter(Boolean))].map(t=>`<option>${esc(t)}</option>`).join('')}</datalist></div>
-      <div class="form-group"><label class="form-label">Temporada</label>
+      <div class="form-group"><label class="form-label">Sección *</label>
+        <select class="form-input-modal" id="gal-seccion">
+          <option value="hotel"${sec==='hotel'?' selected':''}>🏨 Standard Hotel</option>
+          <option value="eventos"${sec==='eventos'?' selected':''}>🎉 Eventos</option>
+        </select></div>
+      <div class="form-group"><label class="form-label">Título del arreglo *</label>
+        <input class="form-input-modal" id="gal-titulo" value="${esc(g.titulo||'')}" placeholder="ej. Lobby de Alvear — Follaje"></div>
+    </div>
+
+    <div class="modal-row">
+      <div class="form-group"><label class="form-label">Área del hotel</label>
+        <select class="form-input-modal" id="gal-sector-sel" onchange="galSectorOnChange()">${getGaleriaSectorOpts(g.sector)}</select>
+        <input class="form-input-modal" id="gal-sector-custom" placeholder="Escribí la nueva área" style="display:none;margin-top:6px" value="">
+      </div>
+      <div class="form-group"><label class="form-label">Cantidad</label>
+        <input class="form-input-modal" id="gal-cantidad" value="${esc(g.cantidad||'')}" placeholder="ej. dos"></div>
+    </div>
+
+    ${fld('Categoría','gal-categoria', g.categoria||g.tipoEvento, 'ej. Ambientación Hotelera')}
+
+    <div class="form-group"><label class="form-label">Materia prima <span style="color:var(--mid-gray);font-size:10px;font-weight:400">(elegí de la base o escribí una nueva)</span></label>
+      <div id="gal-ings-list">${ings.map(i=>galIngRowHTML(i.prod,i.qty)).join('')}</div>
+      <datalist id="gal-insumos-list">${getAllInsumos().map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
+      <button type="button" class="btn-secondary" style="margin-top:4px;font-size:12px" onclick="addGalIngRow()">+ Agregar materia prima</button>
+    </div>
+
+    ${fld('Composición (texto libre, opcional)','gal-composicion', g.composicion, 'Notas de composición')}
+
+    <div class="modal-row">
+      ${fld('Formato','gal-formato', g.formato, 'ej. Arreglo')}
+      ${fld('Tamaño','gal-tamano', g.tamano, 'ej. XL (medidas cm)')}
+    </div>
+    ${fld('Base o florero','gal-base', g.base, 'ej. Base Florero metal (medidas cm)')}
+    <div class="modal-row">
+      ${fld('Paleta de color','gal-paleta', g.paleta, 'ej. rojas')}
+      ${fld('Empaque','gal-empaque', g.empaque, 'ej. no aplica')}
+    </div>
+    ${fld('Destinatario / uso','gal-destinatario', g.destinatario, 'ej. Entrada del Palacio')}
+    <div class="modal-row">
+      ${fld('Precio sugerido','gal-precio', g.precio, 'ej. por contrato')}
+      ${fld('Tiempo de armado','gal-tiempo', g.tiempoArmado, 'ej. 90 min')}
+    </div>
+
+    <div class="modal-row">
+      <div class="form-group"><label class="form-label">Temporada (opcional)</label>
         <select class="form-input-modal" id="gal-temporada">
           <option value="">—</option>
           ${['Primavera','Verano','Otoño','Invierno'].map(t=>`<option${t===(g.temporada||'')?' selected':''}>${t}</option>`).join('')}
         </select></div>
+      <div class="form-group"><label class="form-label">Fecha (opcional)</label>
+        <input class="form-input-modal" type="date" id="gal-fecha" value="${esc(g.fecha||'')}"></div>
     </div>
-    <div class="form-group"><label class="form-label">Flores y materiales (separados por coma)</label>
-      <input class="form-input-modal" id="gal-flores" value="${esc(flores)}" placeholder="Rosas, Peonías, Eucalipto..."></div>
-    <div class="modal-row">
-      <div class="form-group"><label class="form-label">Fecha del trabajo</label>
-        <input class="form-input-modal" type="date" id="gal-fecha" value="${esc(g.fecha||TODAY_ISO)}"></div>
-      <div class="form-group"><label class="form-label">Precio ($, opcional)</label>
-        <input class="form-input-modal" type="number" id="gal-precio" value="${esc(g.precio||'')}" placeholder="0"></div>
-    </div>
-    <div class="form-group"><label class="form-label">Notas</label>
-      <textarea class="form-input-modal" id="gal-notas" rows="2" placeholder="Detalles, observaciones, cliente...">${esc(g.notas||'')}</textarea></div>
+
+    <div class="form-group"><label class="form-label">Notas internas</label>
+      <textarea class="form-input-modal" id="gal-notas" rows="2" placeholder="Detalles, observaciones...">${esc(g.notas||'')}</textarea></div>
+
     <div class="form-group"><label class="form-label">Fotos</label>
       <div id="gal-fotos-preview" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px">
         ${(g.fotos||[]).map((f,fi)=>`<div style="position:relative;width:80px;height:80px;border-radius:6px;overflow:hidden;border:1px solid var(--light-gray)">
@@ -5326,10 +5522,16 @@ function openGaleriaModal(idx){
     <input type="hidden" id="gal-fotos-data" value="${esc(JSON.stringify(g.fotos||[]))}">
     <div class="modal-actions">
       <button class="btn-secondary" onclick="closeModal('galeria-modal')">Cancelar</button>
-      <button class="btn-add" onclick="guardarGaleria(${idx!=null?idx:'null'})">Guardar</button>
+      <button class="btn-add" onclick="guardarGaleria(${idx!=null?idx:'null'})">Guardar ficha</button>
     </div>
   </div>`;
   ov.classList.add('open');
+  // Si el área guardada no está en la lista, mostrar el campo custom
+  const sel = document.getElementById('gal-sector-sel');
+  const custom = document.getElementById('gal-sector-custom');
+  if(sel && custom && g.sector && sel.value!==g.sector){
+    sel.value='__otra__'; custom.style.display='block'; custom.value=g.sector;
+  }
 }
 
 function galeriaAddFotos(idx, input){
@@ -5380,23 +5582,54 @@ function _refreshGalModalFotos(fotosData, idx){
 function guardarGaleria(idx){
   const titulo = document.getElementById('gal-titulo')?.value?.trim();
   if(!titulo){ showToast('Ingresá un título'); return; }
-  const flores = (document.getElementById('gal-flores')?.value||'').split(',').map(f=>f.trim()).filter(Boolean);
+
+  // Área: puede venir del select o del campo "Otra"
+  const selArea = document.getElementById('gal-sector-sel')?.value||'';
+  const customArea = document.getElementById('gal-sector-custom')?.value?.trim()||'';
+  const sector = selArea==='__otra__' ? customArea : selArea;
+
+  // Materia prima (ingredientes) desde las filas
+  const ings = [];
+  document.querySelectorAll('#gal-ings-list .ev-arreglo-row').forEach(row=>{
+    const inputs = row.querySelectorAll('input');
+    const prod = (inputs[0]?.value||'').trim();
+    const qty  = (inputs[1]?.value||'').trim();
+    if(prod){ ings.push({prod, qty}); addInsumoToBase(prod); }
+  });
+  // flores derivadas de la materia prima (para búsqueda y chips)
+  const flores = ings.map(i=>i.prod);
+
   const fotos = JSON.parse(document.getElementById('gal-fotos-data')?.value||'[]');
+  const prev = (idx!=null ? galeriaData[idx] : {}) || {};
   const trabajo = {
+    ...prev,
+    seccion: document.getElementById('gal-seccion')?.value||'hotel',
     titulo,
-    tipoEvento: document.getElementById('gal-tipo-ev')?.value?.trim()||'',
-    temporada: document.getElementById('gal-temporada')?.value||'',
+    sector,
+    cantidad:    document.getElementById('gal-cantidad')?.value?.trim()||'',
+    categoria:   document.getElementById('gal-categoria')?.value?.trim()||'',
+    ings,
+    composicion: document.getElementById('gal-composicion')?.value?.trim()||'',
+    formato:     document.getElementById('gal-formato')?.value?.trim()||'',
+    tamano:      document.getElementById('gal-tamano')?.value?.trim()||'',
+    base:        document.getElementById('gal-base')?.value?.trim()||'',
+    paleta:      document.getElementById('gal-paleta')?.value?.trim()||'',
+    empaque:     document.getElementById('gal-empaque')?.value?.trim()||'',
+    destinatario:document.getElementById('gal-destinatario')?.value?.trim()||'',
+    tiempoArmado:document.getElementById('gal-tiempo')?.value?.trim()||'',
+    temporada:   document.getElementById('gal-temporada')?.value||'',
+    fecha:       document.getElementById('gal-fecha')?.value||'',
+    precio:      document.getElementById('gal-precio')?.value?.trim()||'',
+    notas:       document.getElementById('gal-notas')?.value?.trim()||'',
     flores,
-    fecha: document.getElementById('gal-fecha')?.value||'',
-    precio: document.getElementById('gal-precio')?.value||'',
-    notas: document.getElementById('gal-notas')?.value?.trim()||'',
     fotos
   };
+  // tipoEvento queda como estaba (histórico); la nueva categoría lo reemplaza en la vista
   if(idx!=null) galeriaData[idx]=trabajo; else galeriaData.push(trabajo);
   fbSave('galeriaData', galeriaData);
   closeModal('galeria-modal');
   renderGaleria();
-  showToast('✅ Trabajo guardado en la galería');
+  showToast('✅ Ficha guardada en la galería');
 }
 
 function editarGaleria(idx){ openGaleriaModal(idx); }
@@ -14922,6 +15155,7 @@ Object.assign(window, {
   renderComposicionesCot, renderCompraAlert, renderCompraSummary, renderCompras, renderCotEventos,
   renderCotizador, renderCotizadorOps, renderCtrlHab, renderCtrlJard, renderEvCarrito,
   renderGaleria, abrirLightbox, galeriaAddFotos, galeriaAddUrl, galeriaQuitarFoto, guardarGaleria, editarGaleria, eliminarGaleria,
+  setGaleriaSeccion, openFichaGaleria, imprimirFicha, addGalIngRow, galSectorOnChange,
   renderEvHoraCell, renderEvTipos, renderEventos, renderHabLog, renderHabOps,
   renderHabReporte, renderHistorialCompras, renderHistorialEventos, renderHistoryPanel, renderHome,
   renderHomeHyatt, renderHoraCell, renderHorarios, renderInsumosGrid, renderJardLog, renderJardOps,
