@@ -9378,6 +9378,10 @@ function _precioVariantePH(val){
       const margen = cotizadorConfig?.margen ?? 30;
       return '$' + Math.round(costo*(1+margen/100)).toLocaleString('es-AR');
     }
+  } else if(val.startsWith('ramo:')){
+    const nombre = val.slice(5);
+    const r = (ramosDispData||[]).find(x => x.nombre === nombre);
+    if(r) return r.precio || '';
   } else if(val.startsWith('lp:')){
     const nombre = val.slice(3);
     for(const cat of listaPreciosData){
@@ -9390,18 +9394,17 @@ function _precioVariantePH(val){
 
 function enviarPedidoHab(){
   const tipo = document.getElementById('ph-tipo')?.value;
-  if(!tipo){ showToast('⚠️ Seleccioná el tipo de arreglo'); return; }
+  if(!tipo){ showToast('⚠️ Seleccioná el arreglo o ramo'); return; }
   const cliente = document.getElementById('ph-cliente')?.value?.trim();
   if(!cliente){ showToast('⚠️ Ingresá el nombre del huésped'); return; }
 
-  const tipoCustom = document.getElementById('ph-tipo-custom')?.value?.trim();
-  const variante = document.getElementById('ph-variante')?.value || '';
-  const tipoFinal = tipo === 'Otro' ? (tipoCustom || 'Arreglo especial') : tipo;
-  const varianteLabel = variante.replace(/^(comp|lp):/,'');
+  // El valor viene como "comp:Nombre" (composición) o "ramo:Nombre" (ramo)
+  const tipoFinal = tipo.replace(/^(comp|ramo):/,'');
+  const varianteLabel = '';
   const qty = +document.getElementById('ph-qty')?.value || 1;
 
   // Precio unitario del modelo elegido y total según cantidad
-  const precioUnit = _precioVariantePH(variante);
+  const precioUnit = _precioVariantePH(tipo);
   const precioNum = parseMoney(precioUnit);
   const precioTotal = precioNum > 0 ? '$' + (precioNum * qty).toLocaleString('es-AR') : precioUnit;
 
@@ -9466,7 +9469,35 @@ function enviarPedidoHab(){
   showToast('📨 Pedido enviado · tarea creada en Kanban · registrado en Ventas');
 }
 
+// Llena el selector "Tipo de arreglo" del pedido de habitación SOLO con las
+// composiciones ya cargadas (con receta) y los ramos disponibles. Nada más.
+function populatePHTipos(){
+  const sel = document.getElementById('ph-tipo');
+  if(!sel) return;
+  const cur = sel.value;
+  let opts = '<option value="">— Seleccionar —</option>';
+  if(recetasData.length){
+    opts += '<optgroup label="🌸 Composiciones">';
+    recetasData.forEach(r => {
+      opts += `<option value="comp:${esc(r.nombre)}">${arregloEmoji(r.nombre)} ${esc(r.nombre)}</option>`;
+    });
+    opts += '</optgroup>';
+  }
+  const ramos = [...new Set((ramosDispData||[]).map(r=>r.nombre).filter(Boolean))];
+  if(ramos.length){
+    opts += '<optgroup label="💐 Ramos">';
+    ramos.forEach(n => { opts += `<option value="ramo:${esc(n)}">💐 ${esc(n)}</option>`; });
+    opts += '</optgroup>';
+  }
+  if(!recetasData.length && !ramos.length){
+    opts += '<option value="" disabled>Cargá composiciones o ramos primero</option>';
+  }
+  sel.innerHTML = opts;
+  if(cur) sel.value = cur;
+}
+
 function renderPedidosHab(){
+  populatePHTipos();
   const list = document.getElementById('ph-lista');
   if(!list) return;
   if(!pedidosHabData.length){
