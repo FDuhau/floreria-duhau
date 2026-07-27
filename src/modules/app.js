@@ -4,7 +4,7 @@
 // Cuando un dispositivo detecta una versión distinta a la guardada,
 // limpia el localStorage viejo UNA sola vez y recarga. Sin borrar caché a mano.
 // ════════════════════════════════════════
-const APP_VERSION = '2026-07-24-e';
+const APP_VERSION = '2026-07-24-f';
 (function checkAppVersion(){
   try {
     const stored = localStorage.getItem('app_version');
@@ -844,11 +844,64 @@ function updTiempoRef(i, val){
 }
 
 // Persistir un campo de un día puntual del checklist (localStorage + Firebase)
+// ── Planificación fija (plantilla) del checklist ──────────────────────────────
+// Guarda quién hace cada zona y si es Nuevo/Retoque por día de forma PERSISTENTE
+// (no se borra al cambiar de semana). Cada semana nueva arranca con esta plantilla,
+// así no hay que reasignar todo a mano; igual se puede editar cuando haga falta.
+let checklistPlantilla = {}; // { [dia]: { responsable:[...], actividad:[...] } }
+window._setChecklistPlantilla = v => { if(v && typeof v === 'object') checklistPlantilla = v; };
+function _plantillaDia(day){
+  if(!checklistPlantilla[day]) checklistPlantilla[day] = {};
+  const p = checklistPlantilla[day];
+  ['responsable','actividad'].forEach(k=>{
+    if(!p[k]) p[k] = CL_TASKS.map(()=> '');
+    if(!Array.isArray(p[k])) p[k] = Object.values(p[k]);
+    while(p[k].length < CL_TASKS.length) p[k].push('');
+  });
+  return p;
+}
+function saveChecklistPlantilla(){ window._checklistPlantillaLastSave = Date.now(); fbSave('checklistPlantilla', checklistPlantilla); }
+// Copia responsable + actividad del estado real de un día a la plantilla fija.
+function _syncDiaAPlantilla(day){
+  const ds = clStateByDay[day];
+  if(!ds) return;
+  const p = _plantillaDia(day);
+  p.responsable = (ds.responsable||[]).map(r=>r||'');
+  p.actividad   = (ds.actividad||[]).map((a,i)=> a || CL_TASKS[i].actividad);
+  saveChecklistPlantilla();
+}
+// Aplica la plantilla fija a toda la semana (responsable + Nuevo/Retoque),
+// sin tocar lo ya realizado (checks/tiempos). Para empujar la planificación a
+// la semana en curso; las semanas nuevas ya la toman solas.
+function aplicarPlantillaSemana(){
+  const hayDatos = Object.values(checklistPlantilla).some(d =>
+    (d && d.responsable && d.responsable.some(Boolean)) ||
+    (d && d.actividad && d.actividad.some(a => a && String(a).toLowerCase()==='nuevo')));
+  if(!hayDatos){ showToast('Todavía no hay planificación fija guardada. Asigná responsables/Nuevo y se guarda sola.'); return; }
+  DIAS_SEMANA_NAMES.forEach(day=>{
+    const ds = getOrCreateDayState(day);
+    const p = checklistPlantilla[day];
+    CL_TASKS.forEach((t,i)=>{
+      ds.responsable[i] = (p && p.responsable && p.responsable[i]) || '';
+      ds.actividad[i]   = (p && p.actividad && p.actividad[i]) || t.actividad;
+    });
+    if(window.fbSetPath) window.fbSetPath('checklist/'+day, ds);
+  });
+  try{ localStorage.setItem(CL_STORAGE_KEY, JSON.stringify(clStateByDay)); }catch(e){}
+  if(!window.fbSetPath) fbSave('checklist', clStateByDay);
+  window._checklistLastSave = Date.now();
+  renderVistaSemanal();
+  if(document.getElementById('page-checklist')?.classList.contains('active')){ clState = getOrCreateDayState(currentDay); renderChecklistTable(); }
+  showToast('✓ Planificación fija aplicada a toda la semana');
+}
+
 function _persistCampoDia(day, campo){
   try{ localStorage.setItem(CL_STORAGE_KEY, JSON.stringify(clStateByDay)); }catch(e){}
   window._checklistLastSave = Date.now();
   if(window.fbUpdate) window.fbUpdate('checklist/'+day, {[campo]: clStateByDay[day][campo]});
   else fbSave('checklist', clStateByDay);
+  // Guardar la planificación como plantilla fija (para reusar cada semana)
+  if(campo==='responsable' || campo==='actividad') _syncDiaAPlantilla(day);
 }
 
 // Setear la actividad de una tarea en un día. Si es Nuevo, esa tarea pasa a
@@ -894,7 +947,11 @@ function renderVistaSemanal(){
   const estados = {};
   dias.forEach(d=>{ estados[d] = getOrCreateDayState(d); });
   let lastSec = null;
-  let html = `<table class="stock-table" style="min-width:900px">
+  let html = `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;padding:10px 14px;background:#EEF3EC;border:1px solid #D8E3D4;border-radius:8px">
+    <div style="font-size:12px;color:#3A4A34">✓ Esta planificación queda <strong>guardada fija</strong> y se aplica sola al empezar cada semana nueva. Editá cuando haga falta y se guarda solo.</div>
+    <button class="btn-secondary" style="font-size:11.5px;white-space:nowrap" onclick="aplicarPlantillaSemana()" title="Volver a aplicar la planificación fija a la semana actual">📋 Aplicar a esta semana</button>
+  </div>
+  <table class="stock-table" style="min-width:900px">
     <thead><tr><th style="min-width:150px;position:sticky;left:0;background:var(--warm-white);z-index:1">Zona</th>${dias.map(d=>{
       const nuevos = CL_TASKS.reduce((s,_,i)=>s+(String(estados[d].actividad[i]||'').toLowerCase()==='nuevo'?1:0),0);
       return `<th style="min-width:118px">${d===currentDay?'▸ ':''}${d.slice(0,3)}${nuevos?` <span style="font-size:9px;background:#B8602A;color:#fff;border-radius:8px;padding:1px 6px;vertical-align:middle">${nuevos} N</span>`:''}</th>`;
@@ -987,19 +1044,24 @@ function saveWeekState(day, campo){
   } else {
     fbSave('checklist', clStateByDay);
   }
+  // Guardar la planificación como plantilla fija (para reusar cada semana)
+  if(campo==='responsable' || campo==='actividad') _syncDiaAPlantilla(d);
 }
 
 // ── Inicializar estado del día — trae de localStorage si existe ───────────────
 function getOrCreateDayState(day){
   if(!clStateByDay[day]){
+    // Sembrar responsable y Nuevo/Retoque desde la plantilla fija si existe,
+    // así una semana nueva ya arranca planificada sin cargar todo a mano.
+    const plant = checklistPlantilla[day] || {};
     clStateByDay[day] = {
       checked:     CL_TASKS.map(()=>false),
-      actividad:   CL_TASKS.map(t=>t.actividad),
+      actividad:   CL_TASKS.map((t,i)=> (plant.actividad && plant.actividad[i]) || t.actividad),
       obs:         CL_TASKS.map(t=>t.obs||''),
       tiempo:      CL_TASKS.map(()=>''),
       inicio:      CL_TASKS.map(()=>''),
       fin:         CL_TASKS.map(()=>''),
-      responsable: CL_TASKS.map(()=>''),
+      responsable: CL_TASKS.map((_,i)=> (plant.responsable && plant.responsable[i]) || ''),
     };
     // NO guardar a Firebase aquí — se guarda solo cuando el usuario hace un cambio explícito.
     // Si guardamos acá, pisamos los datos reales cuando otro dispositivo abre la app.
@@ -15276,7 +15338,7 @@ Object.assign(window, {
   renderClientes, abrirFichaCliente, openNuevoClienteModal, editarCliente, guardarCliente, eliminarCliente,
   generarPresupuestoPDF, checkOnboarding, nextOnboardingStep, finishOnboarding,
   toggleProvManager, toggleSidebar, toggleTask, updC, updCL, updActividad, updTiempoRef, updCaja, updCajaMonto, updCajaTipo,
-  openVistaSemanal, vsToggleActividad, vsSetResp, descargarBackup, clFotoPreview, guardarFotoChecklist, verFotoChecklist,
+  openVistaSemanal, vsToggleActividad, vsSetResp, aplicarPlantillaSemana, descargarBackup, clFotoPreview, guardarFotoChecklist, verFotoChecklist,
   openGestionZonas, clAddZona, clRenameZona, clDeleteZona, clMoveZona, clRenameSeccion, clAddSeccion,
   activarNotificaciones, openGaleriaNuevos, renderGaleriaNuevos, moveKanbanCard, clSetFiltro,
   cerrarBriefing, mostrarResumenSemanal,
