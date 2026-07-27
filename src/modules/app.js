@@ -4,7 +4,7 @@
 // Cuando un dispositivo detecta una versión distinta a la guardada,
 // limpia el localStorage viejo UNA sola vez y recarga. Sin borrar caché a mano.
 // ════════════════════════════════════════
-const APP_VERSION = '2026-07-24-d';
+const APP_VERSION = '2026-07-24-e';
 (function checkAppVersion(){
   try {
     const stored = localStorage.getItem('app_version');
@@ -11779,6 +11779,19 @@ function toggleEvZona(z){
   renderZonasPicker();
 }
 
+// Los handlers de las filas de arreglos deben ir por funciones exportadas: el
+// array evArreglosRows es interno del módulo y, minificado, su nombre cambia,
+// así que un onchange inline "evArreglosRows[i]=..." rompía (ReferenceError) y
+// el arreglo elegido nunca se guardaba en el evento.
+function evSetArreglo(idx, val){ if(evArreglosRows[idx]) evArreglosRows[idx].arreglo = val; previewStockImpact(); }
+function evSetArregloQty(idx, val){ if(evArreglosRows[idx]) evArreglosRows[idx].qty = +val || 0; previewStockImpact(); }
+function evRemoveArregloRow(idx){
+  const el = document.getElementById('ev-arr-row-'+idx);
+  if(el) el.remove();
+  if(evArreglosRows[idx]) evArreglosRows[idx] = {arreglo:'', qty:0};
+  previewStockImpact();
+}
+
 function addEvArregloRow(){
   const list = document.getElementById('ev-arreglos-list');
   const idx = evArreglosRows.length;
@@ -11790,12 +11803,12 @@ function addEvArregloRow(){
   div.className = 'ev-arreglo-row';
   div.id = 'ev-arr-row-'+idx;
   div.innerHTML = `
-    <select onchange="evArreglosRows[${idx}].arreglo=this.value;previewStockImpact()" style="flex:2;border:1px solid #E4E2DC;border-radius:4px;padding:5px 8px;font-family:'DM Sans',sans-serif;font-size:12.5px;outline:none">
+    <select onchange="evSetArreglo(${idx},this.value)" style="flex:2;border:1px solid #E4E2DC;border-radius:4px;padding:5px 8px;font-family:'DM Sans',sans-serif;font-size:12.5px;outline:none">
       <option value="">— Tipo de arreglo —</option>${arregloOpts}
     </select>
     <span style="font-size:12px;color:var(--mid-gray)">×</span>
-    <input type="number" min="1" value="1" placeholder="Cant." onchange="evArreglosRows[${idx}].qty=+this.value;previewStockImpact()" style="width:60px;border:1px solid #E4E2DC;border-radius:4px;padding:5px 6px;font-size:12.5px;text-align:center;outline:none;font-family:'DM Sans',sans-serif">
-    <button type="button" class="btn-icon" style="color:var(--red-alert)" onclick="document.getElementById('ev-arr-row-${idx}').remove();evArreglosRows[${idx}]={arreglo:'',qty:0};previewStockImpact()">✕</button>`;
+    <input type="number" min="1" value="1" placeholder="Cant." onchange="evSetArregloQty(${idx},this.value)" style="width:60px;border:1px solid #E4E2DC;border-radius:4px;padding:5px 6px;font-size:12.5px;text-align:center;outline:none;font-family:'DM Sans',sans-serif">
+    <button type="button" class="btn-icon" style="color:var(--red-alert)" onclick="evRemoveArregloRow(${idx})">✕</button>`;
   list.appendChild(div);
 }
 
@@ -12177,12 +12190,12 @@ function addEvArregloRowWithData(arreglo, qty){
   const div = document.createElement('div');
   div.className='ev-arreglo-row'; div.id='ev-arr-row-'+idx;
   div.innerHTML=`
-    <select onchange="evArreglosRows[${idx}].arreglo=this.value;previewStockImpact()" style="flex:2;border:1px solid #E4E2DC;border-radius:4px;padding:5px 8px;font-family:'DM Sans',sans-serif;font-size:12.5px;outline:none">
+    <select onchange="evSetArreglo(${idx},this.value)" style="flex:2;border:1px solid #E4E2DC;border-radius:4px;padding:5px 8px;font-family:'DM Sans',sans-serif;font-size:12.5px;outline:none">
       <option value="">— Tipo de arreglo —</option>${arregloOpts}
     </select>
     <span style="font-size:12px;color:var(--mid-gray)">×</span>
-    <input type="number" min="1" value="${qty}" onchange="evArreglosRows[${idx}].qty=+this.value;previewStockImpact()" style="width:60px;border:1px solid #E4E2DC;border-radius:4px;padding:5px 6px;font-size:12.5px;text-align:center;outline:none;font-family:'DM Sans',sans-serif">
-    <button type="button" class="btn-icon" style="color:var(--red-alert)" onclick="document.getElementById('ev-arr-row-${idx}').remove();evArreglosRows[${idx}]={arreglo:'',qty:0};previewStockImpact()">✕</button>`;
+    <input type="number" min="1" value="${qty}" onchange="evSetArregloQty(${idx},this.value)" style="width:60px;border:1px solid #E4E2DC;border-radius:4px;padding:5px 6px;font-size:12.5px;text-align:center;outline:none;font-family:'DM Sans',sans-serif">
+    <button type="button" class="btn-icon" style="color:var(--red-alert)" onclick="evRemoveArregloRow(${idx})">✕</button>`;
   list.appendChild(div);
 }
 
@@ -15191,6 +15204,7 @@ function applyCompraFiltersExtToArr(type, arr){
 
 Object.assign(window, {
   _downloadCSV, addCajaMovimiento, addCompra, addEvArregloRow, addEvArregloRowWithData,
+  evSetArreglo, evSetArregloQty, evRemoveArregloRow,
   addInsumoToBase, addLpCat, addProveedor, addRecetaIngRow,
   addReglaTipo, addSale, addTipoEvento, adjustStock, agregarNuevoInsumo, agregarPedidoRapido,
   agregarUsuarioFlorista, aplicarPlantillaAlMes, aplicarPlantillaForce, applyCompraFilter,
