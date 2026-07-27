@@ -4,7 +4,7 @@
 // Cuando un dispositivo detecta una versión distinta a la guardada,
 // limpia el localStorage viejo UNA sola vez y recarga. Sin borrar caché a mano.
 // ════════════════════════════════════════
-const APP_VERSION = '2026-07-24-c';
+const APP_VERSION = '2026-07-24-d';
 (function checkAppVersion(){
   try {
     const stored = localStorage.getItem('app_version');
@@ -9176,7 +9176,7 @@ function renderDashboardMargen(){
   const parseMon = parseMoney;
 
   const totalVentas = ventas.reduce((s,v) => s + parseMon(v.monto||v.total), 0);
-  const totalCompras = compras.reduce((s,c) => s + parseMon(c.costo), 0);
+  const totalCompras = compras.reduce((s,c) => s + _compraImporte(c), 0);
   const margenBruto = totalVentas - totalCompras;
   const pct = totalVentas > 0 ? ((margenBruto / totalVentas) * 100).toFixed(1) : 0;
 
@@ -9202,7 +9202,7 @@ function renderDashboardMargen(){
   compras.forEach(c => {
     const s = c.sector||c.tipo||'General';
     if(!porSector[s]) porSector[s] = 0;
-    porSector[s] += parseMon(c.costo);
+    porSector[s] += _compraImporte(c);
   });
 
   const tablaEl = document.getElementById('margen-tabla');
@@ -12505,7 +12505,7 @@ function renderDashboardConsolidado(){
     const totalVentas = ventas.reduce((s,v)=>s+parseMon(v.precio||v.monto||v.total),0);
     const totalIngresos = caja.filter(r=>r.tipo==='ingreso').reduce((s,r)=>s+parseMon(r.monto),0);
     const totalEgresos = caja.filter(r=>r.tipo==='egreso').reduce((s,r)=>s+parseMon(r.monto),0);
-    const totalCompras = compras.reduce((s,c)=>s+parseMon(c.costo),0);
+    const totalCompras = compras.reduce((s,c)=>s+_compraImporte(c),0);
     const margen = totalVentas>0?((totalVentas-totalCompras)/totalVentas*100).toFixed(1):0;
     return `<div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:14px;padding:20px;margin-bottom:16px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
