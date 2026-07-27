@@ -1,4 +1,4 @@
-const CACHE = 'floreria-duhau-v14';
+const CACHE = 'floreria-duhau-v15';
 const ASSETS = [
   '/',
   '/index.html',
