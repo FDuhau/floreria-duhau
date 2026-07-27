@@ -363,6 +363,11 @@
         if(document.getElementById('page-checklist')?.classList.contains('active') && !window.estaEditando('page-checklist')) window.renderChecklistTable?.();
       });
 
+      // Planificación fija (plantilla) del checklist — persistente entre semanas
+      fbListen('checklistPlantilla', val => {
+        if(window._setChecklistPlantilla) window._setChecklistPlantilla(val || {});
+      });
+
       // Zonas/secciones del checklist editadas por gerencia
       fbListen('checklistSecciones', val => { if(window._setChecklistSecciones) window._setChecklistSecciones(val); });
       fbListen('checklistTareas', val => {
