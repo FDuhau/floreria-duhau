@@ -4,7 +4,7 @@
 // Cuando un dispositivo detecta una versión distinta a la guardada,
 // limpia el localStorage viejo UNA sola vez y recarga. Sin borrar caché a mano.
 // ════════════════════════════════════════
-const APP_VERSION = '2026-07-24-b';
+const APP_VERSION = '2026-07-24-c';
 (function checkAppVersion(){
   try {
     const stored = localStorage.getItem('app_version');
@@ -3325,7 +3325,8 @@ function renderHistorialCompras(){
           <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:10px">Varas/paq</th>
           <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:10px">Total varas</th>
           <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:10px">Control</th>
-          <th style="padding:6px 10px;text-align:right;color:var(--mid-gray);font-size:10px">Precio de compra</th>
+          <th style="padding:6px 10px;text-align:right;color:var(--mid-gray);font-size:10px">Precio x paq</th>
+          <th style="padding:6px 10px;text-align:right;color:var(--mid-gray);font-size:10px">Importe</th>
           <th style="padding:6px 10px;text-align:right;color:var(--mid-gray);font-size:10px">Costo/vara</th>
           <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:10px"></th>
         </tr></thead>
@@ -3338,6 +3339,7 @@ function renderHistorialCompras(){
           <td style="padding:6px 10px;text-align:center;font-weight:600">${r.totalVaras||r.qty||'—'}</td>
           <td style="padding:6px 10px;text-align:center">${an ? '<span style="font-size:9px;font-weight:700;background:#7A7A72;color:#fff;padding:2px 7px;border-radius:5px;white-space:nowrap">🚫 Anulado</span>' : controlBadgeCompra(r)}</td>
           <td style="padding:6px 10px;text-align:right"><input class="form-input" value="${esc(r.costo||'')}" placeholder="$" onchange="updHistCostoCompra(${idx},this.value)" style="width:90px;text-align:right" ${an?'disabled':''}></td>
+          <td style="padding:6px 10px;text-align:right;font-weight:600">${parseMoney(r.costo)>0?'$'+_compraImporte(r).toLocaleString('es-AR'):'<span style="color:var(--mid-gray);font-weight:400">—</span>'}</td>
           <td style="padding:6px 10px;text-align:right;font-weight:700;color:var(--sage-dark)">${cvVal!=null?'$'+cvVal.toLocaleString('es-AR'):'<span style="color:var(--mid-gray);font-weight:400">—</span>'}</td>
           <td style="padding:6px 10px;text-align:center;white-space:nowrap"><button class="btn-secondary" style="font-size:10px;padding:3px 8px" onclick="toggleAnularCompra(${idx})">${an?'↩️ Reactivar':'🚫 Anular'}</button></td>
         </tr>`; }).join('')}</tbody>
