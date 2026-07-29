@@ -4441,7 +4441,8 @@ function renderEventos(){
       : '';
   }
   // Solo mostrar eventos actuales (no finalizados — esos van a Historial)
-  const eventosActivos = eventosData.filter(ev => ev.estado !== 'Pedidos Finalizados');
+  const eventosActivos = eventosData.filter(ev => ev.estado !== 'Pedidos Finalizados')
+    .sort((a,b) => (a.fecha||'9999-12-31').localeCompare(b.fecha||'9999-12-31') || (a.hora||'').localeCompare(b.hora||''));
   grid.innerHTML=eventosActivos.map((ev)=>{
     const i = eventosData.indexOf(ev);
     const stStyle=ESTADO_COLORS[ev.estado]||'';
@@ -13096,18 +13097,18 @@ function renderCalendario(){
   };
 
   const days = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
-  let html = `<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:2px">
-    ${days.map(d=>`<div style="text-align:center;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);padding:8px 0">${d}</div>`).join('')}
+  let html = `<div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px;margin-bottom:2px">
+    ${days.map(d=>`<div style="text-align:center;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);padding:8px 0;overflow:hidden;text-overflow:ellipsis">${d}</div>`).join('')}
   </div>
-  <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">`;
+  <div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px">`;
 
-  for(let i=0; i<startWd; i++) html += `<div style="min-height:100px"></div>`;
+  for(let i=0; i<startWd; i++) html += `<div style="min-height:100px;min-width:0"></div>`;
 
   for(let d=1; d<=lastDay.getDate(); d++){
     const dateStr = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const dayEvents = mesEvents.filter(ev => ev.fecha === dateStr);
     const isToday = dateStr === TODAY_ISO;
-    html += `<div style="min-height:100px;border:1px solid var(--light-gray);border-radius:6px;padding:6px;background:${isToday?'var(--blush-light)':'var(--warm-white)'}">
+    html += `<div style="min-height:100px;min-width:0;overflow:hidden;border:1px solid var(--light-gray);border-radius:6px;padding:6px;background:${isToday?'var(--blush-light)':'var(--warm-white)'}">
       <div style="font-size:12px;font-weight:${isToday?'700':'400'};color:${isToday?'var(--blush)':'var(--mid-gray)'};margin-bottom:4px">${d}</div>
       ${dayEvents.map(ev=>`<div onclick="openEventoDetail(${eventosData.indexOf(ev)})" style="background:${ESTADO_BG[ev.estado]||'#E8E4DC'};border-radius:4px;padding:3px 6px;margin-bottom:3px;font-size:11px;cursor:pointer;line-height:1.3;overflow:hidden;white-space:nowrap;text-overflow:ellipsis" title="${esc(ev.nombre)} · ${esc(ev.estado)}">${esc(ev.nombre)}</div>`).join('')}
     </div>`;
