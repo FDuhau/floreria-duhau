@@ -311,6 +311,7 @@ function navigate(pageId, navEl){
   if(pageId==='compras-jardineria') renderCompras('jardineria');
   if(pageId==='stock-admin')        renderStockAdmin();
   if(pageId==='floreros')           renderFloreros();
+  if(pageId==='velas')              renderVelas();
   if(pageId==='eventos-comercial'){ initEventosToggle(); if(eventosView==='calendario') renderCalendario(); else renderEventos(); }
   if(pageId==='historial-eventos')   renderHistorialEventos();
   if(pageId==='eventos-sin-floreria') renderEventosSinFloreria();
@@ -8543,6 +8544,137 @@ function cambiarFotoFlorero(i){
   input.click();
 }
 
+// ── STOCK DE VELAS ────────────────────────────────────────────────────────────
+let velasData = [];
+let _velaFotoTmp = '';
+window._setVelasData = (arr) => {
+  if(window._velasLastSave && Date.now() - window._velasLastSave < 2000) return;
+  velasData.splice(0, velasData.length, ...(Array.isArray(arr)?arr:Object.values(arr||{})));
+  if(document.getElementById('page-velas')?.classList.contains('active')) renderVelas();
+};
+
+function renderVelas(){
+  const grid = document.getElementById('velas-grid');
+  if(!grid) return;
+  const search = (document.getElementById('velas-search')?.value||'').toLowerCase();
+  const total = velasData.reduce((s,f)=>s+(+f.cantidad||0),0);
+  const kpi = document.getElementById('velas-kpi');
+  if(kpi) kpi.textContent = `${velasData.length} modelo${velasData.length!==1?'s':''} · ${total} velas en total`;
+  if(!velasData.length){
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:48px 20px;color:var(--mid-gray)">
+      <div style="font-size:40px;margin-bottom:10px">🕯️</div>
+      <div style="font-size:15px;font-weight:600;color:#7A7A72">Todavía no cargaste velas</div>
+      <div style="font-size:13px;margin-top:6px">Cargá tus velas con foto y cantidad con "+ Agregar vela".</div></div>`;
+    return;
+  }
+  const vis = velasData.map((f,i)=>({f,i})).filter(({f})=>!search || (f.nombre||'').toLowerCase().includes(search) || (f.notas||'').toLowerCase().includes(search));
+  if(!vis.length){ grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:32px;color:var(--mid-gray)">Sin resultados para "${esc(search)}".</div>`; return; }
+  grid.innerHTML = vis.map(({f,i})=>{
+    const cant = +f.cantidad||0;
+    const foto = f.foto
+      ? `<img class="lp-card-photo" src="${f.foto}" style="cursor:pointer" onclick="openVelaFoto(${i})">`
+      : `<div class="lp-card-photo-placeholder"><span style="font-size:30px">🕯️</span></div>`;
+    return `<div class="lp-card">
+      ${foto}
+      <div class="lp-card-body">
+        <div class="lp-card-name" style="font-weight:600">${esc(f.nombre||'Vela')}</div>
+        ${f.notas?`<div style="font-size:12px;color:#7A7A72;margin:2px 0 6px">${esc(f.notas)}</div>`:''}
+        <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+          <button class="btn-icon" style="border:1px solid var(--light-gray);border-radius:6px;width:30px;height:30px;font-size:18px" onclick="velaAjustar(${i},-1)">−</button>
+          <span style="min-width:44px;text-align:center;font-size:22px;font-weight:700;color:${cant>0?'var(--charcoal)':'var(--red-alert)'}">${cant}</span>
+          <button class="btn-icon" style="border:1px solid var(--light-gray);border-radius:6px;width:30px;height:30px;font-size:18px" onclick="velaAjustar(${i},1)">+</button>
+          <span style="font-size:11px;color:var(--mid-gray)">en stock</span>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+          <button class="btn-secondary" style="font-size:11px" onclick="openVelaModal(${i})">✏️ Editar</button>
+          <button class="btn-icon" onclick="cambiarFotoVela(${i})" title="Cambiar foto">📷</button>
+          <button class="btn-icon" style="color:var(--red-alert)" onclick="delVela(${i})" title="Eliminar">✕</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function velaAjustar(i, delta){
+  if(!velasData[i]) return;
+  velasData[i].cantidad = Math.max(0, (+velasData[i].cantidad||0) + delta);
+  window._velasLastSave = Date.now();
+  fbSave('velasData', velasData);
+  renderVelas();
+}
+
+function openVelaFoto(i){
+  const f = velasData[i]; if(!f?.foto) return;
+  const ov = document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9998;display:flex;align-items:center;justify-content:center;padding:20px;cursor:pointer';
+  ov.innerHTML=`<img src="${f.foto}" style="max-width:94vw;max-height:90vh;border-radius:12px">`;
+  ov.onclick=()=>ov.remove(); document.body.appendChild(ov);
+}
+
+function openVelaModal(idx){
+  const f = idx>=0 ? velasData[idx] : {};
+  _velaFotoTmp = f.foto||'';
+  document.getElementById('vela-modal-title').textContent = idx>=0 ? 'Editar vela' : 'Nueva vela';
+  document.getElementById('vela-idx').value = idx;
+  document.getElementById('vela-nombre').value = f.nombre||'';
+  document.getElementById('vela-cantidad').value = f.cantidad!=null ? f.cantidad : '';
+  document.getElementById('vela-notas').value = f.notas||'';
+  document.getElementById('vela-file').value = '';
+  const p = document.getElementById('vela-preview');
+  if(_velaFotoTmp){ p.src=_velaFotoTmp; p.style.display='block'; } else { p.src=''; p.style.display='none'; }
+  document.getElementById('vela-modal').classList.add('open');
+}
+
+function velaFotoPreview(input){
+  const file = input.files[0]; if(!file) return;
+  comprimirImagen(file, 1000, 0.7, data => { _velaFotoTmp = data; const p=document.getElementById('vela-preview'); p.src=data; p.style.display='block'; });
+}
+
+function guardarVela(){
+  const nombre = document.getElementById('vela-nombre').value.trim();
+  if(!nombre){ showToast('Poné un nombre a la vela','error'); return; }
+  const idx = +document.getElementById('vela-idx').value;
+  const obj = {
+    id: idx>=0 ? velasData[idx].id : Date.now(),
+    nombre,
+    cantidad: Math.max(0, +document.getElementById('vela-cantidad').value||0),
+    notas: document.getElementById('vela-notas').value.trim(),
+    foto: _velaFotoTmp||'',
+  };
+  if(idx>=0) velasData[idx]=obj; else velasData.push(obj);
+  window._velasLastSave = Date.now();
+  fbSave('velasData', velasData);
+  closeModal('vela-modal');
+  renderVelas();
+  showToast('🕯️ Vela guardada');
+}
+
+async function delVela(i){
+  if(!velasData[i]) return;
+  if(!await confirmModal(`¿Eliminar "${velasData[i].nombre||'esta vela'}" del stock?`)) return;
+  velasData.splice(i,1);
+  window._velasLastSave = Date.now();
+  fbSave('velasData', velasData);
+  renderVelas();
+}
+
+function cambiarFotoVela(i){
+  if(!velasData[i]) return;
+  const input = document.createElement('input');
+  input.type='file'; input.accept='image/*'; input.style.display='none';
+  document.body.appendChild(input);
+  const cleanup=()=>{ if(input.isConnected) input.remove(); };
+  input.onchange=()=>{
+    const file=input.files?.[0]; if(!file){ cleanup(); return; }
+    comprimirImagen(file, 1000, 0.7, data=>{
+      if(velasData[i]){ velasData[i].foto=data; window._velasLastSave=Date.now(); fbSave('velasData', velasData); renderVelas(); showToast('📷 Foto actualizada'); }
+      cleanup();
+    });
+  };
+  window.addEventListener('focus', function onF(){ window.removeEventListener('focus',onF); setTimeout(()=>{ if(input.isConnected && !input.files.length) cleanup(); }, 600); });
+  input.click();
+}
+
 function openVentaRamo(i){
   const r = ramosDispData[i];
   if(!r) return;
@@ -9902,7 +10034,7 @@ function descargarBackup(){
     ventasData: ()=>ventasData, cajaData: ()=>cajaData, cierresCajaData: ()=>cierresCajaData,
     cierresMensualesData: ()=>cierresMensualesData, presupuestosData: ()=>presupuestosData,
     clientesData: ()=>clientesData, listaPreciosData: ()=>listaPreciosData,
-    ramosDispData: ()=>ramosDispData, florerosData: ()=>florerosData, pedidosHabData: ()=>pedidosHabData, galeriaData: ()=>galeriaData,
+    ramosDispData: ()=>ramosDispData, florerosData: ()=>florerosData, velasData: ()=>velasData, pedidosHabData: ()=>pedidosHabData, galeriaData: ()=>galeriaData,
     cotizadorPrecios: ()=>cotizadorPrecios, eventoPricing: ()=>eventoPricing,
     jardineriaData: ()=>jardineriaData, jardineriaLog: ()=>jardineriaLog, jardRecordatorios: ()=>jardRecordatorios,
     habitacionesData: ()=>habitacionesData, habitacionesLog: ()=>habitacionesLog, zonaHorasData: ()=>zonaHorasData,
@@ -10049,7 +10181,7 @@ function applyRole(role){
         let sib = label.nextElementSibling;
         while(sib && !sib.classList.contains('nav-section-label')){
           const t = sib.textContent.trim();
-          if(['Eventos / Maison','Stock Florería','Cotizador'].includes(t)){
+          if(['Eventos / Maison','Stock Florería','Cotizador','🏺 Stock de Floreros','🕯️ Stock de Velas'].includes(t)){
             sib.style.display = '';
           }
           sib = sib.nextElementSibling;
@@ -10080,7 +10212,7 @@ function applyRole(role){
     document.querySelectorAll('.nav-section-label, .nav-item, .nav-sub-item').forEach(el => { el.style.display = 'none'; });
     // Florista que también es jardinero (ej. Ivan): además de lo de florería, ve jardinería
     const alsoJardinero = !!jardineroNombre;
-    const OPS_ALLOW = ['Checklist Diaria','Stock Florería','Eventos / Maison','Cotizador','📦 Recepción de Pedidos'];
+    const OPS_ALLOW = ['Checklist Diaria','Stock Florería','Eventos / Maison','Cotizador','📦 Recepción de Pedidos','🏺 Stock de Floreros','🕯️ Stock de Velas'];
     if(alsoJardinero) OPS_ALLOW.push('Tareas Jardinería','Habitaciones con Plantas','🔔 Recordatorios Jardín');
     document.querySelectorAll('.nav-section-label').forEach(label => {
       if(label.textContent.trim() === 'Principal'){
@@ -10104,15 +10236,16 @@ function applyRole(role){
         let sib = label.nextElementSibling;
         while(sib && !sib.classList.contains('nav-section-label')){
           const t = sib.textContent.trim();
-          if(t === 'Lista de Precios' || t === 'Ramos Disponibles') sib.style.display = '';
+          if(t === 'Lista de Precios' || t === 'Ramos Disponibles' || t === 'Galería de Trabajos' || t === 'Composiciones') sib.style.display = '';
           sib = sib.nextElementSibling;
         }
       }
     });
     document.querySelector('[data-group-id="grp-ops"]').style.display = '';
     document.querySelector('[data-group-id="grp-com-vt"]').style.display = '';
-    setTimeout(() => { navExpandGroup('grp-ops'); navExpandGroup('grp-com-vt'); }, 50);
-    const FL_QL = ['Checklist','Stock','Eventos','Cotizador','Recepción','Ramos','Lista de Precios'];
+    document.querySelector('[data-group-id="grp-com-ev"]').style.display = '';
+    setTimeout(() => { navExpandGroup('grp-ops'); navExpandGroup('grp-com-vt'); navExpandGroup('grp-com-ev'); }, 50);
+    const FL_QL = ['Checklist','Stock','Eventos','Cotizador','Recepción','Ramos','Lista de Precios','Galería','Composiciones'];
     if(alsoJardinero) FL_QL.push('Tareas Jardinería','Habitaciones con Plantas','Recordatorios Jardín');
     document.querySelectorAll('.quick-link').forEach(ql => {
       const title = ql.querySelector('.quick-link-title')?.textContent || '';
@@ -15327,6 +15460,7 @@ Object.assign(window, {
   renderProductividadHome, renderProductividadCL, renderProductividadHorarios, renderProvTags, renderRamosDisp, renderRecepcionPedidos,
   renderRecetas, seedComposicionesBase, setCompTab, renderComposicionesHotel, renderReportesEquipo, renderReportesVentas, renderReportesStock, openFichaEmpleado,
   renderFloreros, openFloreroModal, guardarFlorero, delFlorero, florAjustar, florFotoPreview, cambiarFotoFlorero, openFlorFoto,
+  renderVelas, openVelaModal, guardarVela, delVela, velaAjustar, velaFotoPreview, cambiarFotoVela, openVelaFoto,
   exportReporteEquipo, exportReporteVentas, exportReporteStock,
   openPushNotifModal, enviarPushNotif, initPushForUser,
   renderCalendario, calPrevMonth, calNextMonth,

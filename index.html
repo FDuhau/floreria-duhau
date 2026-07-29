@@ -78,6 +78,7 @@
     <div class="nav-sub-item" data-group="grp-compras" onclick="navigate('compras-jardineria',this)">Compras Jardinería</div>
     <div class="nav-sub-item" data-group="grp-compras" onclick="navigate('stock-admin',this)">Gestión de Stock</div>
     <div class="nav-sub-item" data-group="grp-compras" onclick="navigate('floreros',this)">🏺 Stock de Floreros</div>
+    <div class="nav-sub-item" data-group="grp-compras" onclick="navigate('velas',this)">🕯️ Stock de Velas</div>
     <div class="nav-sub-item" data-group="grp-compras" onclick="navigate('proveedores',this)">🏭 Proveedores</div>
     <div class="nav-sub-item" data-group="grp-compras" onclick="navigate('precio-comparacion',this)">Comparar Precios</div>
 
@@ -125,6 +126,8 @@
     <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('jardineria-ops',this)">Tareas Jardinería</div>
     <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('hab-ops',this)">Habitaciones con Plantas</div>
     <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('recepcion-pedidos',this)">📦 Recepción de Pedidos</div>
+    <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('floreros',this)">🏺 Stock de Floreros</div>
+    <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('velas',this)">🕯️ Stock de Velas</div>
     <div class="nav-sub-item nav-jard-only" id="nav-rec-jard" data-group="grp-ops" style="display:none" onclick="navigate('recordatorios-jardineria',this)">🔔 Recordatorios Jardín</div>
   </div>
   <div style="padding:12px 24px;border-top:1px solid rgba(255,255,255,.07)">
@@ -1755,6 +1758,43 @@
         <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">
           <button class="btn-secondary" onclick="closeModal('florero-modal')">Cancelar</button>
           <button class="btn-add" onclick="guardarFlorero()">Guardar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ STOCK DE VELAS ══════ -->
+  <div id="page-velas" class="content">
+    <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px">
+      <div>
+        <div class="page-title">Stock de Velas</div>
+        <div class="page-subtitle" id="velas-kpi">Inventario de velas con foto y cantidad</div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <input class="stock-search" id="velas-search" placeholder="Buscar vela..." oninput="renderVelas()" style="width:180px">
+        <button class="btn-add" onclick="openVelaModal(-1)">+ Agregar vela</button>
+      </div>
+    </div>
+    <div id="velas-grid" class="lp-items-grid"></div>
+
+    <!-- Modal vela -->
+    <div class="modal-overlay" id="vela-modal">
+      <div class="modal" style="max-width:440px">
+        <button class="modal-close" onclick="closeModal('vela-modal')">✕</button>
+        <div class="modal-title" id="vela-modal-title">Nueva vela</div>
+        <input type="hidden" id="vela-idx" value="-1">
+        <label class="form-label">Nombre / modelo *</label>
+        <input class="form-input-modal" id="vela-nombre" placeholder="Ej.: Vela pilar blanca, Vela led, Portavela vidrio...">
+        <label class="form-label" style="margin-top:10px">Cantidad en stock</label>
+        <input class="form-input-modal" id="vela-cantidad" type="number" min="0" placeholder="0">
+        <label class="form-label" style="margin-top:10px">Notas (opcional)</label>
+        <input class="form-input-modal" id="vela-notas" placeholder="Ej.: en depósito, medida, color...">
+        <label class="form-label" style="margin-top:10px">Foto</label>
+        <input type="file" id="vela-file" accept="image/*" capture="environment" style="margin-bottom:10px;max-width:100%" onchange="velaFotoPreview(this)">
+        <img id="vela-preview" alt="" style="display:none;max-width:100%;border-radius:10px;margin-bottom:10px">
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">
+          <button class="btn-secondary" onclick="closeModal('vela-modal')">Cancelar</button>
+          <button class="btn-add" onclick="guardarVela()">Guardar</button>
         </div>
       </div>
     </div>
