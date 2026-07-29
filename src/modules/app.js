@@ -3304,25 +3304,34 @@ function clearCompraExtraFilters(type){
   renderCompras(type);
 }
 
-function toggleHistorialCompras(){
-  const wrap = document.getElementById('historial-compras-wrap');
+function _histIds(type){
+  return type==='jardineria'
+    ? { btn:'hist-compras-jard-btn', bar:'hist-compras-jard-filterbar', search:'hist-compras-jard-search', prov:'hist-compras-jard-prov', summary:'hist-compras-jard-summary', wrap:'historial-compras-jard-wrap' }
+    : { btn:'hist-compras-btn', bar:'hist-compras-filterbar', search:'hist-compras-search', prov:'hist-compras-prov', summary:'hist-compras-summary', wrap:'historial-compras-wrap' };
+}
+
+function toggleHistorialCompras(type='floreria'){
+  const ids = _histIds(type);
+  const wrap = document.getElementById(ids.wrap);
   if(!wrap) return;
   const visible = wrap.style.display !== 'none';
   wrap.style.display = visible ? 'none' : '';
-  const bar = document.getElementById('hist-compras-filterbar');
+  const bar = document.getElementById(ids.bar);
   if(bar) bar.style.display = visible ? 'none' : 'flex';
-  document.getElementById('hist-compras-btn').textContent = visible ? '📚 Ver historial de pedidos recibidos' : '📚 Ocultar historial';
-  if(!visible) renderHistorialCompras();
+  document.getElementById(ids.btn).textContent = visible ? '📚 Ver historial de pedidos recibidos' : '📚 Ocultar historial';
+  if(!visible) renderHistorialCompras(type);
 }
 
-function renderHistorialCompras(){
-  const wrap = document.getElementById('historial-compras-wrap');
+function renderHistorialCompras(type='floreria'){
+  const ids = _histIds(type);
+  const arr = getArr(type);
+  const wrap = document.getElementById(ids.wrap);
   if(!wrap) return;
 
-  const todosRecibidos = comprasFlore.filter(r => r.estado === 'recibido');
+  const todosRecibidos = arr.filter(r => r.estado === 'recibido');
 
   // Poblar el filtro de proveedores del historial
-  const provSel = document.getElementById('hist-compras-prov');
+  const provSel = document.getElementById(ids.prov);
   if(provSel){
     const provActual = provSel.value;
     const provs = [...new Set(todosRecibidos.filter(r=>r.prov).map(r=>r.prov))].sort((a,b)=>a.localeCompare(b,'es'));
@@ -3331,14 +3340,14 @@ function renderHistorialCompras(){
   }
 
   // Aplicar filtros de proveedor y búsqueda de producto
-  const fProv = document.getElementById('hist-compras-prov')?.value || '';
-  const q = (document.getElementById('hist-compras-search')?.value || '').trim().toLowerCase();
+  const fProv = document.getElementById(ids.prov)?.value || '';
+  const q = (document.getElementById(ids.search)?.value || '').trim().toLowerCase();
   let recibidos = todosRecibidos;
   if(fProv) recibidos = recibidos.filter(r => r.prov === fProv);
   if(q) recibidos = recibidos.filter(r => (r.prod||'').toLowerCase().includes(q));
 
   // Resumen del proveedor filtrado
-  const summEl = document.getElementById('hist-compras-summary');
+  const summEl = document.getElementById(ids.summary);
   if(summEl){
     if(fProv && recibidos.length){
       const totalProv = recibidos.reduce((s,r)=>s+_compraImporte(r),0);
@@ -3366,20 +3375,31 @@ function renderHistorialCompras(){
   fechas.forEach(fecha => {
     const items = byDate[fecha];
     const totalBloque = items.reduce((s,r) => s + _compraImporte(r), 0);
-    const totalVaras = items.reduce((s,r) => s + (+r.totalVaras||+r.qty||0), 0);
+    const metaExtra = type==='floreria'
+      ? ' · ' + items.reduce((s,r) => s + (+r.totalVaras||+r.qty||0), 0) + ' varas'
+      : ' · ' + items.reduce((s,r) => s + _compraCant(r), 0) + ' unidades';
 
     html += `<div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:10px;margin-bottom:12px;overflow:hidden">
       <div style="background:#F4F1EC;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <div>
           <strong style="font-size:14px;color:#1A1A1A">📦 Pedido del ${fecha!=='sin-fecha' ? fmtDate(fecha) : 'sin fecha'}</strong>
-          <span style="color:#7A7A72;font-size:12px;margin-left:10px">${items.length} ítem${items.length!==1?'s':''} · ${totalVaras} varas</span>
+          <span style="color:#7A7A72;font-size:12px;margin-left:10px">${items.length} ítem${items.length!==1?'s':''}${metaExtra}</span>
         </div>
         <div style="display:flex;align-items:center;gap:10px">
           <span style="font-weight:600;color:#1A1A1A;font-size:13px">${totalBloque ? '$'+totalBloque.toLocaleString('es-AR') : ''}</span>
-          <button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="copiarBloquePedido('floreria','${fecha}')" title="Copiar este pedido con fecha de hoy">📋 Copiar pedido</button>
+          <button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="copiarBloquePedido('${type}','${fecha}')" title="Copiar este pedido con fecha de hoy">📋 Copiar pedido</button>
         </div>
       </div>
-      <table style="width:100%;font-size:12px;border-collapse:collapse">
+      ${type==='floreria' ? _histTablaFloreria(items) : _histTablaJardineria(items)}
+    </div>`;
+  });
+
+  wrap.innerHTML = html;
+}
+
+// Tabla del historial de Florería (concepto de varas por paquete y costo por vara)
+function _histTablaFloreria(items){
+  return `<table style="width:100%;font-size:12px;border-collapse:collapse">
         <thead><tr style="background:#FAF8F4">
           <th style="padding:6px 10px;text-align:left;color:var(--mid-gray);font-size:10px">Producto</th>
           <th style="padding:6px 10px;text-align:left;color:var(--mid-gray);font-size:10px">Proveedor</th>
@@ -3397,20 +3417,44 @@ function renderHistorialCompras(){
           <td style="padding:6px 10px;font-weight:500;${an?'text-decoration:line-through':''}">${esc(r.prod)}</td>
           <td style="padding:6px 10px;color:var(--mid-gray)">${esc(r.prov||'—')}</td>
           <td style="padding:6px 10px;color:var(--mid-gray)">${esc(r.sector||'—')}</td>
-          <td style="padding:6px 10px;text-align:center"><input class="form-input" type="number" value="${esc(r.paqRecibidos ?? r.qty ?? '')}" onchange="updHistCantCompra(${idx},'paqRecibidos',this.value)" style="width:55px;text-align:center" ${an?'disabled':''}></td>
-          <td style="padding:6px 10px;text-align:center"><input class="form-input" type="number" value="${esc(r.varasPorPaq ?? '')}" onchange="updHistCantCompra(${idx},'varasPorPaq',this.value)" style="width:55px;text-align:center" ${an?'disabled':''}></td>
+          <td style="padding:6px 10px;text-align:center"><input class="form-input" type="number" value="${esc(r.paqRecibidos ?? r.qty ?? '')}" onchange="updHistCantCompra('floreria',${idx},'paqRecibidos',this.value)" style="width:55px;text-align:center" ${an?'disabled':''}></td>
+          <td style="padding:6px 10px;text-align:center"><input class="form-input" type="number" value="${esc(r.varasPorPaq ?? '')}" onchange="updHistCantCompra('floreria',${idx},'varasPorPaq',this.value)" style="width:55px;text-align:center" ${an?'disabled':''}></td>
           <td style="padding:6px 10px;text-align:center;font-weight:600">${r.totalVaras||r.qty||'—'}</td>
           <td style="padding:6px 10px;text-align:center">${an ? '<span style="font-size:9px;font-weight:700;background:#7A7A72;color:#fff;padding:2px 7px;border-radius:5px;white-space:nowrap">🚫 Anulado</span>' : controlBadgeCompra(r)}</td>
-          <td style="padding:6px 10px;text-align:right"><input class="form-input" value="${esc(r.costo||'')}" placeholder="$" onchange="updHistCostoCompra(${idx},this.value)" style="width:90px;text-align:right" ${an?'disabled':''}></td>
+          <td style="padding:6px 10px;text-align:right"><input class="form-input" value="${esc(r.costo||'')}" placeholder="$" onchange="updHistCostoCompra('floreria',${idx},this.value)" style="width:90px;text-align:right" ${an?'disabled':''}></td>
           <td style="padding:6px 10px;text-align:right;font-weight:600">${parseMoney(r.costo)>0?'$'+_compraImporte(r).toLocaleString('es-AR'):'<span style="color:var(--mid-gray);font-weight:400">—</span>'}</td>
           <td style="padding:6px 10px;text-align:right;font-weight:700;color:var(--sage-dark)">${cvVal!=null?'$'+cvVal.toLocaleString('es-AR'):'<span style="color:var(--mid-gray);font-weight:400">—</span>'}</td>
-          <td style="padding:6px 10px;text-align:center;white-space:nowrap"><button class="btn-secondary" style="font-size:10px;padding:3px 8px" onclick="toggleAnularCompra(${idx})">${an?'↩️ Reactivar':'🚫 Anular'}</button></td>
+          <td style="padding:6px 10px;text-align:center;white-space:nowrap"><button class="btn-secondary" style="font-size:10px;padding:3px 8px" onclick="toggleAnularCompra('floreria',${idx})">${an?'↩️ Reactivar':'🚫 Anular'}</button></td>
         </tr>`; }).join('')}</tbody>
-      </table>
-    </div>`;
-  });
+      </table>`;
+}
 
-  wrap.innerHTML = html;
+// Tabla del historial de Jardinería / General (productos por unidad, sin varas)
+function _histTablaJardineria(items){
+  return `<table style="width:100%;font-size:12px;border-collapse:collapse">
+        <thead><tr style="background:#FAF8F4">
+          <th style="padding:6px 10px;text-align:left;color:var(--mid-gray);font-size:10px">Producto</th>
+          <th style="padding:6px 10px;text-align:left;color:var(--mid-gray);font-size:10px">Descripción</th>
+          <th style="padding:6px 10px;text-align:left;color:var(--mid-gray);font-size:10px">Proveedor</th>
+          <th style="padding:6px 10px;text-align:left;color:var(--mid-gray);font-size:10px">Área / Uso</th>
+          <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:10px">Cantidad</th>
+          <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:10px">Control</th>
+          <th style="padding:6px 10px;text-align:right;color:var(--mid-gray);font-size:10px">Precio unit.</th>
+          <th style="padding:6px 10px;text-align:right;color:var(--mid-gray);font-size:10px">Importe</th>
+          <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:10px"></th>
+        </tr></thead>
+        <tbody>${items.map(r => { const idx = comprasJard.indexOf(r); const an = !!r.anulado; const rowStyle = an ? 'border-top:1px solid #F0EDE8;opacity:.5' : 'border-top:1px solid #F0EDE8'; return `<tr style="${rowStyle}">
+          <td style="padding:6px 10px;font-weight:500;${an?'text-decoration:line-through':''}">${esc(r.prod)}</td>
+          <td style="padding:6px 10px;color:var(--mid-gray)">${esc(r.desc||'—')}</td>
+          <td style="padding:6px 10px;color:var(--mid-gray)">${esc(r.prov||'—')}</td>
+          <td style="padding:6px 10px;color:var(--mid-gray)">${esc(r.sector||'—')}</td>
+          <td style="padding:6px 10px;text-align:center"><input class="form-input" type="number" value="${esc(r.paqRecibidos ?? r.qty ?? '')}" onchange="updHistCantCompra('jardineria',${idx},'paqRecibidos',this.value)" style="width:60px;text-align:center" ${an?'disabled':''}></td>
+          <td style="padding:6px 10px;text-align:center">${an ? '<span style="font-size:9px;font-weight:700;background:#7A7A72;color:#fff;padding:2px 7px;border-radius:5px;white-space:nowrap">🚫 Anulado</span>' : controlBadgeCompra(r)}</td>
+          <td style="padding:6px 10px;text-align:right"><input class="form-input" value="${esc(r.costo||'')}" placeholder="$" onchange="updHistCostoCompra('jardineria',${idx},this.value)" style="width:90px;text-align:right" ${an?'disabled':''}></td>
+          <td style="padding:6px 10px;text-align:right;font-weight:600">${parseMoney(r.costo)>0?'$'+_compraImporte(r).toLocaleString('es-AR'):'<span style="color:var(--mid-gray);font-weight:400">—</span>'}</td>
+          <td style="padding:6px 10px;text-align:center;white-space:nowrap"><button class="btn-secondary" style="font-size:10px;padding:3px 8px" onclick="toggleAnularCompra('jardineria',${idx})">${an?'↩️ Reactivar':'🚫 Anular'}</button></td>
+        </tr>`; }).join('')}</tbody>
+      </table>`;
 }
 
 // Insignia de control post-recepción: compara lo pedido vs. lo efectivamente recibido.
@@ -3441,39 +3485,39 @@ function recalcCotizadorPrecio(order){
 // (por ej. cuando llega la factura con el precio real) sin reabrir el pedido
 // ni tocar el stock ya ingresado. Recalcula el costo por vara del cotizador
 // para que los costos de arreglos y la Rentabilidad por área queden al día.
-function updHistCostoCompra(idx, val){
-  const order = comprasFlore[idx];
+function updHistCostoCompra(type, idx, val){
+  const order = getArr(type)[idx];
   if(!order) return;
   order.costo = val;
-  recalcCotizadorPrecio(order);
-  window._comprasFloreLastSave = Date.now();
-  fbSave('comprasFlore', comprasFlore);
-  showToast('💰 Precio de compra actualizado — costos de arreglos recalculados');
-  renderHistorialCompras();
+  if(type==='floreria') recalcCotizadorPrecio(order);
+  if(type==='floreria'){ window._comprasFloreLastSave = Date.now(); fbSave('comprasFlore', comprasFlore); }
+  else { window._comprasJardLastSave = Date.now(); fbSave('comprasJard', comprasJard); }
+  showToast('💰 Precio de compra actualizado' + (type==='floreria' ? ' — costos de arreglos recalculados' : ''));
+  renderHistorialCompras(type);
 }
 
 // Corrige la cantidad recibida (paquetes o varas/paquete) de una orden ya
 // controlada, solo a fines de que las métricas de costos sean exactas —
 // NO reajusta el stock ya ingresado (se hace manualmente en Gestión de Stock
 // si hace falta).
-function updHistCantCompra(idx, field, val){
-  const order = comprasFlore[idx];
+function updHistCantCompra(type, idx, field, val){
+  const order = getArr(type)[idx];
   if(!order) return;
   order[field] = Math.max(0, parseFloat(val) || 0);
   const paqRec = parseFloat(order.paqRecibidos) || 0;
   const varasPaq = parseFloat(order.varasPorPaq) || 0;
   if(paqRec > 0 && varasPaq > 0) order.totalVaras = paqRec * varasPaq;
-  recalcCotizadorPrecio(order);
-  window._comprasFloreLastSave = Date.now();
-  fbSave('comprasFlore', comprasFlore);
-  renderHistorialCompras();
+  if(type==='floreria') recalcCotizadorPrecio(order);
+  if(type==='floreria'){ window._comprasFloreLastSave = Date.now(); fbSave('comprasFlore', comprasFlore); }
+  else { window._comprasJardLastSave = Date.now(); fbSave('comprasJard', comprasJard); }
+  renderHistorialCompras(type);
 }
 
 // Anula/reactiva una orden ya controlada: queda excluida de los totales de
 // costos, márgenes y Rentabilidad por área (para métricas reales), pero el
 // stock ya ingresado no se toca automáticamente.
-async function toggleAnularCompra(idx){
-  const order = comprasFlore[idx];
+async function toggleAnularCompra(type, idx){
+  const order = getArr(type)[idx];
   if(!order) return;
   if(!order.anulado){
     if(!await confirmModal(`¿Anular el pedido "${order.prod}" del ${fmtDate(order.fecha)}?\n\nSe excluirá de costos y métricas, pero el stock ya ingresado no se modifica.`)) return;
@@ -3481,10 +3525,10 @@ async function toggleAnularCompra(idx){
   } else {
     order.anulado = false;
   }
-  window._comprasFloreLastSave = Date.now();
-  fbSave('comprasFlore', comprasFlore);
+  if(type==='floreria'){ window._comprasFloreLastSave = Date.now(); fbSave('comprasFlore', comprasFlore); }
+  else { window._comprasJardLastSave = Date.now(); fbSave('comprasJard', comprasJard); }
   showToast(order.anulado ? '🚫 Pedido anulado — excluido de costos y métricas' : '↩️ Pedido reactivado');
-  renderHistorialCompras();
+  renderHistorialCompras(type);
 }
 
 async function copiarBloquePedido(type, fecha){

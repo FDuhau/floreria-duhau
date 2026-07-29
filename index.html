@@ -594,13 +594,13 @@
 
     <!-- Historial de pedidos recibidos -->
     <div style="margin-top:24px">
-      <button class="btn-secondary" onclick="toggleHistorialCompras()" id="hist-compras-btn" style="font-size:12px;margin-bottom:12px">📚 Ver historial de pedidos recibidos</button>
+      <button class="btn-secondary" onclick="toggleHistorialCompras('floreria')" id="hist-compras-btn" style="font-size:12px;margin-bottom:12px">📚 Ver historial de pedidos recibidos</button>
       <div id="hist-compras-filterbar" style="display:none;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
-        <input type="text" class="ctrl-search" id="hist-compras-search" placeholder="🔍 Buscar producto..." oninput="renderHistorialCompras()" style="flex:1;min-width:160px">
-        <select class="form-input" id="hist-compras-prov" onchange="renderHistorialCompras()" style="width:200px;padding:6px 8px;font-size:12.5px">
+        <input type="text" class="ctrl-search" id="hist-compras-search" placeholder="🔍 Buscar producto..." oninput="renderHistorialCompras('floreria')" style="flex:1;min-width:160px">
+        <select class="form-input" id="hist-compras-prov" onchange="renderHistorialCompras('floreria')" style="width:200px;padding:6px 8px;font-size:12.5px">
           <option value="">Todos los proveedores</option>
         </select>
-        <button class="btn-secondary" onclick="document.getElementById('hist-compras-search').value='';document.getElementById('hist-compras-prov').value='';renderHistorialCompras()" style="font-size:11px;padding:5px 10px">✕ Limpiar</button>
+        <button class="btn-secondary" onclick="document.getElementById('hist-compras-search').value='';document.getElementById('hist-compras-prov').value='';renderHistorialCompras('floreria')" style="font-size:11px;padding:5px 10px">✕ Limpiar</button>
       </div>
       <div id="hist-compras-summary" style="display:none;background:#F4F1EC;border-radius:8px;padding:9px 14px;margin-bottom:12px;font-size:13px;color:var(--charcoal)"></div>
       <div id="historial-compras-wrap" style="display:none"></div>
@@ -668,6 +668,20 @@
       <th>Fecha</th><th>Pedido por</th><th>Producto</th><th>Descripción</th>
       <th>Cant.</th><th>Precio unit.</th><th>Proveedor</th><th>Área / Uso</th><th>Estado</th><th>Stock actual</th><th></th>
     </tr></thead><tbody id="tbody-jardineria"></tbody></table></div>
+
+    <!-- Historial de pedidos recibidos -->
+    <div style="margin-top:24px">
+      <button class="btn-secondary" onclick="toggleHistorialCompras('jardineria')" id="hist-compras-jard-btn" style="font-size:12px;margin-bottom:12px">📚 Ver historial de pedidos recibidos</button>
+      <div id="hist-compras-jard-filterbar" style="display:none;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
+        <input type="text" class="ctrl-search" id="hist-compras-jard-search" placeholder="🔍 Buscar producto..." oninput="renderHistorialCompras('jardineria')" style="flex:1;min-width:160px">
+        <select class="form-input" id="hist-compras-jard-prov" onchange="renderHistorialCompras('jardineria')" style="width:200px;padding:6px 8px;font-size:12.5px">
+          <option value="">Todos los proveedores</option>
+        </select>
+        <button class="btn-secondary" onclick="document.getElementById('hist-compras-jard-search').value='';document.getElementById('hist-compras-jard-prov').value='';renderHistorialCompras('jardineria')" style="font-size:11px;padding:5px 10px">✕ Limpiar</button>
+      </div>
+      <div id="hist-compras-jard-summary" style="display:none;background:#F4F1EC;border-radius:8px;padding:9px 14px;margin-bottom:12px;font-size:13px;color:var(--charcoal)"></div>
+      <div id="historial-compras-jard-wrap" style="display:none"></div>
+    </div>
   </div>
 
   <!-- ══════ GESTIÓN DE STOCK (gerencia) ══════ -->
