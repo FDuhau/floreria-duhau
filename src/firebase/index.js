@@ -468,6 +468,10 @@
         if(window._setFlorerosData) window._setFlorerosData(Array.isArray(val) ? val : Object.values(val||{}));
       });
 
+      fbListen('resumenesDiarios', val => {
+        if(window._setResumenesDiarios) window._setResumenesDiarios(val || {});
+      });
+
       fbListen('velasData', val => {
         if(window._setVelasData) window._setVelasData(Array.isArray(val) ? val : Object.values(val||{}));
       });

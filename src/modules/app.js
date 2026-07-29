@@ -206,6 +206,7 @@ const PAGE_LABELS = {control:'Control','control-jardineria':'Control › Seguimi
   'presupuestos': 'Comercial › Presupuestos Enviados',
   'cierre-mensual': 'Contable › Cierre Mensual',
   'dashboard-gerencia': 'Gerencia › Dashboard Unificado',
+  'cierre-dia': 'Reportes › Cierre del Día',
   'tv-dashboard': 'Pantalla TV / Dashboard'
 };
 
@@ -335,6 +336,7 @@ function navigate(pageId, navEl){
   if(pageId==='recepcion-pedidos') renderRecepcionPedidos();
   if(pageId==='control-habitaciones') renderCtrlHab();
   if(pageId==='reportes-equipo') renderReportesEquipo();
+  if(pageId==='cierre-dia') initCierreDia();
   if(pageId==='reportes-ventas') renderReportesVentas();
   if(pageId==='reportes-stock') renderReportesStock();
   if(pageId==='reportes-margen') renderDashboardMargen();
@@ -4703,7 +4705,212 @@ function renderProductividadCL(){
 setInterval(()=>{
   if(document.getElementById('home-prod')?.innerHTML) renderProductividadHome();
   if(document.getElementById('cl-prod-card')?.innerHTML) renderProductividadCL();
+  _checkCierreDia();
 }, 60000);
+
+// ══════════════════════════════════════════════════════════════════════════════
+// CIERRE DEL DÍA — detalle de asistencia y actividad del equipo (gerencia)
+// A las 19hs se genera un resumen de quién asistió y qué hizo cada uno, se guarda
+// un snapshot en Firebase (para métricas históricas) y se avisa a gerencia.
+// La página "Cierre del Día" lo regenera en vivo para cualquier fecha.
+// ══════════════════════════════════════════════════════════════════════════════
+let resumenesDiarios = {}; // { 'YYYY-MM-DD': snapshot } — snapshots guardados a las 19hs
+window._setResumenesDiarios = v => { resumenesDiarios = (v && typeof v==='object') ? v : {}; if(document.getElementById('page-cierre-dia')?.classList.contains('active')) renderCierreDia(); };
+
+function _hm2min(s){ if(!s||!s.includes(':')) return 0; const [h,m]=s.split(':').map(Number); return (h||0)*60+(m||0); }
+
+// Construye el detalle del día a partir de los datos en memoria (sincronizados).
+function generarResumenDiario(fecha){
+  const nombres = (typeof getEmpleadosActivos==='function' ? getEmpleadosActivos() : []);
+  const dayState = (window.clStateByDay||{})[fecha] || (fecha===window.currentDay ? (window.clState||{}) : {});
+  const resp = dayState.responsable||[], checked = dayState.checked||[], actividad = dayState.actividad||[], obs = dayState.obs||[];
+  const personas = [], ausentes = [];
+
+  nombres.forEach(nombre => {
+    const esJard = typeof isJardinero==='function' && isJardinero(nombre);
+    // Turno / asistencia
+    const fTurno = (window.florTurnos||{})[nombre]?.[fecha];
+    const jTurno = esJard ? (window.jardHorarios||{})[nombre]?.[fecha] : null;
+    const horario = (window.horariosData||{})[nombre]?.[fecha];
+    const reales = [fTurno, jTurno].filter(t=>t?.inicio);
+    let desde=null, hasta=null, horasMin=0, ficho=false, planificado=false;
+    if(reales.length){
+      ficho = true;
+      desde = reales.map(t=>t.inicio).sort()[0];
+      const fins = reales.map(t=>t.fin).filter(Boolean).sort();
+      hasta = fins.length ? fins[fins.length-1] : null;
+      if(desde && hasta) horasMin = Math.max(0, _hm2min(hasta)-_hm2min(desde));
+    } else if(horario?.desde){
+      planificado = true;
+      desde = horario.desde; hasta = horario.hasta || null;
+      if(desde && hasta) horasMin = Math.max(0, _hm2min(hasta)-_hm2min(desde));
+    }
+
+    // Checklist de florería (tareas asignadas a la persona)
+    const checklist = [];
+    let tareasTotal = 0, tareasHechas = 0;
+    resp.forEach((r,i)=>{
+      if(r===nombre){
+        tareasTotal++;
+        const done = !!checked[i];
+        if(done) tareasHechas++;
+        const t = (CL_TASKS[i]||{});
+        checklist.push({ zona: t.zona||'', sec: t.sec||'', actividad: actividad[i]||t.actividad||'', obs: obs[i]||'', done });
+      }
+    });
+
+    // Tareas de jardinería del día (log)
+    const jardineria = esJard
+      ? (window.jardineriaLog||[]).filter(e=>e.fecha===fecha && e.quien===nombre)
+          .map(e=>({ task: e.task||e.tarea||e.grupo||'', horaInicio:e.horaInicio||'', horaFin:e.horaFin||'', obs:e.obs||'', done: !!e.horaFin }))
+      : [];
+
+    // Eventos del día en los que participó
+    const eventos = [];
+    (eventosData||[]).filter(ev=>ev.fecha===fecha).forEach(ev=>{
+      const roles = [];
+      if(ev.asignado===nombre) roles.push('armado');
+      if(ev.colocacionAsignado===nombre) roles.push('colocación');
+      if(ev.retiroAsignado===nombre) roles.push('retiro');
+      if(roles.length) eventos.push({ nombre: ev.nombre||'(evento)', roles, estado: ev.estado||'' });
+    });
+
+    // Ventas gestionadas ese día
+    const ventas = (ventasData||[]).filter(v=>v.asignado===nombre && v.fecha===fecha)
+      .map(v=>({ prod:v.prod||'', cliente:v.cliente||'', estado:v.estado||'' }));
+
+    const actividadTotal = checklist.length + jardineria.length + eventos.length + ventas.length;
+    if(ficho || planificado || actividadTotal>0){
+      personas.push({ nombre, area: esJard?'Jardinería':'Florería', ficho, planificado, desde, hasta, horasMin,
+        tareasHechas, tareasTotal, checklist, jardineria, eventos, ventas, actividadTotal });
+    } else {
+      ausentes.push(nombre);
+    }
+  });
+
+  personas.sort((a,b)=> (a.desde||'99:99').localeCompare(b.desde||'99:99') || a.nombre.localeCompare(b.nombre,'es'));
+  return { fecha, generadoTs: Date.now(), personas, ausentes };
+}
+
+function guardarResumenDiario(fecha, data){
+  resumenesDiarios[fecha] = data;
+  if(window.fbSetPath) window.fbSetPath('resumenesDiarios/'+fecha, data);
+  else fbSave('resumenesDiarios', resumenesDiarios);
+}
+
+// Chequeo periódico: a partir de las 19hs (solo en dispositivo de gerencia),
+// una vez por día, genera el snapshot y avisa. Dedupe cruzado por el snapshot
+// ya presente en Firebase.
+let _cierreDiaSesion = '';
+function _checkCierreDia(){
+  if(userRole !== 'gerencia') return;
+  const now = new Date();
+  if(now.getHours() < 19) return;
+  const fecha = TODAY_ISO;
+  if(_cierreDiaSesion === fecha) return;
+  if(resumenesDiarios[fecha]?.generadoTs){ _cierreDiaSesion = fecha; return; } // ya generado (por otro dispositivo)
+  const data = generarResumenDiario(fecha);
+  // Si todavía no cargó el roster/datos, no marcar como hecho: reintentar el próximo minuto
+  if(!data.personas.length && !data.ausentes.length) return;
+  _cierreDiaSesion = fecha;
+  guardarResumenDiario(fecha, data);
+  const nPers = data.personas.length;
+  window.pushSend?.('📊 Cierre del día', `${nPers} persona${nPers!==1?'s':''} asistieron hoy · mirá el detalle en Reportes › Cierre del Día`, 'cierre-dia', 'roles:gerencia');
+  if(document.getElementById('page-cierre-dia')?.classList.contains('active')) renderCierreDia();
+}
+
+function initCierreDia(){
+  const inp = document.getElementById('cd-fecha');
+  if(inp && !inp.value) inp.value = TODAY_ISO;
+  renderCierreDia();
+}
+
+function renderCierreDia(){
+  const cont = document.getElementById('cd-detalle');
+  if(!cont) return;
+  const fecha = document.getElementById('cd-fecha')?.value || TODAY_ISO;
+  let data = generarResumenDiario(fecha);
+  // Si no hay datos en vivo (fecha vieja no cargada) pero hay snapshot, usarlo
+  if(!data.personas.length && resumenesDiarios[fecha]?.personas?.length){
+    data = resumenesDiarios[fecha];
+  }
+
+  // KPIs
+  const kpisEl = document.getElementById('cd-kpis');
+  if(kpisEl){
+    const totalPers = data.personas.length;
+    const totalHoras = data.personas.reduce((s,p)=>s+(p.horasMin||0),0);
+    const tareasHechas = data.personas.reduce((s,p)=>s+(p.tareasHechas||0)+p.jardineria.filter(j=>j.done).length,0);
+    const tareasTotal = data.personas.reduce((s,p)=>s+(p.tareasTotal||0)+p.jardineria.length,0);
+    const eventosSet = new Set(data.personas.flatMap(p=>p.eventos.map(e=>e.nombre)));
+    const ventasN = data.personas.reduce((s,p)=>s+p.ventas.length,0);
+    const kpi = (val,lbl)=>`<div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;padding:14px 16px">
+      <div style="font-size:24px;font-weight:700;color:var(--charcoal)">${val}</div>
+      <div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);margin-top:2px">${lbl}</div></div>`;
+    kpisEl.innerHTML = [
+      kpi(totalPers, 'Asistieron'),
+      kpi(fmtMin(totalHoras), 'Horas trabajadas'),
+      kpi(`${tareasHechas}/${tareasTotal}`, 'Tareas hechas'),
+      kpi(eventosSet.size, 'Eventos'),
+      kpi(ventasN, 'Ventas'),
+    ].join('');
+  }
+
+  if(!data.personas.length){
+    cont.innerHTML = `<div style="text-align:center;padding:48px 20px;color:var(--mid-gray)">
+      <div style="font-size:40px;margin-bottom:10px">🗓️</div>
+      <div style="font-size:15px;font-weight:600;color:#7A7A72">Sin asistencia registrada para el ${fmtDate(fecha)}</div>
+      <div style="font-size:13px;margin-top:6px">Aparecerá el detalle cuando el equipo fiche su turno o tenga tareas/eventos asignados.</div></div>`;
+    return;
+  }
+
+  const genLbl = data.generadoTs ? `<div style="font-size:11px;color:var(--mid-gray);margin-bottom:14px">Generado ${new Date(data.generadoTs).toLocaleString('es-AR')}${resumenesDiarios[fecha]?.generadoTs===data.generadoTs?' · snapshot guardado':' · vista en vivo'}</div>` : '';
+
+  cont.innerHTML = genLbl + data.personas.map(p=>{
+    const turnoStr = p.desde ? `${p.desde}${p.hasta?' – '+p.hasta:' (en curso)'}` : 'Sin turno fichado';
+    const horasStr = p.horasMin ? ` · ${fmtMin(p.horasMin)}` : '';
+    const asistTag = p.ficho
+      ? '<span style="font-size:10px;font-weight:700;background:#EBF5E8;color:#2C6B3A;padding:2px 8px;border-radius:5px">✓ Fichó</span>'
+      : '<span style="font-size:10px;font-weight:700;background:#FDF0E8;color:#B4772A;padding:2px 8px;border-radius:5px">Planificado</span>';
+
+    const checklistHtml = p.checklist.length
+      ? `<div style="margin-top:10px"><div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:6px">Checklist · ${p.tareasHechas}/${p.tareasTotal}</div>
+          ${p.checklist.map(t=>`<div style="font-size:12.5px;padding:3px 0;color:${t.done?'var(--charcoal)':'#B4772A'}">${t.done?'✓':'○'} <strong>${esc(t.zona||t.sec)}</strong>${t.actividad?' · '+esc(t.actividad):''}${t.obs?` <span style="color:var(--mid-gray)">— ${esc(t.obs)}</span>`:''}</div>`).join('')}</div>`
+      : '';
+
+    const jardHtml = p.jardineria.length
+      ? `<div style="margin-top:10px"><div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:6px">Jardinería</div>
+          ${p.jardineria.map(t=>`<div style="font-size:12.5px;padding:3px 0;color:${t.done?'var(--charcoal)':'#B4772A'}">${t.done?'✓':'○'} ${esc(t.task||'Tarea')}${(t.horaInicio||t.horaFin)?` <span style="color:var(--mid-gray)">(${esc(t.horaInicio||'—')}${t.horaFin?' – '+esc(t.horaFin):''})</span>`:''}${t.obs?` — ${esc(t.obs)}`:''}</div>`).join('')}</div>`
+      : '';
+
+    const eventosHtml = p.eventos.length
+      ? `<div style="margin-top:10px"><div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:6px">Eventos</div>
+          ${p.eventos.map(e=>`<div style="font-size:12.5px;padding:3px 0">🎉 <strong>${esc(e.nombre)}</strong> <span style="color:var(--mid-gray)">· ${e.roles.join(', ')}</span></div>`).join('')}</div>`
+      : '';
+
+    const ventasHtml = p.ventas.length
+      ? `<div style="margin-top:10px"><div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:6px">Ventas</div>
+          ${p.ventas.map(v=>`<div style="font-size:12.5px;padding:3px 0">💐 ${esc(v.prod)}${v.cliente?' · '+esc(v.cliente):''} <span style="color:var(--mid-gray)">(${esc(v.estado)})</span></div>`).join('')}</div>`
+      : '';
+
+    const nada = !checklistHtml && !jardHtml && !eventosHtml && !ventasHtml
+      ? '<div style="font-size:12.5px;color:var(--mid-gray);margin-top:8px">Sin tareas ni eventos registrados para el día.</div>' : '';
+
+    return `<div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;padding:16px 18px;margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <strong style="font-size:15px;color:var(--charcoal)">${esc(p.nombre)}</strong>
+          <span style="font-size:11px;color:var(--mid-gray)">${esc(p.area)}</span>
+          ${asistTag}
+        </div>
+        <div style="font-size:12.5px;color:var(--mid-gray)">⏱ ${turnoStr}${horasStr}</div>
+      </div>
+      ${checklistHtml}${jardHtml}${eventosHtml}${ventasHtml}${nada}
+    </div>`;
+  }).join('') + (data.ausentes.length
+    ? `<div style="margin-top:8px;font-size:12.5px;color:var(--mid-gray)"><strong>Sin registro hoy:</strong> ${data.ausentes.map(esc).join(', ')}</div>`
+    : '');
+}
 
 // ── Fila visual del home de gerencia: anillo, sparkline y semáforo ────────────
 function _homeVisualHTML(hechas, totalTareas, pct, ventasMes, totalMes){
@@ -10086,6 +10293,7 @@ function descargarBackup(){
     florTurnos: ()=>window.florTurnos, jardHorarios: ()=>window.jardHorarios,
     legajoData: ()=>legajoData, evaluacionesData: ()=>evaluacionesData, llamadosData: ()=>llamadosData, liquidacionConfig: ()=>liquidacionConfig,
     sucursalesConfig: ()=>sucursalesConfig, loginPasswords: ()=>loginPasswords, auditLogData: ()=>auditLogData,
+    resumenesDiarios: ()=>resumenesDiarios,
   };
   const data = { _meta: { app:'Florería Duhau', fecha:new Date().toISOString(), generadoPor: window.currentUserLabel||userRole||'' } };
   Object.entries(fuentes).forEach(([k,fn])=>{ try{ const v=fn(); if(v!==undefined) data[k]=v; }catch(e){} });
@@ -15503,6 +15711,7 @@ Object.assign(window, {
   renderPedidosHab, renderPeriodTabs, renderPlantilla, renderPreciosList, renderProductividad,
   renderProductividadHome, renderProductividadCL, renderProductividadHorarios, renderProvTags, renderRamosDisp, renderRecepcionPedidos,
   renderRecetas, seedComposicionesBase, setCompTab, renderComposicionesHotel, renderReportesEquipo, renderReportesVentas, renderReportesStock, openFichaEmpleado,
+  renderCierreDia, initCierreDia,
   renderFloreros, openFloreroModal, guardarFlorero, delFlorero, florAjustar, florFotoPreview, cambiarFotoFlorero, openFlorFoto,
   renderVelas, openVelaModal, guardarVela, delVela, velaAjustar, velaFotoPreview, cambiarFotoVela, openVelaFoto,
   exportReporteEquipo, exportReporteVentas, exportReporteStock,

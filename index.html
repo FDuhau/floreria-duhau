@@ -111,6 +111,7 @@
     <div class="nav-section-label nav-gerencia-only" style="display:none">Reportes</div>
     <div class="nav-item nav-group-hdr nav-gerencia-only" data-group-id="grp-rep" style="display:none" onclick="navToggleGroup('grp-rep');navigate('reportes',this)"><span class="nav-icon">📊</span> Reportes<span class="nav-chevron">›</span></div>
     <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('reportes-equipo',this)">Equipo & Horarios</div>
+    <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('cierre-dia',this)">🗓️ Cierre del Día</div>
     <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('reportes-ventas',this)">Ventas & Comercial</div>
     <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('reportes-stock',this)">Stock & Compras</div>
     <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('reportes-margen',this)">💹 Dashboard de Margen</div>
@@ -2270,6 +2271,22 @@
     </div>
     <div id="rep-eq-tabla"></div>
     <div id="rep-eq-tiempos" style="margin-top:28px"></div>
+  </div>
+
+  <!-- ══════ CIERRE DEL DÍA (gerencia) ══════ -->
+  <div id="page-cierre-dia" class="content">
+    <div class="page-header">
+      <div class="page-title">Cierre del Día</div>
+      <div class="page-subtitle">Detalle de asistencia y actividad del equipo · para evaluar y sacar métricas concretas</div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;align-items:center">
+      <label style="font-size:12px;color:var(--mid-gray)">Fecha</label>
+      <input type="date" class="form-input" id="cd-fecha" onchange="renderCierreDia()" style="width:170px;padding:6px 10px;font-size:13px">
+      <button class="btn-secondary" onclick="renderCierreDia()" style="font-size:12px;padding:6px 14px">🔄 Actualizar</button>
+      <button class="btn-print" onclick="exportPDF('Cierre del Día')">🖨 Imprimir / PDF</button>
+    </div>
+    <div id="cd-kpis" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:24px"></div>
+    <div id="cd-detalle"></div>
   </div>
 
   <!-- ══════ REPORTES — VENTAS & COMERCIAL ══════ -->
