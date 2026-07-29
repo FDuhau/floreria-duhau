@@ -10104,15 +10104,16 @@ function applyRole(role){
         let sib = label.nextElementSibling;
         while(sib && !sib.classList.contains('nav-section-label')){
           const t = sib.textContent.trim();
-          if(t === 'Lista de Precios' || t === 'Ramos Disponibles') sib.style.display = '';
+          if(t === 'Lista de Precios' || t === 'Ramos Disponibles' || t === 'Galería de Trabajos' || t === 'Composiciones') sib.style.display = '';
           sib = sib.nextElementSibling;
         }
       }
     });
     document.querySelector('[data-group-id="grp-ops"]').style.display = '';
     document.querySelector('[data-group-id="grp-com-vt"]').style.display = '';
-    setTimeout(() => { navExpandGroup('grp-ops'); navExpandGroup('grp-com-vt'); }, 50);
-    const FL_QL = ['Checklist','Stock','Eventos','Cotizador','Recepción','Ramos','Lista de Precios'];
+    document.querySelector('[data-group-id="grp-com-ev"]').style.display = '';
+    setTimeout(() => { navExpandGroup('grp-ops'); navExpandGroup('grp-com-vt'); navExpandGroup('grp-com-ev'); }, 50);
+    const FL_QL = ['Checklist','Stock','Eventos','Cotizador','Recepción','Ramos','Lista de Precios','Galería','Composiciones'];
     if(alsoJardinero) FL_QL.push('Tareas Jardinería','Habitaciones con Plantas','Recordatorios Jardín');
     document.querySelectorAll('.quick-link').forEach(ql => {
       const title = ql.querySelector('.quick-link-title')?.textContent || '';
