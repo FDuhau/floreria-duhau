@@ -4897,6 +4897,8 @@ function renderVentas(){
         <option value="Efectivo" ${v.formaPago==='Efectivo'?'selected':''}>💵 Efectivo</option>
         <option value="Tarjeta" ${v.formaPago==='Tarjeta'||v.formaPago==='Débito'||v.formaPago==='Crédito'?'selected':''}>💳 Tarjeta</option>
         <option value="Transferencia" ${v.formaPago==='Transferencia'?'selected':''}>🏦 Transferencia</option>
+        <option value="Link de pago" ${v.formaPago==='Link de pago'?'selected':''}>🔗 Link de pago</option>
+        <option value="Mercado Pago" ${v.formaPago==='Mercado Pago'?'selected':''}>💙 Mercado Pago</option>
         <option value="Cargo a rooms" ${v.formaPago==='Cargo a rooms'?'selected':''}>🏨 Cargo a rooms (hotel)</option>
         <option value="Cargo a habitación" ${v.formaPago==='Cargo a habitación'?'selected':''}>🛏 Cargo a habitación (huésped)</option>
         <option value="Cuenta corriente" ${v.formaPago==='Cuenta corriente'?'selected':''}>📋 Cuenta corriente</option>
