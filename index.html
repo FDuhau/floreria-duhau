@@ -1218,6 +1218,7 @@
           <th>Descripción</th>
           <th>Fecha</th>
           <th>Cliente</th>
+          <th>Destinatario</th>
           <th>Dedicatoria</th>
           <th>Precio</th>
           <th>Forma de pago</th>
@@ -1242,8 +1243,10 @@
         <textarea class="form-input-modal" id="sale-desc" placeholder="Descripción (flores, colores, tamaño...)"></textarea>
         <div class="modal-row">
           <div><label class="form-label">Fecha</label><input class="form-input-modal" id="sale-fecha" type="date"></div>
-          <div><label class="form-label">Cliente</label><input class="form-input-modal" id="sale-cliente" placeholder="Cliente"></div>
+          <div><label class="form-label">Cliente</label><input class="form-input-modal" id="sale-cliente" placeholder="Quien abona"></div>
         </div>
+        <label class="form-label">Destinatario <span style="color:var(--mid-gray);font-weight:400">(quien recibe · si es un regalo)</span></label>
+        <input class="form-input-modal" id="sale-destinatario" placeholder="Nombre de quien recibe (opcional)">
         <label class="form-label">Dedicatoria</label>
         <textarea class="form-input-modal" id="sale-dedicatoria" placeholder="Texto de dedicatoria (opcional)" style="min-height:55px"></textarea>
         <div class="modal-row">
@@ -1478,7 +1481,10 @@
           </select>
         </div>
         <div class="form-group"><label>Cliente</label>
-          <input class="form-input" id="vd-cliente" placeholder="Nombre del cliente">
+          <input class="form-input" id="vd-cliente" placeholder="Quien abona">
+        </div>
+        <div class="form-group"><label>Destinatario <span style="color:var(--mid-gray);font-weight:400;font-size:11px">(si es regalo)</span></label>
+          <input class="form-input" id="vd-destinatario" placeholder="Quien recibe (opcional)">
         </div>
         <div class="form-group"><label>Forma de pago</label>
           <select class="form-input" id="vd-pago">
@@ -1554,7 +1560,7 @@
         <input type="hidden" id="ramo-sell-idx">
         <div id="ramo-sell-info" style="background:#F4F1EC;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:#1A1A1A"></div>
         <div class="modal-row">
-          <div><label class="form-label">Cliente</label><input class="form-input-modal" id="ramo-sell-cliente" placeholder="Nombre del cliente"></div>
+          <div><label class="form-label">Cliente</label><input class="form-input-modal" id="ramo-sell-cliente" placeholder="Quien abona"></div>
           <div><label class="form-label">Forma de pago</label>
             <select class="form-input-modal" id="ramo-sell-pago">
               <option value="">— Seleccionar —</option>
@@ -1569,6 +1575,8 @@
             </select>
           </div>
         </div>
+        <label class="form-label">Destinatario <span style="color:var(--mid-gray);font-weight:400">(quien recibe · si es un regalo)</span></label>
+        <input class="form-input-modal" id="ramo-sell-destinatario" placeholder="Nombre de quien recibe (opcional)">
         <label class="form-label">Dedicatoria</label>
         <textarea class="form-input-modal" id="ramo-sell-dedicatoria" placeholder="Texto de dedicatoria (opcional)" style="min-height:55px"></textarea>
         <label class="form-label">Dirección de envío / retira</label>

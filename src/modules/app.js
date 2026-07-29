@@ -4888,7 +4888,8 @@ function renderVentas(){
     <td><input class="form-input" value="${esc(v.prod)}" onchange="updV(${i},'prod',this.value)" style="min-width:140px"></td>
     <td><input class="form-input" value="${esc(v.desc)}" onchange="updV(${i},'desc',this.value)" style="min-width:150px" placeholder="Flores, colores..."></td>
     <td><input class="form-input" type="date" value="${esc(v.fecha)}" onchange="updV(${i},'fecha',this.value)" style="min-width:130px"></td>
-    <td><input class="form-input" value="${esc(v.cliente)}" onchange="updV(${i},'cliente',this.value)" style="min-width:110px"></td>
+    <td><input class="form-input" value="${esc(v.cliente)}" onchange="updV(${i},'cliente',this.value)" style="min-width:110px" placeholder="Quien abona"></td>
+    <td><input class="form-input" value="${esc(v.destinatario||'')}" onchange="updV(${i},'destinatario',this.value)" style="min-width:110px" placeholder="Quien recibe"></td>
     <td><input class="form-input" value="${esc(v.dedicatoria||'')}" onchange="updV(${i},'dedicatoria',this.value)" style="min-width:130px" placeholder="—"></td>
     <td><input class="form-input" value="${esc(v.precio)}" onchange="updV(${i},'precio',this.value)" style="width:90px"></td>
     <td>
@@ -4948,7 +4949,7 @@ function openSaleModal(){
   document.getElementById('sale-modal-title').textContent = 'Nueva Venta';
   document.getElementById('sale-edit-idx').value = '-1';
   document.getElementById('sale-fecha').value=TODAY_ISO;
-  ['sale-desc','sale-cliente','sale-dedicatoria','sale-precio','sale-dir'].forEach(id=>document.getElementById(id).value='');
+  ['sale-desc','sale-cliente','sale-destinatario','sale-dedicatoria','sale-precio','sale-dir'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('sale-estado').value='pendiente';
   document.getElementById('sale-pago').value='';
   populateSaleSelects('', '');
@@ -4964,6 +4965,7 @@ function openEditSaleModal(i){
   document.getElementById('sale-desc').value = v.desc || '';
   document.getElementById('sale-fecha').value = v.fecha || '';
   document.getElementById('sale-cliente').value = v.cliente || '';
+  document.getElementById('sale-destinatario').value = v.destinatario || '';
   document.getElementById('sale-dedicatoria').value = v.dedicatoria || '';
   document.getElementById('sale-precio').value = v.precio || '';
   document.getElementById('sale-pago').value = v.formaPago || '';
@@ -5039,6 +5041,7 @@ function addSale(){
     prod,
     desc:document.getElementById('sale-desc').value,
     cliente:document.getElementById('sale-cliente').value,
+    destinatario:document.getElementById('sale-destinatario').value,
     fecha:document.getElementById('sale-fecha').value||TODAY_ISO,
     dedicatoria:document.getElementById('sale-dedicatoria').value,
     precio:document.getElementById('sale-precio').value||'—',
@@ -8546,6 +8549,7 @@ function openVentaRamo(i){
   document.getElementById('ramo-sell-info').innerHTML =
     `<strong>${esc(r.nombre)}</strong>${r.desc?` · ${esc(r.desc)}`:''}<br><span style="color:#7A7A72">Precio: ${esc(r.precio||'A consultar')}</span>`;
   document.getElementById('ramo-sell-cliente').value='';
+  document.getElementById('ramo-sell-destinatario').value='';
   document.getElementById('ramo-sell-pago').value='';
   document.getElementById('ramo-sell-dedicatoria').value='';
   document.getElementById('ramo-sell-dir').value='';
@@ -8562,6 +8566,7 @@ function confirmVentaRamo(){
     prod: r.nombre,
     desc: r.desc || '',
     cliente: cliente,
+    destinatario: document.getElementById('ramo-sell-destinatario').value.trim(),
     fecha: TODAY_ISO,
     dedicatoria: document.getElementById('ramo-sell-dedicatoria').value.trim(),
     precio: r.precio || '—',
@@ -8614,6 +8619,7 @@ function registrarVentaDirecta(){
     prod,
     desc: '',
     cliente,
+    destinatario: document.getElementById('vd-destinatario')?.value || '',
     fecha: TODAY_ISO,
     dedicatoria: document.getElementById('vd-dedicatoria')?.value || '',
     precio: document.getElementById('vd-precio')?.value || '—',
@@ -8625,7 +8631,7 @@ function registrarVentaDirecta(){
   fbSave('ventasData', ventasData);
 
   // Limpiar formulario
-  ['vd-prod','vd-cliente','vd-pago','vd-precio','vd-dedicatoria','vd-dir'].forEach(id => {
+  ['vd-prod','vd-cliente','vd-destinatario','vd-pago','vd-precio','vd-dedicatoria','vd-dir'].forEach(id => {
     const el = document.getElementById(id);
     if(el) el.value = '';
   });
