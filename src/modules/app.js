@@ -2316,6 +2316,37 @@ async function delStock(i){
 function filterByStatus(s,btn){ document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); stockFilter=s; renderStock(); }
 function filterStock(v){ stockSearch=v.toLowerCase(); renderStock(); }
 
+// Alta manual de un artículo en el stock de florería (compras / gerencia), para
+// cargar algo que quedó por fuera del flujo automático de recepción de compras.
+function openAddStockModal(){
+  document.getElementById('as-prod').value = '';
+  document.getElementById('as-area').value = '';
+  document.getElementById('as-actual').value = '0';
+  document.getElementById('as-min').value = '1';
+  document.getElementById('as-max').value = '10';
+  const areas = [...new Set([...stockData.map(s=>s.area).filter(Boolean), ...getAreaUsoZonas()])].sort((a,b)=>a.localeCompare(b,'es'));
+  const dl = document.getElementById('as-area-list');
+  if(dl) dl.innerHTML = areas.map(a=>`<option value="${esc(a)}">`).join('');
+  document.getElementById('add-stock-modal').classList.add('open');
+}
+
+function guardarStockManual(){
+  const prod = document.getElementById('as-prod').value.trim();
+  if(!prod){ showToast('Poné el nombre del producto','error'); return; }
+  const area = document.getElementById('as-area').value.trim() || 'Sin área';
+  const dup = stockData.find(s => (s.prod||'').trim().toLowerCase()===prod.toLowerCase() && (s.area||'').trim().toLowerCase()===area.toLowerCase());
+  if(dup){ showToast('⚠️ Ya existe ese producto en esa área'); return; }
+  const actual = Math.max(0, parseFloat(document.getElementById('as-actual').value)||0);
+  const min = Math.max(0, parseFloat(document.getElementById('as-min').value)||0);
+  const max = Math.max(min, parseFloat(document.getElementById('as-max').value)||0);
+  stockData.push({ prod, area, min, max, actual });
+  fbSave('stockData', stockData);
+  closeModal('add-stock-modal');
+  renderStockAdmin();
+  renderStock();
+  showToast('✅ '+prod+' agregado al stock');
+}
+
 function renderStockAdmin(){
   const tbody = document.getElementById('stock-admin-body');
   if(!tbody) return;
@@ -15876,7 +15907,7 @@ Object.assign(window, {
   resetHora, resetWeekState, resetearPassword, resetearTodasPasswords, saleAutoFillPrice,
   saveEvent, saveInsumosCustom, saveKanbanTask, saveLpItem, saveRamo, saveReceta, saveUrgenciaConfig,
   saveWeekState, setCotTab, setHabReporteMes, setHopsFilter, setJardReporteMes, setJopsFilter,
-  setPlantilla, setStock, setStockMax, setStockMin, vaciarStock, setUrgenciaPreset, showAlertaHorario,
+  setPlantilla, setStock, setStockMax, setStockMin, vaciarStock, openAddStockModal, guardarStockManual, setUrgenciaPreset, showAlertaHorario,
   showToast, syncEventosToKanban, toggleCtrlSection, toggleEvZona, toggleHistorialCompras,
   toggleHistory, toggleInsumosGrid, toggleJordProd, togglePlantilla, toggleProductividad,
   toggleDarkMode, initDarkMode, openGlobalSearch, closeGlobalSearch, handleSearchKey, runGlobalSearch, _gsearchGo, exportPDF,
