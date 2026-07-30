@@ -173,6 +173,7 @@ const PAGE_LABELS = {control:'Control','control-jardineria':'Control › Seguimi
   'recepcion-pedidos':'Operaciones › Recepción de Pedidos',
   compras:'Compras', 'compras-floreria':'Compras › Florería',
   'compras-jardineria':'Compras › Jardinería',
+  'compra-evento':'Compras › Compra por Evento',
   'stock-admin':'Compras › Gestión de Stock', floreros:'Compras › Stock de Floreros',
   comercial:'Área Comercial', 'eventos-comercial':'Comercial › Eventos',
   'historial-eventos':'Comercial › Historial de Eventos',
@@ -310,6 +311,7 @@ function navigate(pageId, navEl){
   if(pageId==='eventos-maison')     renderKanban();
   if(pageId==='compras-floreria')   renderCompras('floreria');
   if(pageId==='compras-jardineria') renderCompras('jardineria');
+  if(pageId==='compra-evento')      renderCompraEvento();
   if(pageId==='stock-admin')        renderStockAdmin();
   if(pageId==='floreros')           renderFloreros();
   if(pageId==='velas')              renderVelas();
@@ -3556,6 +3558,155 @@ async function copiarBloquePedido(type, fecha){
   fbSave(type==='floreria' ? 'comprasFlore' : 'comprasJard', arr);
   renderCompras(type);
   showToast('📋 Pedido copiado con ' + nuevos.length + ' ítems · fecha de hoy · ajustá lo que necesites');
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// COMPRA POR EVENTO — cuánto comprar según composiciones + varas por paquete
+// Toma las composiciones (varas de cada flor por arreglo) y las varas por paquete
+// registradas en Compras para convertir las varas necesarias en paquetes a comprar.
+// ══════════════════════════════════════════════════════════════════════════════
+let ceRows = [];
+
+// Varas por paquete de un producto: se toma el valor más reciente cargado en
+// Compras Florería (varasPorPaq). Devuelve null si no hay dato.
+function getVarasPorPaq(prod){
+  const pl = String(prod||'').trim().toLowerCase();
+  let best = null, bestFecha = '';
+  (comprasFlore||[]).forEach(c=>{
+    if(String(c.prod||'').trim().toLowerCase() !== pl) return;
+    const vpp = parseFloat(c.varasPorPaq);
+    if(!vpp || vpp<=0) return;
+    const f = c.fecha||'';
+    if(best===null || f >= bestFecha){ best = vpp; bestFecha = f; }
+  });
+  return best;
+}
+
+function renderCompraEvento(){
+  // Poblar selector de eventos que tengan arreglos cargados
+  const sel = document.getElementById('ce-evento');
+  if(sel){
+    const cur = sel.value;
+    const evs = (eventosData||[]).map((ev,i)=>({ev,i})).filter(o=>o.ev.arreglos?.length)
+      .sort((a,b)=>(b.ev.fecha||'').localeCompare(a.ev.fecha||''));
+    sel.innerHTML = '<option value="">— Elegí un evento (opcional) —</option>' +
+      evs.map(({ev,i})=>`<option value="${i}">${esc(ev.nombre||'(evento)')}${ev.fecha?' · '+fmtDate(ev.fecha):''}</option>`).join('');
+    sel.value = cur;
+  }
+  if(!ceRows.length) ceRows = [{arreglo:'', qty:1}];
+  ceRenderRows();
+  ceRender();
+}
+
+function ceRenderRows(){
+  const cont = document.getElementById('ce-rows');
+  if(!cont) return;
+  if(!ceRows.length) ceRows = [{arreglo:'', qty:1}];
+  const nombres = [...new Set((recetasData||[]).map(r=>r.nombre))];
+  cont.innerHTML = ceRows.map((row,i)=>{
+    const opts = nombres.map(n=>`<option value="${esc(n)}"${n===row.arreglo?' selected':''}>${arregloEmoji(n)} ${esc(n)}</option>`).join('');
+    return `<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+      <select onchange="ceSet(${i},'arreglo',this.value)" style="flex:2;min-width:180px;border:1px solid #E4E2DC;border-radius:6px;padding:7px 9px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none">
+        <option value="">— Tipo de arreglo —</option>${opts}
+      </select>
+      <span style="font-size:12px;color:var(--mid-gray)">×</span>
+      <input type="number" min="1" value="${esc(row.qty)}" onchange="ceSet(${i},'qty',this.value)" style="width:70px;border:1px solid #E4E2DC;border-radius:6px;padding:7px 6px;font-size:13px;text-align:center;outline:none;font-family:'DM Sans',sans-serif">
+      <button type="button" class="btn-icon" style="color:var(--red-alert)" onclick="ceRemoveRow(${i})" title="Quitar">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function ceSet(i, field, val){
+  if(!ceRows[i]) return;
+  ceRows[i][field] = field==='qty' ? (+val||0) : val;
+  ceRender();
+}
+function ceAddRow(){ ceRows.push({arreglo:'', qty:1}); ceRenderRows(); ceRender(); }
+function ceRemoveRow(i){ ceRows.splice(i,1); if(!ceRows.length) ceRows=[{arreglo:'',qty:1}]; ceRenderRows(); ceRender(); }
+function ceReset(){ ceRows=[{arreglo:'',qty:1}]; const s=document.getElementById('ce-evento'); if(s) s.value=''; ceRenderRows(); ceRender(); }
+function ceLoadEvento(evIdx){
+  if(evIdx===''||evIdx==null){ return; }
+  const ev = (eventosData||[])[+evIdx];
+  if(!ev){ return; }
+  const arr = (ev.arreglos||[]).filter(a=>a.arreglo && a.qty>0);
+  if(!arr.length){ showToast('⚠️ Ese evento no tiene arreglos cargados'); return; }
+  ceRows = arr.map(a=>({arreglo:a.arreglo, qty:+a.qty||1}));
+  ceRenderRows();
+  ceRender();
+}
+
+function ceRender(){
+  const out = document.getElementById('ce-resultado');
+  if(!out) return;
+  const rows = ceRows.filter(r=>r.arreglo && r.qty>0);
+  const impact = calcStockImpact(rows); // { prod: varas necesarias }
+  const prods = Object.keys(impact).sort((a,b)=>a.localeCompare(b,'es'));
+  if(!prods.length){
+    out.innerHTML = `<div style="text-align:center;padding:40px 20px;color:var(--mid-gray)">
+      <div style="font-size:36px;margin-bottom:8px">🧮</div>
+      <div style="font-size:14px">Agregá arreglos y cantidades para ver cuánto comprar.</div></div>`;
+    return;
+  }
+
+  const filas = prods.map(prod=>{
+    const varas = +impact[prod].toFixed(2);
+    const vpp = getVarasPorPaq(prod);
+    const paquetes = vpp ? Math.ceil(varas / vpp) : null;
+    const vppStr = vpp!=null ? vpp : '<span style="color:var(--red-alert)">sin dato</span>';
+    const paqStr = paquetes!=null
+      ? `<strong style="font-size:15px">${paquetes}</strong>`
+      : '<span style="color:var(--red-alert)" title="Cargá las varas por paquete en Compras Florería">—</span>';
+    return `<tr style="border-top:1px solid #F0EDE8">
+      <td style="padding:8px 12px;font-weight:500">${esc(prod)}</td>
+      <td style="padding:8px 12px;text-align:center">${varas%1===0?varas:varas.toFixed(1)}</td>
+      <td style="padding:8px 12px;text-align:center;color:var(--mid-gray)">${vppStr}</td>
+      <td style="padding:8px 12px;text-align:center">${paqStr}</td>
+    </tr>`;
+  }).join('');
+
+  // Resumen "Comprar" (solo los que tienen paquetes calculables)
+  const compra = prods.map(prod=>{
+    const vpp = getVarasPorPaq(prod);
+    if(!vpp) return null;
+    const paquetes = Math.ceil((+impact[prod]) / vpp);
+    return { prod, paquetes };
+  }).filter(Boolean);
+  const faltantes = prods.filter(prod=>!getVarasPorPaq(prod));
+
+  const compraStr = compra.map(c=>`${c.paquetes} ${esc(c.prod)}`).join(' · ');
+
+  out.innerHTML = `
+    <div style="background:#EBF5E8;border:1px solid #C6E0BE;border-radius:12px;padding:16px 18px;margin-bottom:16px">
+      <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#2C6B3A;font-weight:600;margin-bottom:8px">🛒 Comprar</div>
+      ${compra.length
+        ? `<div style="font-size:16px;color:#1A1A1A;line-height:1.7">${compra.map(c=>`<strong>${c.paquetes}</strong> ${esc(c.prod)}`).join(' &nbsp;·&nbsp; ')}</div>`
+        : '<div style="font-size:13px;color:var(--mid-gray)">Ningún producto tiene varas por paquete cargadas en Compras todavía.</div>'}
+      ${faltantes.length ? `<div style="font-size:12px;color:var(--red-alert);margin-top:8px">⚠️ Sin varas por paquete (cargalas en Compras Florería): ${faltantes.map(esc).join(', ')}</div>` : ''}
+      ${compra.length ? `<button class="btn-secondary" style="font-size:12px;margin-top:12px" onclick="ceCopiar()">📋 Copiar lista</button>` : ''}
+    </div>
+    <div class="table-wrapper">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;background:var(--warm-white);border:1px solid var(--light-gray);border-radius:10px;overflow:hidden">
+        <thead><tr style="background:#FAF8F4">
+          <th style="padding:9px 12px;text-align:left;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Producto</th>
+          <th style="padding:9px 12px;text-align:center;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Varas necesarias</th>
+          <th style="padding:9px 12px;text-align:center;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Varas x paquete</th>
+          <th style="padding:9px 12px;text-align:center;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Paquetes a comprar</th>
+        </tr></thead>
+        <tbody>${filas}</tbody>
+      </table>
+    </div>
+    <div style="font-size:11px;color:var(--mid-gray);margin-top:10px">Las varas necesarias salen de las composiciones (Comercial › Composiciones). Las varas por paquete se toman del último valor cargado en Compras Florería.</div>`;
+  window._ceCompra = compra;
+}
+
+function ceCopiar(){
+  const compra = window._ceCompra || [];
+  if(!compra.length){ showToast('Nada para copiar'); return; }
+  const txt = 'Comprar:\n' + compra.map(c=>`- ${c.paquetes} ${c.prod}`).join('\n');
+  (navigator.clipboard?.writeText(txt) || Promise.reject()).then(
+    ()=>showToast('📋 Lista copiada'),
+    ()=>showToast('No se pudo copiar')
+  );
 }
 
 function toggleProvManager(){
@@ -15668,6 +15819,7 @@ Object.assign(window, {
   calcularArreglosEvento, cambiarContrasena, changeEventoEstado, clearCompraExtraFilters,
   clearCompraFilter, clearEventImg, clearRecetaImg, closeModal, closeSidebar, confirmResetWeek,
   confirmVentaRamo, copiarBloquePedido, copiarCotEvento, copiarCotizacion, copiarCotizacionEvento,
+  renderCompraEvento, ceAddRow, ceRemoveRow, ceSet, ceReset, ceLoadEvento, ceCopiar,
   copiarCotizacionOps, copiarUltimoPedido, cotAgregar, cotAgregarComposicionOps, cotAgregarLP,
   cotAgregarOpsStock, cotGuardarMargen, cotGuardarPrecio, cotRemove, cotRemoveOps, cotUpdateQty,
   cotUpdateQtyOps, ctrlHabFilter, ctrlJardFilter, daysSince, delC, delCaja,
