@@ -3621,6 +3621,21 @@ function getVarasPorPaq(prod){
   return best;
 }
 
+// Último precio de compra (por paquete) de un producto, del pedido más reciente
+// cargado en Compras Florería. Devuelve null si no hay dato.
+function getUltimoPrecioCompra(prod){
+  const pl = String(prod||'').trim().toLowerCase();
+  let best = null, bestFecha = '';
+  (comprasFlore||[]).forEach(c=>{
+    if(String(c.prod||'').trim().toLowerCase() !== pl) return;
+    const m = parseMoney(c.costo);
+    if(!m || m<=0) return;
+    const f = c.fecha||'';
+    if(best===null || f >= bestFecha){ best = m; bestFecha = f; }
+  });
+  return best;
+}
+
 function renderCompraEvento(){
   // Poblar selector de eventos que tengan arreglos cargados
   const sel = document.getElementById('ce-evento');
@@ -15282,6 +15297,7 @@ function cpRenderFreeRows(){
       <input value="${esc(row.prod)}" list="cp-prod-list" onchange="cpSetFree(${i},'prod',this.value)" placeholder="Producto (ej. hortensias, paq fresias)" style="flex:2;min-width:150px;border:1px solid #E4E2DC;border-radius:6px;padding:7px 9px;font-size:13px">
       <span style="color:var(--mid-gray)">$</span>
       <input type="number" min="0" value="${esc(row.precio)}" onchange="cpSetFree(${i},'precio',this.value)" placeholder="Precio" title="Precio por unidad o por paquete" style="width:100px;border:1px solid #E4E2DC;border-radius:6px;padding:7px;text-align:right;font-size:13px">
+      <span style="font-size:10px;color:var(--sage-dark);white-space:nowrap;min-width:56px">${row._precioSugerido?'💡 sugerido':''}</span>
       <button class="btn-icon" style="color:var(--red-alert)" onclick="cpRemoveFree(${i})" title="Quitar">✕</button>
     </div>`).join('');
 }
@@ -15289,7 +15305,23 @@ function cpRenderFreeRows(){
 function cpSetArr(i,fld,v){ if(cpArrRows[i]) cpArrRows[i][fld] = fld==='qty'?(+v||0):v; cpRender(); }
 function cpAddArr(){ cpArrRows.push({arreglo:'',qty:1}); cpRenderArrRows(); cpRender(); }
 function cpRemoveArr(i){ cpArrRows.splice(i,1); if(!cpArrRows.length) cpArrRows=[{arreglo:'',qty:1}]; cpRenderArrRows(); cpRender(); }
-function cpSetFree(i,fld,v){ if(cpFreeRows[i]) cpFreeRows[i][fld] = v; cpRender(); }
+function cpSetFree(i,fld,v){
+  const row = cpFreeRows[i];
+  if(!row) return;
+  row[fld] = v;
+  if(fld==='precio') row._precioSugerido = false; // si lo tocan a mano, deja de ser sugerido
+  // Al elegir el producto, sugerir el último precio de compra si el precio está vacío
+  if(fld==='prod'){
+    const precioActual = parseFloat(row.precio);
+    if(v && (!row.precio || row._precioSugerido || isNaN(precioActual) || precioActual===0)){
+      const sug = getUltimoPrecioCompra(v);
+      if(sug){ row.precio = sug; row._precioSugerido = true; }
+      else if(row._precioSugerido){ row.precio = ''; row._precioSugerido = false; }
+      cpRenderFreeRows();
+    }
+  }
+  cpRender();
+}
 function cpAddFree(){ cpFreeRows.push({cant:'1',prod:'',precio:''}); cpRenderFreeRows(); cpRender(); }
 function cpRemoveFree(i){ cpFreeRows.splice(i,1); if(!cpFreeRows.length) cpFreeRows=[{cant:'1',prod:'',precio:''}]; cpRenderFreeRows(); cpRender(); }
 
