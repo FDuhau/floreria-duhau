@@ -205,6 +205,7 @@ const PAGE_LABELS = {control:'Control','control-jardineria':'Control › Seguimi
   liquidacion: 'Recursos Humanos › Liquidación Horas Extra',
   'precio-comparacion': 'Compras › Comparar Precios',
   'presupuestos': 'Comercial › Presupuestos Enviados',
+  'cotizar-presupuesto': 'Comercial › Armar cotización',
   'cierre-mensual': 'Contable › Cierre Mensual',
   'dashboard-gerencia': 'Gerencia › Dashboard Unificado',
   'cierre-dia': 'Reportes › Cierre del Día',
@@ -354,6 +355,7 @@ function navigate(pageId, navEl){
   if(pageId==='liquidacion') renderLiquidacion();
   if(pageId==='precio-comparacion') renderPrecioComparacion();
   if(pageId==='presupuestos') renderPresupuestos();
+  if(pageId==='cotizar-presupuesto') renderCotizarPresupuesto();
   if(pageId==='cierre-mensual'){ const sel=document.getElementById('cierre-mes-sel'); if(sel&&!sel.value) sel.value=CURR_MONTH; renderCierreMensual(); }
   if(pageId==='dashboard-gerencia') renderDashboardGerencia();
   if(pageId==='tv-dashboard') renderTVDashboard();
@@ -15217,6 +15219,206 @@ function verPresupuesto(idx){
   win.document.close();
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// COTIZADOR DE PRESUPUESTO (armado) — dos secciones:
+//  A) Arreglos de evento: se elige el arreglo (composición) y se muestra el
+//     detalle de cantidades y el costo de cada ingrediente según último precio.
+//  B) Ítems sueltos: líneas libres con cantidad (admite fracciones 1/2, 1/4),
+//     producto y precio (unitario o por paquete).
+// El total arma un presupuesto que va a la lista de Presupuestos.
+// ══════════════════════════════════════════════════════════════════════════════
+let cpArrRows = [];   // [{arreglo, qty}]
+let cpFreeRows = [];  // [{cant, prod, precio}]  (cant como texto para admitir 1/2)
+
+function cpParseCant(s){
+  s = String(s==null?'':s).trim().replace(',', '.');
+  if(!s) return 0;
+  if(s.includes('/')){
+    const [a,b] = s.split('/').map(x=>parseFloat(x.trim()));
+    return (b && !isNaN(a) && !isNaN(b)) ? a/b : 0;
+  }
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+const _cpMoney = n => '$'+Math.round(n||0).toLocaleString('es-AR');
+
+function renderCotizarPresupuesto(){
+  const f = document.getElementById('cp-fecha'); if(f && !f.value) f.value = TODAY_ISO;
+  if(!cpArrRows.length) cpArrRows = [{arreglo:'', qty:1}];
+  if(!cpFreeRows.length) cpFreeRows = [{cant:'1', prod:'', precio:''}];
+  const dl = document.getElementById('cp-prod-list');
+  if(dl){
+    const prods = [...new Set([...(stockData||[]).map(s=>s.prod), ...Object.keys(cotizadorPrecios||{})])].filter(Boolean).sort((a,b)=>a.localeCompare(b,'es'));
+    dl.innerHTML = prods.map(p=>`<option value="${esc(p)}">`).join('');
+  }
+  cpRenderArrRows();
+  cpRenderFreeRows();
+  cpRender();
+}
+
+function cpRenderArrRows(){
+  const cont = document.getElementById('cp-arr-rows');
+  if(!cont) return;
+  const nombres = [...new Set((recetasData||[]).map(r=>r.nombre))];
+  cont.innerHTML = cpArrRows.map((row,i)=>{
+    const opts = nombres.map(n=>`<option value="${esc(n)}"${n===row.arreglo?' selected':''}>${arregloEmoji(n)} ${esc(n)}</option>`).join('');
+    return `<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+      <select onchange="cpSetArr(${i},'arreglo',this.value)" style="flex:2;min-width:170px;border:1px solid #E4E2DC;border-radius:6px;padding:7px 9px;font-size:13px">
+        <option value="">— Arreglo de evento —</option>${opts}
+      </select>
+      <span style="color:var(--mid-gray)">×</span>
+      <input type="number" min="1" value="${esc(row.qty)}" onchange="cpSetArr(${i},'qty',this.value)" style="width:64px;border:1px solid #E4E2DC;border-radius:6px;padding:7px;text-align:center;font-size:13px">
+      <button class="btn-icon" style="color:var(--red-alert)" onclick="cpRemoveArr(${i})" title="Quitar">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function cpRenderFreeRows(){
+  const cont = document.getElementById('cp-free-rows');
+  if(!cont) return;
+  cont.innerHTML = cpFreeRows.map((row,i)=>`
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+      <input value="${esc(row.cant)}" onchange="cpSetFree(${i},'cant',this.value)" placeholder="1, 1/2, 1/4" title="Cantidad — admite fracciones como 1/2 o 1/4" style="width:78px;border:1px solid #E4E2DC;border-radius:6px;padding:7px;text-align:center;font-size:13px">
+      <input value="${esc(row.prod)}" list="cp-prod-list" onchange="cpSetFree(${i},'prod',this.value)" placeholder="Producto (ej. hortensias, paq fresias)" style="flex:2;min-width:150px;border:1px solid #E4E2DC;border-radius:6px;padding:7px 9px;font-size:13px">
+      <span style="color:var(--mid-gray)">$</span>
+      <input type="number" min="0" value="${esc(row.precio)}" onchange="cpSetFree(${i},'precio',this.value)" placeholder="Precio" title="Precio por unidad o por paquete" style="width:100px;border:1px solid #E4E2DC;border-radius:6px;padding:7px;text-align:right;font-size:13px">
+      <button class="btn-icon" style="color:var(--red-alert)" onclick="cpRemoveFree(${i})" title="Quitar">✕</button>
+    </div>`).join('');
+}
+
+function cpSetArr(i,fld,v){ if(cpArrRows[i]) cpArrRows[i][fld] = fld==='qty'?(+v||0):v; cpRender(); }
+function cpAddArr(){ cpArrRows.push({arreglo:'',qty:1}); cpRenderArrRows(); cpRender(); }
+function cpRemoveArr(i){ cpArrRows.splice(i,1); if(!cpArrRows.length) cpArrRows=[{arreglo:'',qty:1}]; cpRenderArrRows(); cpRender(); }
+function cpSetFree(i,fld,v){ if(cpFreeRows[i]) cpFreeRows[i][fld] = v; cpRender(); }
+function cpAddFree(){ cpFreeRows.push({cant:'1',prod:'',precio:''}); cpRenderFreeRows(); cpRender(); }
+function cpRemoveFree(i){ cpFreeRows.splice(i,1); if(!cpFreeRows.length) cpFreeRows=[{cant:'1',prod:'',precio:''}]; cpRenderFreeRows(); cpRender(); }
+
+function cpRender(){
+  // ── Sección A: arreglos + composición (costo según último precio por vara) ──
+  const arrOut = document.getElementById('cp-arr-detalle');
+  let totalArr = 0;
+  const arrValid = cpArrRows.filter(r=>r.arreglo && r.qty>0);
+  if(arrOut){
+    arrOut.innerHTML = !arrValid.length ? '' : arrValid.map(row=>{
+      const receta = (recetasData||[]).find(r=>r.nombre===row.arreglo);
+      if(!receta) return '';
+      const ings = (receta.ings||[]).map(ing=>{
+        const pu = cotizadorPrecios[ing.prod]||0;
+        const varas = (+ing.qty||0) * row.qty;
+        return { prod: ing.prod, varas, pu, costo: varas*pu };
+      });
+      const costoArr = ings.reduce((s,x)=>s+x.costo,0);
+      totalArr += costoArr;
+      const faltan = ings.filter(x=>!x.pu).map(x=>x.prod);
+      return `<div style="border:1px solid var(--light-gray);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:var(--warm-white)">
+        <div style="display:flex;justify-content:space-between;font-weight:600;margin-bottom:8px">
+          <span>${arregloEmoji(row.arreglo)} ${esc(row.arreglo)} × ${row.qty}</span>
+          <span>${_cpMoney(costoArr)}</span>
+        </div>
+        <table style="width:100%;font-size:12px;border-collapse:collapse">
+          <thead><tr style="color:var(--mid-gray);font-size:10px;text-transform:uppercase">
+            <th style="text-align:left;padding:2px 4px">Ingrediente</th><th style="text-align:center">Varas</th><th style="text-align:right">Precio/vara</th><th style="text-align:right">Costo</th>
+          </tr></thead>
+          <tbody>${ings.map(x=>`<tr style="border-top:1px solid #F0EDE8">
+            <td style="padding:3px 4px">${esc(x.prod)}</td>
+            <td style="text-align:center">${x.varas%1===0?x.varas:x.varas.toFixed(1)}</td>
+            <td style="text-align:right;color:${x.pu?'inherit':'var(--red-alert)'}">${x.pu?_cpMoney(x.pu):'sin dato'}</td>
+            <td style="text-align:right;font-weight:600">${x.costo?_cpMoney(x.costo):'—'}</td>
+          </tr>`).join('')}</tbody>
+        </table>
+        ${faltan.length?`<div style="font-size:11px;color:var(--red-alert);margin-top:6px">Sin último precio cargado: ${faltan.map(esc).join(', ')}</div>`:''}
+      </div>`;
+    }).join('');
+  }
+  // ── Sección B: ítems sueltos ──
+  const freeOut = document.getElementById('cp-free-detalle');
+  let totalFree = 0;
+  const freeValid = cpFreeRows.filter(r=>r.prod && cpParseCant(r.cant)>0);
+  freeValid.forEach(r=>{ totalFree += cpParseCant(r.cant) * (parseFloat(r.precio)||0); });
+  if(freeOut){
+    freeOut.innerHTML = !freeValid.length ? '' : `<table style="width:100%;font-size:12.5px;border-collapse:collapse">
+        <thead><tr style="color:var(--mid-gray);font-size:10px;text-transform:uppercase">
+          <th style="text-align:left;padding:3px 6px">Cant.</th><th style="text-align:left">Producto</th><th style="text-align:right">Precio</th><th style="text-align:right">Subtotal</th>
+        </tr></thead>
+        <tbody>${freeValid.map(r=>{ const c=cpParseCant(r.cant); const p=parseFloat(r.precio)||0; return `<tr style="border-top:1px solid #F0EDE8">
+          <td style="padding:3px 6px">${esc(r.cant)}</td><td>${esc(r.prod)}</td><td style="text-align:right">${_cpMoney(p)}</td><td style="text-align:right;font-weight:600">${_cpMoney(c*p)}</td>
+        </tr>`; }).join('')}</tbody>
+      </table>`;
+  }
+  const total = totalArr + totalFree;
+  const totEl = document.getElementById('cp-totales');
+  if(totEl){
+    totEl.innerHTML = `
+      <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px"><span>Costo arreglos de evento</span><strong>${_cpMoney(totalArr)}</strong></div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px"><span>Ítems sueltos</span><strong>${_cpMoney(totalFree)}</strong></div>
+      <div style="display:flex;justify-content:space-between;padding:10px 0 0;margin-top:6px;border-top:2px solid var(--charcoal);font-size:17px"><span style="font-weight:700">Total</span><strong>${_cpMoney(total)}</strong></div>`;
+  }
+  window._cpTotal = total; window._cpTotalArr = totalArr; window._cpTotalFree = totalFree;
+}
+
+function cpReset(){
+  cpArrRows = [{arreglo:'',qty:1}];
+  cpFreeRows = [{cant:'1',prod:'',precio:''}];
+  ['cp-evento','cp-encargado','cp-cliente','cp-telefono','cp-vencimiento'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  const f=document.getElementById('cp-fecha'); if(f) f.value=TODAY_ISO;
+  renderCotizarPresupuesto();
+}
+
+function cpGuardar(){
+  cpRender();
+  const evento = document.getElementById('cp-evento').value.trim();
+  const encargado = document.getElementById('cp-encargado').value.trim();
+  const cliente = document.getElementById('cp-cliente').value.trim() || evento;
+  if(!cliente){ showToast('Poné el evento o el cliente','error'); return; }
+  const total = window._cpTotal||0;
+  if(total<=0){ showToast('Agregá arreglos o ítems con precio','error'); return; }
+
+  const arrValid = cpArrRows.filter(r=>r.arreglo && r.qty>0);
+  const freeValid = cpFreeRows.filter(r=>r.prod && cpParseCant(r.cant)>0);
+
+  // Detalle multilínea (va en notas → se ve en el documento / WhatsApp)
+  const det = [];
+  if(evento) det.push(`Evento: ${evento}`);
+  if(encargado) det.push(`Encargado: ${encargado}`);
+  if(arrValid.length){
+    det.push('', 'Arreglos:');
+    arrValid.forEach(row=>{
+      const receta = (recetasData||[]).find(r=>r.nombre===row.arreglo);
+      const costo = receta ? calcCostoComposicion(receta)*row.qty : 0;
+      det.push(`• ${row.qty}× ${row.arreglo} — ${_cpMoney(costo)}`);
+      if(receta) (receta.ings||[]).forEach(ing=>{ det.push(`   – ${(+ing.qty||0)*row.qty} ${ing.prod}`); });
+    });
+  }
+  if(freeValid.length){
+    det.push('', 'Ítems:');
+    freeValid.forEach(r=>{ const c=cpParseCant(r.cant); const p=parseFloat(r.precio)||0; det.push(`• ${r.cant} ${r.prod} — ${_cpMoney(c*p)}`); });
+  }
+
+  const concepto = evento
+    ? `Evento: ${evento}${encargado?' · Enc.: '+encargado:''}`
+    : `Cotización · ${arrValid.length} arreglo${arrValid.length!==1?'s':''} · ${freeValid.length} ítem${freeValid.length!==1?'s':''}`;
+
+  presupuestosData.push({
+    id: Date.now(),
+    fecha: document.getElementById('cp-fecha').value || TODAY_ISO,
+    cliente, evento, encargado,
+    telefono: document.getElementById('cp-telefono').value.trim(),
+    concepto,
+    monto: total,
+    vencimiento: document.getElementById('cp-vencimiento').value,
+    notas: det.join('\n'),
+    estado: 'pendiente',
+    arreglos: arrValid,
+    items: freeValid,
+    costoArreglos: window._cpTotalArr||0,
+    totalItems: window._cpTotalFree||0
+  });
+  fbSave('presupuestosData', presupuestosData);
+  cpArrRows = []; cpFreeRows = [];
+  showToast('✅ Presupuesto armado y guardado');
+  navigate('presupuestos');
+}
+
 // ════════════════════════════════════════
 // PEDIDOS DE RAMOS — gerencia/comercial encarga un ramo y lo asigna a un florista.
 // Se guarda como venta pendiente en ventasData → aparece en el checklist del florista.
@@ -15946,6 +16148,7 @@ Object.assign(window, {
   installPWA, toggleTVMode, renderTVDashboard,
   renderPresupuestos, openPresupuestoModal, guardarPresupuesto, cambiarEstadoPres, eliminarPresupuesto,
   verPresupuesto, enviarPresupuestoWhatsApp,
+  renderCotizarPresupuesto, cpAddArr, cpRemoveArr, cpSetArr, cpAddFree, cpRemoveFree, cpSetFree, cpReset, cpGuardar,
   renderEventosSinFloreria, openEsfModal, guardarEsf, eliminarEsf, exportEsfReclamo,
   renderCierreMensual, generarCierreMensual, verCierreMensual, exportCierrePDF,
   renderDashboardGerencia,

@@ -2709,7 +2709,10 @@
         <div class="page-title">Presupuestos Enviados</div>
         <div class="page-subtitle">Seguimiento de propuestas comerciales y tasa de conversión</div>
       </div>
-      <button class="btn-primary" onclick="openPresupuestoModal()">+ Nuevo presupuesto</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-secondary" onclick="navigate('cotizar-presupuesto',this)">🎉 Armar cotización</button>
+        <button class="btn-primary" onclick="openPresupuestoModal()">+ Nuevo presupuesto</button>
+      </div>
     </div>
     <div id="presupuestos-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:20px"></div>
     <div class="table-wrapper">
@@ -2717,6 +2720,61 @@
         <thead><tr><th>Fecha</th><th>Cliente</th><th>Concepto</th><th>Monto</th><th>Estado</th><th>Vencimiento</th><th>Acciones</th></tr></thead>
         <tbody id="presupuestos-body"><tr><td colspan="7" style="text-align:center;color:var(--mid-gray);padding:24px">Cargando...</td></tr></tbody>
       </table>
+    </div>
+  </div>
+
+  <!-- ══════ ARMAR COTIZACIÓN (presupuesto detallado) ══════ -->
+  <div id="page-cotizar-presupuesto" class="content">
+    <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
+      <div>
+        <div class="page-title">Armar cotización</div>
+        <div class="page-subtitle">Cotizá por arreglos de evento (según composición y último precio) y/o por ítems sueltos</div>
+      </div>
+      <button class="btn-secondary" onclick="navigate('presupuestos',this)">← Volver a Presupuestos</button>
+    </div>
+    <datalist id="cp-prod-list"></datalist>
+
+    <!-- Datos generales -->
+    <div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;padding:18px 20px;margin-bottom:18px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px">
+        <div class="form-group"><label>Evento</label><input class="form-input" id="cp-evento" placeholder="ej. Boda Pérez, Cartier..."></div>
+        <div class="form-group"><label>Encargado</label><input class="form-input" id="cp-encargado" placeholder="Responsable del evento"></div>
+        <div class="form-group"><label>Cliente</label><input class="form-input" id="cp-cliente" placeholder="Cliente (para el presupuesto)"></div>
+        <div class="form-group"><label>Teléfono (WhatsApp)</label><input class="form-input" id="cp-telefono" placeholder="Ej. 5491122334455"></div>
+        <div class="form-group"><label>Fecha</label><input class="form-input" id="cp-fecha" type="date"></div>
+        <div class="form-group"><label>Vencimiento</label><input class="form-input" id="cp-vencimiento" type="date"></div>
+      </div>
+    </div>
+
+    <!-- Sección A: arreglos de evento -->
+    <div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;padding:18px 20px;margin-bottom:18px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+        <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);font-weight:600">🎉 Arreglos de evento</div>
+        <button class="btn-secondary" onclick="cpAddArr()" style="font-size:12px">+ Agregar arreglo</button>
+      </div>
+      <div id="cp-arr-rows"></div>
+      <div id="cp-arr-detalle" style="margin-top:12px"></div>
+    </div>
+
+    <!-- Sección B: ítems sueltos -->
+    <div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;padding:18px 20px;margin-bottom:18px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px">
+        <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);font-weight:600">🧾 Ítems sueltos</div>
+        <button class="btn-secondary" onclick="cpAddFree()" style="font-size:12px">+ Agregar ítem</button>
+      </div>
+      <div style="font-size:11.5px;color:var(--mid-gray);margin-bottom:12px">La cantidad admite fracciones para dividir un paquete: <strong>1/2</strong>, <strong>1/4</strong>. El precio puede ser por unidad o por paquete; el subtotal es cantidad × precio.</div>
+      <div id="cp-free-rows"></div>
+      <div id="cp-free-detalle" style="margin-top:8px"></div>
+    </div>
+
+    <!-- Totales -->
+    <div style="background:#F4F1EC;border:1px solid var(--light-gray);border-radius:12px;padding:18px 20px;margin-bottom:18px">
+      <div id="cp-totales"></div>
+    </div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:30px">
+      <button class="btn-primary" onclick="cpGuardar()">💾 Guardar presupuesto</button>
+      <button class="btn-secondary" onclick="cpReset()">✕ Limpiar</button>
     </div>
   </div>
 
