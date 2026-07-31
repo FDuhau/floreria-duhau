@@ -3622,7 +3622,7 @@ function getVarasPorPaq(prod){
 }
 
 // Último precio de compra (por paquete) de un producto, del pedido más reciente
-// cargado en Compras Florería. Devuelve null si no hay dato.
+// cargado en Compras Florería. Devuelve {precio, fecha} o null si no hay dato.
 function getUltimoPrecioCompra(prod){
   const pl = String(prod||'').trim().toLowerCase();
   let best = null, bestFecha = '';
@@ -3633,7 +3633,7 @@ function getUltimoPrecioCompra(prod){
     const f = c.fecha||'';
     if(best===null || f >= bestFecha){ best = m; bestFecha = f; }
   });
-  return best;
+  return best===null ? null : { precio: best, fecha: bestFecha };
 }
 
 function renderCompraEvento(){
@@ -15288,18 +15288,27 @@ function cpRenderArrRows(){
   }).join('');
 }
 
+function _ddmm(f){ if(!f) return ''; const p=String(f).split('-'); return (p[2]&&p[1])?`${p[2]}/${p[1]}`:f; }
+
 function cpRenderFreeRows(){
   const cont = document.getElementById('cp-free-rows');
   if(!cont) return;
-  cont.innerHTML = cpFreeRows.map((row,i)=>`
+  cont.innerHTML = cpFreeRows.map((row,i)=>{
+    // Referencia de costo de material: último precio de compra con su fecha
+    const ref = row.prod ? getUltimoPrecioCompra(row.prod) : null;
+    const refLabel = ref
+      ? `💡 costo ${_cpMoney(ref.precio)}${ref.fecha?' · '+_ddmm(ref.fecha):''}`
+      : (row.prod ? '<span style="color:var(--mid-gray)">sin costo cargado</span>' : '');
+    return `
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
       <input value="${esc(row.cant)}" onchange="cpSetFree(${i},'cant',this.value)" placeholder="1, 1/2, 1/4" title="Cantidad — admite fracciones como 1/2 o 1/4" style="width:78px;border:1px solid #E4E2DC;border-radius:6px;padding:7px;text-align:center;font-size:13px">
       <input value="${esc(row.prod)}" list="cp-prod-list" onchange="cpSetFree(${i},'prod',this.value)" placeholder="Producto (ej. hortensias, paq fresias)" style="flex:2;min-width:150px;border:1px solid #E4E2DC;border-radius:6px;padding:7px 9px;font-size:13px">
       <span style="color:var(--mid-gray)">$</span>
       <input type="number" min="0" value="${esc(row.precio)}" onchange="cpSetFree(${i},'precio',this.value)" placeholder="Precio" title="Precio por unidad o por paquete" style="width:100px;border:1px solid #E4E2DC;border-radius:6px;padding:7px;text-align:right;font-size:13px">
-      <span style="font-size:10px;color:var(--sage-dark);white-space:nowrap;min-width:56px">${row._precioSugerido?'💡 sugerido':''}</span>
+      <span style="font-size:10.5px;color:var(--sage-dark);white-space:nowrap;min-width:130px" title="Último costo de compra de este material y su fecha">${refLabel}</span>
       <button class="btn-icon" style="color:var(--red-alert)" onclick="cpRemoveFree(${i})" title="Quitar">✕</button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function cpSetArr(i,fld,v){ if(cpArrRows[i]) cpArrRows[i][fld] = fld==='qty'?(+v||0):v; cpRender(); }
@@ -15309,14 +15318,14 @@ function cpSetFree(i,fld,v){
   const row = cpFreeRows[i];
   if(!row) return;
   row[fld] = v;
-  if(fld==='precio') row._precioSugerido = false; // si lo tocan a mano, deja de ser sugerido
-  // Al elegir el producto, sugerir el último precio de compra si el precio está vacío
+  if(fld==='precio'){ row._precioSugerido = false; row._precioSugFecha = ''; } // si lo tocan a mano, deja de ser sugerido
+  // Al elegir el producto, sugerir el último costo de compra (con su fecha) si el precio está vacío
   if(fld==='prod'){
     const precioActual = parseFloat(row.precio);
     if(v && (!row.precio || row._precioSugerido || isNaN(precioActual) || precioActual===0)){
       const sug = getUltimoPrecioCompra(v);
-      if(sug){ row.precio = sug; row._precioSugerido = true; }
-      else if(row._precioSugerido){ row.precio = ''; row._precioSugerido = false; }
+      if(sug){ row.precio = sug.precio; row._precioSugerido = true; row._precioSugFecha = sug.fecha; }
+      else if(row._precioSugerido){ row.precio = ''; row._precioSugerido = false; row._precioSugFecha = ''; }
       cpRenderFreeRows();
     }
   }
