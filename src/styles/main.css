@@ -884,6 +884,39 @@
     input[type="date"], input[type="time"] { font-size: 16px; }
   }
 
+  /* Compras: tabla principal de carga → tarjetas apiladas en teléfonos */
+  @media (max-width: 640px) {
+    .compras-list-wrap { overflow-x: visible; border: none; box-shadow: none; }
+    .compras-table { min-width: 0 !important; }
+    .compras-table thead { display: none; }
+    .compras-table, .compras-table tbody { display: block; width: 100%; }
+    .compras-table tr { display: block; }
+    .compras-table tbody tr:not(.compra-date-header) {
+      border: 1px solid var(--light-gray); border-radius: 10px;
+      margin: 0 0 12px; padding: 6px 12px; background: var(--warm-white);
+      box-shadow: var(--shadow-sm);
+    }
+    .compras-table tbody tr:not(.compra-date-header) td {
+      display: flex; align-items: center; gap: 12px; justify-content: space-between;
+      padding: 6px 0; border: none;
+    }
+    .compras-table tbody tr:not(.compra-date-header) td::before {
+      content: attr(data-label); flex: 0 0 96px;
+      font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+      color: var(--mid-gray); font-weight: 600;
+    }
+    .compras-table tbody tr:not(.compra-date-header) td .form-input,
+    .compras-table tbody tr:not(.compra-date-header) td .form-select,
+    .compras-table tbody tr:not(.compra-date-header) td select,
+    .compras-table tbody tr:not(.compra-date-header) td input {
+      width: 100% !important; min-width: 0 !important; flex: 1;
+    }
+    .compras-table td.compra-row-acciones { justify-content: flex-end; gap: 8px; }
+    .compras-table td.compra-row-acciones::before { display: none; }
+    .compras-table td[colspan] { display: block !important; width: 100%; }
+    .compras-table td[colspan]::before { display: none; }
+  }
+
   @media (max-width: 400px) {
     .cards-grid-4, .cards-grid-3 { grid-template-columns: 1fr; }
     .quick-links { grid-template-columns: 1fr !important; }
