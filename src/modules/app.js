@@ -221,6 +221,7 @@ const BOTTOM_NAV_ITEMS = {
   compras:   [{icon:'🛒',label:'Compras',page:'compras-floreria'},{icon:'📦',label:'Stock',page:'stock-admin'},{icon:'📬',label:'Recepción',page:'recepcion-pedidos'}],
   comercial: [{icon:'🎉',label:'Eventos',page:'eventos-comercial'},{icon:'💰',label:'Ventas',page:'ventas-externas'},{icon:'🖼',label:'Galería',page:'galeria'},{icon:'💲',label:'Precios',page:'lista-precios'}],
   ventas:    [{icon:'🌺',label:'Ramos',page:'ramos-disponibles'},{icon:'🏨',label:'Pedidos',page:'pedidos-habitacion'},{icon:'💲',label:'Precios',page:'lista-precios'}],
+  housekeeping: [{icon:'🛏',label:'Habitaciones',page:'control-habitaciones'}],
 };
 
 function renderBottomNav(role) {
@@ -3621,6 +3622,21 @@ function getVarasPorPaq(prod){
   return best;
 }
 
+// Último precio de compra (por paquete) de un producto, del pedido más reciente
+// cargado en Compras Florería. Devuelve {precio, fecha} o null si no hay dato.
+function getUltimoPrecioCompra(prod){
+  const pl = String(prod||'').trim().toLowerCase();
+  let best = null, bestFecha = '';
+  (comprasFlore||[]).forEach(c=>{
+    if(String(c.prod||'').trim().toLowerCase() !== pl) return;
+    const m = parseMoney(c.costo);
+    if(!m || m<=0) return;
+    const f = c.fecha||'';
+    if(best===null || f >= bestFecha){ best = m; bestFecha = f; }
+  });
+  return best===null ? null : { precio: best, fecha: bestFecha };
+}
+
 function renderCompraEvento(){
   // Poblar selector de eventos que tengan arreglos cargados
   const sel = document.getElementById('ce-evento');
@@ -6683,6 +6699,7 @@ window._setHabitacionesData = (arr) => {
     habitacionesData[i].canUndo      = false;
     if(r.obs       !== undefined) habitacionesData[i].obs       = r.obs;
     if(r.notas     !== undefined) habitacionesData[i].notas     = r.notas;
+    if(r.comentarioHK !== undefined) habitacionesData[i].comentarioHK = r.comentarioHK;
     if(r.quien     !== undefined) habitacionesData[i].quien     = r.quien;
     if(r.horaInicio!== undefined) habitacionesData[i].horaInicio= r.horaInicio;
     if(r.horaFin   !== undefined) habitacionesData[i].horaFin   = r.horaFin;
@@ -8240,6 +8257,7 @@ function renderHabOps(){
         <div style="font-size:20px;font-weight:600;color:var(--charcoal);font-family:'Cormorant Garamond',serif">🛏 Hab. ${esc(r.hab)}</div>
         <span class="days-badge ${badge.cls}" style="flex-shrink:0">${badge.label}</span>
       </div>
+      ${r.comentarioHK ? `<div style="background:#FDF3E3;border:1px solid #E9D8B0;border-radius:6px;padding:8px 11px;font-size:12.5px;color:#8A5A16;line-height:1.4"><strong>🧹 Housekeeping:</strong> ${esc(r.comentarioHK)}</div>` : ''}
       <div style="display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--mid-gray)">
         <span>📅 Última visita: ${r.last ? fmtDate(r.last) : '<em>Sin registro</em>'}</span>
         <span style="font-family:'Cormorant Garamond',serif;font-size:16px;color:var(--charcoal)" title="Visitas este mes">📊 ${monthVisits} <span style="font-size:10px;color:var(--mid-gray)">este mes</span></span>
@@ -8326,6 +8344,7 @@ function renderCtrlHab(){
   const tbody=document.getElementById('ctrl-hab-body');
   tbody.innerHTML='';
   let renderedAny=false;
+  const isHK = userRole==='housekeeping';
 
   // Sort by days desc (most urgent first)
   const sorted=[...habitacionesData.entries()].sort((a,b)=>{
@@ -8365,24 +8384,33 @@ function renderCtrlHab(){
         ${monthVisits}
       </td>
       <td>
-        <div style="display:flex;gap:6px;align-items:center">
+        ${isHK
+          ? '<span style="color:var(--mid-gray);font-size:12px">👁 solo lectura</span>'
+          : `<div style="display:flex;gap:6px;align-items:center">
           <select id="hab-quien-${i}" class="cl-select" style="font-size:12px;padding:5px 8px;flex:1">
             <option value="">— Jardinero —</option>
             <option>Sole</option><option>Berni</option><option>Ivan</option>
           </select>
           <button class="mark-done-btn" onclick="markHabDone(${i},document.getElementById('hab-quien-${i}').value)">✓ Ingresé</button>
-        </div>
+        </div>`}
       </td>
       <td style="vertical-align:middle">
-        <input class="cl-obs-input" value="${esc(r.notas||'')}" placeholder="Observaciones..."
+        ${isHK
+          ? `<span style="font-size:12.5px;color:#7A7A72">${esc(r.notas||'—')}</span>`
+          : `<input class="cl-obs-input" value="${esc(r.notas||'')}" placeholder="Observaciones..."
           onchange="habitacionesData[${i}].notas=this.value"
-          style="width:100%;min-width:160px">
+          style="width:100%;min-width:160px">`}
+      </td>
+      <td style="vertical-align:middle">
+        <input class="cl-obs-input" value="${esc(r.comentarioHK||'')}" placeholder="Ej. planta seca, yuyos..."
+          onchange="setHabComentarioHK(${i},this.value)"
+          style="width:100%;min-width:150px;border-color:${r.comentarioHK?'#E9D8B0':'var(--light-gray)'};background:${r.comentarioHK?'#FDF9EF':'var(--warm-white)'}">
       </td>`;
     tbody.appendChild(tr);
   });
 
   if(!renderedAny){
-    tbody.innerHTML='<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--mid-gray)">Sin resultados para este filtro.</td></tr>';
+    tbody.innerHTML='<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--mid-gray)">Sin resultados para este filtro.</td></tr>';
   }
   renderHabReporte();
   renderHabLog();
@@ -8400,11 +8428,20 @@ function markHabDone(i, quien){
   r.liveVisits = (r.liveVisits||0)+1;
   if(!r.monthlyVisits) r.monthlyVisits={};
   r.monthlyVisits[CURR_MONTH] = (r.monthlyVisits[CURR_MONTH]||0)+1;
-  r.quien = ''; r.notas = ''; r.canUndo = false;
+  r.quien = ''; r.notas = ''; r.comentarioHK = ''; r.canUndo = false;
   fbSave('habitacionesData', habitacionesData);
   fbSave('habitacionesLog', habitacionesLog);
   if(document.getElementById('page-hab-ops')?.classList.contains('active')) renderHabOps();
   if(document.getElementById('page-control-habitaciones')?.classList.contains('active')) renderCtrlHab();
+}
+
+// Comentario de Housekeeping por habitación (se ve en Jardinería y se limpia al ingresar).
+function setHabComentarioHK(i, val){
+  if(!habitacionesData[i]) return;
+  habitacionesData[i].comentarioHK = val;
+  window._habLastSave = Date.now();
+  fbSave('habitacionesData', habitacionesData);
+  if(document.getElementById('page-hab-ops')?.classList.contains('active')) renderHabOps();
 }
 
 function ctrlHabFilter(mode,_btn){
@@ -10577,7 +10614,7 @@ function applyRole(role){
   userRole = role;
   window.userRole = role; // expuesto para el listener de avisos (targeting por rol)
   // Marcar el body con la clase del rol — el CSS oculta .gerencia-only automáticamente
-  document.body.classList.remove('role-gerencia','role-operario','role-jardinero','role-compras','role-ventas','role-florista','role-comercial');
+  document.body.classList.remove('role-gerencia','role-operario','role-jardinero','role-compras','role-ventas','role-florista','role-comercial','role-housekeeping');
   document.body.classList.add('role-' + role);
 
   // Ocultar botones productividad para no-gerencia
@@ -10834,6 +10871,26 @@ function applyRole(role){
     setTimeout(() => navExpandGroup('grp-ops'), 50);
     document.querySelectorAll('.quick-link').forEach(ql => ql.style.display = 'none');
     setTimeout(()=>{ navigate('jardineria-ops'); if(jardineroNombre) showToast('👋 Hola '+jardineroNombre+'!'); }, 100);
+  }
+
+  if(role === 'housekeeping'){
+    // Solo puede ver Control de Habitaciones (y comentar). Se oculta todo lo demás.
+    document.querySelectorAll('.nav-section-label, .nav-item, .nav-sub-item').forEach(el => { el.style.display = 'none'; });
+    document.querySelectorAll('.nav-section-label').forEach(label => {
+      if(label.textContent.trim() === 'Control'){
+        label.style.display = '';
+        let sib = label.nextElementSibling;
+        while(sib && !sib.classList.contains('nav-section-label')){
+          if(sib.textContent.trim() === 'Habitaciones con Plantas') sib.style.display = '';
+          sib = sib.nextElementSibling;
+        }
+      }
+    });
+    const gCtrl = document.querySelector('[data-group-id="grp-ctrl"]');
+    if(gCtrl) gCtrl.style.display = '';
+    setTimeout(() => navExpandGroup('grp-ctrl'), 50);
+    document.querySelectorAll('.quick-link').forEach(ql => ql.style.display = 'none');
+    setTimeout(()=>{ navigate('control-habitaciones'); showToast('👋 Housekeeping'); }, 100);
   }
 
   // Aplicar estado colapsado del acordeón según visibilidad de rol
@@ -11429,6 +11486,7 @@ const LOGIN_DEFAULTS = {
   'pao':        { role:'florista',  label:'Pao',   floristaNombre:'Pao' },
   'nora':       { role:'florista',  label:'Nora',  floristaNombre:'Nora' },
   'euge':       { role:'comercial', label:'Euge' },
+  'housekeeping':{ role:'housekeeping', label:'Housekeeping' },
 };
 let loginPasswords = JSON.parse(JSON.stringify(LOGIN_DEFAULTS));
 let currentLoginKey = null; // la contraseña con la que se logueó
@@ -11801,10 +11859,10 @@ async function openGestionPasswords(){
     document.body.appendChild(ov);
   }
   const entries = Object.entries(loginAuth||{}).sort((a,b) => {
-    const order = {gerencia:0,operario:1,florista:2,jardinero:3,compras:4,ventas:5};
+    const order = {gerencia:0,operario:1,florista:2,jardinero:3,compras:4,ventas:5,comercial:6,housekeeping:7};
     return (order[a[1].role]||9) - (order[b[1].role]||9);
   });
-  const roleLabels = {gerencia:'👔 Gerencia',operario:'🏠 Operario',florista:'💐 Florista',jardinero:'🌿 Jardinero',compras:'📦 Compras',ventas:'🏨 Hyatt Ventas',comercial:'🎯 Comercial'};
+  const roleLabels = {gerencia:'👔 Gerencia',operario:'🏠 Operario',florista:'💐 Florista',jardinero:'🌿 Jardinero',compras:'📦 Compras',ventas:'🏨 Hyatt Ventas',comercial:'🎯 Comercial',housekeeping:'🧹 Housekeeping'};
 
   ov.innerHTML = `<div class="modal" style="max-width:600px;max-height:85vh;overflow-y:auto">
     <button class="modal-close" onclick="document.getElementById('gestion-passwords-modal').classList.remove('open')">✕</button>
@@ -11819,14 +11877,34 @@ async function openGestionPasswords(){
         </div>
         <div style="background:#F4F1EC;padding:4px 12px;border-radius:6px;font-size:12px;color:var(--mid-gray);min-width:70px;text-align:center">•••••</div>
         <button onclick="resetearPassword('${esc(id)}')" style="background:none;border:1px solid var(--light-gray);border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:inherit;color:var(--charcoal);white-space:nowrap">✏️ Cambiar</button>
-        ${e.role==='florista' ? `<button onclick="eliminarUsuario('${esc(id)}')" style="background:none;border:1px solid #E8CECE;border-radius:6px;padding:5px 8px;font-size:11px;cursor:pointer;font-family:inherit;color:var(--red-alert);white-space:nowrap">✕</button>` : ''}
+        ${(e.role==='florista'||e.role==='housekeeping') ? `<button onclick="eliminarUsuario('${esc(id)}')" style="background:none;border:1px solid #E8CECE;border-radius:6px;padding:5px 8px;font-size:11px;cursor:pointer;font-family:inherit;color:var(--red-alert);white-space:nowrap">✕</button>` : ''}
       </div>`).join('')}
     </div>
-    <div style="margin-top:16px">
+    <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn-add" onclick="agregarUsuarioFlorista()" style="font-size:12px;padding:8px 16px">+ Agregar florista</button>
+      <button class="btn-secondary" onclick="agregarUsuarioHousekeeping()" style="font-size:12px;padding:8px 16px">🧹 Agregar housekeeping</button>
     </div>
   </div>`;
   ov.classList.add('open');
+}
+
+async function agregarUsuarioHousekeeping(){
+  if(userRole !== 'gerencia') return;
+  if(!await _ensureLoginAuth()) return;
+  const nombre = await promptModal('Nombre del usuario de housekeeping (ej. Housekeeping, Recepción):', { title: 'Nuevo usuario housekeeping', default: 'Housekeeping' });
+  if(!nombre || !nombre.trim()) return;
+  const nombreClean = nombre.trim();
+  const password = await promptModal('Contraseña para ' + nombreClean + ':', { title: 'Nuevo usuario housekeeping', default: nombreClean.toLowerCase(), password: false });
+  if(!password || password.trim().length < 4){ showToast('⚠️ Mínimo 4 caracteres'); return; }
+  if(await _passwordEnUso(password.trim())){ showToast('⚠️ Esa contraseña ya está en uso'); return; }
+  const id = nombreClean.toLowerCase().replace(/[.#$/[\]\s]/g,'_');
+  if(loginAuth[id]){ showToast('⚠️ Ya existe un usuario con ese nombre'); return; }
+  const salt = _randSalt();
+  const hash = await hashPassword(password.trim(), salt);
+  loginAuth[id] = { role:'housekeeping', label:nombreClean, salt, hash };
+  if(window.fbSetPath) window.fbSetPath('loginAuth/'+id, loginAuth[id]); else _persistLoginAuth();
+  showToast('✅ Usuario housekeeping "' + nombreClean + '" creado — contraseña: ' + password.trim());
+  openGestionPasswords();
 }
 
 async function agregarUsuarioFlorista(){
@@ -11870,7 +11948,7 @@ async function eliminarUsuario(id){
   if(!await _ensureLoginAuth()) return;
   const entry = loginAuth[id];
   if(!entry) return;
-  if(entry.role !== 'florista'){ showToast('⚠️ Solo se pueden eliminar usuarios floristas'); return; }
+  if(entry.role !== 'florista' && entry.role !== 'housekeeping'){ showToast('⚠️ Solo se pueden eliminar usuarios floristas o housekeeping'); return; }
   if(!await confirmModal('¿Eliminar al usuario ' + (entry.label||id) + '?\nYa no podrá ingresar al sistema.')) return;
   const idx = CL_RESP_OPTS.indexOf(entry.floristaNombre);
   if(idx > -1) CL_RESP_OPTS.splice(idx, 1);
@@ -15273,23 +15351,49 @@ function cpRenderArrRows(){
   }).join('');
 }
 
+function _ddmm(f){ if(!f) return ''; const p=String(f).split('-'); return (p[2]&&p[1])?`${p[2]}/${p[1]}`:f; }
+
 function cpRenderFreeRows(){
   const cont = document.getElementById('cp-free-rows');
   if(!cont) return;
-  cont.innerHTML = cpFreeRows.map((row,i)=>`
+  cont.innerHTML = cpFreeRows.map((row,i)=>{
+    // Referencia de costo de material: último precio de compra con su fecha
+    const ref = row.prod ? getUltimoPrecioCompra(row.prod) : null;
+    const refLabel = ref
+      ? `💡 costo ${_cpMoney(ref.precio)}${ref.fecha?' · '+_ddmm(ref.fecha):''}`
+      : (row.prod ? '<span style="color:var(--mid-gray)">sin costo cargado</span>' : '');
+    return `
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
       <input value="${esc(row.cant)}" onchange="cpSetFree(${i},'cant',this.value)" placeholder="1, 1/2, 1/4" title="Cantidad — admite fracciones como 1/2 o 1/4" style="width:78px;border:1px solid #E4E2DC;border-radius:6px;padding:7px;text-align:center;font-size:13px">
       <input value="${esc(row.prod)}" list="cp-prod-list" onchange="cpSetFree(${i},'prod',this.value)" placeholder="Producto (ej. hortensias, paq fresias)" style="flex:2;min-width:150px;border:1px solid #E4E2DC;border-radius:6px;padding:7px 9px;font-size:13px">
       <span style="color:var(--mid-gray)">$</span>
       <input type="number" min="0" value="${esc(row.precio)}" onchange="cpSetFree(${i},'precio',this.value)" placeholder="Precio" title="Precio por unidad o por paquete" style="width:100px;border:1px solid #E4E2DC;border-radius:6px;padding:7px;text-align:right;font-size:13px">
+      <span style="font-size:10.5px;color:var(--sage-dark);white-space:nowrap;min-width:130px" title="Último costo de compra de este material y su fecha">${refLabel}</span>
       <button class="btn-icon" style="color:var(--red-alert)" onclick="cpRemoveFree(${i})" title="Quitar">✕</button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function cpSetArr(i,fld,v){ if(cpArrRows[i]) cpArrRows[i][fld] = fld==='qty'?(+v||0):v; cpRender(); }
 function cpAddArr(){ cpArrRows.push({arreglo:'',qty:1}); cpRenderArrRows(); cpRender(); }
 function cpRemoveArr(i){ cpArrRows.splice(i,1); if(!cpArrRows.length) cpArrRows=[{arreglo:'',qty:1}]; cpRenderArrRows(); cpRender(); }
-function cpSetFree(i,fld,v){ if(cpFreeRows[i]) cpFreeRows[i][fld] = v; cpRender(); }
+function cpSetFree(i,fld,v){
+  const row = cpFreeRows[i];
+  if(!row) return;
+  row[fld] = v;
+  if(fld==='precio'){ row._precioSugerido = false; row._precioSugFecha = ''; } // si lo tocan a mano, deja de ser sugerido
+  // Al elegir el producto, sugerir el último costo de compra (con su fecha) si el precio está vacío
+  if(fld==='prod'){
+    const precioActual = parseFloat(row.precio);
+    if(v && (!row.precio || row._precioSugerido || isNaN(precioActual) || precioActual===0)){
+      const sug = getUltimoPrecioCompra(v);
+      if(sug){ row.precio = sug.precio; row._precioSugerido = true; row._precioSugFecha = sug.fecha; }
+      else if(row._precioSugerido){ row.precio = ''; row._precioSugerido = false; row._precioSugFecha = ''; }
+      cpRenderFreeRows();
+    }
+  }
+  cpRender();
+}
 function cpAddFree(){ cpFreeRows.push({cant:'1',prod:'',precio:''}); cpRenderFreeRows(); cpRender(); }
 function cpRemoveFree(i){ cpFreeRows.splice(i,1); if(!cpFreeRows.length) cpFreeRows=[{cant:'1',prod:'',precio:''}]; cpRenderFreeRows(); cpRender(); }
 
@@ -16058,7 +16162,7 @@ Object.assign(window, {
   evSetArreglo, evSetArregloQty, evRemoveArregloRow,
   addInsumoToBase, addLpCat, addProveedor, addRecetaIngRow,
   addReglaTipo, addSale, addTipoEvento, adjustStock, agregarNuevoInsumo, agregarPedidoRapido,
-  agregarUsuarioFlorista, aplicarPlantillaAlMes, aplicarPlantillaForce, applyCompraFilter,
+  agregarUsuarioFlorista, agregarUsuarioHousekeeping, setHabComentarioHK, aplicarPlantillaAlMes, aplicarPlantillaForce, applyCompraFilter,
   applyRole, arregloEmoji, calcCostoComposicion, calcDuracion, calcHorasDia, calcStockImpact,
   calcularArreglosEvento, cambiarContrasena, changeEventoEstado, clearCompraExtraFilters,
   clearCompraFilter, clearEventImg, clearRecetaImg, closeModal, closeSidebar, confirmResetWeek,
