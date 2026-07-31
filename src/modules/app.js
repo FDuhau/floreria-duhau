@@ -5555,7 +5555,12 @@ function renderCaja(){
   const tbody=document.getElementById('caja-body');
   tbody.innerHTML='';
   let running=0;
-  cajaData.forEach((r,i)=>{
+  // Ordenar por fecha ascendente (más antiguo arriba) para que el saldo
+  // acumulado sea correcto. Se conserva el índice real para editar/borrar,
+  // y el orden de carga como desempate entre movimientos de la misma fecha.
+  const orden = cajaData.map((r,i)=>({r,i}))
+    .sort((a,b)=> (a.r.fecha||'9999-12-31').localeCompare(b.r.fecha||'9999-12-31') || (a.i-b.i));
+  orden.forEach(({r,i})=>{
     running+=(r.tipo==='ingreso'?r.monto:-r.monto);
     const sc=running>=0?'saldo-pos':'saldo-neg';
     const rowClass=r.tipo==='ingreso'?'ingreso-row':'egreso-row';
