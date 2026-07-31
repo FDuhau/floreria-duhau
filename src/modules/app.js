@@ -3289,24 +3289,24 @@ function renderCompras(type){
     items.forEach(r => {
       const i = arr.indexOf(r);
       html += `<tr>
-      <td><input class="form-input" type="date" value="${esc(r.fecha)}" onchange="updC('${type}',${i},'fecha',this.value)" style="min-width:130px"></td>
-      <td><input class="form-input" value="${esc(r.pedidopor)}" onchange="updC('${type}',${i},'pedidopor',this.value)" style="min-width:100px"></td>
-      <td><input class="form-input" value="${esc(r.prod)}" onchange="updC('${type}',${i},'prod',this.value)" style="min-width:140px"></td>
-      <td><input class="form-input" value="${esc(r.desc)}" placeholder="—" onchange="updC('${type}',${i},'desc',this.value)" style="min-width:120px"></td>
-      <td><input class="form-input" type="number" value="${esc(r.qty)}" onchange="updC('${type}',${i},'qty',this.value);renderStock()" style="width:65px"></td>
-      <td><input class="form-input" value="${esc(r.costo)}" placeholder="$" onchange="updC('${type}',${i},'costo',this.value);renderCompraSummary('${type}',compraFilter['${type}']?getArr('${type}').filter(r=>r.fecha&&r.fecha.slice(0,7)>=compraFilter['${type}'].from&&r.fecha.slice(0,7)<=compraFilter['${type}'].to):getArr('${type}'))" style="width:90px"></td>
-      <td><select class="form-input" onchange="updC('${type}',${i},'prov',this.value)" style="min-width:130px"><option value=''>— Seleccionar —</option>${getProvOpts(r.prov)}</select></td>
-      <td>${type==='floreria'
+      <td data-label="Fecha"><input class="form-input" type="date" value="${esc(r.fecha)}" onchange="updC('${type}',${i},'fecha',this.value)" style="min-width:130px"></td>
+      <td data-label="Pedido por"><input class="form-input" value="${esc(r.pedidopor)}" onchange="updC('${type}',${i},'pedidopor',this.value)" style="min-width:100px"></td>
+      <td data-label="${type==='floreria'?'Flor / Follaje':'Producto'}"><input class="form-input" value="${esc(r.prod)}" onchange="updC('${type}',${i},'prod',this.value)" style="min-width:140px"></td>
+      <td data-label="Descripción"><input class="form-input" value="${esc(r.desc)}" placeholder="—" onchange="updC('${type}',${i},'desc',this.value)" style="min-width:120px"></td>
+      <td data-label="Cantidad"><input class="form-input" type="number" value="${esc(r.qty)}" onchange="updC('${type}',${i},'qty',this.value);renderStock()" style="width:65px"></td>
+      <td data-label="Precio unit."><input class="form-input" value="${esc(r.costo)}" placeholder="$" onchange="updC('${type}',${i},'costo',this.value);renderCompraSummary('${type}',compraFilter['${type}']?getArr('${type}').filter(r=>r.fecha&&r.fecha.slice(0,7)>=compraFilter['${type}'].from&&r.fecha.slice(0,7)<=compraFilter['${type}'].to):getArr('${type}'))" style="width:90px"></td>
+      <td data-label="Proveedor"><select class="form-input" onchange="updC('${type}',${i},'prov',this.value)" style="min-width:130px"><option value=''>— Seleccionar —</option>${getProvOpts(r.prov)}</select></td>
+      <td data-label="Área / Uso">${type==='floreria'
         ? `<select class="form-input" onchange="updC('${type}',${i},'sector',this.value)" style="min-width:140px">${getAreaUsoOpts(r.sector)}</select>`
         : `<input class="form-input" value="${esc(r.sector)}" onchange="updC('${type}',${i},'sector',this.value)" style="min-width:110px">`}</td>
-      <td>
+      <td data-label="Estado">
         <select class="form-select" onchange="updC('${type}',${i},'estado',this.value);updateKpiCompras()" style="min-width:120px">
           <option value="pedido" ${r.estado!=='recibido'?'selected':''}>📝 Pedido</option>
           <option value="recibido" ${r.estado==='recibido'?'selected':''}>📦 Recibido</option>
         </select>
       </td>
-      <td style="vertical-align:middle">${getStockBadge(r.prod)}</td>
-      <td style="white-space:nowrap">
+      <td data-label="Stock actual" style="vertical-align:middle">${getStockBadge(r.prod)}</td>
+      <td class="compra-row-acciones" style="white-space:nowrap">
         <button class="btn-secondary" style="font-size:10px;padding:3px 7px;margin-right:4px" onclick="generarOrdenCompra(${i},'${type==='floreria'?'flore':'jard'}')" title="Generar Orden de Compra">📄 OC</button>
         <button class="btn-icon" style="color:var(--red-alert)" onclick="delC('${type}',${i})">✕</button>
       </td>
