@@ -4701,6 +4701,12 @@ function renderEventos(){
     const stStyle=ESTADO_COLORS[ev.estado]||'';
     const stOpts=['Pedidos Pendientes','En Proceso','Pendiente de Colocacion','Confirmado','Pedidos Finalizados'].map(o=>`<option value="${o}"${ev.estado===o?' selected':''}>${o}</option>`).join('');
     const fromOpsTag = ev.fromKanban ? '<span style="font-size:10px;background:#E8F0F8;color:#2C5A80;padding:2px 7px;border-radius:4px;font-weight:600;letter-spacing:.5px">DESDE OPERACIONES</span>' : '';
+    const arreglosResumen = (ev.arreglos && ev.arreglos.length)
+      ? `<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+          <span style="font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">🌸 Arreglos</span>
+          ${ev.arreglos.map(a=>`<span style="background:var(--blush-light);color:#7A3A2A;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap">${a.qty}× ${esc(a.arreglo)}</span>`).join('')}
+        </div>`
+      : '';
     return `<div class="event-card"${ev.fromKanban?' style="border-left:3px solid #2C5A80"':''}>
       <div class="event-card-header">
         <div style="display:flex;flex-direction:column;gap:4px"><div class="event-name">${esc(ev.nombre)}${badgeDiaRelativa(ev.fecha)}</div>${fromOpsTag}</div>
@@ -4712,6 +4718,7 @@ function renderEventos(){
         ${ev.pax?`<strong>Pax:</strong> ${ev.pax}<br>`:''}
         <strong>Notas:</strong> ${esc(ev.notas)}
       </div>
+      ${arreglosResumen}
       <div class="event-footer">
         <div class="event-price">${esc(ev.precio)}</div>
         <div style="display:flex;gap:8px;align-items:center">
