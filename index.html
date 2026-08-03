@@ -518,7 +518,7 @@
         </div>
         <div class="form-group"><label>Cantidad</label><input class="form-input" id="cf-cantidad" type="number" placeholder="0"></div>
       </div>
-      <div class="form-row" style="grid-template-columns:2fr 1fr 1fr 2fr auto">
+      <div class="form-row" style="grid-template-columns:2fr 1fr 1fr 2fr 2fr auto">
         <div class="form-group"><label>Descripción adicional</label><input class="form-input" id="cf-desc" placeholder="color, variedad, tallo..."></div>
         <div class="form-group"><label>Precio x paquete</label><input class="form-input" id="cf-costo" placeholder="$ por paquete"></div>
         <div class="form-group"><label>Proveedor</label>
@@ -528,6 +528,11 @@
         <div class="form-group"><label>Usuario final / Área</label>
           <select class="form-input" id="cf-sector">
             <option value="">— Seleccionar área —</option>
+          </select>
+        </div>
+        <div class="form-group"><label>🎉 Evento (opcional)</label>
+          <select class="form-input" id="cf-evento-link" title="Asociá esta compra a un evento para cruzar el gasto con lo que se cobra">
+            <option value="">— Sin evento (stock general) —</option>
           </select>
         </div>
         <button class="btn-add" onclick="addCompra('floreria')" style="align-self:flex-end">+ Agregar</button>
@@ -579,6 +584,9 @@
         <select class="form-input" id="cf-filter-area" onchange="renderCompras('floreria')" style="width:200px;padding:6px 8px;font-size:12.5px">
           <option value="">Todas las áreas</option>
         </select>
+        <select class="form-input" id="cf-filter-evento" onchange="renderCompras('floreria')" style="width:200px;padding:6px 8px;font-size:12.5px" title="Ver solo lo comprado para un evento">
+          <option value="">Todos los eventos</option>
+        </select>
         <input type="date" class="form-input" id="cf-filter-fecha" onchange="renderCompras('floreria')" style="width:160px;padding:6px 8px;font-size:12.5px" title="Filtrar por fecha específica">
         <label style="display:flex;align-items:center;gap:5px;font-size:12.5px;color:var(--charcoal);cursor:pointer;white-space:nowrap" title="Mostrar también los pedidos ya recibidos para ver todo el historial">
           <input type="checkbox" id="cf-filter-recibidos" onchange="renderCompras('floreria')"> 📦 Incluir recibidos
@@ -625,7 +633,7 @@
         <div class="form-group"><label>Producto</label><input class="form-input" id="cj-producto" placeholder="ej. Plantas, sustrato, macetas"></div>
         <div class="form-group"><label>Cantidad</label><input class="form-input" id="cj-cantidad" type="number" placeholder="0"></div>
       </div>
-      <div class="form-row" style="grid-template-columns:2fr 1fr 1fr 2fr auto">
+      <div class="form-row" style="grid-template-columns:2fr 1fr 1fr 2fr 2fr auto">
         <div class="form-group"><label>Descripción adicional</label><input class="form-input" id="cj-desc" placeholder="tamaño, tipo, detalle..."></div>
         <div class="form-group"><label>Precio x unidad</label><input class="form-input" id="cj-costo" placeholder="$ por unidad"></div>
         <div class="form-group"><label>Proveedor</label>
@@ -633,6 +641,11 @@
           <option value="">— Seleccionar —</option>
         </select></div>
         <div class="form-group"><label>Usuario final / Área</label><input class="form-input" id="cj-sector" placeholder="ej. Pisos, Terraza, General"></div>
+        <div class="form-group"><label>🎉 Evento (opcional)</label>
+          <select class="form-input" id="cj-evento-link" title="Asociá esta compra a un evento para cruzar el gasto con lo que se cobra">
+            <option value="">— Sin evento (stock general) —</option>
+          </select>
+        </div>
         <button class="btn-add" onclick="addCompra('jardineria')" style="align-self:flex-end">+ Agregar</button>
       </div>
     </div>
@@ -655,6 +668,9 @@
         </select>
         <select class="form-input" id="cj-filter-area" onchange="renderCompras('jardineria')" style="width:200px;padding:6px 8px;font-size:12.5px">
           <option value="">Todas las áreas</option>
+        </select>
+        <select class="form-input" id="cj-filter-evento" onchange="renderCompras('jardineria')" style="width:200px;padding:6px 8px;font-size:12.5px" title="Ver solo lo comprado para un evento">
+          <option value="">Todos los eventos</option>
         </select>
         <input type="date" class="form-input" id="cj-filter-fecha" onchange="renderCompras('jardineria')" style="width:160px;padding:6px 8px;font-size:12.5px" title="Filtrar por fecha específica">
         <label style="display:flex;align-items:center;gap:5px;font-size:12.5px;color:var(--charcoal);cursor:pointer;white-space:nowrap" title="Mostrar también los pedidos ya recibidos para ver todo el historial">

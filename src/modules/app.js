@@ -2826,10 +2826,87 @@ function renderCfSplitRows(){
   renderCfSplitTotal();
 }
 
+// ── Asociación de compras con eventos ──────────────────────────────────────
+// Cada línea de compra puede vincularse a un evento pendiente, para después
+// cruzar cuánto se gastó en insumos contra lo que se cobra por ese evento.
+// Los eventos se identifican por un id estable (no por índice, que se corre
+// al borrar). ensureEventoIds() completa el id de los eventos que aún no lo
+// tengan (compat. con datos viejos) y persiste una sola vez.
+function genEventoId(){
+  return 'ev-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,7);
+}
+function ensureEventoIds(){
+  let changed = false;
+  (eventosData||[]).forEach(ev=>{ if(ev && !ev.id){ ev.id = genEventoId(); changed = true; } });
+  if(changed) fbSave('eventosData', eventosData);
+}
+function eventosPendientes(){
+  return (eventosData||[])
+    .filter(ev => ev && ev.estado !== 'Pedidos Finalizados')
+    .sort((a,b)=>(a.fecha||'9999').localeCompare(b.fecha||'9999'));
+}
+function eventoLabel(ev){
+  return (ev?.nombre||'(evento)') + (ev?.fecha ? ' · ' + fmtDate(ev.fecha) : '');
+}
+function findEventoById(id){
+  if(!id) return null;
+  return (eventosData||[]).find(ev=>ev && ev.id===id) || null;
+}
+function getCompraEventoOpts(currentId){
+  ensureEventoIds();
+  const pend = eventosPendientes();
+  const cur = currentId || '';
+  // Preservar un evento ya vinculado aunque haya pasado a finalizado / no listado
+  let extra = '';
+  if(cur && !pend.some(ev=>ev.id===cur)){
+    const ev = findEventoById(cur);
+    if(ev) extra = `<option value="${esc(cur)}" selected>${esc(eventoLabel(ev))}</option>`;
+  }
+  return `<option value="">— Sin evento (stock general) —</option>` + extra +
+    pend.map(ev=>`<option value="${esc(ev.id)}"${ev.id===cur?' selected':''}>${esc(eventoLabel(ev))}</option>`).join('');
+}
+function populateCompraEventoSelect(p){
+  const sel = document.getElementById(p+'-evento-link');
+  if(sel){ const cur = sel.value; sel.innerHTML = getCompraEventoOpts(cur); sel.value = cur; }
+  // Filtro de historial por evento
+  const fsel = document.getElementById(p+'-filter-evento');
+  if(fsel){
+    const cur = fsel.value;
+    const arr = getArr(p==='cf'?'floreria':'jardineria');
+    const usados = [...new Map(arr.filter(r=>r.eventoId).map(r=>[r.eventoId, r.evento||r.eventoId])).entries()];
+    fsel.innerHTML = '<option value="">Todos los eventos</option>' +
+      usados.map(([id,nom])=>`<option value="${esc(id)}">${esc(nom)}</option>`).join('');
+    fsel.value = cur;
+  }
+}
+// Cambiar/quitar el evento de una línea de compra ya cargada, desde la tabla.
+function setCompraEvento(type, i, id){
+  const r = getArr(type)[i];
+  if(!r) return;
+  const ev = id ? findEventoById(id) : null;
+  r.eventoId = id || '';
+  r.evento = ev ? (ev.nombre||'') : '';
+  if(type==='floreria'){ window._comprasFloreLastSave = Date.now(); fbSave('comprasFlore', comprasFlore); }
+  else { window._comprasJardLastSave = Date.now(); fbSave('comprasJard', comprasJard); }
+  renderCompras(type);
+}
+// Total gastado en compras (florería + jardinería) vinculadas a un evento.
+function gastoComprasEvento(eventoId){
+  if(!eventoId) return 0;
+  return [...(comprasFlore||[]), ...(comprasJard||[])]
+    .filter(c=>c && c.eventoId===eventoId)
+    .reduce((s,c)=>s+_compraImporte(c), 0);
+}
+
 function addCompra(type){
   const p=type==='floreria'?'cf':'cj';
   const prod=document.getElementById(p+'-producto').value.trim();
   if(!prod){showToast('Ingresá el producto.','error');return;}
+
+  // Evento asociado (opcional) — se guarda el id estable + el nombre para mostrar
+  const eventoId = document.getElementById(p+'-evento-link')?.value || '';
+  const eventoObj = eventoId ? findEventoById(eventoId) : null;
+  const eventoNombre = eventoObj ? (eventoObj.nombre||'') : '';
 
   const fecha = document.getElementById(p+'-fecha').value||TODAY_ISO;
   const pedidopor = document.getElementById(p+'-pedidopor').value||'—';
@@ -2856,6 +2933,7 @@ function addCompra(type){
         costo: precioPaq>0 ? String(precioPaq) : '',
         prov,
         sector: r.sector,
+        eventoId, evento: eventoNombre,
         estado:'pedido',
         sucursal
       });
@@ -2870,6 +2948,7 @@ function addCompra(type){
       costo:document.getElementById(p+'-costo').value||'',
       prov,
       sector:document.getElementById(p+'-sector').value||'',
+      eventoId, evento: eventoNombre,
       estado:'pedido',
       sucursal
     });
@@ -3196,6 +3275,7 @@ function renderCompras(type){
   if(type==='floreria') populateFloreriaFormHelpers();
   const arr = getArr(type);
   const p = type==='floreria' ? 'cf' : 'cj';
+  populateCompraEventoSelect(p);
   const f = compraFilter[type];
 
   // Filtro de período (meses)
@@ -3226,10 +3306,12 @@ function renderCompras(type){
   const fProv  = provSel?.value || '';
   const fArea  = areaSel?.value || '';
   const fFecha = fechaInp?.value || '';
+  const fEvento = document.getElementById(p+'-filter-evento')?.value || '';
 
-  if(fProv)  filtered = filtered.filter(r => r.prov === fProv);
-  if(fArea)  filtered = filtered.filter(r => r.sector === fArea);
-  if(fFecha) filtered = filtered.filter(r => r.fecha === fFecha);
+  if(fProv)   filtered = filtered.filter(r => r.prov === fProv);
+  if(fArea)   filtered = filtered.filter(r => r.sector === fArea);
+  if(fFecha)  filtered = filtered.filter(r => r.fecha === fFecha);
+  if(fEvento) filtered = filtered.filter(r => r.eventoId === fEvento);
 
   filtered = applyCompraFiltersExtToArr(type, filtered);
   renderCompraFiltersPanel(type);
@@ -3301,7 +3383,8 @@ function renderCompras(type){
       <td data-label="Proveedor"><select class="form-input" onchange="updC('${type}',${i},'prov',this.value)" style="min-width:130px"><option value=''>— Seleccionar —</option>${getProvOpts(r.prov)}</select></td>
       <td data-label="Área / Uso">${type==='floreria'
         ? `<select class="form-input" onchange="updC('${type}',${i},'sector',this.value)" style="min-width:140px">${getAreaUsoOpts(r.sector)}</select>`
-        : `<input class="form-input" value="${esc(r.sector)}" onchange="updC('${type}',${i},'sector',this.value)" style="min-width:110px">`}</td>
+        : `<input class="form-input" value="${esc(r.sector)}" onchange="updC('${type}',${i},'sector',this.value)" style="min-width:110px">`}
+        <select class="form-input" onchange="setCompraEvento('${type}',${i},this.value)" title="Evento asociado" style="min-width:140px;margin-top:4px;font-size:11px;padding:4px 6px${r.eventoId?';background:#FCEEF2;border-color:#E0B3C4;color:#7A3A2A;font-weight:600':''}">${getCompraEventoOpts(r.eventoId)}</select></td>
       <td data-label="Estado">
         <select class="form-select" onchange="updC('${type}',${i},'estado',this.value);updateKpiCompras()" style="min-width:120px">
           <option value="pedido" ${r.estado!=='recibido'?'selected':''}>📝 Pedido</option>
@@ -3335,10 +3418,12 @@ function clearCompraExtraFilters(type){
   const areaSel = document.getElementById(p+'-filter-area');
   const fechaInp = document.getElementById(p+'-filter-fecha');
   const recibInp = document.getElementById(p+'-filter-recibidos');
+  const eventoSel = document.getElementById(p+'-filter-evento');
   if(provSel) provSel.value = '';
   if(areaSel) areaSel.value = '';
   if(fechaInp) fechaInp.value = '';
   if(recibInp) recibInp.checked = false;
+  if(eventoSel) eventoSel.value = '';
   renderCompras(type);
 }
 
@@ -12653,12 +12738,17 @@ function openEventoDetail(i){
   const armadoTxt = ev.asignado ? ev.asignado + (ev.inicio && ev.fin ? ` (${ev.inicio}–${ev.fin})` : ev.inicio ? ` (desde ${ev.inicio})` : '') : null;
   const colocTxt  = ev.colocacionAsignado ? ev.colocacionAsignado + (ev.colocacionInicio && ev.colocacionFin ? ` (${ev.colocacionInicio}–${ev.colocacionFin})` : ev.colocacionInicio ? ` (desde ${ev.colocacionInicio})` : '') : null;
   const retiroTxt = ev.retiroAsignado ? ev.retiroAsignado + (ev.retiroInicio && ev.retiroFin ? ` (${ev.retiroInicio}–${ev.retiroFin})` : ev.retiroInicio ? ` (desde ${ev.retiroInicio})` : '') : null;
+  // Cruce gasto vs cobro: total comprado asociado a este evento y precio cobrado
+  const _gastoEv = gastoComprasEvento(ev.id);
+  const _cobroEv = parseMoney(ev.precio);
   const fields = [
     ev.organizador ? ['Organizador', ev.organizador] : null,
     ev.fecha ? ['Fecha', fmtDate(ev.fecha) + (ev.hora ? ' · ' + ev.hora : '') + (etiquetaDiaRelativa(ev.fecha) ? ' · ' + etiquetaDiaRelativa(ev.fecha) : '')] : null,
     evZonasLabel(ev) !== '—' ? ['Salón / Zona', evZonasLabel(ev)] : null,
     ev.pax   ? ['Pax', ev.pax + ' personas'] : null,
     ev.precio && ev.precio !== 'A confirmar' ? ['Precio', ev.precio] : null,
+    _gastoEv > 0 ? ['💸 Gastado en compras', '$' + _gastoEv.toLocaleString('es-AR')] : null,
+    (_gastoEv > 0 && _cobroEv > 0) ? ['📊 Resultado (cobro − compras)', '$' + (_cobroEv - _gastoEv).toLocaleString('es-AR')] : null,
     armadoTxt ? ['🔨 Armado', armadoTxt] : null,
     colocTxt ? ['📍 Colocación', colocTxt] : null,
     retiroTxt ? ['🔄 Retiro', retiroTxt] : null,
@@ -12775,6 +12865,7 @@ function saveEvent(){
   if(!nombre) return;
   const ev={
     nombre,
+    id: (eventosData[+document.getElementById('ev-idx').value]?.id) || genEventoId(),
     organizador:document.getElementById('ev-organizador')?.value.trim()||'',
     tipo:document.getElementById('ev-tipo').value||'Social',
     fecha:document.getElementById('ev-fecha').value,
@@ -16118,7 +16209,7 @@ function exportComprasXLSX(){
   const mes = CURR_MONTH;
   const rows = [...(comprasFlore||[]),...(comprasJard||[])].filter(c=>c.fecha&&c.fecha.startsWith(mes)).map(c=>({
     Fecha: c.fecha||'', Proveedor: c.prov||'', Producto: c.prod||'', Cantidad: c.qty||1,
-    'Precio unit.': parseMoney(c.costo||0), Importe: _compraImporte(c), Estado: c.anulado ? 'anulado' : (c.estado||''), Sector: c.sector||'', Notas: c.notas||c.desc||''
+    'Precio unit.': parseMoney(c.costo||0), Importe: _compraImporte(c), Estado: c.anulado ? 'anulado' : (c.estado||''), Sector: c.sector||'', Evento: c.evento||'', Notas: c.notas||c.desc||''
   }));
   if(!rows.length){ showToast('Sin compras para exportar este mes'); return; }
   const ws = X.utils.json_to_sheet(rows);
@@ -16181,6 +16272,7 @@ Object.assign(window, {
   clearCompraFilter, clearEventImg, clearRecetaImg, closeModal, closeSidebar, confirmResetWeek,
   confirmVentaRamo, copiarBloquePedido, copiarCotEvento, copiarCotizacion, copiarCotizacionEvento,
   renderCompraEvento, ceAddRow, ceRemoveRow, ceSet, ceReset, ceLoadEvento, ceCopiar,
+  setCompraEvento,
   copiarCotizacionOps, copiarUltimoPedido, cotAgregar, cotAgregarComposicionOps, cotAgregarLP,
   cotAgregarOpsStock, cotGuardarMargen, cotGuardarPrecio, cotRemove, cotRemoveOps, cotUpdateQty,
   cotUpdateQtyOps, ctrlHabFilter, ctrlJardFilter, daysSince, delC, delCaja,
