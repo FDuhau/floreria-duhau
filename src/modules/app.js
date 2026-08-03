@@ -7867,9 +7867,10 @@ function jardResetHoraTurno(campo){
 function renderJardTurnoCard(){
   const el = document.getElementById('jops-turno-card');
   if(!el) return;
-  const isJard = userRole === 'jardinero';
-  const isGer  = userRole === 'gerencia';
-  if(!isJard && !isGer){ el.innerHTML=''; return; }
+  // "Mi jornada de hoy" es el fichaje personal del jardinero (inicio/fin de
+  // su jornada). Gerencia no ficha la jornada de nadie, así que no la ve acá
+  // — igual que la tarjeta equivalente de florería, que es solo para el florista.
+  if(userRole !== 'jardinero'){ el.innerHTML=''; return; }
 
   const nombre = jardineroNombre || jardCurrentJardinero;
   const turno = nombre ? (window.jardHorarios[nombre]?.[TODAY_ISO]||{}) : {};
