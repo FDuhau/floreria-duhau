@@ -647,6 +647,16 @@
         if(document.getElementById('plantilla-wrap')?.style.display !== 'none') window.renderPlantilla?.();
       });
 
+      fbListen('horariosPersonas', val => {
+        // Lista personalizada de personas en Horarios (floristas + jardinería).
+        // Firebase puede devolver array u objeto; null/ausente => sin custom (default).
+        window.horariosPersonas = Array.isArray(val) ? val : (val && typeof val === 'object' ? Object.values(val) : undefined);
+        if(document.getElementById('page-control-horarios')?.classList.contains('active')){
+          window.renderHorarios?.();
+          if(document.getElementById('plantilla-wrap')?.style.display !== 'none') window.renderPlantilla?.();
+        }
+      });
+
       fbListen('sucursalesConfig', val => {
         if(val && typeof val === 'object'){
           const arr = Array.isArray(val) ? val : Object.values(val);
