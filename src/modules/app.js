@@ -13775,7 +13775,13 @@ function renderCalendario(){
     const isToday = dateStr === TODAY_ISO;
     html += `<div style="min-height:100px;min-width:0;overflow:hidden;border:1px solid var(--light-gray);border-radius:6px;padding:6px;background:${isToday?'var(--blush-light)':'var(--warm-white)'}">
       <div style="font-size:12px;font-weight:${isToday?'700':'400'};color:${isToday?'var(--blush)':'var(--mid-gray)'};margin-bottom:4px">${d}</div>
-      ${dayEvents.map(ev=>`<div onclick="openEventoDetail(${eventosData.indexOf(ev)})" style="background:${ESTADO_BG[ev.estado]||'#E8E4DC'};border-radius:4px;padding:3px 6px;margin-bottom:3px;font-size:11px;cursor:pointer;line-height:1.3;overflow:hidden;white-space:nowrap;text-overflow:ellipsis" title="${esc(ev.nombre)} · ${esc(ev.estado)}">${esc(ev.nombre)}</div>`).join('')}
+      ${dayEvents.map(ev=>{
+        const arr = ev.arreglos||[];
+        const totalArr = arr.reduce((s,a)=>s+(+a.qty||0),0);
+        const arrDetalle = arr.length ? ' · Arreglos: '+arr.map(a=>`${a.qty}× ${a.arreglo}`).join(', ') : '';
+        const arrBadge = totalArr ? `<span style="background:var(--blush-light);color:#7A3A2A;border-radius:10px;padding:0 5px;font-size:9.5px;font-weight:700;margin-left:4px;flex-shrink:0">🌸${totalArr}</span>` : '';
+        return `<div onclick="openEventoDetail(${eventosData.indexOf(ev)})" style="background:${ESTADO_BG[ev.estado]||'#E8E4DC'};border-radius:4px;padding:3px 6px;margin-bottom:3px;font-size:11px;cursor:pointer;line-height:1.3;display:flex;align-items:center;overflow:hidden" title="${esc(ev.nombre)} · ${esc(ev.estado)}${esc(arrDetalle)}"><span style="overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${esc(ev.nombre)}</span>${arrBadge}</div>`;
+      }).join('')}
     </div>`;
   }
   html += '</div>';
