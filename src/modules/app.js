@@ -10616,7 +10616,7 @@ function descargarBackup(){
     cotizadorPrecios: ()=>cotizadorPrecios, eventoPricing: ()=>eventoPricing,
     jardineriaData: ()=>jardineriaData, jardineriaLog: ()=>jardineriaLog, jardRecordatorios: ()=>jardRecordatorios,
     habitacionesData: ()=>habitacionesData, habitacionesLog: ()=>habitacionesLog, zonaHorasData: ()=>zonaHorasData,
-    horariosData: ()=>window.horariosData, horariosPlantilla: ()=>horariosPlantilla,
+    horariosData: ()=>window.horariosData, horariosPlantilla: ()=>horariosPlantilla, horariosPersonas: ()=>window.horariosPersonas,
     florTurnos: ()=>window.florTurnos, jardHorarios: ()=>window.jardHorarios,
     legajoData: ()=>legajoData, evaluacionesData: ()=>evaluacionesData, llamadosData: ()=>llamadosData, liquidacionConfig: ()=>liquidacionConfig,
     sucursalesConfig: ()=>sucursalesConfig, loginPasswords: ()=>loginPasswords, auditLogData: ()=>auditLogData,
@@ -11031,6 +11031,52 @@ function isJardinero(nombre){
   return JARDINEROS_LIST.includes(nombre);
 }
 
+// Lista de personas que figuran en Horarios (plantilla + calendario).
+// Por defecto = empleados activos (floristas + jardinería), para poder
+// coordinar los horarios de ambos equipos en un solo lugar. Gerencia puede
+// agregar o quitar nombres; esa lista personalizada se guarda en Firebase
+// (horariosPersonas) y, si existe, manda sobre el default.
+function getHorariosPersonas(){
+  const custom = window.horariosPersonas;
+  if(Array.isArray(custom) && custom.length) return [...new Set(custom)];
+  return getEmpleadosActivos();
+}
+function horariosAddPersona(nombre){
+  const nom = (nombre||'').trim();
+  if(!nom) return;
+  const lista = getHorariosPersonas();
+  if(lista.some(n=>n.toLowerCase()===nom.toLowerCase())){ showToast('Esa persona ya está en la lista'); return; }
+  const nueva = [...lista, nom];
+  window.horariosPersonas = nueva;
+  fbSave('horariosPersonas', nueva);
+  if(!horariosPlantilla[nom]) horariosPlantilla[nom] = {};
+  renderPlantilla();
+  renderHorarios();
+  showToast('✅ '+nom+' agregado a horarios');
+}
+async function horariosRemovePersona(nombre){
+  const nom = (nombre||'').trim();
+  if(!nom) return;
+  if(!await confirmModal(`¿Quitar a "${nom}" de la lista de horarios?\n\nNo se borra el usuario ni las horas ya cargadas, solo deja de figurar en esta planificación.`)) return;
+  const nueva = getHorariosPersonas().filter(n=>n!==nom);
+  window.horariosPersonas = nueva;
+  fbSave('horariosPersonas', nueva);
+  renderPlantilla();
+  renderHorarios();
+  showToast('🗑️ '+nom+' quitado de horarios');
+}
+async function horariosAddPersonaFromSel(sel){
+  const v = sel.value;
+  sel.value = '';
+  if(!v) return;
+  if(v === '__otra__'){
+    const nom = await promptModal('Nombre de la persona a agregar:', { title: 'Agregar a horarios' });
+    if(nom && nom.trim()) horariosAddPersona(nom.trim());
+  } else {
+    horariosAddPersona(v);
+  }
+}
+
 function calcHorasDia(desde, hasta){
   if(!desde || !hasta) return 0;
   const [h1,m1] = desde.split(':').map(Number);
@@ -11075,18 +11121,41 @@ function togglePlantilla(){
 function renderPlantilla(){
   const container = document.getElementById('plantilla-table');
   if(!container) return;
-  const floristas = getFloristasActivos();
-  if(!floristas.length){ container.innerHTML = '<div style="color:var(--mid-gray);padding:8px">No hay floristas.</div>'; return; }
+  const personas = getHorariosPersonas();
+
+  // Candidatos para agregar: empleados conocidos que aún no están en la lista
+  const candidatos = getEmpleadosActivos().filter(n => !personas.includes(n));
+  const addControl = `<div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <span style="font-size:11px;color:var(--mid-gray);font-weight:600">➕ Agregar persona:</span>
+    <select onchange="horariosAddPersonaFromSel(this)" style="padding:6px 8px;border:1px solid var(--light-gray);border-radius:6px;font-size:12px;font-family:inherit;background:white">
+      <option value="">— Elegí quién agregar —</option>
+      ${candidatos.length ? '<optgroup label="Empleados">'+candidatos.map(n=>`<option value="${esc(n)}">${esc(n)}${isJardinero(n)?' · Jardinería':''}</option>`).join('')+'</optgroup>' : ''}
+      <option value="__otra__">✏️ Otra persona (escribir)…</option>
+    </select>
+  </div>`;
+
+  const tip = `<div style="font-size:11px;color:var(--mid-gray);margin-top:8px">💡 Completá los horarios base y tocá <strong>"Aplicar al mes"</strong> para rellenar todo el calendario de ${['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][horMes]}. Podés incluir jardinería para coordinar los horarios de ambos equipos.</div>`;
+
+  if(!personas.length){
+    container.innerHTML = '<div style="color:var(--mid-gray);padding:8px">No hay personas en la lista. Agregá una para empezar.</div>' + addControl + tip;
+    return;
+  }
 
   container.innerHTML = `<div class="table-wrapper"><table class="stock-table" style="font-size:12px">
     <thead><tr>
-      <th style="min-width:90px">Florista</th>
+      <th style="min-width:120px">Persona</th>
       ${DIAS_SEMANA_SHORT.map(d => `<th style="text-align:center;min-width:130px">${d}</th>`).join('')}
     </tr></thead>
-    <tbody>${floristas.map(nombre => {
+    <tbody>${personas.map(nombre => {
       if(!horariosPlantilla[nombre]) horariosPlantilla[nombre] = {};
       return `<tr>
-        <td style="font-weight:600">${esc(nombre)}</td>
+        <td style="font-weight:600">
+          <div style="display:flex;align-items:center;gap:6px">
+            <span>${esc(nombre)}</span>
+            ${isJardinero(nombre) ? '<span style="font-size:9px;background:#EBF5E8;color:#2C6B3A;padding:1px 6px;border-radius:8px;font-weight:600;white-space:nowrap">🌿 Jard.</span>' : ''}
+            <button class="btn-icon" title="Quitar de la lista de horarios" onclick="horariosRemovePersona('${esc(nombre)}')" style="color:var(--red-alert);font-size:12px;padding:0 4px;margin-left:auto">✕</button>
+          </div>
+        </td>
         ${DIAS_SEMANA_NAMES.map(dia => {
           const h = horariosPlantilla[nombre][dia] || {};
           const hs = calcHorasDia(h.desde||'', h.hasta||'');
@@ -11103,8 +11172,7 @@ function renderPlantilla(){
         }).join('')}
       </tr>`;
     }).join('')}</tbody>
-  </table></div>
-  <div style="font-size:11px;color:var(--mid-gray);margin-top:8px">💡 Completá los horarios base y tocá <strong>"Aplicar al mes"</strong> para rellenar todo el calendario de ${['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][horMes]}.</div>`;
+  </table></div>${addControl}${tip}`;
 }
 
 function setPlantilla(nombre, dia, campo, val){
@@ -11116,7 +11184,7 @@ function setPlantilla(nombre, dia, campo, val){
 }
 
 function aplicarPlantillaAlMes(){
-  const floristas = getFloristasActivos();
+  const floristas = getHorariosPersonas();
   const diasEnMes = new Date(horAnio, horMes+1, 0).getDate();
   const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
   const diaSemana = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
@@ -11148,7 +11216,7 @@ function aplicarPlantillaAlMes(){
 
 function aplicarPlantillaForce(){
   // Versión que pisa todo (para usar con confirmación)
-  const floristas = getFloristasActivos();
+  const floristas = getHorariosPersonas();
   const diasEnMes = new Date(horAnio, horMes+1, 0).getDate();
   const diaSemana = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
   let count = 0;
@@ -11178,13 +11246,14 @@ function renderHorarios(){
   const sel = document.getElementById('hor-florista-sel');
   if(!cal) return;
 
-  const empleados = getEmpleadosActivos();
-  const floristas = getFloristasActivos();
+  const empleados = getHorariosPersonas();
   if(sel){
     const cur = sel.value;
+    const flor = empleados.filter(n=>!isJardinero(n));
+    const jard = empleados.filter(n=>isJardinero(n));
     sel.innerHTML = '<option value="">— Todos —</option>'
-      + '<optgroup label="Florería">' + floristas.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('') + '</optgroup>'
-      + '<optgroup label="Jardinería">' + JARDINEROS_LIST.filter(n=>!floristas.includes(n)).map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('') + '</optgroup>';
+      + (flor.length ? '<optgroup label="Florería">' + flor.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('') + '</optgroup>' : '')
+      + (jard.length ? '<optgroup label="Jardinería">' + jard.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('') + '</optgroup>' : '');
     sel.value = cur;
   }
   const filtro = sel?.value || '';
@@ -16270,6 +16339,7 @@ Object.assign(window, {
   addInsumoToBase, addLpCat, addProveedor, addRecetaIngRow,
   addReglaTipo, addSale, addTipoEvento, adjustStock, agregarNuevoInsumo, agregarPedidoRapido,
   agregarUsuarioFlorista, agregarUsuarioHousekeeping, setHabComentarioHK, aplicarPlantillaAlMes, aplicarPlantillaForce, applyCompraFilter,
+  horariosAddPersona, horariosRemovePersona, horariosAddPersonaFromSel,
   applyRole, arregloEmoji, calcCostoComposicion, calcDuracion, calcHorasDia, calcStockImpact,
   calcularArreglosEvento, cambiarContrasena, changeEventoEstado, clearCompraExtraFilters,
   clearCompraFilter, clearEventImg, clearRecetaImg, closeModal, closeSidebar, confirmResetWeek,
