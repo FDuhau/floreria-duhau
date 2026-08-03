@@ -5452,6 +5452,28 @@ const VENTA_ESTADOS=['pendiente','confirmado','entregado'];
 const VENTA_ESTADO_LABEL={'pendiente':'⏳ Pendiente','confirmado':'✅ Confirmado','entregado':'🚚 Entregado'};
 const VENTA_ESTADO_COLOR={'pendiente':ESTADO_COLORS['Pedidos Pendientes'],'confirmado':ESTADO_COLORS['Confirmado'],'entregado':ESTADO_COLORS['Pedidos Finalizados']};
 
+// Formas de pago canónicas (para el filtro y el cierre de mes)
+const VENTA_PAGO_OPTS=[
+  {value:'Efectivo',label:'💵 Efectivo'},
+  {value:'Tarjeta',label:'💳 Tarjeta'},
+  {value:'Transferencia',label:'🏦 Transferencia'},
+  {value:'Link de pago',label:'🔗 Link de pago'},
+  {value:'Mercado Pago',label:'💙 Mercado Pago'},
+  {value:'Cargo a rooms',label:'🏨 Cargo a rooms (hotel)'},
+  {value:'Cargo a habitación',label:'🛏 Cargo a habitación (huésped)'},
+  {value:'Cuenta corriente',label:'📋 Cuenta corriente'},
+];
+// Normaliza formas de pago viejas (Débito/Crédito → Tarjeta) para filtrar bien.
+function normPago(fp){ return (fp==='Débito'||fp==='Crédito') ? 'Tarjeta' : (fp||''); }
+// Grupo de cobranza para el cierre de mes: Cargo a rooms + Cargo a habitación = Hotel.
+function grupoCobranza(fp){
+  const p = normPago(fp);
+  if(p==='Cargo a rooms'||p==='Cargo a habitación') return 'Hotel';
+  return p || 'Sin forma de pago';
+}
+// Filtros activos de Ventas Externas
+let ventasFilter={mes:'',pago:'',tipo:''};
+
 function renderVentas(){
   // Banner ítems desde Kanban
   const vkb = document.getElementById('ventas-kanban-banner');
@@ -5461,8 +5483,45 @@ function renderVentas(){
       ? `<div class="alert-banner" style="background:#E8F0F8;border-color:#B0C8E0;color:#2C5A80">📋 <strong>${fromOps.length} ramo${fromOps.length>1?'s':''} cargado${fromOps.length>1?'s':''} desde Operaciones</strong> — completá precio y cliente.</div>`
       : '';
   }
+  // ── Poblar selects de filtro (mes, forma de pago, tipo = descripción de ramo) ──
+  const mesSel = document.getElementById('ve-filter-mes');
+  const pagoSel = document.getElementById('ve-filter-pago');
+  const tipoSel = document.getElementById('ve-filter-tipo');
+  if(mesSel){
+    const cur = mesSel.value;
+    const meses = [...new Set((ventasData||[]).map(v=>(v.fecha||'').slice(0,7)).filter(Boolean))].sort((a,b)=>b.localeCompare(a));
+    mesSel.innerHTML = '<option value="">Todos los meses</option>' + meses.map(m=>`<option value="${m}">${fmtMonth(m)}</option>`).join('');
+    mesSel.value = cur;
+  }
+  if(pagoSel && pagoSel.options.length<=1){
+    pagoSel.innerHTML = '<option value="">Todas las formas de pago</option>' + VENTA_PAGO_OPTS.map(o=>`<option value="${o.value}">${o.label}</option>`).join('');
+  }
+  if(tipoSel){
+    const cur = tipoSel.value;
+    const tipos = [...new Set((ventasData||[]).map(v=>(v.prod||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));
+    tipoSel.innerHTML = '<option value="">Todos los tipos de venta</option>' + tipos.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');
+    tipoSel.value = cur;
+  }
+  const fMes = mesSel?.value||'', fPago = pagoSel?.value||'', fTipo = tipoSel?.value||'';
+  ventasFilter = {mes:fMes, pago:fPago, tipo:fTipo};
+
   const tbody=document.getElementById('ventas-body');
-  tbody.innerHTML = ventasData.map((v,i)=>({v,i})).filter(o=>!(o.v.esPedidoRamo && o.v.estado!=='entregado')).sort((a,b)=>(b.v.fecha||'').localeCompare(a.v.fecha||'')).map(({v,i})=>`<tr${v.fromKanban?' style="background:rgba(122,154,184,.07)"':''}>
+  let lista = ventasData.map((v,i)=>({v,i})).filter(o=>!(o.v.esPedidoRamo && o.v.estado!=='entregado'));
+  if(fMes)  lista = lista.filter(o=>(o.v.fecha||'').startsWith(fMes));
+  if(fPago) lista = lista.filter(o=>normPago(o.v.formaPago)===fPago);
+  if(fTipo) lista = lista.filter(o=>(o.v.prod||'').trim()===fTipo);
+  lista.sort((a,b)=>(b.v.fecha||'').localeCompare(a.v.fecha||''));
+
+  // Resumen del filtro (cantidad + total)
+  const sumEl = document.getElementById('ve-filter-summary');
+  if(sumEl){
+    if(fMes||fPago||fTipo){
+      const total = lista.reduce((s,o)=>s+parseMoney(o.v.precio),0);
+      sumEl.innerHTML = `<strong>${lista.length}</strong> venta${lista.length!==1?'s':''} · <strong>$${total.toLocaleString('es-AR')}</strong>`;
+    } else sumEl.innerHTML = '';
+  }
+
+  tbody.innerHTML = lista.map(({v,i})=>`<tr${v.fromKanban?' style="background:rgba(122,154,184,.07)"':''}>
     <td><input class="form-input" value="${esc(v.prod)}" onchange="updV(${i},'prod',this.value)" style="min-width:140px"></td>
     <td><input class="form-input" value="${esc(v.desc)}" onchange="updV(${i},'desc',this.value)" style="min-width:150px" placeholder="Flores, colores..."></td>
     <td><input class="form-input" type="date" value="${esc(v.fecha)}" onchange="updV(${i},'fecha',this.value)" style="min-width:130px"></td>
@@ -5494,6 +5553,71 @@ function renderVentas(){
       <button class="btn-icon" style="color:var(--red-alert)" onclick="delVenta(${i})">✕</button>
     </td>
   </tr>`).join('');
+}
+
+function ventasClearFilters(){
+  ['ve-filter-mes','ve-filter-pago','ve-filter-tipo'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  renderVentas();
+}
+
+// Cierre de mes: resumen de cobranzas del mes agrupado por forma de pago
+// (Cargo a rooms + habitación = "Hotel"). Usa el mes filtrado o, si no hay
+// ninguno seleccionado, el mes en curso. Muestra un modal con el detalle y
+// un botón para copiar el texto (listo para WhatsApp).
+function ventasCierreMes(){
+  const mes = document.getElementById('ve-filter-mes')?.value || CURR_MONTH;
+  const delMes = (ventasData||[]).filter(v =>
+    (v.fecha||'').startsWith(mes) && !(v.esPedidoRamo && v.estado!=='entregado'));
+  if(!delMes.length){ showToast('No hay ventas en '+fmtMonth(mes)); return; }
+
+  const grupos = {};
+  delMes.forEach(v=>{
+    const g = grupoCobranza(v.formaPago);
+    if(!grupos[g]) grupos[g] = {total:0, count:0};
+    grupos[g].total += parseMoney(v.precio);
+    grupos[g].count++;
+  });
+  const orden = ['Efectivo','Tarjeta','Transferencia','Mercado Pago','Link de pago','Hotel','Cuenta corriente','Sin forma de pago'];
+  const claves = Object.keys(grupos).sort((a,b)=>{
+    const ia = orden.indexOf(a), ib = orden.indexOf(b);
+    return (ia<0?99:ia) - (ib<0?99:ib);
+  });
+  const totalGen = delMes.reduce((s,v)=>s+parseMoney(v.precio),0);
+
+  const filasHTML = claves.map(g=>`
+    <div style="display:flex;justify-content:space-between;align-items:baseline;padding:9px 0;border-bottom:1px solid var(--light-gray)">
+      <span>Ventas <strong>${esc(g)}</strong> <span style="color:var(--mid-gray);font-size:11px">· ${grupos[g].count} venta${grupos[g].count!==1?'s':''}</span></span>
+      <strong style="white-space:nowrap">Cobrar $${grupos[g].total.toLocaleString('es-AR')}</strong>
+    </div>`).join('');
+
+  window._ventasCierreTexto = `📊 Cierre ${fmtMonth(mes)}\n`
+    + claves.map(g=>`Ventas ${g}: Cobrar $${grupos[g].total.toLocaleString('es-AR')}`).join('\n')
+    + `\n———\nTotal: $${totalGen.toLocaleString('es-AR')} · ${delMes.length} ventas`;
+
+  let ov = document.getElementById('ventas-cierre-modal');
+  if(!ov){ ov=document.createElement('div'); ov.id='ventas-cierre-modal'; ov.className='modal-overlay'; document.body.appendChild(ov); }
+  ov.innerHTML = `<div class="modal" style="max-width:460px">
+    <button class="modal-close" onclick="closeModal('ventas-cierre-modal')">✕</button>
+    <div class="modal-title">📊 Cierre de mes · ${fmtMonth(mes)}</div>
+    <div style="font-size:12px;color:var(--mid-gray);margin:-6px 0 14px">Cobranzas por forma de pago</div>
+    ${filasHTML}
+    <div style="display:flex;justify-content:space-between;align-items:baseline;padding:12px 0 0;margin-top:6px;border-top:2px solid var(--charcoal);font-size:17px">
+      <span style="font-weight:700">Total</span>
+      <strong>$${totalGen.toLocaleString('es-AR')}</strong>
+    </div>
+    <div class="modal-actions" style="margin-top:18px">
+      <button class="btn-secondary" onclick="closeModal('ventas-cierre-modal')">Cerrar</button>
+      <button class="btn-add" onclick="ventasCierreCopiar()">📋 Copiar resumen</button>
+    </div>
+  </div>`;
+  ov.classList.add('open');
+}
+function ventasCierreCopiar(){
+  const txt = window._ventasCierreTexto || '';
+  (navigator.clipboard?.writeText(txt) || Promise.reject()).then(
+    ()=>showToast('📋 Resumen copiado'),
+    ()=>showToast('No se pudo copiar')
+  );
 }
 
 function updV(i,field,val){ ventasData[i][field]=val; fbSave('ventasData',ventasData); sincronizarVentaCaja(i); }
@@ -16386,6 +16510,7 @@ Object.assign(window, {
   cotUpdateQtyOps, ctrlHabFilter, ctrlJardFilter, daysSince, delC, delCaja,
   delPedidoHab, delProveedor, delRamo, delReceta, delReglaTipo, delStock, delTipoEvento,
   delVenta, deleteEvento, descontarStockEvento, deselectAllInsumos, doLogin, durBadge,
+  ventasClearFilters, ventasCierreMes, ventasCierreCopiar,
   eliminarUsuario, ensureKanbanCols, enviarCotizacionEvento, enviarPedidoHab, esc,
   estaEditando, evAgregarComposicion, evAgregarFlor, evZonasLabel, exportCtrlCSV, exportHabCSV,
   exportMesHab, exportMesJard, fbSave, filterByStatus, filterStock, fmtDate, fmtDateTime,
