@@ -3723,11 +3723,13 @@ function getUltimoPrecioCompra(prod){
 }
 
 function renderCompraEvento(){
-  // Poblar selector de eventos que tengan arreglos cargados
+  // Poblar selector de eventos pendientes que tengan arreglos cargados
+  // (los finalizados no se listan: ya no se compra para ellos)
   const sel = document.getElementById('ce-evento');
   if(sel){
     const cur = sel.value;
-    const evs = (eventosData||[]).map((ev,i)=>({ev,i})).filter(o=>o.ev.arreglos?.length)
+    const evs = (eventosData||[]).map((ev,i)=>({ev,i}))
+      .filter(o=>o.ev.arreglos?.length && o.ev.estado !== 'Pedidos Finalizados')
       .sort((a,b)=>(b.ev.fecha||'').localeCompare(a.ev.fecha||''));
     sel.innerHTML = '<option value="">— Elegí un evento (opcional) —</option>' +
       evs.map(({ev,i})=>`<option value="${i}">${esc(ev.nombre||'(evento)')}${ev.fecha?' · '+fmtDate(ev.fecha):''}</option>`).join('');
