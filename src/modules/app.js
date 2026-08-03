@@ -4550,8 +4550,33 @@ async function delTipoEvento(i){
   renderEvTipos();
 }
 
+// Resuelve el costo por vara de un ingrediente de una composición.
+// Cuando el ingrediente lista varias opciones separadas por "/" (ej.
+// "Conejito / Nardos / Alhelí", porque se usa lo que haya en stock), la clave
+// combinada no existe en cotizadorPrecios y el costo daba "sin dato". Acá se
+// prueba cada opción y se toma la MÁS CARA con precio cargado, para no
+// subvaluar la cotización. Devuelve {pu, fuente, opciones}.
+function resolveCotizadorPrecio(prodLabel){
+  const label = (prodLabel||'').trim();
+  if(!label) return { pu:0, fuente:'', opciones:[] };
+  const directo = +cotizadorPrecios[label] || 0;
+  if(directo > 0) return { pu:directo, fuente:label, opciones:[label] };
+  if(label.includes('/')){
+    const opciones = label.split('/').map(s=>s.trim()).filter(Boolean);
+    let mejor = null;
+    opciones.forEach(op=>{
+      const p = +cotizadorPrecios[op] || 0;
+      if(p > 0 && (!mejor || p > mejor.pu)) mejor = { pu:p, fuente:op };
+    });
+    return mejor ? { pu:mejor.pu, fuente:mejor.fuente, opciones } : { pu:0, fuente:'', opciones };
+  }
+  return { pu:0, fuente:'', opciones:[label] };
+}
+// Costo por vara (número) de un ingrediente, resolviendo opciones "A / B / C".
+function cotizadorPrecioVara(prodLabel){ return resolveCotizadorPrecio(prodLabel).pu; }
+
 function calcCostoComposicion(r){
-  return r.ings.reduce((s, ing) => s + (cotizadorPrecios[ing.prod] || 0) * (+ing.qty||0), 0);
+  return r.ings.reduce((s, ing) => s + cotizadorPrecioVara(ing.prod) * (+ing.qty||0), 0);
 }
 
 function renderCotEventos(){
@@ -14080,7 +14105,7 @@ window._setArreglosComposicion = v => { arreglosComposicion = v || {}; };
 
 // Costo de un arreglo = Σ varas × costo por vara (cotizadorPrecios, que sale de compras)
 function calcCostoArreglo(zona){
-  return (arreglosComposicion[zona]||[]).reduce((s,ing)=>s+(cotizadorPrecios[ing.prod]||0)*(+ing.qty||0),0);
+  return (arreglosComposicion[zona]||[]).reduce((s,ing)=>s+cotizadorPrecioVara(ing.prod)*(+ing.qty||0),0);
 }
 
 function rentSetTab(tab){
@@ -15533,10 +15558,16 @@ function cpRenderFreeRows(){
   const cont = document.getElementById('cp-free-rows');
   if(!cont) return;
   cont.innerHTML = cpFreeRows.map((row,i)=>{
-    // Referencia de costo de material: último precio de compra con su fecha
+    // Referencia de costo de material: último precio de compra (por paquete)
+    // con su fecha y, si se conoce cuántas varas trae el paquete, también el
+    // costo por vara (precio por paquete ÷ varas por paquete).
     const ref = row.prod ? getUltimoPrecioCompra(row.prod) : null;
+    const vpp = row.prod ? getVarasPorPaq(row.prod) : null;
+    const costoVara = row.prod
+      ? (+cotizadorPrecios[row.prod] || (ref && vpp ? ref.precio / vpp : 0))
+      : 0;
     const refLabel = ref
-      ? `💡 costo ${_cpMoney(ref.precio)}${ref.fecha?' · '+_ddmm(ref.fecha):''}`
+      ? `💡 costo ${_cpMoney(ref.precio)}/paq${ref.fecha?' · '+_ddmm(ref.fecha):''}${costoVara>0?' · '+_cpMoney(Math.round(costoVara))+'/vara':''}`
       : (row.prod ? '<span style="color:var(--mid-gray)">sin costo cargado</span>' : '');
     return `
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
@@ -15544,7 +15575,7 @@ function cpRenderFreeRows(){
       <input value="${esc(row.prod)}" list="cp-prod-list" onchange="cpSetFree(${i},'prod',this.value)" placeholder="Producto (ej. hortensias, paq fresias)" style="flex:2;min-width:150px;border:1px solid #E4E2DC;border-radius:6px;padding:7px 9px;font-size:13px">
       <span style="color:var(--mid-gray)">$</span>
       <input type="number" min="0" value="${esc(row.precio)}" onchange="cpSetFree(${i},'precio',this.value)" placeholder="Precio" title="Precio por unidad o por paquete" style="width:100px;border:1px solid #E4E2DC;border-radius:6px;padding:7px;text-align:right;font-size:13px">
-      <span style="font-size:10.5px;color:var(--sage-dark);white-space:nowrap;min-width:130px" title="Último costo de compra de este material y su fecha">${refLabel}</span>
+      <span style="font-size:10.5px;color:var(--sage-dark);white-space:nowrap;min-width:200px" title="Último costo de compra de este material: por paquete, su fecha y el costo por vara">${refLabel}</span>
       <button class="btn-icon" style="color:var(--red-alert)" onclick="cpRemoveFree(${i})" title="Quitar">✕</button>
     </div>`;
   }).join('');
@@ -15583,9 +15614,13 @@ function cpRender(){
       const receta = (recetasData||[]).find(r=>r.nombre===row.arreglo);
       if(!receta) return '';
       const ings = (receta.ings||[]).map(ing=>{
-        const pu = cotizadorPrecios[ing.prod]||0;
+        const info = resolveCotizadorPrecio(ing.prod);
+        const pu = info.pu;
         const varas = (+ing.qty||0) * row.qty;
-        return { prod: ing.prod, varas, pu, costo: varas*pu };
+        // Si el precio salió de una de las opciones (no del nombre completo),
+        // guardamos cuál para mostrarlo como estimación.
+        const opcion = (info.fuente && info.fuente !== ing.prod) ? info.fuente : '';
+        return { prod: ing.prod, varas, pu, costo: varas*pu, opcion };
       });
       const costoArr = ings.reduce((s,x)=>s+x.costo,0);
       totalArr += costoArr;
@@ -15602,7 +15637,7 @@ function cpRender(){
           <tbody>${ings.map(x=>`<tr style="border-top:1px solid #F0EDE8">
             <td style="padding:3px 4px">${esc(x.prod)}</td>
             <td style="text-align:center">${x.varas%1===0?x.varas:x.varas.toFixed(1)}</td>
-            <td style="text-align:right;color:${x.pu?'inherit':'var(--red-alert)'}">${x.pu?_cpMoney(x.pu):'sin dato'}</td>
+            <td style="text-align:right;color:${x.pu?'inherit':'var(--red-alert)'}"${x.opcion?` title="Precio estimado — tomado de la opción con dato: ${esc(x.opcion)}"`:''}>${x.pu?(x.opcion?'≈ ':'')+_cpMoney(x.pu):'sin dato'}</td>
             <td style="text-align:right;font-weight:600">${x.costo?_cpMoney(x.costo):'—'}</td>
           </tr>`).join('')}</tbody>
         </table>
