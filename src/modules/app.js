@@ -3288,7 +3288,8 @@ function renderCompras(type){
   // ── Poblar y leer filtros extra (proveedor, área, fecha) ──
   const provSel  = document.getElementById(p+'-filter-prov');
   const areaSel  = document.getElementById(p+'-filter-area');
-  const fechaInp = document.getElementById(p+'-filter-fecha');
+  const desdeInp = document.getElementById(p+'-filter-desde');
+  const hastaInp = document.getElementById(p+'-filter-hasta');
 
   if(provSel){
     const provActual = provSel.value;
@@ -3305,12 +3306,14 @@ function renderCompras(type){
 
   const fProv  = provSel?.value || '';
   const fArea  = areaSel?.value || '';
-  const fFecha = fechaInp?.value || '';
+  const fDesde = desdeInp?.value || '';
+  const fHasta = hastaInp?.value || '';
   const fEvento = document.getElementById(p+'-filter-evento')?.value || '';
 
   if(fProv)   filtered = filtered.filter(r => r.prov === fProv);
   if(fArea)   filtered = filtered.filter(r => r.sector === fArea);
-  if(fFecha)  filtered = filtered.filter(r => r.fecha === fFecha);
+  if(fDesde)  filtered = filtered.filter(r => (r.fecha||'') >= fDesde);
+  if(fHasta)  filtered = filtered.filter(r => (r.fecha||'') <= fHasta);
   if(fEvento) filtered = filtered.filter(r => r.eventoId === fEvento);
 
   filtered = applyCompraFiltersExtToArr(type, filtered);
@@ -3320,8 +3323,11 @@ function renderCompras(type){
   // Para la tabla: por defecto solo pedidos en curso (los recibidos se van solos).
   // Con "Incluir recibidos" tildado — o al filtrar por proveedor — se muestra todo
   // el historial, así se puede ver todo lo comprado a un proveedor (nuevo y viejo).
-  const incluirRecibidos = document.getElementById(p+'-filter-recibidos')?.checked || !!fProv;
+  // Con proveedor o un rango de fechas activo mostramos TODO (recibidos incluidos),
+  // para que el filtro devuelva el historial completo del período, no solo lo pendiente.
+  const incluirRecibidos = document.getElementById(p+'-filter-recibidos')?.checked || !!fProv || !!fDesde || !!fHasta;
   const activos = incluirRecibidos ? filtered : filtered.filter(r => r.estado !== 'recibido');
+  const NCOLS = type==='floreria' ? 13 : 12;
 
   // Resumen del proveedor filtrado (total comprado + cantidad de pedidos)
   const provSummaryEl = document.getElementById(p+'-prov-summary');
@@ -3337,7 +3343,7 @@ function renderCompras(type){
   const tbody = getTbody(type);
   if(!tbody) return;
   if(activos.length===0){
-    tbody.innerHTML=`<tr><td colspan="11" style="padding:20px;text-align:center;color:var(--mid-gray)">${filtered.length>0?'✅ Todos los pedidos de este período fueron recibidos. Tildá "Incluir recibidos" para verlos.':'Sin compras en este período.'}</td></tr>`;
+    tbody.innerHTML=`<tr><td colspan="${NCOLS}" style="padding:20px;text-align:center;color:var(--mid-gray)">${filtered.length>0?'✅ Todos los pedidos de este período fueron recibidos. Tildá "Incluir recibidos" para verlos.':'Sin compras en este período.'}</td></tr>`;
     if(type==='floreria') renderCompraAlert();
     return;
   }
@@ -3358,7 +3364,7 @@ function renderCompras(type){
     const cantItems = items.length;
     const cantTotal = items.reduce((s,r) => s + (+r.qty||0), 0);
     html += `<tr class="compra-date-header">
-      <td colspan="11" style="background:#F4F1EC;padding:10px 14px;border-bottom:2px solid #E5E3DC">
+      <td colspan="${NCOLS}" style="background:#F4F1EC;padding:10px 14px;border-bottom:2px solid #E5E3DC">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
           <div>
             <strong style="font-size:14px;color:#1A1A1A">📦 Pedido del ${fecha!=='sin-fecha' ? fmtDate(fecha) : 'sin fecha'}</strong>
@@ -3373,13 +3379,21 @@ function renderCompras(type){
     </tr>`;
     items.forEach(r => {
       const i = arr.indexOf(r);
+      // Importe y costo por vara — calculados igual que en el historial, para que
+      // la misma información aparezca en todos lados.
+      const _imp = parseMoney(r.costo)>0 ? '$'+_compraImporte(r).toLocaleString('es-AR') : '<span style="color:var(--mid-gray)">—</span>';
+      const _cvDiv = parseFloat(r.varasPorPaq)||parseFloat(r.totalVaras)||parseFloat(r.qty)||0;
+      const _cvVal = (parseMoney(r.costo)>0 && _cvDiv>0) ? Math.round(parseMoney(r.costo)/_cvDiv) : null;
+      const _cv = _cvVal!=null ? '$'+_cvVal.toLocaleString('es-AR') : '<span style="color:var(--mid-gray)">—</span>';
       html += `<tr>
       <td data-label="Fecha"><input class="form-input" type="date" value="${esc(r.fecha)}" onchange="updC('${type}',${i},'fecha',this.value)" style="min-width:130px"></td>
       <td data-label="Pedido por"><input class="form-input" value="${esc(r.pedidopor)}" onchange="updC('${type}',${i},'pedidopor',this.value)" style="min-width:100px"></td>
       <td data-label="${type==='floreria'?'Flor / Follaje':'Producto'}"><input class="form-input" value="${esc(r.prod)}" onchange="updC('${type}',${i},'prod',this.value)" style="min-width:140px"></td>
       <td data-label="Descripción"><input class="form-input" value="${esc(r.desc)}" placeholder="—" onchange="updC('${type}',${i},'desc',this.value)" style="min-width:120px"></td>
-      <td data-label="Cantidad"><input class="form-input" type="number" value="${esc(r.qty)}" onchange="updC('${type}',${i},'qty',this.value);renderStock()" style="width:65px"></td>
-      <td data-label="Precio unit."><input class="form-input" value="${esc(r.costo)}" placeholder="$" onchange="updC('${type}',${i},'costo',this.value);renderCompraSummary('${type}',compraFilter['${type}']?getArr('${type}').filter(r=>r.fecha&&r.fecha.slice(0,7)>=compraFilter['${type}'].from&&r.fecha.slice(0,7)<=compraFilter['${type}'].to):getArr('${type}'))" style="width:90px"></td>
+      <td data-label="Cantidad"><input class="form-input" type="number" value="${esc(r.qty)}" onchange="updC('${type}',${i},'qty',this.value);renderStock();renderCompras('${type}')" style="width:65px"></td>
+      <td data-label="${type==='floreria'?'Precio x paq':'Precio unit.'}"><input class="form-input" value="${esc(r.costo)}" placeholder="$" onchange="updC('${type}',${i},'costo',this.value);renderCompras('${type}')" style="width:90px"></td>
+      <td data-label="Importe" style="text-align:right;font-weight:600;white-space:nowrap">${_imp}</td>
+      ${type==='floreria'?`<td data-label="Costo/vara" style="text-align:right;font-weight:700;color:var(--sage-dark);white-space:nowrap">${_cv}</td>`:''}
       <td data-label="Proveedor"><select class="form-input" onchange="updC('${type}',${i},'prov',this.value)" style="min-width:130px"><option value=''>— Seleccionar —</option>${getProvOpts(r.prov)}</select></td>
       <td data-label="Área / Uso">${type==='floreria'
         ? `<select class="form-input" onchange="updC('${type}',${i},'sector',this.value)" style="min-width:140px">${getAreaUsoOpts(r.sector)}</select>`
@@ -3416,12 +3430,14 @@ function clearCompraExtraFilters(type){
   const p = type==='floreria' ? 'cf' : 'cj';
   const provSel = document.getElementById(p+'-filter-prov');
   const areaSel = document.getElementById(p+'-filter-area');
-  const fechaInp = document.getElementById(p+'-filter-fecha');
+  const desdeInp = document.getElementById(p+'-filter-desde');
+  const hastaInp = document.getElementById(p+'-filter-hasta');
   const recibInp = document.getElementById(p+'-filter-recibidos');
   const eventoSel = document.getElementById(p+'-filter-evento');
   if(provSel) provSel.value = '';
   if(areaSel) areaSel.value = '';
-  if(fechaInp) fechaInp.value = '';
+  if(desdeInp) desdeInp.value = '';
+  if(hastaInp) hastaInp.value = '';
   if(recibInp) recibInp.checked = false;
   if(eventoSel) eventoSel.value = '';
   renderCompras(type);
