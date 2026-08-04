@@ -195,13 +195,17 @@
   <!-- ══════ OPERACIONES LANDING ══════ -->
   <div id="page-operaciones" class="content">
     <div class="page-header"><div class="page-title">Operaciones</div><div class="page-subtitle">Gestión operativa diaria de la Florería Duhau</div></div>
-    <div class="quick-links" style="grid-template-columns:repeat(2,1fr)">
-      <div class="quick-link" onclick="navigate('checklist')"><span class="quick-link-icon">✅</span><div class="quick-link-title">Checklist Diaria</div></div>
-      <div class="quick-link" onclick="navigate('stock')"><span class="quick-link-icon">📦</span><div class="quick-link-title">Stock Florería</div></div>
-      <div class="quick-link" onclick="navigate('eventos-maison')"><span class="quick-link-icon">🗂️</span><div class="quick-link-title">Eventos / Maison</div></div>
-      <div class="quick-link" onclick="navigate('ramos-disponibles')"><span class="quick-link-icon">💐</span><div class="quick-link-title">Ramos Disponibles</div><div class="quick-link-sub">Cargar y vender ramos armados</div></div>
+    <div class="quick-links" style="grid-template-columns:repeat(3,1fr)">
+      <div class="quick-link" onclick="navigate('checklist')"><span class="quick-link-icon">✅</span><div class="quick-link-title">Checklist Diaria</div><div class="quick-link-sub">Tareas del día</div></div>
+      <div class="quick-link" onclick="navigate('stock')"><span class="quick-link-icon">📦</span><div class="quick-link-title">Stock Florería</div><div class="quick-link-sub">Inventario de flores</div></div>
+      <div class="quick-link" onclick="navigate('eventos-maison')"><span class="quick-link-icon">🗂️</span><div class="quick-link-title">Eventos / Maison</div><div class="quick-link-sub">Tablero de eventos</div></div>
+      <div class="quick-link" onclick="navigate('cotizador-ops')"><span class="quick-link-icon">🧮</span><div class="quick-link-title">Cotizador</div><div class="quick-link-sub">Presupuestos rápidos</div></div>
       <div class="quick-link" onclick="navigate('jardineria-ops')"><span class="quick-link-icon">🌿</span><div class="quick-link-title">Tareas Jardinería</div><div class="quick-link-sub">Pendientes ordenadas por urgencia</div></div>
       <div class="quick-link" onclick="navigate('hab-ops')"><span class="quick-link-icon">🛏</span><div class="quick-link-title">Habitaciones con Plantas</div><div class="quick-link-sub">Visitas por habitación</div></div>
+      <div class="quick-link" onclick="navigate('recepcion-pedidos')"><span class="quick-link-icon">📦</span><div class="quick-link-title">Recepción de Pedidos</div><div class="quick-link-sub">Ingreso de insumos</div></div>
+      <div class="quick-link" onclick="navigate('floreros')"><span class="quick-link-icon">🏺</span><div class="quick-link-title">Stock de Floreros</div><div class="quick-link-sub">Inventario de floreros</div></div>
+      <div class="quick-link" onclick="navigate('velas')"><span class="quick-link-icon">🕯️</span><div class="quick-link-title">Stock de Velas</div><div class="quick-link-sub">Inventario de velas</div></div>
+      <div class="quick-link nav-jard-only" onclick="navigate('recordatorios-jardineria')"><span class="quick-link-icon">🔔</span><div class="quick-link-title">Recordatorios Jardín</div><div class="quick-link-sub">Alertas y mantenimiento</div></div>
     </div>
   </div>
 
@@ -434,8 +438,12 @@
     <div class="quick-links" style="grid-template-columns:repeat(3,1fr)">
       <div class="quick-link" onclick="navigate('compras-floreria')"><span class="quick-link-icon">💐</span><div class="quick-link-title">Compras Florería</div><div class="quick-link-sub">Flores, follaje y materiales</div></div>
       <div class="quick-link" onclick="navigate('compras-jardineria')"><span class="quick-link-icon">🌿</span><div class="quick-link-title">Compras Jardinería & General</div><div class="quick-link-sub">Plantas, insumos y herramientas</div></div>
+      <div class="quick-link" onclick="navigate('compra-evento')"><span class="quick-link-icon">🎉</span><div class="quick-link-title">Compra por Evento</div><div class="quick-link-sub">Calcular insumos según arreglos</div></div>
       <div class="quick-link" onclick="navigate('stock-admin')"><span class="quick-link-icon">📦</span><div class="quick-link-title">Gestión de Stock</div><div class="quick-link-sub">Ajustar valores · mínimos y máximos</div></div>
+      <div class="quick-link" onclick="navigate('floreros')"><span class="quick-link-icon">🏺</span><div class="quick-link-title">Stock de Floreros</div><div class="quick-link-sub">Inventario de floreros</div></div>
+      <div class="quick-link" onclick="navigate('velas')"><span class="quick-link-icon">🕯️</span><div class="quick-link-title">Stock de Velas</div><div class="quick-link-sub">Inventario de velas</div></div>
       <div class="quick-link" onclick="navigate('proveedores')"><span class="quick-link-icon">🏭</span><div class="quick-link-title">Proveedores</div><div class="quick-link-sub">Contactos y proveedores</div></div>
+      <div class="quick-link" onclick="navigate('precio-comparacion')"><span class="quick-link-icon">⚖️</span><div class="quick-link-title">Comparar Precios</div><div class="quick-link-sub">Precios por proveedor</div></div>
     </div>
   </div>
 
@@ -785,50 +793,70 @@
         <div class="quick-link-title">Historial de Eventos</div>
         <div class="quick-link-sub">Eventos pasados</div>
       </div>
-      <div class="quick-link" onclick="navigate('cotizador-ops',this)">
-        <span class="quick-link-icon">🧮</span>
-        <div class="quick-link-title">Cotizador</div>
-        <div class="quick-link-sub">Presupuestos rápidos</div>
-      </div>
-      <div class="quick-link" onclick="navigate('ventas-externas',this)">
-        <span class="quick-link-icon">💐</span>
-        <div class="quick-link-title">Ventas Externas</div>
-        <div class="quick-link-sub">Registro de ventas</div>
-      </div>
-      <div class="quick-link" onclick="navigate('caja',this)">
-        <span class="quick-link-icon">💰</span>
-        <div class="quick-link-title">Control de Caja</div>
-        <div class="quick-link-sub">Ingresos y egresos</div>
-      </div>
-      <div class="quick-link" onclick="navigate('galeria',this)">
-        <span class="quick-link-icon">🖼</span>
-        <div class="quick-link-title">Galería</div>
-        <div class="quick-link-sub">Portfolio de trabajos</div>
-      </div>
-      <div class="quick-link" onclick="navigate('lista-precios',this)">
-        <span class="quick-link-icon">💲</span>
-        <div class="quick-link-title">Lista de Precios</div>
-        <div class="quick-link-sub">Precios actualizados</div>
-      </div>
-      <div class="quick-link" onclick="navigate('ramos-disponibles',this)">
-        <span class="quick-link-icon">💐</span>
-        <div class="quick-link-title">Ramos Disponibles</div>
-        <div class="quick-link-sub">Catálogo activo</div>
+      <div class="quick-link" onclick="navigate('eventos-sin-floreria',this)">
+        <span class="quick-link-icon">🚫</span>
+        <div class="quick-link-title">Eventos sin Florería</div>
+        <div class="quick-link-sub">Eventos sin arreglos</div>
       </div>
       <div class="quick-link" onclick="navigate('recetas-arreglos',this)">
         <span class="quick-link-icon">🌸</span>
         <div class="quick-link-title">Composiciones</div>
         <div class="quick-link-sub">Recetas de arreglos</div>
       </div>
-      <div class="quick-link" onclick="navigate('recepcion-pedidos',this)">
-        <span class="quick-link-icon">📦</span>
-        <div class="quick-link-title">Recepción de Pedidos</div>
-        <div class="quick-link-sub">Ingreso de insumos</div>
+      <div class="quick-link" onclick="navigate('ventas-externas',this)">
+        <span class="quick-link-icon">💐</span>
+        <div class="quick-link-title">Ventas Externas</div>
+        <div class="quick-link-sub">Registro de ventas</div>
+      </div>
+      <div class="quick-link" onclick="navigate('ramos-disponibles',this)">
+        <span class="quick-link-icon">🌷</span>
+        <div class="quick-link-title">Ramos Disponibles</div>
+        <div class="quick-link-sub">Catálogo activo</div>
+      </div>
+      <div class="quick-link" onclick="navigate('lista-precios',this)">
+        <span class="quick-link-icon">💲</span>
+        <div class="quick-link-title">Lista de Precios</div>
+        <div class="quick-link-sub">Precios actualizados</div>
       </div>
       <div class="quick-link" onclick="navigate('pedidos-habitacion',this)">
         <span class="quick-link-icon">🏨</span>
-        <div class="quick-link-title">Pedidos Habitación</div>
+        <div class="quick-link-title">Pedidos de Habitación</div>
         <div class="quick-link-sub">Amenities y pedidos</div>
+      </div>
+      <div class="quick-link" onclick="navigate('galeria',this)">
+        <span class="quick-link-icon">🖼</span>
+        <div class="quick-link-title">Galería de Trabajos</div>
+        <div class="quick-link-sub">Portfolio de trabajos</div>
+      </div>
+      <div class="quick-link" onclick="navigate('cotizador',this)">
+        <span class="quick-link-icon">🧮</span>
+        <div class="quick-link-title">Cotizador</div>
+        <div class="quick-link-sub">Presupuestos rápidos</div>
+      </div>
+      <div class="quick-link" onclick="navigate('presupuestos',this)">
+        <span class="quick-link-icon">📄</span>
+        <div class="quick-link-title">Presupuestos</div>
+        <div class="quick-link-sub">Cotizaciones guardadas</div>
+      </div>
+      <div class="quick-link gerencia-only" onclick="navigate('crm-clientes',this)">
+        <span class="quick-link-icon">👥</span>
+        <div class="quick-link-title">CRM Clientes</div>
+        <div class="quick-link-sub">Base de clientes</div>
+      </div>
+      <div class="quick-link gerencia-only" onclick="navigate('caja',this)">
+        <span class="quick-link-icon">💰</span>
+        <div class="quick-link-title">Control de Caja</div>
+        <div class="quick-link-sub">Ingresos y egresos</div>
+      </div>
+      <div class="quick-link gerencia-only" onclick="navigate('rentabilidad-eventos',this)">
+        <span class="quick-link-icon">📈</span>
+        <div class="quick-link-title">Rentabilidad</div>
+        <div class="quick-link-sub">Margen por evento</div>
+      </div>
+      <div class="quick-link gerencia-only" onclick="navigate('cierre-mensual',this)">
+        <span class="quick-link-icon">📋</span>
+        <div class="quick-link-title">Cierre Mensual</div>
+        <div class="quick-link-sub">Cierre contable del mes</div>
       </div>
     </div>
   </div>
@@ -1947,27 +1975,42 @@
 
   <!-- ══════ CONTROL LANDING ══════ -->
   <div id="page-control" class="content">
-    <div class="page-header"><div class="page-title">Control</div><div class="page-subtitle">Seguimiento de jardinería, horarios y habitaciones con plantas</div></div>
-    <div class="quick-links" style="grid-template-columns:repeat(2,1fr)">
+    <div class="page-header"><div class="page-title">Control</div><div class="page-subtitle">Control operativo y recursos humanos</div></div>
+    <div class="quick-links" style="grid-template-columns:repeat(3,1fr)">
       <div class="quick-link" onclick="navigate('control-jardineria',this)">
         <span class="quick-link-icon">🌳</span>
         <div class="quick-link-title">Seguimiento Jardinería</div>
         <div class="quick-link-sub">Todas las zonas del hotel</div>
-      </div>
-      <div class="quick-link" onclick="navigate('control-horarios',this)">
-        <span class="quick-link-icon">🕐</span>
-        <div class="quick-link-title">Horarios y Productividad</div>
-        <div class="quick-link-sub">Equipo completo por mes</div>
       </div>
       <div class="quick-link" onclick="navigate('control-habitaciones',this)">
         <span class="quick-link-icon">🪴</span>
         <div class="quick-link-title">Habitaciones con Plantas</div>
         <div class="quick-link-sub">Control de ingreso por habitación</div>
       </div>
-      <div class="quick-link nav-jard-only" onclick="navigate('recordatorios-jardineria',this)">
+      <div class="quick-link" onclick="navigate('recordatorios-jardineria',this)">
         <span class="quick-link-icon">🔔</span>
         <div class="quick-link-title">Recordatorios Jardín</div>
         <div class="quick-link-sub">Alertas y mantenimiento</div>
+      </div>
+      <div class="quick-link" onclick="navigate('legajo',this)">
+        <span class="quick-link-icon">👤</span>
+        <div class="quick-link-title">Legajo de Empleados</div>
+        <div class="quick-link-sub">Datos y documentación del equipo</div>
+      </div>
+      <div class="quick-link" onclick="navigate('control-horarios',this)">
+        <span class="quick-link-icon">🕐</span>
+        <div class="quick-link-title">Horarios y Productividad</div>
+        <div class="quick-link-sub">Equipo completo por mes</div>
+      </div>
+      <div class="quick-link" onclick="navigate('evaluaciones',this)">
+        <span class="quick-link-icon">⭐</span>
+        <div class="quick-link-title">Evaluaciones</div>
+        <div class="quick-link-sub">Desempeño del equipo</div>
+      </div>
+      <div class="quick-link" onclick="navigate('liquidacion',this)">
+        <span class="quick-link-icon">💵</span>
+        <div class="quick-link-title">Liquidación Horas Extra</div>
+        <div class="quick-link-sub">Horas extra del mes</div>
       </div>
     </div>
   </div>
@@ -2215,6 +2258,11 @@
         <div class="quick-link-title">Equipo & Horarios</div>
         <div class="quick-link-sub">Productividad y asistencia</div>
       </div>
+      <div class="quick-link" onclick="navigate('cierre-dia',this)">
+        <span class="quick-link-icon">🗓️</span>
+        <div class="quick-link-title">Cierre del Día</div>
+        <div class="quick-link-sub">Resumen diario</div>
+      </div>
       <div class="quick-link" onclick="navigate('reportes-ventas',this)">
         <span class="quick-link-icon">💰</span>
         <div class="quick-link-title">Ventas & Comercial</div>
@@ -2235,10 +2283,10 @@
         <div class="quick-link-title">Auditoría de Cambios</div>
         <div class="quick-link-sub">Quién modificó qué y cuándo</div>
       </div>
-      <div class="quick-link" onclick="navigate('rentabilidad-eventos',this)">
-        <span class="quick-link-icon">💰</span>
-        <div class="quick-link-title">Rentabilidad</div>
-        <div class="quick-link-sub">Margen por evento</div>
+      <div class="quick-link" onclick="navigate('dashboard-gerencia',this)">
+        <span class="quick-link-icon">📊</span>
+        <div class="quick-link-title">Dashboard Gerencia</div>
+        <div class="quick-link-sub">Vista ejecutiva</div>
       </div>
     </div>
   </div>
