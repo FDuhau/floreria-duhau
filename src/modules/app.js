@@ -4848,7 +4848,7 @@ function renderEventos(){
       ${arreglosResumen}
       <div class="event-footer">
         <div class="event-price">${esc(ev.precio)}</div>
-        <div style="display:flex;gap:8px;align-items:center">
+        <div class="event-actions">
           <select class="event-status-sel" style="${stStyle}" onchange="changeEventoEstado(${i},this.value)">${stOpts}</select>
           <button class="btn-icon" title="Ver detalle" onclick="openEventoDetail(${i})">👁</button>
           <button class="btn-icon" onclick="openEventModal(${i})" title="Editar">✏️</button>
