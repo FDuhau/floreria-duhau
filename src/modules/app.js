@@ -3225,14 +3225,13 @@ function renderPeriodTabs(type){
 // Fallback a 1 para filas viejas sin cantidad cargada, así no se anula su importe.
 function _compraCant(r){
   if(!r) return 0;
-  if(r.estado==='recibido' && r.paqRecibidos!==undefined && r.paqRecibidos!==null && r.paqRecibidos!==''){
-    const pr = parseFloat(r.paqRecibidos);
-    if(!isNaN(pr)) return pr;
-  }
   const q = parseFloat(r.qty);
   return (!isNaN(q) && q>0) ? q : 1;
 }
-// Importe total de una línea de compra = precio por paquete × cantidad de paquetes.
+// Importe total de una línea de compra = precio (por paquete) × cantidad pedida.
+// Se usa la cantidad del pedido (qty), no los paquetes recibidos, para que el
+// importe siempre sea "precio × cantidad" tal como se ve en el renglón, y el
+// total del pedido cierre con la suma de los renglones.
 function _compraImporte(r){ return parseMoney(r && r.costo) * _compraCant(r); }
 
 function renderCompraSummary(type, filtered){
