@@ -4590,8 +4590,33 @@ function resolveCotizadorPrecio(prodLabel){
 // Costo por vara (número) de un ingrediente, resolviendo opciones "A / B / C".
 function cotizadorPrecioVara(prodLabel){ return resolveCotizadorPrecio(prodLabel).pu; }
 
+// Varas por paquete de un producto, resolviendo opciones "A / B" (toma la de
+// la opción que tenga dato cargado en Compras). Devuelve 0 si no hay dato.
+function _varasPorPaqResuelto(prodLabel){
+  const label = (prodLabel||'').trim();
+  if(!label) return 0;
+  const directo = getVarasPorPaq(label);
+  if(directo) return directo;
+  if(label.includes('/')){
+    for(const op of label.split('/').map(s=>s.trim())){
+      const v = getVarasPorPaq(op);
+      if(v) return v;
+    }
+  }
+  return 0;
+}
+// Cantidad de un ingrediente EXPRESADA EN VARAS. Si la unidad es "paq", se
+// multiplica por las varas por paquete (de Compras); si no, ya está en varas.
+function _ingVaras(ing){
+  const q = +ing.qty || 0;
+  if(ing && ing.unidad === 'paq'){
+    return q * _varasPorPaqResuelto(ing.prod);
+  }
+  return q;
+}
+
 function calcCostoComposicion(r){
-  return r.ings.reduce((s, ing) => s + cotizadorPrecioVara(ing.prod) * (+ing.qty||0), 0);
+  return r.ings.reduce((s, ing) => s + cotizadorPrecioVara(ing.prod) * _ingVaras(ing), 0);
 }
 
 function renderCotEventos(){
@@ -12594,6 +12619,12 @@ function _fmtCant(q){
   if(!f) return String(Math.round(q*100)/100);
   return ent > 0 ? ent + ' ' + f : f;
 }
+// Cantidad + unidad de un ingrediente (ej. "4 paq" o "3 varas").
+function _fmtIngUnidad(ing){
+  const q = _fmtCant(ing.qty);
+  if(ing && ing.unidad === 'paq') return `${q} paq`;
+  return `${q} vara${(+ing.qty)===1?'':'s'}`;
+}
 
 // ── Catálogo base de composiciones (Upgrade + Eventos) ─
 // Los ingredientes con "/" son opciones (se usa la que haya). Las fracciones
@@ -12631,53 +12662,57 @@ async function seedComposicionesBase(){
 
 // ── Catálogo base de arreglos fijos del hotel (por zona) ──────────────────────
 // Los ingredientes con "/" son opciones (se usa la que haya en stock). Las
-// fracciones = qué parte de una vara/paquete lleva cada unidad (ej. 1/3 = una
-// vara rinde para 3 arreglos). Ojo: algunos productos que se compran por
-// paquete (Monstera, Limonium, Sauce, Magnolia) van con la cantidad de paquetes.
+// fracciones = qué parte de una vara lleva cada unidad (ej. 1/3 = una vara
+// rinde para 3 arreglos). Cada ingrediente lleva su unidad: V() = varas,
+// P() = paquetes (se convierten a varas con las varas por paquete de Compras).
 const _MAG='Magnolia / Níspero', _SLN='Solidago / Naviza',
       _SVM='San Vicente / Margarita', _CA2='Conejito / Alhelí';
+const V=(prod,qty)=>({prod,qty});
+const P=(prod,qty)=>({prod,qty,unidad:'paq'});
 const COMPOSICIONES_HOTEL_BASE = [
-  { zona:'Lobby de Alvear', ings:[{prod:'Monstera',qty:4},{prod:_MAG,qty:2},{prod:'Laurentino',qty:1},{prod:'Azarero',qty:3},{prod:'Eucalipto',qty:1},{prod:_SLN,qty:1}] },
-  { zona:'Recepción Alvear', ings:[{prod:'Laurentino',qty:2},{prod:'Azarero',qty:2},{prod:'Pino',qty:3},{prod:'Lilium',qty:1},{prod:'Astromelia',qty:5},{prod:_SVM,qty:5},{prod:_CA2,qty:3},{prod:'Repollo',qty:1},{prod:_SLN,qty:1}] },
-  { zona:'Mesada Piano', ings:[{prod:'Laurentino',qty:3},{prod:'Azarero',qty:4},{prod:'Pino',qty:3},{prod:'Lilium',qty:2},{prod:'Astromelia',qty:5},{prod:_SVM,qty:5},{prod:_CA2,qty:5},{prod:'Repollo',qty:1},{prod:_SLN,qty:2}] },
-  { zona:'Mesitas Piano', ings:[{prod:'Limonium',qty:2}] },
-  { zona:'Biblioteca', ings:[{prod:'Laurentino',qty:3},{prod:'Azarero Disciplinado',qty:3},{prod:'Buxus',qty:6},{prod:'Ligustro',qty:6}] },
-  { zona:'Salón Privado', ings:[{prod:'Laurentino',qty:2},{prod:'Azarero Disciplinado',qty:2},{prod:'Buxus',qty:4},{prod:'Ligustro',qty:4}] },
-  { zona:'Mesa ratona Alvear', ings:[{prod:'Laurentino',qty:2},{prod:'Azarero Disciplinado',qty:1},{prod:'Azarero',qty:1},{prod:'Pino',qty:1}] },
-  { zona:'Mesada Vinoteca (c/u)', ings:[{prod:'Laurentino',qty:2},{prod:'Azarero Disciplinado',qty:1},{prod:'Azarero',qty:1},{prod:'Buxus',qty:1},{prod:'Pino',qty:1}] },
-  { zona:'Chimenea Vinoteca', ings:[{prod:'Laurentino',qty:4},{prod:'Azarero',qty:4},{prod:'Pino',qty:3}] },
-  { zona:'Copón Duhau', ings:[{prod:'Monstera',qty:4}] },
-  { zona:'Elefante', ings:[{prod:'Monstera',qty:4},{prod:'Laurentino',qty:1},{prod:'Azarero',qty:1},{prod:'Pino',qty:5}] },
-  { zona:'Spa · Recepción', ings:[{prod:'Monstera',qty:3}] },
-  { zona:'Spa · Jacuzzi', ings:[{prod:'Monstera',qty:3}] },
-  { zona:'Spa · Foyer', ings:[{prod:'Laurentino',qty:3},{prod:'Azarero',qty:3},{prod:'Pino',qty:2},{prod:'Monstera',qty:2}] },
-  { zona:'Spa · Bochitas (20)', ings:[{prod:'Pino',qty:1/2}] },
-  { zona:'Baños Duhau', ings:[{prod:'Monstera',qty:2}] },
-  { zona:'Baños Duhau · Bochitas (6)', ings:[{prod:'Limonium',qty:1/2}] },
-  { zona:'Lobby de Posadas', ings:[{prod:'Limonium',qty:10}] },
-  { zona:'Recepción Posadas y mesita (c/u)', ings:[{prod:'Laurentino',qty:2},{prod:'Azarero',qty:2},{prod:'Buxus',qty:1},{prod:'Pino',qty:1}] },
-  { zona:'Baño Paseo de las Artes · Bochitas (7)', ings:[{prod:'Limonium',qty:1/2}] },
-  { zona:'Gioia mesitas (c/u)', ings:[{prod:'Azarero nana',qty:3}] },
-  { zona:'Gioia Arbolitos (c/u)', ings:[{prod:'Sauce',qty:3},{prod:'Laurentino',qty:7},{prod:'Azarero',qty:7},{prod:'Pino',qty:6},{prod:'Limón',qty:7}] },
-  { zona:'Copón Gioia', ings:[{prod:'Laurentino',qty:5},{prod:'Azarero',qty:6},{prod:'Pino',qty:4},{prod:'Monstera',qty:4}] },
-  { zona:'Totems Meetings (c/u)', ings:[{prod:'Monstera',qty:2}] },
-  { zona:'Meetings bochitas (c/u)', ings:[{prod:'Laurentino',qty:1/3},{prod:'Azarero',qty:1/3},{prod:'Pino',qty:1/6}] },
-  { zona:'Meetings baños · Bochitas (9)', ings:[{prod:'Limonium',qty:1/2}] },
-  { zona:'Tilo', ings:[{prod:'Azarero',qty:2},{prod:'Laurentino',qty:2},{prod:'Pino',qty:1},{prod:'Conejito',qty:3},{prod:'Astromelia',qty:3},{prod:_SVM,qty:5}] },
-  { zona:'Mesada Posadas (c/u)', ings:[{prod:'Laurentino',qty:4},{prod:'Azarero',qty:3},{prod:'Pino',qty:2}] },
-  { zona:'Totems Posadas (c/u)', ings:[{prod:'Laurentino',qty:4},{prod:'Azarero',qty:3},{prod:'Pino',qty:2}] },
-  { zona:'Bochitas Posadas (c/u)', ings:[{prod:'Laurentino',qty:1/2},{prod:'Azarero',qty:1/2},{prod:'Pino',qty:1/6}] },
+  { zona:'Lobby de Alvear', ings:[P('Monstera',4),P(_MAG,2),P('Laurentino',1),P('Azarero',3),P('Eucalipto',1),P(_SLN,1)] },
+  { zona:'Recepción Alvear', ings:[V('Laurentino',2),V('Azarero',2),V('Pino',3),V('Lilium',1),V('Astromelia',5),V(_SVM,5),V(_CA2,3),V('Repollo',1),V(_SLN,1)] },
+  { zona:'Mesada Piano', ings:[V('Laurentino',3),V('Azarero',4),V('Pino',3),V('Lilium',2),V('Astromelia',5),V(_SVM,5),V(_CA2,5),V('Repollo',1),V(_SLN,2)] },
+  { zona:'Mesitas Piano', ings:[P('Limonium',2)] },
+  { zona:'Biblioteca', ings:[V('Laurentino',3),V('Azarero Disciplinado',3),V('Buxus',6),V('Ligustro',6)] },
+  { zona:'Salón Privado', ings:[V('Laurentino',2),V('Azarero Disciplinado',2),V('Buxus',4),V('Ligustro',4)] },
+  { zona:'Mesa ratona Alvear', ings:[V('Laurentino',2),V('Azarero Disciplinado',1),V('Azarero',1),V('Pino',1)] },
+  { zona:'Mesada Vinoteca (c/u)', ings:[V('Laurentino',2),V('Azarero Disciplinado',1),V('Azarero',1),V('Buxus',1),V('Pino',1)] },
+  { zona:'Chimenea Vinoteca', ings:[V('Laurentino',4),V('Azarero',4),V('Pino',3)] },
+  { zona:'Copón Duhau', ings:[P('Monstera',4)] },
+  { zona:'Elefante', ings:[V('Monstera',4),P('Laurentino',1),P('Azarero',1),V('Pino',5)] },
+  { zona:'Spa · Recepción', ings:[V('Monstera',3)] },
+  { zona:'Spa · Jacuzzi', ings:[V('Monstera',3)] },
+  { zona:'Spa · Foyer', ings:[V('Laurentino',3),V('Azarero',3),V('Pino',2),V('Monstera',2)] },
+  { zona:'Spa · Bochitas (20)', ings:[P('Pino',1/2)] },
+  { zona:'Baños Duhau', ings:[V('Monstera',2)] },
+  { zona:'Baños Duhau · Bochitas (6)', ings:[P('Limonium',1/2)] },
+  { zona:'Lobby de Posadas', ings:[P('Limonium',10)] },
+  { zona:'Recepción Posadas y mesita (c/u)', ings:[V('Laurentino',2),V('Azarero',2),V('Buxus',1),V('Pino',1)] },
+  { zona:'Baño Paseo de las Artes · Bochitas (7)', ings:[P('Limonium',1/2)] },
+  { zona:'Gioia mesitas (c/u)', ings:[V('Azarero nana',3)] },
+  { zona:'Gioia Arbolitos (c/u)', ings:[P('Sauce',3),V('Laurentino',7),V('Azarero',7),V('Pino',6),V('Limón',7)] },
+  { zona:'Copón Gioia', ings:[V('Laurentino',5),V('Azarero',6),V('Pino',4),V('Monstera',4)] },
+  { zona:'Totems Meetings (c/u)', ings:[V('Monstera',2)] },
+  { zona:'Meetings bochitas (c/u)', ings:[V('Laurentino',1/3),V('Azarero',1/3),V('Pino',1/6)] },
+  { zona:'Meetings baños · Bochitas (9)', ings:[P('Limonium',1/2)] },
+  { zona:'Tilo', ings:[V('Azarero',2),V('Laurentino',2),V('Pino',1),V('Conejito',3),V('Astromelia',3),V(_SVM,5)] },
+  { zona:'Mesada Posadas (c/u)', ings:[V('Laurentino',4),V('Azarero',3),V('Pino',2)] },
+  { zona:'Totems Posadas (c/u)', ings:[V('Laurentino',4),V('Azarero',3),V('Pino',2)] },
+  { zona:'Bochitas Posadas (c/u)', ings:[V('Laurentino',1/2),V('Azarero',1/2),V('Pino',1/6)] },
 ];
 
 async function seedComposicionesHotelBase(){
   if(userRole!=='gerencia'){ showToast('⛔ Solo gerencia'); return; }
-  const nuevas = COMPOSICIONES_HOTEL_BASE.filter(c=>!(arreglosComposicion[c.zona]||[]).length);
-  if(!nuevas.length){ showToast('Las composiciones base del hotel ya están cargadas'); return; }
-  if(!await confirmModal(`¿Cargar ${nuevas.length} composición${nuevas.length!==1?'es':''} base de arreglos del hotel? Después las podés editar.`)) return;
-  nuevas.forEach(c=>{ arreglosComposicion[c.zona] = c.ings.map(g=>({prod:g.prod, qty:g.qty})); });
+  const n = COMPOSICIONES_HOTEL_BASE.length;
+  if(!await confirmModal(`¿Cargar / actualizar las ${n} composiciones base de arreglos del hotel?\n\nSe (re)cargan las zonas del catálogo con las unidades correctas (paquetes o varas). Tus zonas propias no se tocan.`)) return;
+  COMPOSICIONES_HOTEL_BASE.forEach(c=>{
+    arreglosComposicion[c.zona] = c.ings.map(g=>({ prod:g.prod, qty:g.qty, ...(g.unidad==='paq'?{unidad:'paq'}:{}) }));
+  });
   fbSave('arreglosComposicion', arreglosComposicion);
   renderComposicionesHotel();
-  showToast(`✅ ${nuevas.length} composiciones del hotel cargadas`);
+  if(document.getElementById('page-rentabilidad-eventos')?.classList.contains('active')) renderRentabilidadHotel();
+  showToast(`✅ ${n} composiciones del hotel cargadas`);
 }
 
 // ── renderRecetas ─────────────────────────────────────────────────────────────
@@ -12770,11 +12805,14 @@ function renderComposicionesHotel(){
       </div>
       <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);margin:8px 0;font-weight:600">Ingredientes por unidad · costo $${costo.toLocaleString('es-AR')}</div>
       <div class="receta-ingredientes">
-        ${ings.map(ing=>`<div class="receta-ing-row">
+        ${ings.map(ing=>{
+          const eqVaras = ing.unidad==='paq' ? _ingVaras(ing) : 0;
+          return `<div class="receta-ing-row">
           <span style="font-size:18px;line-height:1">🌿</span>
           <span style="flex:1;font-weight:500">${esc(ing.prod)}</span>
-          <span style="background:#F0EEE8;border-radius:4px;padding:2px 8px;font-size:12px;font-weight:600">${_fmtCant(ing.qty)} vara${(+ing.qty)===1?'':'s'}</span>
-        </div>`).join('')}
+          <span style="background:#F0EEE8;border-radius:4px;padding:2px 8px;font-size:12px;font-weight:600" title="${ing.unidad==='paq'?(eqVaras?_fmtCant(eqVaras)+' varas':'cargá varas por paquete en Compras'):''}">${_fmtIngUnidad(ing)}${ing.unidad==='paq'&&eqVaras?` · ${_fmtCant(eqVaras)}v`:''}</span>
+        </div>`;
+        }).join('')}
       </div>
     </div>`;
   }).join('');
@@ -14341,9 +14379,10 @@ let arreglosComposicion = {}; // { zonaChecklist: [{prod, qty}] } — qué flore
 window._setArreglosHotelConfig = v => { arreglosHotelConfig = v || {}; };
 window._setArreglosComposicion = v => { arreglosComposicion = v || {}; };
 
-// Costo de un arreglo = Σ varas × costo por vara (cotizadorPrecios, que sale de compras)
+// Costo de un arreglo = Σ (varas equivalentes) × costo por vara. Los ingredientes
+// en "paq" se convierten a varas con las varas por paquete de Compras.
 function calcCostoArreglo(zona){
-  return (arreglosComposicion[zona]||[]).reduce((s,ing)=>s+cotizadorPrecioVara(ing.prod)*(+ing.qty||0),0);
+  return (arreglosComposicion[zona]||[]).reduce((s,ing)=>s+cotizadorPrecioVara(ing.prod)*_ingVaras(ing),0);
 }
 
 function rentSetTab(tab){
@@ -14422,7 +14461,7 @@ function renderRentabilidadHotel(){
     const mc = margenPct != null ? (+margenPct > 40 ? 'var(--green-ok)' : +margenPct > 20 ? 'var(--amber)' : 'var(--red-alert)') : 'var(--mid-gray)';
     const zEsc = esc(zona).replace(/'/g,"\\'");
     const resumen = ings.length
-      ? ings.map(g=>`${g.qty} ${esc(g.prod)}`).join(', ')
+      ? ings.map(g=>`${_fmtIngUnidad(g)} ${esc(g.prod)}`).join(', ')
       : '<span style="color:var(--amber)">Sin composición cargada</span>';
     const faltaPrecio = ings.some(g => !cotizadorPrecioVara(g.prod));
     // Desvío real vs teórico
@@ -14511,27 +14550,35 @@ function _renderCompModal(){
     const cvInfo = resolveCotizadorPrecio(r.prod);
     const cv  = cvInfo.pu;
     const opcion = (cvInfo.fuente && cvInfo.fuente !== r.prod) ? cvInfo.fuente : '';
-    const sub = cv * (+r.qty||0);
+    const esPaq = r.unidad === 'paq';
+    const varas = _ingVaras(r);                       // cantidad en varas (paq → × varas/paq)
+    const vpp = esPaq ? _varasPorPaqResuelto(r.prod) : 0;
+    const sub = cv * varas;
     const sinCosto = r.prod && !cv;
+    const faltaVpp = esPaq && (+r.qty>0) && !vpp;      // paq sin varas/paq cargadas
     return `<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
       <input list="comp-flor-list" value="${esc(r.prod)}" placeholder="Flor / follaje (opciones: A / B / C)" onchange="compUpdRow(${i},'prod',this.value)"
         style="flex:1;min-width:0;border:1px solid var(--light-gray);border-radius:6px;padding:5px 8px;font-size:12.5px;background:var(--warm-white);color:var(--charcoal)">
-      <input type="number" min="0" value="${esc(r.qty)}" placeholder="varas" onchange="compUpdRow(${i},'qty',this.value)"
-        style="width:64px;text-align:center;border:1px solid var(--light-gray);border-radius:6px;padding:5px 4px;font-size:12.5px;background:var(--warm-white);color:var(--charcoal)">
-      <span style="width:66px;text-align:right;font-size:11px;color:${sinCosto?'var(--amber)':'var(--mid-gray)'}"${opcion?` title="Costo tomado de la opción: ${esc(opcion)}"`:''}>${cv?(opcion?'≈':'')+'$'+cv.toLocaleString('es-AR')+'/v':(r.prod?'sin costo':'—')}</span>
-      <span style="width:78px;text-align:right;font-size:12.5px;font-weight:600">${sub?'$'+Math.round(sub).toLocaleString('es-AR'):''}</span>
+      <input type="number" min="0" value="${esc(r.qty)}" placeholder="cant." onchange="compUpdRow(${i},'qty',this.value)"
+        style="width:52px;text-align:center;border:1px solid var(--light-gray);border-radius:6px;padding:5px 4px;font-size:12.5px;background:var(--warm-white);color:var(--charcoal)">
+      <select onchange="compUpdRow(${i},'unidad',this.value)" title="Unidad" style="width:62px;border:1px solid var(--light-gray);border-radius:6px;padding:5px 2px;font-size:11.5px;background:var(--warm-white);color:var(--charcoal)">
+        <option value="vara"${!esPaq?' selected':''}>varas</option>
+        <option value="paq"${esPaq?' selected':''}>paq</option>
+      </select>
+      <span style="width:58px;text-align:right;font-size:11px;color:${sinCosto?'var(--amber)':'var(--mid-gray)'}"${opcion?` title="Costo tomado de la opción: ${esc(opcion)}"`:''}>${cv?(opcion?'≈':'')+'$'+cv.toLocaleString('es-AR')+'/v':(r.prod?'sin costo':'—')}</span>
+      <span style="width:82px;text-align:right;font-size:12.5px;font-weight:600">${sub?'$'+Math.round(sub).toLocaleString('es-AR'):(faltaVpp?'<span style="font-size:9px;color:var(--amber);font-weight:500">falta varas/paq</span>':'')}${esPaq&&vpp?`<div style="font-size:9px;color:var(--mid-gray);font-weight:500">${_fmtCant(varas)} varas</div>`:''}</span>
       <button class="btn-icon" style="color:var(--red-alert)" title="Quitar" onclick="compRemoveRow(${i})">✕</button>
     </div>`;
   }).join('');
-  const total  = _compEditRows.reduce((s,r)=>s+cotizadorPrecioVara(r.prod)*(+r.qty||0),0);
+  const total  = _compEditRows.reduce((s,r)=>s+cotizadorPrecioVara(r.prod)*_ingVaras(r),0);
   const faltan = [...new Set(_compEditRows.filter(r=>r.prod && !cotizadorPrecioVara(r.prod)).map(r=>r.prod))];
   ov.innerHTML = `<div class="modal" style="max-width:560px;max-height:88vh;overflow-y:auto">
     <button class="modal-close" onclick="closeModal('arreglo-comp-modal')">✕</button>
     <div class="modal-title">🫙 Composición · ${esc(_compEditZona)}</div>
-    <div style="font-size:12px;color:var(--mid-gray);margin-bottom:14px">Cargá qué flores lleva este arreglo y cuántas varas de cada una. El costo por vara sale solo de <strong>Compras › Florería</strong>.</div>
+    <div style="font-size:12px;color:var(--mid-gray);margin-bottom:14px">Cargá qué flores lleva y la cantidad. Si un producto va por <strong>paquete</strong> (ej. Monstera, Limonium), elegí «paq» y se convierte a varas con las varas por paquete de <strong>Compras</strong>. El costo por vara también sale de Compras.</div>
     <datalist id="comp-flor-list">${_floresDatalistOpts()}</datalist>
     <div style="display:flex;gap:6px;font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--mid-gray);margin-bottom:5px">
-      <span style="flex:1">Flor / follaje</span><span style="width:64px;text-align:center">Varas</span><span style="width:66px;text-align:right">$/vara</span><span style="width:78px;text-align:right">Subtotal</span><span style="width:28px"></span>
+      <span style="flex:1">Flor / follaje</span><span style="width:52px;text-align:center">Cant.</span><span style="width:62px;text-align:center">Unidad</span><span style="width:58px;text-align:right">$/vara</span><span style="width:82px;text-align:right">Subtotal</span><span style="width:28px"></span>
     </div>
     ${rowsHTML}
     <button class="btn-secondary" style="font-size:11px;margin-top:4px" onclick="compAddRow()">+ Agregar flor</button>
@@ -14551,7 +14598,7 @@ function compRemoveRow(i){ _compEditRows.splice(i,1); if(!_compEditRows.length) 
 function guardarArregloComposicion(){
   const rows = _compEditRows
     .filter(r => r.prod && r.prod.trim() && (+r.qty)>0)
-    .map(r => ({prod:r.prod.trim(), qty:+r.qty}));
+    .map(r => ({prod:r.prod.trim(), qty:+r.qty, ...(r.unidad==='paq'?{unidad:'paq'}:{})}));
   if(rows.length) arreglosComposicion[_compEditZona] = rows;
   else delete arreglosComposicion[_compEditZona];
   fbSave('arreglosComposicion', arreglosComposicion);
