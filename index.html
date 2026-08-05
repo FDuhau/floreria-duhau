@@ -2322,21 +2322,15 @@
           <select class="form-select" id="rent-tipo" onchange="renderRentabilidad()" style="width:150px">
             <option value="">Todos los tipos</option>
           </select>
-          <label style="font-size:12px;color:var(--mid-gray);display:flex;align-items:center;gap:6px;margin-left:auto">Valor hora equipo $
-            <input class="form-input" type="number" min="0" id="rent-valorhora" onchange="saveEventLaborRate(this.value)" style="width:100px;padding:6px 8px;font-size:13px" placeholder="0">
-          </label>
         </div>
         <div class="table-wrapper"><table style="width:100%;border-collapse:collapse;font-size:13px">
           <thead><tr>
             <th style="text-align:left;padding:10px 12px;font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Evento</th>
             <th style="text-align:left;padding:10px 12px;font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Fecha</th>
             <th style="text-align:left;padding:10px 12px;font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Tipo</th>
-            <th style="text-align:right;padding:10px 12px;font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Presup.</th>
-            <th style="text-align:right;padding:10px 12px;font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)" title="Costo de insumos (estimado)">Insumos</th>
-            <th style="text-align:right;padding:10px 12px;font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)" title="Horas cronometradas (armado+colocación+retiro) × valor hora">M. obra</th>
-            <th style="text-align:right;padding:10px 12px;font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Traslado</th>
-            <th style="text-align:right;padding:10px 12px;font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Costo total</th>
-            <th style="text-align:right;padding:10px 12px;font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Margen real</th>
+            <th style="text-align:right;padding:10px 12px;font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)" title="Precio del evento (del evento cargado)">Precio evento</th>
+            <th style="text-align:right;padding:10px 12px;font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)" title="Suma de las compras asociadas a este evento">Costo insumos</th>
+            <th style="text-align:right;padding:10px 12px;font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)" title="Precio evento − costo insumos">Margen</th>
             <th style="text-align:left;padding:10px 12px;font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Estado</th>
           </tr></thead>
           <tbody id="rent-body"></tbody>
@@ -2365,7 +2359,8 @@
           <thead><tr>
             <th style="text-align:left;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Arreglo</th>
             <th style="text-align:left;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Composición</th>
-            <th style="text-align:right;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)" title="Costo calculado por la composición">Costo teórico</th>
+            <th style="text-align:center;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)" title="Cuántos arreglos de este tipo (ej. cantidad de bochitas)">Cant.</th>
+            <th style="text-align:right;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)" title="Costo de la composición × cantidad">Costo teórico</th>
             <th style="text-align:right;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)" title="Compras reales asignadas a ese arreglo en el mes">Costo real</th>
             <th style="text-align:right;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Desvío</th>
             <th style="text-align:right;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Precio Hyatt</th>

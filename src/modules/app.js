@@ -14408,9 +14408,11 @@ function renderRentabilidadHotel(){
   const th = 'padding:9px 14px;border-bottom:1px solid var(--light-gray)';
   tbody.innerHTML = arreglos.map(zona => {
     const ings        = arreglosComposicion[zona] || [];
-    const costo       = Math.round(calcCostoArreglo(zona));
-    const costoReal   = Math.round(costoRealPorArea[zona] || 0);
     const cfg         = arreglosHotelConfig[zona] || {};
+    const cantidad    = +cfg.cantidad > 0 ? +cfg.cantidad : 1;
+    const costoUnit   = Math.round(calcCostoArreglo(zona));
+    const costo       = costoUnit * cantidad; // costo total (unidad × cantidad)
+    const costoReal   = Math.round(costoRealPorArea[zona] || 0);
     const precioHyatt = cfg.precioHyatt || 0;
     const margen      = precioHyatt - costo;
     const margenPct   = precioHyatt > 0 ? (margen / precioHyatt * 100).toFixed(1) : null;
@@ -14435,7 +14437,12 @@ function renderRentabilidadHotel(){
     return `<tr>
       <td style="${th};font-weight:500;white-space:nowrap">📍 ${esc(zona)}</td>
       <td style="${th};font-size:11px;color:var(--mid-gray);max-width:240px">${resumen}${faltaPrecio?' <span title="Falta el costo por vara de alguna flor (cargá su compra recibida)">⚠️</span>':''}</td>
-      <td style="${th};text-align:right;color:var(--mid-gray)">$${costo.toLocaleString('es-AR')}</td>
+      <td style="${th};text-align:center">
+        <input type="number" min="1" value="${cantidad}" title="Cantidad de arreglos de este tipo"
+          style="width:60px;text-align:center;border:1px solid var(--light-gray);border-radius:6px;padding:4px 6px;font-size:13px;outline:none;background:var(--warm-white);color:var(--charcoal)"
+          onchange="saveArregloHotelConfig('${zEsc}','cantidad',this.value)">
+      </td>
+      <td style="${th};text-align:right;color:var(--mid-gray)">$${costo.toLocaleString('es-AR')}${cantidad>1?`<div style="font-size:10px">$${costoUnit.toLocaleString('es-AR')} c/u</div>`:''}</td>
       <td style="${th};text-align:right;color:var(--charcoal)">${costoReal?'$'+costoReal.toLocaleString('es-AR'):'<span style="color:var(--mid-gray)">—</span>'}</td>
       <td style="${th};text-align:right">${desvioHTML}</td>
       <td style="${th};text-align:right">
@@ -14447,7 +14454,7 @@ function renderRentabilidadHotel(){
       <td style="${th};text-align:right;font-weight:700;color:${mc}">${margenPct != null ? margenPct+'%' : '—'}</td>
       <td style="${th};text-align:center;white-space:nowrap"><button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="openArregloComposicion('${zEsc}')">✏️ Composición</button></td>
     </tr>`;
-  }).join('') || `<tr><td colspan="9" style="padding:22px;text-align:center;color:var(--mid-gray)">Todavía no hay arreglos definidos. Elegí uno del checklist en el selector de arriba para cargar qué flores lleva.</td></tr>`;
+  }).join('') || `<tr><td colspan="10" style="padding:22px;text-align:center;color:var(--mid-gray)">Todavía no hay arreglos definidos. Elegí uno del checklist en el selector de arriba para cargar qué flores lleva.</td></tr>`;
 
   // Panel de alertas
   const alEl = document.getElementById('rent-hotel-alertas');
@@ -14596,47 +14603,46 @@ function renderRentabilidad(){
     return m && mt;
   }).sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
 
-  const withPpto = filtered.filter(ev => +ev.presupuesto > 0);
-  const totalPpto  = withPpto.reduce((s,e)=>s+(+e.presupuesto||0),0);
-  const totalReal  = withPpto.reduce((s,e)=>s+_eventoCostoReal(e).total,0);
-  const margenGlobal = totalPpto > 0 ? ((totalPpto - totalReal)/totalPpto*100).toFixed(1) : '—';
+  // Precio del evento (del evento cargado) y costo de insumos (compras asociadas)
+  const _precioEv = ev => parseMoney(ev.precio) || (+ev.presupuesto||0);
+  const withPrecio = filtered.filter(ev => _precioEv(ev) > 0);
+  const totalPrecio = withPrecio.reduce((s,e)=>s+_precioEv(e),0);
+  const totalInsumos = filtered.reduce((s,e)=>s+gastoComprasEvento(e.id),0);
+  const margenGlobal = totalPrecio > 0 ? ((totalPrecio - totalInsumos)/totalPrecio*100).toFixed(1) : '—';
   const kpisEl = document.getElementById('rent-kpis');
   if(kpisEl) kpisEl.innerHTML = `
-    <div class="card"><div class="card-label">Eventos con presupuesto</div><div class="card-value" style="font-size:32px">${withPpto.length}</div></div>
-    <div class="card"><div class="card-label">Total facturado</div><div class="card-value" style="font-size:28px">$${totalPpto.toLocaleString('es-AR')}</div></div>
-    <div class="card"><div class="card-label">Costo real total</div><div class="card-value" style="font-size:28px">$${Math.round(totalReal).toLocaleString('es-AR')}</div></div>
-    <div class="card"><div class="card-label">Margen real global</div><div class="card-value ${+margenGlobal>40?'green':+margenGlobal>20?'amber':'red'}" style="font-size:32px">${margenGlobal}%</div></div>`;
+    <div class="card"><div class="card-label">Eventos con precio</div><div class="card-value" style="font-size:32px">${withPrecio.length}</div></div>
+    <div class="card"><div class="card-label">Total precio eventos</div><div class="card-value" style="font-size:28px">$${totalPrecio.toLocaleString('es-AR')}</div></div>
+    <div class="card"><div class="card-label">Costo insumos total</div><div class="card-value" style="font-size:28px">$${Math.round(totalInsumos).toLocaleString('es-AR')}</div></div>
+    <div class="card"><div class="card-label">Margen global</div><div class="card-value ${+margenGlobal>40?'green':+margenGlobal>20?'amber':'red'}" style="font-size:32px">${margenGlobal}%</div></div>`;
 
   const tbody = document.getElementById('rent-body');
   if(!tbody) return;
   if(!filtered.length){
-    tbody.innerHTML = '<tr><td colspan="10" style="padding:24px;text-align:center;color:var(--mid-gray)">Sin eventos para mostrar.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="padding:24px;text-align:center;color:var(--mid-gray)">Sin eventos para mostrar.</td></tr>';
     _renderRentTiposSummary([]);
     return;
   }
   const td = 'padding:9px 12px;border-bottom:1px solid var(--light-gray)';
   tbody.innerHTML = filtered.map(ev=>{
     const idx = eventosData.indexOf(ev);
-    const ppto = +ev.presupuesto||0;
-    const cr = _eventoCostoReal(ev);
-    const margen = ppto > 0 ? ((ppto - cr.total)/ppto*100).toFixed(1) : null;
-    const margenColor = margen != null ? (+margen > 40 ? 'var(--green-ok)' : +margen > 20 ? 'var(--amber)' : 'var(--red-alert)') : 'var(--mid-gray)';
-    const mo = cr.manoObra ? '$'+cr.manoObra.toLocaleString('es-AR')+`<div style="font-size:9px;color:var(--mid-gray)">${cr.horas.toFixed(1)}h</div>` : (cr.horas?`<span style="color:var(--mid-gray)">${cr.horas.toFixed(1)}h</span>`:'<span style="color:var(--mid-gray)">—</span>');
+    const precio = _precioEv(ev);
+    const insumos = gastoComprasEvento(ev.id);
+    const margenMonto = precio - insumos;
+    const margenPct = precio > 0 ? ((margenMonto)/precio*100).toFixed(1) : null;
+    const margenColor = margenPct != null ? (+margenPct > 40 ? 'var(--green-ok)' : +margenPct > 20 ? 'var(--amber)' : 'var(--red-alert)') : 'var(--mid-gray)';
     return `<tr>
       <td style="${td};font-weight:500;cursor:pointer" onclick="openEventoDetail(${idx})">${esc(ev.nombre||'—')}</td>
       <td style="${td}">${fmtDate(ev.fecha)}</td>
       <td style="${td}">${esc(ev.tipo||'—')}</td>
-      <td style="${td};text-align:right;font-weight:500">${ppto?'$'+ppto.toLocaleString('es-AR'):'<span style="color:var(--mid-gray)">—</span>'}</td>
-      <td style="${td};text-align:right;color:var(--mid-gray)">${cr.insumos?'$'+cr.insumos.toLocaleString('es-AR'):'—'}</td>
-      <td style="${td};text-align:right;color:var(--mid-gray)">${mo}</td>
-      <td style="${td};text-align:right"><input type="number" min="0" value="${ev.traslado||''}" placeholder="$" onchange="updEventoTraslado(${idx},this.value)" style="width:76px;text-align:right;border:1px solid var(--light-gray);border-radius:6px;padding:3px 6px;font-size:12px;background:var(--warm-white);color:var(--charcoal)"></td>
-      <td style="${td};text-align:right;font-weight:600">${cr.total?'$'+Math.round(cr.total).toLocaleString('es-AR'):'—'}</td>
-      <td style="${td};text-align:right;font-weight:700;color:${margenColor}">${margen!=null?margen+'%':'—'}</td>
+      <td style="${td};text-align:right;font-weight:500">${precio?'$'+precio.toLocaleString('es-AR'):'<span style="color:var(--mid-gray)">—</span>'}</td>
+      <td style="${td};text-align:right;color:var(--mid-gray)">${insumos?'$'+Math.round(insumos).toLocaleString('es-AR'):'<span style="color:var(--mid-gray)">—</span>'}</td>
+      <td style="${td};text-align:right;font-weight:700;color:${margenColor}">${margenPct!=null?margenPct+'%':'—'}${precio||insumos?`<div style="font-size:10px;color:var(--mid-gray);font-weight:500">$${Math.round(margenMonto).toLocaleString('es-AR')}</div>`:''}</td>
       <td style="${td}"><span style="padding:2px 10px;border-radius:20px;font-size:11px;font-weight:500;${ESTADO_COLORS[ev.estado]||''}">${esc(ev.estado||'—')}</span></td>
     </tr>`;
   }).join('');
 
-  _renderRentTiposSummary(withPpto);
+  _renderRentTiposSummary(withPrecio);
 }
 
 // Rentabilidad promedio por tipo de evento
@@ -14646,8 +14652,8 @@ function _renderRentTiposSummary(eventos){
   const porTipo = {};
   eventos.forEach(ev=>{
     const t = ev.tipo || 'Sin tipo';
-    const ppto = +ev.presupuesto||0;
-    const real = _eventoCostoReal(ev).total;
+    const ppto = parseMoney(ev.precio) || (+ev.presupuesto||0);
+    const real = gastoComprasEvento(ev.id);
     if(!porTipo[t]) porTipo[t] = { n:0, ppto:0, real:0 };
     porTipo[t].n++; porTipo[t].ppto+=ppto; porTipo[t].real+=real;
   });
