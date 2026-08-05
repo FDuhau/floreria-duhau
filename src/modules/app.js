@@ -4623,7 +4623,7 @@ function renderCotEventos(){
       const pFinal = Math.round(costoBase*(1+margen/100));
       const emoji = arregloEmoji(r.nombre);
       const ingsList = r.ings.map(g => `${_fmtCant(g.qty)} ${g.prod}`).join(', ');
-      const sinCosto = r.ings.some(g => !cotizadorPrecios[g.prod]);
+      const sinCosto = r.ings.some(g => !cotizadorPrecioVara(g.prod));
       return `<div style="background:var(--cream);border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:8px">
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;font-weight:600;color:var(--charcoal)">${emoji} ${esc(r.nombre)}</div>
@@ -14424,7 +14424,7 @@ function renderRentabilidadHotel(){
     const resumen = ings.length
       ? ings.map(g=>`${g.qty} ${esc(g.prod)}`).join(', ')
       : '<span style="color:var(--amber)">Sin composición cargada</span>';
-    const faltaPrecio = ings.some(g => !cotizadorPrecios[g.prod]);
+    const faltaPrecio = ings.some(g => !cotizadorPrecioVara(g.prod));
     // Desvío real vs teórico
     let desvioHTML = '<span style="color:var(--mid-gray)">—</span>';
     if(costo>0 && costoReal>0){
@@ -14507,21 +14507,24 @@ function _renderCompModal(){
   let ov = document.getElementById('arreglo-comp-modal');
   if(!ov){ ov = document.createElement('div'); ov.id='arreglo-comp-modal'; ov.className='modal-overlay'; document.body.appendChild(ov); }
   const rowsHTML = _compEditRows.map((r,i)=>{
-    const cv  = cotizadorPrecios[r.prod] || 0;
+    // Resuelve opciones "A / B": toma el costo por vara de la opción con dato.
+    const cvInfo = resolveCotizadorPrecio(r.prod);
+    const cv  = cvInfo.pu;
+    const opcion = (cvInfo.fuente && cvInfo.fuente !== r.prod) ? cvInfo.fuente : '';
     const sub = cv * (+r.qty||0);
     const sinCosto = r.prod && !cv;
     return `<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
-      <input list="comp-flor-list" value="${esc(r.prod)}" placeholder="Flor / follaje" onchange="compUpdRow(${i},'prod',this.value)"
+      <input list="comp-flor-list" value="${esc(r.prod)}" placeholder="Flor / follaje (opciones: A / B / C)" onchange="compUpdRow(${i},'prod',this.value)"
         style="flex:1;min-width:0;border:1px solid var(--light-gray);border-radius:6px;padding:5px 8px;font-size:12.5px;background:var(--warm-white);color:var(--charcoal)">
       <input type="number" min="0" value="${esc(r.qty)}" placeholder="varas" onchange="compUpdRow(${i},'qty',this.value)"
         style="width:64px;text-align:center;border:1px solid var(--light-gray);border-radius:6px;padding:5px 4px;font-size:12.5px;background:var(--warm-white);color:var(--charcoal)">
-      <span style="width:66px;text-align:right;font-size:11px;color:${sinCosto?'var(--amber)':'var(--mid-gray)'}">${cv?'$'+cv.toLocaleString('es-AR')+'/v':(r.prod?'sin costo':'—')}</span>
+      <span style="width:66px;text-align:right;font-size:11px;color:${sinCosto?'var(--amber)':'var(--mid-gray)'}"${opcion?` title="Costo tomado de la opción: ${esc(opcion)}"`:''}>${cv?(opcion?'≈':'')+'$'+cv.toLocaleString('es-AR')+'/v':(r.prod?'sin costo':'—')}</span>
       <span style="width:78px;text-align:right;font-size:12.5px;font-weight:600">${sub?'$'+Math.round(sub).toLocaleString('es-AR'):''}</span>
       <button class="btn-icon" style="color:var(--red-alert)" title="Quitar" onclick="compRemoveRow(${i})">✕</button>
     </div>`;
   }).join('');
-  const total  = _compEditRows.reduce((s,r)=>s+(cotizadorPrecios[r.prod]||0)*(+r.qty||0),0);
-  const faltan = [...new Set(_compEditRows.filter(r=>r.prod && !cotizadorPrecios[r.prod]).map(r=>r.prod))];
+  const total  = _compEditRows.reduce((s,r)=>s+cotizadorPrecioVara(r.prod)*(+r.qty||0),0);
+  const faltan = [...new Set(_compEditRows.filter(r=>r.prod && !cotizadorPrecioVara(r.prod)).map(r=>r.prod))];
   ov.innerHTML = `<div class="modal" style="max-width:560px;max-height:88vh;overflow-y:auto">
     <button class="modal-close" onclick="closeModal('arreglo-comp-modal')">✕</button>
     <div class="modal-title">🫙 Composición · ${esc(_compEditZona)}</div>
