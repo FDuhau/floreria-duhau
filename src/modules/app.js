@@ -5784,6 +5784,7 @@ function addSale(){
     ventasData.push(venta);
     fbSave('ventasData', ventasData);
     sincronizarVentaCaja(ventasData.length - 1);
+    notificarVentaNueva(venta.prod, venta.cliente, asignado);
 
     // Si está pendiente, crear tarea en kanban
     if(estado === 'pendiente'){
@@ -9458,6 +9459,8 @@ function confirmVentaRamo(){
     'ramo-vendido',
     'roles:florista,gerencia'
   );
+  // Aviso a gerencia/comercial: venta registrada, pendiente de asignar.
+  notificarVentaNueva(r.nombre, cliente, '');
   // Quitar el ramo del catálogo (ya no está disponible)
   ramosDispData.splice(i,1);
   fbSave('ramosDispData', ramosDispData);
@@ -9504,6 +9507,7 @@ function registrarVentaDirecta(){
     fromVentaDirecta: true
   });
   fbSave('ventasData', ventasData);
+  notificarVentaNueva(prod, cliente, '');
 
   // Limpiar formulario
   ['vd-prod','vd-cliente','vd-destinatario','vd-pago','vd-precio','vd-dedicatoria','vd-dir'].forEach(id => {
@@ -15988,6 +15992,19 @@ function notificarAsignacion(florista, title, body){
   window.pushSend?.(title, body, 'asignacion', florista);
 }
 window.notificarAsignacion = notificarAsignacion;
+
+// Aviso a gerencia/comercial cuando se registra una venta (ramo vendido o
+// venta cargada en Ventas Externas): hubo una modificación y, si no tiene a
+// alguien asignado, queda pendiente de asignar quién la prepara.
+function notificarVentaNueva(prod, cliente, asignado){
+  const quien = cliente ? ' · ' + cliente : '';
+  if(asignado){
+    window.pushSend?.('💐 Nueva venta registrada', `"${prod}"${quien} — asignada a ${asignado}`, 'venta-nueva', 'roles:gerencia,comercial');
+  } else {
+    window.pushSend?.('💐 Nueva venta · pendiente de asignar', `"${prod}"${quien} — revisá y asigná quién la prepara`, 'venta-nueva', 'roles:gerencia,comercial');
+  }
+}
+window.notificarVentaNueva = notificarVentaNueva;
 
 function guardarPedidoRamo(){
   const prod = document.getElementById('pr-arreglo').value.trim();
