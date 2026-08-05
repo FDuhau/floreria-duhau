@@ -14398,10 +14398,12 @@ function renderRentabilidadHotel(){
     if(area) costoRealPorArea[area] = (costoRealPorArea[area]||0) + _compraImporte(c);
   });
 
-  // Arreglos a mostrar: los que tienen composición cargada o un precio Hyatt definido
-  const conComp   = Object.keys(arreglosComposicion).filter(z => (arreglosComposicion[z]||[]).length);
-  const conPrecio = Object.keys(arreglosHotelConfig).filter(z => arreglosHotelConfig[z]?.precioHyatt);
-  const arreglos  = [...new Set([...conComp, ...conPrecio])].filter(Boolean).sort((a,b)=>a.localeCompare(b,'es'));
+  // Arreglos a mostrar: EXACTAMENTE los que tienen composición cargada en
+  // Composiciones › Arreglos del hotel. (No se listan zonas que solo tengan
+  // un precio Hyatt sin composición, para que no aparezcan sueltas.)
+  const arreglos = Object.keys(arreglosComposicion||{})
+    .filter(z => (arreglosComposicion[z]||[]).length)
+    .sort((a,b)=>a.localeCompare(b,'es'));
 
   const alertasMargen = [], alertasSinCosto = [], alertasDesvio = [];
   let totalCosto = 0, totalFact = 0, totalReal = 0;
@@ -14454,7 +14456,7 @@ function renderRentabilidadHotel(){
       <td style="${th};text-align:right;font-weight:700;color:${mc}">${margenPct != null ? margenPct+'%' : '—'}</td>
       <td style="${th};text-align:center;white-space:nowrap"><button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="openArregloComposicion('${zEsc}')">✏️ Composición</button></td>
     </tr>`;
-  }).join('') || `<tr><td colspan="10" style="padding:22px;text-align:center;color:var(--mid-gray)">Todavía no hay arreglos definidos. Elegí uno del checklist en el selector de arriba para cargar qué flores lleva.</td></tr>`;
+  }).join('') || `<tr><td colspan="10" style="padding:22px;text-align:center;color:var(--mid-gray)">No hay arreglos con composición cargada. Cargalos en <strong>Composiciones › Arreglos del hotel</strong> (botón «📋 Cargar catálogo base») o con el selector de arriba.</td></tr>`;
 
   // Panel de alertas
   const alEl = document.getElementById('rent-hotel-alertas');
