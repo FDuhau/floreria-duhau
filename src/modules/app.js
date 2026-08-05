@@ -12625,6 +12625,57 @@ async function seedComposicionesBase(){
   showToast(`✅ ${nuevas.length} composiciones cargadas`);
 }
 
+// ── Catálogo base de arreglos fijos del hotel (por zona) ──────────────────────
+// Los ingredientes con "/" son opciones (se usa la que haya en stock). Las
+// fracciones = qué parte de una vara/paquete lleva cada unidad (ej. 1/3 = una
+// vara rinde para 3 arreglos). Ojo: algunos productos que se compran por
+// paquete (Monstera, Limonium, Sauce, Magnolia) van con la cantidad de paquetes.
+const _MAG='Magnolia / Níspero', _SLN='Solidago / Naviza',
+      _SVM='San Vicente / Margarita', _CA2='Conejito / Alhelí';
+const COMPOSICIONES_HOTEL_BASE = [
+  { zona:'Lobby de Alvear', ings:[{prod:'Monstera',qty:4},{prod:_MAG,qty:2},{prod:'Laurentino',qty:1},{prod:'Azarero',qty:3},{prod:'Eucalipto',qty:1},{prod:_SLN,qty:1}] },
+  { zona:'Recepción Alvear', ings:[{prod:'Laurentino',qty:2},{prod:'Azarero',qty:2},{prod:'Pino',qty:3},{prod:'Lilium',qty:1},{prod:'Astromelia',qty:5},{prod:_SVM,qty:5},{prod:_CA2,qty:3},{prod:'Repollo',qty:1},{prod:_SLN,qty:1}] },
+  { zona:'Mesada Piano', ings:[{prod:'Laurentino',qty:3},{prod:'Azarero',qty:4},{prod:'Pino',qty:3},{prod:'Lilium',qty:2},{prod:'Astromelia',qty:5},{prod:_SVM,qty:5},{prod:_CA2,qty:5},{prod:'Repollo',qty:1},{prod:_SLN,qty:2}] },
+  { zona:'Mesitas Piano', ings:[{prod:'Limonium',qty:2}] },
+  { zona:'Biblioteca', ings:[{prod:'Laurentino',qty:3},{prod:'Azarero Disciplinado',qty:3},{prod:'Buxus',qty:6},{prod:'Ligustro',qty:6}] },
+  { zona:'Salón Privado', ings:[{prod:'Laurentino',qty:2},{prod:'Azarero Disciplinado',qty:2},{prod:'Buxus',qty:4},{prod:'Ligustro',qty:4}] },
+  { zona:'Mesa ratona Alvear', ings:[{prod:'Laurentino',qty:2},{prod:'Azarero Disciplinado',qty:1},{prod:'Azarero',qty:1},{prod:'Pino',qty:1}] },
+  { zona:'Mesada Vinoteca (c/u)', ings:[{prod:'Laurentino',qty:2},{prod:'Azarero Disciplinado',qty:1},{prod:'Azarero',qty:1},{prod:'Buxus',qty:1},{prod:'Pino',qty:1}] },
+  { zona:'Chimenea Vinoteca', ings:[{prod:'Laurentino',qty:4},{prod:'Azarero',qty:4},{prod:'Pino',qty:3}] },
+  { zona:'Copón Duhau', ings:[{prod:'Monstera',qty:4}] },
+  { zona:'Elefante', ings:[{prod:'Monstera',qty:4},{prod:'Laurentino',qty:1},{prod:'Azarero',qty:1},{prod:'Pino',qty:5}] },
+  { zona:'Spa · Recepción', ings:[{prod:'Monstera',qty:3}] },
+  { zona:'Spa · Jacuzzi', ings:[{prod:'Monstera',qty:3}] },
+  { zona:'Spa · Foyer', ings:[{prod:'Laurentino',qty:3},{prod:'Azarero',qty:3},{prod:'Pino',qty:2},{prod:'Monstera',qty:2}] },
+  { zona:'Spa · Bochitas (20)', ings:[{prod:'Pino',qty:1/2}] },
+  { zona:'Baños Duhau', ings:[{prod:'Monstera',qty:2}] },
+  { zona:'Baños Duhau · Bochitas (6)', ings:[{prod:'Limonium',qty:1/2}] },
+  { zona:'Lobby de Posadas', ings:[{prod:'Limonium',qty:10}] },
+  { zona:'Recepción Posadas y mesita (c/u)', ings:[{prod:'Laurentino',qty:2},{prod:'Azarero',qty:2},{prod:'Buxus',qty:1},{prod:'Pino',qty:1}] },
+  { zona:'Baño Paseo de las Artes · Bochitas (7)', ings:[{prod:'Limonium',qty:1/2}] },
+  { zona:'Gioia mesitas (c/u)', ings:[{prod:'Azarero nana',qty:3}] },
+  { zona:'Gioia Arbolitos (c/u)', ings:[{prod:'Sauce',qty:3},{prod:'Laurentino',qty:7},{prod:'Azarero',qty:7},{prod:'Pino',qty:6},{prod:'Limón',qty:7}] },
+  { zona:'Copón Gioia', ings:[{prod:'Laurentino',qty:5},{prod:'Azarero',qty:6},{prod:'Pino',qty:4},{prod:'Monstera',qty:4}] },
+  { zona:'Totems Meetings (c/u)', ings:[{prod:'Monstera',qty:2}] },
+  { zona:'Meetings bochitas (c/u)', ings:[{prod:'Laurentino',qty:1/3},{prod:'Azarero',qty:1/3},{prod:'Pino',qty:1/6}] },
+  { zona:'Meetings baños · Bochitas (9)', ings:[{prod:'Limonium',qty:1/2}] },
+  { zona:'Tilo', ings:[{prod:'Azarero',qty:2},{prod:'Laurentino',qty:2},{prod:'Pino',qty:1},{prod:'Conejito',qty:3},{prod:'Astromelia',qty:3},{prod:_SVM,qty:5}] },
+  { zona:'Mesada Posadas (c/u)', ings:[{prod:'Laurentino',qty:4},{prod:'Azarero',qty:3},{prod:'Pino',qty:2}] },
+  { zona:'Totems Posadas (c/u)', ings:[{prod:'Laurentino',qty:4},{prod:'Azarero',qty:3},{prod:'Pino',qty:2}] },
+  { zona:'Bochitas Posadas (c/u)', ings:[{prod:'Laurentino',qty:1/2},{prod:'Azarero',qty:1/2},{prod:'Pino',qty:1/6}] },
+];
+
+async function seedComposicionesHotelBase(){
+  if(userRole!=='gerencia'){ showToast('⛔ Solo gerencia'); return; }
+  const nuevas = COMPOSICIONES_HOTEL_BASE.filter(c=>!(arreglosComposicion[c.zona]||[]).length);
+  if(!nuevas.length){ showToast('Las composiciones base del hotel ya están cargadas'); return; }
+  if(!await confirmModal(`¿Cargar ${nuevas.length} composición${nuevas.length!==1?'es':''} base de arreglos del hotel? Después las podés editar.`)) return;
+  nuevas.forEach(c=>{ arreglosComposicion[c.zona] = c.ings.map(g=>({prod:g.prod, qty:g.qty})); });
+  fbSave('arreglosComposicion', arreglosComposicion);
+  renderComposicionesHotel();
+  showToast(`✅ ${nuevas.length} composiciones del hotel cargadas`);
+}
+
 // ── renderRecetas ─────────────────────────────────────────────────────────────
 function renderRecetas(){
   const grid = document.getElementById('recetas-grid');
@@ -12664,6 +12715,8 @@ function setCompTab(t){
   if(secH) secH.style.display = t==='hotel' ? '' : 'none';
   // Los botones "+ Nueva composición" y "Cargar catálogo base" son de eventos.
   if(btns) btns.style.display = t==='eventos' ? '' : 'none';
+  const hotelBtns = document.getElementById('comp-hotel-btns');
+  if(hotelBtns) hotelBtns.style.display = t==='hotel' ? 'flex' : 'none';
   if(t==='hotel') renderComposicionesHotel(); else renderRecetas();
 }
 
@@ -12672,7 +12725,10 @@ function setCompTab(t){
 function renderComposicionesHotel(){
   const grid = document.getElementById('recetas-hotel-grid');
   if(!grid) return;
-  const zonas = getAreaUsoZonas();
+  // Zonas del checklist + cualquier zona que ya tenga composición cargada
+  // (ej. las del catálogo base del hotel, que no siempre son zonas del checklist).
+  const zonas = [...new Set([...getAreaUsoZonas(), ...Object.keys(arreglosComposicion||{})])]
+    .sort((a,b)=>a.localeCompare(b,'es'));
   const conComp = zonas.filter(z => (arreglosComposicion[z]||[]).length);
   const sinComp = zonas.filter(z => !(arreglosComposicion[z]||[]).length);
   const orden = [...conComp, ...sinComp];
@@ -16563,7 +16619,7 @@ Object.assign(window, {
   renderLPenCotizador, renderListaPrecios,
   renderPedidosHab, renderPeriodTabs, renderPlantilla, renderPreciosList, renderProductividad,
   renderProductividadHome, renderProductividadCL, renderProductividadHorarios, renderProvTags, renderRamosDisp, renderRecepcionPedidos,
-  renderRecetas, seedComposicionesBase, setCompTab, renderComposicionesHotel, renderReportesEquipo, renderReportesVentas, renderReportesStock, openFichaEmpleado,
+  renderRecetas, seedComposicionesBase, seedComposicionesHotelBase, setCompTab, renderComposicionesHotel, renderReportesEquipo, renderReportesVentas, renderReportesStock, openFichaEmpleado,
   renderCierreDia, initCierreDia,
   renderFloreros, openFloreroModal, guardarFlorero, delFlorero, florAjustar, florFotoPreview, cambiarFotoFlorero, openFlorFoto,
   renderVelas, openVelaModal, guardarVela, delVela, velaAjustar, velaFotoPreview, cambiarFotoVela, openVelaFoto,
