@@ -12729,38 +12729,77 @@ function setCompTab(t){
 function renderComposicionesHotel(){
   const grid = document.getElementById('recetas-hotel-grid');
   if(!grid) return;
-  // Zonas del checklist + cualquier zona que ya tenga composición cargada
-  // (ej. las del catálogo base del hotel, que no siempre son zonas del checklist).
-  const zonas = [...new Set([...getAreaUsoZonas(), ...Object.keys(arreglosComposicion||{})])]
+
+  // Solo se listan las zonas que YA tienen composición cargada (así no se
+  // llena de zonas vacías). Para cargar una zona sin composición se usa el
+  // selector "+ Definir composición".
+  const conComp = Object.keys(arreglosComposicion||{})
+    .filter(z => (arreglosComposicion[z]||[]).length)
     .sort((a,b)=>a.localeCompare(b,'es'));
-  const conComp = zonas.filter(z => (arreglosComposicion[z]||[]).length);
-  const sinComp = zonas.filter(z => !(arreglosComposicion[z]||[]).length);
-  const orden = [...conComp, ...sinComp];
-  if(!orden.length){
-    grid.innerHTML = '<div style="text-align:center;padding:40px;color:var(--mid-gray)">No hay arreglos definidos en el checklist todavía.</div>';
+
+  // Barra: agregar composición a una zona del checklist o a un nombre nuevo.
+  const addBar = document.getElementById('comp-hotel-addbar');
+  if(addBar){
+    const sinComp = getAreaUsoZonas()
+      .filter(z => !(arreglosComposicion[z]||[]).length)
+      .sort((a,b)=>a.localeCompare(b,'es'));
+    addBar.innerHTML = `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <select class="form-input" style="min-width:260px" onchange="compHotelAdd(this)">
+        <option value="">+ Definir composición de una zona…</option>
+        ${sinComp.length ? '<optgroup label="Zonas del checklist">'+sinComp.map(z=>`<option value="${esc(z)}">${esc(z)}</option>`).join('')+'</optgroup>' : ''}
+        <option value="__otra__">✏️ Otra zona (escribir nombre)…</option>
+      </select>
+    </div>`;
+  }
+
+  if(!conComp.length){
+    grid.innerHTML = '<div style="text-align:center;padding:40px;color:var(--mid-gray)">No hay arreglos del hotel con composición todavía. Usá «+ Definir composición» o «📋 Cargar catálogo base».</div>';
     return;
   }
-  grid.innerHTML = orden.map(zona=>{
+  grid.innerHTML = conComp.map(zona=>{
     const ings = arreglosComposicion[zona] || [];
     const costo = Math.round(calcCostoArreglo(zona));
     const zEsc = esc(zona).replace(/'/g,"\\'");
     return `<div class="receta-card">
       <div class="receta-header">
         <div class="receta-nombre">📍 <b>${esc(zona)}</b></div>
-        <button class="btn-icon" onclick="openArregloComposicion('${zEsc}')" title="Editar composición">✏️</button>
+        <div style="display:flex;gap:6px">
+          <button class="btn-icon" onclick="openArregloComposicion('${zEsc}')" title="Editar composición">✏️</button>
+          <button class="btn-icon" style="color:var(--red-alert)" onclick="delArregloComposicion('${zEsc}')" title="Eliminar composición">✕</button>
+        </div>
       </div>
-      ${ings.length ? `
-        <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);margin:8px 0;font-weight:600">Ingredientes por unidad · costo $${costo.toLocaleString('es-AR')}</div>
-        <div class="receta-ingredientes">
-          ${ings.map(ing=>`<div class="receta-ing-row">
-            <span style="font-size:18px;line-height:1">🌿</span>
-            <span style="flex:1;font-weight:500">${esc(ing.prod)}</span>
-            <span style="background:#F0EEE8;border-radius:4px;padding:2px 8px;font-size:12px;font-weight:600">${_fmtCant(ing.qty)} vara${(+ing.qty)===1?'':'s'}</span>
-          </div>`).join('')}
-        </div>`
-        : `<div style="color:var(--amber);font-size:12.5px;padding:10px 0">Sin composición cargada — tocá ✏️ para definir qué flores lleva.</div>`}
+      <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);margin:8px 0;font-weight:600">Ingredientes por unidad · costo $${costo.toLocaleString('es-AR')}</div>
+      <div class="receta-ingredientes">
+        ${ings.map(ing=>`<div class="receta-ing-row">
+          <span style="font-size:18px;line-height:1">🌿</span>
+          <span style="flex:1;font-weight:500">${esc(ing.prod)}</span>
+          <span style="background:#F0EEE8;border-radius:4px;padding:2px 8px;font-size:12px;font-weight:600">${_fmtCant(ing.qty)} vara${(+ing.qty)===1?'':'s'}</span>
+        </div>`).join('')}
+      </div>
     </div>`;
   }).join('');
+}
+
+async function compHotelAdd(sel){
+  const v = sel.value;
+  sel.value = '';
+  if(!v) return;
+  if(v === '__otra__'){
+    const nom = await promptModal('Nombre de la zona / arreglo:', { title: 'Nueva zona del hotel' });
+    if(nom && nom.trim()) openArregloComposicion(nom.trim());
+  } else {
+    openArregloComposicion(v);
+  }
+}
+
+async function delArregloComposicion(zona){
+  if(userRole!=='gerencia'){ showToast('⛔ Solo gerencia'); return; }
+  if(!await confirmModal(`¿Eliminar la composición de "${zona}"?`)) return;
+  delete arreglosComposicion[zona];
+  fbSave('arreglosComposicion', arreglosComposicion);
+  renderComposicionesHotel();
+  if(document.getElementById('page-rentabilidad-eventos')?.classList.contains('active')) renderRentabilidadHotel();
+  showToast('🗑️ Composición eliminada');
 }
 
 function previewRecetaImg(input){
@@ -16636,7 +16675,7 @@ Object.assign(window, {
   renderLPenCotizador, renderListaPrecios,
   renderPedidosHab, renderPeriodTabs, renderPlantilla, renderPreciosList, renderProductividad,
   renderProductividadHome, renderProductividadCL, renderProductividadHorarios, renderProvTags, renderRamosDisp, renderRecepcionPedidos,
-  renderRecetas, seedComposicionesBase, seedComposicionesHotelBase, setCompTab, renderComposicionesHotel, renderReportesEquipo, renderReportesVentas, renderReportesStock, openFichaEmpleado,
+  renderRecetas, seedComposicionesBase, seedComposicionesHotelBase, setCompTab, renderComposicionesHotel, compHotelAdd, delArregloComposicion, renderReportesEquipo, renderReportesVentas, renderReportesStock, openFichaEmpleado,
   renderCierreDia, initCierreDia,
   renderFloreros, openFloreroModal, guardarFlorero, delFlorero, florAjustar, florFotoPreview, cambiarFotoFlorero, openFlorFoto,
   renderVelas, openVelaModal, guardarVela, delVela, velaAjustar, velaFotoPreview, cambiarFotoVela, openVelaFoto,
