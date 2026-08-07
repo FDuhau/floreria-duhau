@@ -2889,6 +2889,11 @@ function setCompraEvento(type, i, id){
   if(type==='floreria'){ window._comprasFloreLastSave = Date.now(); fbSave('comprasFlore', comprasFlore); }
   else { window._comprasJardLastSave = Date.now(); fbSave('comprasJard', comprasJard); }
   renderCompras(type);
+  // Refrescar también el historial de pedidos recibidos, que ahora también
+  // permite asociar el evento en sus renglones.
+  const _hw = _histIds(type).wrap;
+  if(document.getElementById(_hw)?.style.display !== 'none') renderHistorialCompras(type);
+  if(document.getElementById('page-rentabilidad-eventos')?.classList.contains('active')) renderRentabilidad();
 }
 // Total gastado en compras (florería + jardinería) vinculadas a un evento.
 function gastoComprasEvento(eventoId){
@@ -3535,6 +3540,16 @@ function renderHistorialCompras(type='floreria'){
   wrap.innerHTML = html;
 }
 
+// Selector de evento para un renglón del historial. Solo se muestra en los
+// renglones cuya área es "Evento" (o que ya tengan un evento asociado), para
+// poder linkear esa compra con la rentabilidad del evento.
+function _histEventoSelector(type, idx, r){
+  if(r.anulado) return '';
+  const esEvento = (r.sector||'').toLowerCase().includes('evento') || r.eventoId;
+  if(!esEvento) return '';
+  return `<div style="margin-top:4px"><select class="form-input" onchange="setCompraEvento('${type}',${idx},this.value)" title="Evento asociado (para linkear con Rentabilidad)" style="min-width:150px;font-size:11px;padding:3px 6px${r.eventoId?';background:#FCEEF2;border-color:#E0B3C4;color:#7A3A2A;font-weight:600':''}">${getCompraEventoOpts(r.eventoId)}</select></div>`;
+}
+
 // Tabla del historial de Florería (concepto de varas por paquete y costo por vara)
 function _histTablaFloreria(items){
   return `<table style="width:100%;min-width:900px;font-size:12px;border-collapse:collapse">
@@ -3554,7 +3569,7 @@ function _histTablaFloreria(items){
         <tbody>${items.map(r => { const idx = comprasFlore.indexOf(r); const an = !!r.anulado; const rowStyle = an ? 'border-top:1px solid #F0EDE8;opacity:.5' : 'border-top:1px solid #F0EDE8'; const cvDiv = parseFloat(r.varasPorPaq)||parseFloat(r.totalVaras)||parseFloat(r.qty)||0; const cvVal = (parseMoney(r.costo)>0 && cvDiv>0) ? Math.round(parseMoney(r.costo)/cvDiv) : null; return `<tr style="${rowStyle}">
           <td style="padding:6px 10px;font-weight:500;${an?'text-decoration:line-through':''}">${esc(r.prod)}</td>
           <td style="padding:6px 10px;color:var(--mid-gray)">${esc(r.prov||'—')}</td>
-          <td style="padding:6px 10px;color:var(--mid-gray)">${esc(r.sector||'—')}</td>
+          <td style="padding:6px 10px;color:var(--mid-gray)">${esc(r.sector||'—')}${_histEventoSelector('floreria',idx,r)}</td>
           <td style="padding:6px 10px;text-align:center"><input class="form-input" type="number" value="${esc(r.paqRecibidos ?? r.qty ?? '')}" onchange="updHistCantCompra('floreria',${idx},'paqRecibidos',this.value)" style="width:55px;text-align:center" ${an?'disabled':''}></td>
           <td style="padding:6px 10px;text-align:center"><input class="form-input" type="number" value="${esc(r.varasPorPaq ?? '')}" onchange="updHistCantCompra('floreria',${idx},'varasPorPaq',this.value)" style="width:55px;text-align:center" ${an?'disabled':''}></td>
           <td style="padding:6px 10px;text-align:center;font-weight:600">${r.totalVaras||r.qty||'—'}</td>
@@ -3585,7 +3600,7 @@ function _histTablaJardineria(items){
           <td style="padding:6px 10px;font-weight:500;${an?'text-decoration:line-through':''}">${esc(r.prod)}</td>
           <td style="padding:6px 10px;color:var(--mid-gray)">${esc(r.desc||'—')}</td>
           <td style="padding:6px 10px;color:var(--mid-gray)">${esc(r.prov||'—')}</td>
-          <td style="padding:6px 10px;color:var(--mid-gray)">${esc(r.sector||'—')}</td>
+          <td style="padding:6px 10px;color:var(--mid-gray)">${esc(r.sector||'—')}${_histEventoSelector('jardineria',idx,r)}</td>
           <td style="padding:6px 10px;text-align:center"><input class="form-input" type="number" value="${esc(r.paqRecibidos ?? r.qty ?? '')}" onchange="updHistCantCompra('jardineria',${idx},'paqRecibidos',this.value)" style="width:60px;text-align:center" ${an?'disabled':''}></td>
           <td style="padding:6px 10px;text-align:center">${an ? '<span style="font-size:9px;font-weight:700;background:#7A7A72;color:#fff;padding:2px 7px;border-radius:5px;white-space:nowrap">🚫 Anulado</span>' : controlBadgeCompra(r)}</td>
           <td style="padding:6px 10px;text-align:right"><input class="form-input" value="${esc(r.costo||'')}" placeholder="$" onchange="updHistCostoCompra('jardineria',${idx},this.value)" style="width:90px;text-align:right" ${an?'disabled':''}></td>
