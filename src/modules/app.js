@@ -1082,6 +1082,10 @@ function getOrCreateDayState(day){
       // Asegurar largo correcto
       while(ds[k].length < CL_TASKS.length) ds[k].push(k==='checked' ? false : '');
     });
+    // Reparar estados viejos: una tarea con hora de Fin registrada está completada.
+    // Antes, editar el Fin a mano (gerencia) no la tildaba, así que quedaban tareas
+    // con duración pero figurando pendientes. Se corrige al hidratar.
+    ds.checked = ds.checked.map((c,i)=> c || !!(ds.fin && ds.fin[i]));
   }
   return clStateByDay[day];
 }
@@ -1941,6 +1945,11 @@ async function resetHora(i, campo){
     if(clState.checked[i]) clState.checked[i] = false;
   }
   clState[campo][i] = '';
+  // Si se borra el Fin, la tarea deja de estar completada (queda reabierta).
+  if(campo === 'fin' && clState.checked?.[i]){
+    clState.checked[i] = false;
+    saveWeekState(currentDay, 'checked');
+  }
   saveWeekState(currentDay, campo);
   renderChecklistTable();
 }
@@ -1958,7 +1967,26 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
-function updCL(i, field, val){ if(!clState) return; clState[field][i] = val; saveWeekState(currentDay, field); }
+function updCL(i, field, val){
+  if(!clState) return;
+  clState[field][i] = val;
+  // Al cargar/editar la hora de Fin a mano (gerencia usa un <input time>), mantener
+  // el estado "completada" en sincronía: con Fin la tarea queda tildada; sin Fin,
+  // destildada. Sin esto, la tarea mostraba duración pero seguía figurando pendiente
+  // y al recargar aparecía "vacía".
+  if(field === 'fin'){
+    const debeEstar = !!val;
+    if(!Array.isArray(clState.checked)) clState.checked = CL_TASKS.map(()=>false);
+    if(clState.checked[i] !== debeEstar){
+      clState.checked[i] = debeEstar;
+      saveWeekState(currentDay, 'checked');
+    }
+    saveWeekState(currentDay, field);
+    renderChecklistTable();
+    return;
+  }
+  saveWeekState(currentDay, field);
+}
 
 function toggleTask(i, el){
   if(!clState) return;
