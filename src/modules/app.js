@@ -2873,7 +2873,12 @@ function populateCompraEventoSelect(p){
   if(fsel){
     const cur = fsel.value;
     const arr = getArr(p==='cf'?'floreria':'jardineria');
-    const usados = [...new Map(arr.filter(r=>r.eventoId).map(r=>[r.eventoId, r.evento||r.eventoId])).entries()];
+    const usadosMap = new Map();
+    (arr||[]).forEach(r=>{
+      if(!r) return;
+      _compraEventosAlloc(r).forEach(a=>{ if(a && a.eventoId) usadosMap.set(a.eventoId, a.evento||findEventoById(a.eventoId)?.nombre||a.eventoId); });
+    });
+    const usados = [...usadosMap.entries()];
     fsel.innerHTML = '<option value="">Todos los eventos</option>' +
       usados.map(([id,nom])=>`<option value="${esc(id)}">${esc(nom)}</option>`).join('');
     fsel.value = cur;
@@ -2895,12 +2900,136 @@ function setCompraEvento(type, i, id){
   if(document.getElementById(_hw)?.style.display !== 'none') renderHistorialCompras(type);
   if(document.getElementById('page-rentabilidad-eventos')?.classList.contains('active')) renderRentabilidad();
 }
+
+// ─── Reparto de una compra entre uno o más eventos (por cantidad) ───────────
+// Modelo: r.eventos = [{eventoId, evento, qty}]. Se conserva r.eventoId/r.evento
+// con el primer evento para compatibilidad con filtros/vistas antiguas.
+let _cevState = null; // { type, idx, rows:[{eventoId, qty}] }
+
+function _compraEventosAlloc(r){
+  if(r && Array.isArray(r.eventos) && r.eventos.length) return r.eventos;
+  if(r && r.eventoId) return [{ eventoId:r.eventoId, evento:r.evento||'', qty:_compraCant(r) }];
+  return [];
+}
+
+// Celda con los eventos asignados (chips) + botón para abrir el editor.
+function _compraEventosBtn(type, i, r){
+  const allocs = _compraEventosAlloc(r);
+  const chips = allocs.map(a=>{
+    const ev = findEventoById(a.eventoId);
+    const nom = ev ? (ev.nombre||'') : (a.evento||'evento');
+    return `<span style="display:inline-block;background:#FCEEF2;border:1px solid #E0B3C4;color:#7A3A2A;border-radius:6px;font-size:10px;font-weight:600;padding:2px 6px;margin:0 3px 3px 0;white-space:nowrap">${esc(nom)} · ${esc(a.qty)}</span>`;
+  }).join('');
+  const has = allocs.length>0;
+  const label = has ? '✏️ Editar evento(s)' : '🎉 Asignar evento(s)';
+  const btnStyle = has
+    ? 'background:#FCEEF2;border:1px solid #E0B3C4;color:#7A3A2A;font-weight:600'
+    : 'background:#fff;border:1px solid var(--light-gray);color:var(--mid-gray)';
+  return `<div style="margin-top:4px">${chips?`<div style="margin-bottom:3px">${chips}</div>`:''}<button type="button" onclick="openCompraEventos('${type}',${i})" style="${btnStyle};border-radius:6px;font-size:11px;padding:4px 8px;cursor:pointer;min-width:140px">${label}</button></div>`;
+}
+
+function _cevTotalHtml(){
+  if(!_cevState) return '';
+  const tot = _cevState.rows.reduce((s,row)=>s+(parseFloat(row.qty)||0), 0);
+  const r = getArr(_cevState.type)[_cevState.idx];
+  const disp = r ? _compraCant(r) : 0;
+  const over = tot>disp;
+  const totFmt = Number.isInteger(tot) ? tot : tot.toFixed(2);
+  return `Repartido: <strong style="color:${over?'var(--red-alert)':'var(--charcoal)'}">${totFmt}</strong> / ${disp} comprado${over?' <span style="color:var(--red-alert)">· excede lo comprado</span>':''}`;
+}
+
+function openCompraEventos(type, i){
+  const r = getArr(type)[i];
+  if(!r) return;
+  const allocs = _compraEventosAlloc(r).map(a=>({ eventoId:a.eventoId||'', qty:(a.qty!=null?a.qty:'') }));
+  if(!allocs.length) allocs.push({ eventoId:'', qty:'' });
+  _cevState = { type, idx:i, rows:allocs };
+  const sub = document.getElementById('cev-sub');
+  if(sub) sub.innerHTML = `<strong>${esc(r.prod||'—')}</strong> · ${esc(_compraCant(r))} ${type==='floreria'?'paquete(s)':'unidad(es)'} · precio unit. $${parseMoney(r.costo).toLocaleString('es-AR')}<br>Repartí la compra entre los eventos indicando cuánta cantidad va a cada uno.`;
+  _cevRender();
+  document.getElementById('compra-eventos-modal').classList.add('open');
+}
+
+function _cevRender(){
+  if(!_cevState) return;
+  const cont = document.getElementById('cev-rows');
+  if(!cont) return;
+  cont.innerHTML = _cevState.rows.map((row,ri)=>{
+    return `<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+      <select class="form-input" onchange="cevSet(${ri},'eventoId',this.value)" style="flex:1;font-size:12px;min-width:0">${getCompraEventoOpts(row.eventoId)}</select>
+      <input class="form-input" type="number" min="0" step="any" value="${esc(row.qty)}" placeholder="cant." onchange="cevSet(${ri},'qty',this.value)" style="width:70px;font-size:12px;text-align:center">
+      <button type="button" onclick="cevRemove(${ri})" title="Quitar" style="border:none;background:none;color:var(--red-alert);cursor:pointer;font-size:14px;width:24px">✕</button>
+    </div>`;
+  }).join('');
+  const totEl = document.getElementById('cev-total');
+  if(totEl) totEl.innerHTML = _cevTotalHtml();
+}
+
+function cevSet(ri, field, val){
+  if(!_cevState || !_cevState.rows[ri]) return;
+  _cevState.rows[ri][field] = val;
+  if(field==='eventoId'){ _cevRender(); }
+  else { const totEl = document.getElementById('cev-total'); if(totEl) totEl.innerHTML = _cevTotalHtml(); }
+}
+
+function cevAdd(){
+  if(!_cevState) return;
+  _cevState.rows.push({ eventoId:'', qty:'' });
+  _cevRender();
+}
+
+function cevRemove(ri){
+  if(!_cevState) return;
+  _cevState.rows.splice(ri,1);
+  if(!_cevState.rows.length) _cevState.rows.push({ eventoId:'', qty:'' });
+  _cevRender();
+}
+
+function guardarCompraEventos(){
+  if(!_cevState) return;
+  const { type, idx } = _cevState;
+  const r = getArr(type)[idx];
+  if(!r){ closeModal('compra-eventos-modal'); return; }
+  const allocs = _cevState.rows
+    .filter(row=>row.eventoId)
+    .map(row=>{ const ev = findEventoById(row.eventoId); return { eventoId:row.eventoId, evento: ev?(ev.nombre||''):'', qty: parseFloat(row.qty)||0 }; });
+  // Consolidar renglones repetidos del mismo evento
+  const merged = [];
+  allocs.forEach(a=>{ const ex = merged.find(m=>m.eventoId===a.eventoId); if(ex) ex.qty += a.qty; else merged.push({...a}); });
+  if(merged.length){
+    r.eventos = merged;
+    r.eventoId = merged[0].eventoId;   // compat con filtros / rentabilidad antigua
+    r.evento   = merged[0].evento;
+  } else {
+    delete r.eventos;
+    r.eventoId = '';
+    r.evento   = '';
+  }
+  if(type==='floreria'){ window._comprasFloreLastSave = Date.now(); fbSave('comprasFlore', comprasFlore); }
+  else { window._comprasJardLastSave = Date.now(); fbSave('comprasJard', comprasJard); }
+  closeModal('compra-eventos-modal');
+  renderCompras(type);
+  const _hw = _histIds(type).wrap;
+  if(document.getElementById(_hw)?.style.display !== 'none') renderHistorialCompras(type);
+  if(document.getElementById('page-rentabilidad-eventos')?.classList.contains('active')) renderRentabilidad();
+}
+
 // Total gastado en compras (florería + jardinería) vinculadas a un evento.
+// Si la compra se reparte entre varios eventos (c.eventos), se toma solo la
+// parte proporcional (precio unitario × cantidad asignada a ese evento).
 function gastoComprasEvento(eventoId){
   if(!eventoId) return 0;
-  return [...(comprasFlore||[]), ...(comprasJard||[])]
-    .filter(c=>c && c.eventoId===eventoId)
-    .reduce((s,c)=>s+_compraImporte(c), 0);
+  return [...(comprasFlore||[]), ...(comprasJard||[])].reduce((s,c)=>{
+    if(!c) return s;
+    if(Array.isArray(c.eventos) && c.eventos.length){
+      const cant = c.eventos
+        .filter(a=>a && a.eventoId===eventoId)
+        .reduce((t,a)=>t+(parseFloat(a.qty)||0), 0);
+      return s + parseMoney(c.costo)*cant;
+    }
+    if(c.eventoId===eventoId) return s + _compraImporte(c);
+    return s;
+  }, 0);
 }
 
 function addCompra(type){
@@ -3318,7 +3447,7 @@ function renderCompras(type){
   if(fArea)   filtered = filtered.filter(r => r.sector === fArea);
   if(fDesde)  filtered = filtered.filter(r => (r.fecha||'') >= fDesde);
   if(fHasta)  filtered = filtered.filter(r => (r.fecha||'') <= fHasta);
-  if(fEvento) filtered = filtered.filter(r => r.eventoId === fEvento);
+  if(fEvento) filtered = filtered.filter(r => _compraEventosAlloc(r).some(a=>a.eventoId===fEvento));
 
   filtered = applyCompraFiltersExtToArr(type, filtered);
   renderCompraFiltersPanel(type);
@@ -3402,7 +3531,7 @@ function renderCompras(type){
       <td data-label="Área / Uso">${type==='floreria'
         ? `<select class="form-input" onchange="updC('${type}',${i},'sector',this.value)" style="min-width:140px">${getAreaUsoOpts(r.sector)}</select>`
         : `<input class="form-input" value="${esc(r.sector)}" onchange="updC('${type}',${i},'sector',this.value)" style="min-width:110px">`}
-        <select class="form-input" onchange="setCompraEvento('${type}',${i},this.value)" title="Evento asociado" style="min-width:140px;margin-top:4px;font-size:11px;padding:4px 6px${r.eventoId?';background:#FCEEF2;border-color:#E0B3C4;color:#7A3A2A;font-weight:600':''}">${getCompraEventoOpts(r.eventoId)}</select></td>
+        ${_compraEventosBtn(type,i,r)}</td>
       <td data-label="Estado">
         <select class="form-select" onchange="updC('${type}',${i},'estado',this.value);updateKpiCompras()" style="min-width:120px">
           <option value="pedido" ${r.estado!=='recibido'?'selected':''}>📝 Pedido</option>
@@ -3545,9 +3674,9 @@ function renderHistorialCompras(type='floreria'){
 // poder linkear esa compra con la rentabilidad del evento.
 function _histEventoSelector(type, idx, r){
   if(r.anulado) return '';
-  const esEvento = (r.sector||'').toLowerCase().includes('evento') || r.eventoId;
+  const esEvento = (r.sector||'').toLowerCase().includes('evento') || r.eventoId || (Array.isArray(r.eventos)&&r.eventos.length);
   if(!esEvento) return '';
-  return `<div style="margin-top:4px"><select class="form-input" onchange="setCompraEvento('${type}',${idx},this.value)" title="Evento asociado (para linkear con Rentabilidad)" style="min-width:150px;font-size:11px;padding:3px 6px${r.eventoId?';background:#FCEEF2;border-color:#E0B3C4;color:#7A3A2A;font-weight:600':''}">${getCompraEventoOpts(r.eventoId)}</select></div>`;
+  return _compraEventosBtn(type, idx, r);
 }
 
 // Tabla del historial de Florería (concepto de varas por paquete y costo por vara)
@@ -16707,7 +16836,7 @@ Object.assign(window, {
   clearCompraFilter, clearEventImg, clearRecetaImg, closeModal, closeSidebar, confirmResetWeek,
   confirmVentaRamo, copiarBloquePedido, copiarCotEvento, copiarCotizacion, copiarCotizacionEvento,
   renderCompraEvento, ceAddRow, ceRemoveRow, ceSet, ceReset, ceLoadEvento, ceCopiar,
-  setCompraEvento,
+  setCompraEvento, openCompraEventos, cevSet, cevAdd, cevRemove, guardarCompraEventos,
   copiarCotizacionOps, copiarUltimoPedido, cotAgregar, cotAgregarComposicionOps, cotAgregarLP,
   cotAgregarOpsStock, cotGuardarMargen, cotGuardarPrecio, cotRemove, cotRemoveOps, cotUpdateQty,
   cotUpdateQtyOps, ctrlHabFilter, ctrlJardFilter, daysSince, delC, delCaja,
