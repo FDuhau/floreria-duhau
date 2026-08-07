@@ -2880,18 +2880,40 @@ function findEventoById(id){
   if(!id) return null;
   return (eventosData||[]).find(ev=>ev && ev.id===id) || null;
 }
-function getCompraEventoOpts(currentId){
+// Eventos cuya fecha cae dentro de ±`dias` de una fecha de referencia (ISO).
+// Incluye finalizados: sirve para asociar una orden de compra vieja al evento
+// que ya pasó cerca de esa fecha.
+function eventosCercaDe(refDateStr, dias){
+  dias = dias || 5;
+  if(!refDateStr) return [];
+  const ref = new Date(refDateStr + 'T00:00:00');
+  if(isNaN(ref)) return [];
+  const ms = dias * 24 * 60 * 60 * 1000;
+  return (eventosData||[])
+    .filter(ev => {
+      if(!ev || !ev.fecha) return false;
+      const d = new Date(ev.fecha + 'T00:00:00');
+      if(isNaN(d)) return false;
+      return Math.abs(d - ref) <= ms;
+    })
+    .sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||''));
+}
+// `refDate` (ISO) opcional: fecha de la orden de compra. Si es anterior a hoy,
+// el evento ya pasó, así que se listan los eventos dentro de ±5 días de esa
+// fecha (incluye finalizados) en vez de solo los pendientes futuros.
+function getCompraEventoOpts(currentId, refDate){
   ensureEventoIds();
-  const pend = eventosPendientes();
   const cur = currentId || '';
-  // Preservar un evento ya vinculado aunque haya pasado a finalizado / no listado
+  const esVieja = refDate && refDate < TODAY_ISO;
+  const lista = esVieja ? eventosCercaDe(refDate, 5) : eventosPendientes();
+  // Preservar un evento ya vinculado aunque no aparezca en la lista calculada
   let extra = '';
-  if(cur && !pend.some(ev=>ev.id===cur)){
+  if(cur && !lista.some(ev=>ev.id===cur)){
     const ev = findEventoById(cur);
     if(ev) extra = `<option value="${esc(cur)}" selected>${esc(eventoLabel(ev))}</option>`;
   }
   return `<option value="">— Sin evento (stock general) —</option>` + extra +
-    pend.map(ev=>`<option value="${esc(ev.id)}"${ev.id===cur?' selected':''}>${esc(eventoLabel(ev))}</option>`).join('');
+    lista.map(ev=>`<option value="${esc(ev.id)}"${ev.id===cur?' selected':''}>${esc(eventoLabel(ev))}</option>`).join('');
 }
 function populateCompraEventoSelect(p){
   const sel = document.getElementById(p+'-evento-link');
@@ -2973,7 +2995,11 @@ function openCompraEventos(type, i){
   if(!allocs.length) allocs.push({ eventoId:'', qty:'' });
   _cevState = { type, idx:i, rows:allocs };
   const sub = document.getElementById('cev-sub');
-  if(sub) sub.innerHTML = `<strong>${esc(r.prod||'—')}</strong> · ${esc(_compraCant(r))} ${type==='floreria'?'paquete(s)':'unidad(es)'} · precio unit. $${parseMoney(r.costo).toLocaleString('es-AR')}<br>Repartí la compra entre los eventos indicando cuánta cantidad va a cada uno.`;
+  const esVieja = r.fecha && r.fecha < TODAY_ISO;
+  const hint = esVieja
+    ? `Orden del ${fmtDate(r.fecha)} (ya pasó): se muestran los eventos dentro de ±5 días de esa fecha.`
+    : `Repartí la compra entre los eventos indicando cuánta cantidad va a cada uno.`;
+  if(sub) sub.innerHTML = `<strong>${esc(r.prod||'—')}</strong> · ${esc(_compraCant(r))} ${type==='floreria'?'paquete(s)':'unidad(es)'} · precio unit. $${parseMoney(r.costo).toLocaleString('es-AR')}<br>${hint}`;
   _cevRender();
   document.getElementById('compra-eventos-modal').classList.add('open');
 }
@@ -2982,9 +3008,11 @@ function _cevRender(){
   if(!_cevState) return;
   const cont = document.getElementById('cev-rows');
   if(!cont) return;
+  const rCompra = getArr(_cevState.type)[_cevState.idx];
+  const refFecha = rCompra ? (rCompra.fecha||'') : '';
   cont.innerHTML = _cevState.rows.map((row,ri)=>{
     return `<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
-      <select class="form-input" onchange="cevSet(${ri},'eventoId',this.value)" style="flex:1;font-size:12px;min-width:0">${getCompraEventoOpts(row.eventoId)}</select>
+      <select class="form-input" onchange="cevSet(${ri},'eventoId',this.value)" style="flex:1;font-size:12px;min-width:0">${getCompraEventoOpts(row.eventoId, refFecha)}</select>
       <input class="form-input" type="number" min="0" step="any" value="${esc(row.qty)}" placeholder="cant." onchange="cevSet(${ri},'qty',this.value)" style="width:70px;font-size:12px;text-align:center">
       <button type="button" onclick="cevRemove(${ri})" title="Quitar" style="border:none;background:none;color:var(--red-alert);cursor:pointer;font-size:14px;width:24px">✕</button>
     </div>`;
