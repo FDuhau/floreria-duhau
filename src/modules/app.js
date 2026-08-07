@@ -14686,7 +14686,7 @@ function renderRentabilidad(){
   const tbody = document.getElementById('rent-body');
   if(!tbody) return;
   if(!filtered.length){
-    tbody.innerHTML = '<tr><td colspan="7" style="padding:24px;text-align:center;color:var(--mid-gray)">Sin eventos para mostrar.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="padding:24px;text-align:center;color:var(--mid-gray)">Sin eventos para mostrar.</td></tr>';
     _renderRentTiposSummary([]);
     return;
   }
@@ -14698,12 +14698,15 @@ function renderRentabilidad(){
     const margenMonto = precio - insumos;
     const margenPct = precio > 0 ? ((margenMonto)/precio*100).toFixed(1) : null;
     const margenColor = margenPct != null ? (+margenPct > 40 ? 'var(--green-ok)' : +margenPct > 20 ? 'var(--amber)' : 'var(--red-alert)') : 'var(--mid-gray)';
+    // Mano de obra = solo horas de armado (inicio–fin), sin colocación ni retiro.
+    const minsArmado = calcDuracion(ev.inicio, ev.fin);
     return `<tr>
       <td style="${td};font-weight:500;cursor:pointer" onclick="openEventoDetail(${idx})">${esc(ev.nombre||'—')}</td>
       <td style="${td}">${fmtDate(ev.fecha)}</td>
       <td style="${td}">${esc(ev.tipo||'—')}</td>
       <td style="${td};text-align:right;font-weight:500">${precio?'$'+precio.toLocaleString('es-AR'):'<span style="color:var(--mid-gray)">—</span>'}</td>
       <td style="${td};text-align:right;color:var(--mid-gray)">${insumos?'$'+Math.round(insumos).toLocaleString('es-AR'):'<span style="color:var(--mid-gray)">—</span>'}</td>
+      <td style="${td};text-align:center;color:var(--charcoal)"${minsArmado?` title="Armado${ev.asignado?' · '+esc(ev.asignado):''}: ${esc(ev.inicio||'')}–${esc(ev.fin||'')}"`:''}>${minsArmado?fmtDur(minsArmado):'<span style="color:var(--mid-gray)">—</span>'}</td>
       <td style="${td};text-align:right;font-weight:700;color:${margenColor}">${margenPct!=null?margenPct+'%':'—'}${precio||insumos?`<div style="font-size:10px;color:var(--mid-gray);font-weight:500">$${Math.round(margenMonto).toLocaleString('es-AR')}</div>`:''}</td>
       <td style="${td}"><span style="padding:2px 10px;border-radius:20px;font-size:11px;font-weight:500;${ESTADO_COLORS[ev.estado]||''}">${esc(ev.estado||'—')}</span></td>
     </tr>`;
