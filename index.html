@@ -2226,6 +2226,22 @@
     </div>
   </div>
 
+  <!-- ══════ ASIGNAR EVENTO(S) A UNA COMPRA (reparto por cantidad) ══════ -->
+  <div class="modal-overlay" id="compra-eventos-modal" onclick="if(event.target===this)closeModal('compra-eventos-modal')">
+    <div class="modal" style="max-width:520px">
+      <button class="modal-close" onclick="closeModal('compra-eventos-modal')">✕</button>
+      <div class="modal-title">🎉 Asignar evento(s)</div>
+      <div id="cev-sub" style="font-size:12px;color:var(--mid-gray);margin-bottom:14px;line-height:1.5"></div>
+      <div id="cev-rows"></div>
+      <button class="btn-secondary" type="button" style="font-size:12px;padding:5px 10px;margin-top:2px" onclick="cevAdd()">+ Agregar evento</button>
+      <div id="cev-total" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--light-gray);font-size:12px;color:var(--mid-gray)"></div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="closeModal('compra-eventos-modal')">Cancelar</button>
+        <button class="btn-add" onclick="guardarCompraEventos()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ══════ ALERTA URGENTE DE JARDÍN (gerencia) ══════ -->
   <div class="modal-overlay" id="alerta-jard-modal" onclick="if(event.target===this)closeModal('alerta-jard-modal')">
     <div class="modal" style="max-width:460px">
