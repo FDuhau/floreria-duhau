@@ -5757,6 +5757,32 @@ const VENTA_PAGO_OPTS=[
 ];
 // Normaliza formas de pago viejas (Débito/Crédito → Tarjeta) para filtrar bien.
 function normPago(fp){ return (fp==='Débito'||fp==='Crédito') ? 'Tarjeta' : (fp||''); }
+
+// Costo estimado de una venta: si el producto coincide con una composición
+// cargada (recetasData), usa su costo calculado. Devuelve null si no se puede
+// estimar (producto suelto sin composición), para no mostrar un margen falso.
+function costoVenta(v){
+  const nombre = (v?.prod||'').trim().toLowerCase();
+  if(!nombre) return null;
+  const r = (recetasData||[]).find(x=>(x.nombre||'').trim().toLowerCase()===nombre);
+  if(!r) return null;
+  const c = calcCostoComposicion(r);
+  return (c!=null && isFinite(c) && c>0) ? c : null;
+}
+// Margen estimado de una venta (precio − costo composición − costo de envío).
+// null si no hay costo estimable.
+function margenVenta(v){
+  const c = costoVenta(v);
+  if(c==null) return null;
+  return parseMoney(v.precio) - c - parseMoney(v.envioCosto);
+}
+// Celda <td> de margen para la tabla de ventas. Muestra "—" cuando no hay costo.
+function margenCell(v){
+  const m = margenVenta(v);
+  if(m==null) return '<td style="white-space:nowrap;text-align:center"><span style="color:var(--mid-gray);font-size:11px" title="No hay composición cargada para estimar el costo de este producto">—</span></td>';
+  const col = m>=0 ? 'var(--green-ok)' : 'var(--red-alert)';
+  return `<td style="white-space:nowrap;text-align:right"><span style="color:${col};font-weight:600;font-size:12px" title="Precio − costo estimado − envío">$${Math.round(m).toLocaleString('es-AR')}</span></td>`;
+}
 // Grupo de cobranza para el cierre de mes: Cargo a rooms + Cargo a habitación = Hotel.
 function grupoCobranza(fp){
   const p = normPago(fp);
@@ -5831,6 +5857,7 @@ function renderVentas(){
     <td><input class="form-input" value="${esc(v.destinatario||'')}" onchange="updV(${i},'destinatario',this.value)" style="min-width:110px" placeholder="Quien recibe"></td>
     <td><input class="form-input" value="${esc(v.dedicatoria||'')}" onchange="updV(${i},'dedicatoria',this.value)" style="min-width:130px" placeholder="—"></td>
     <td><input class="form-input" value="${esc(v.precio)}" onchange="updV(${i},'precio',this.value)" style="width:90px"></td>
+    ${margenCell(v)}
     <td>
       <select class="form-select" onchange="updV(${i},'formaPago',this.value)" style="min-width:140px;font-size:12px">
         <option value="">—</option>
@@ -5909,6 +5936,9 @@ function ventasCierreMes(){
   // Envíos: gasto total de taxi/flete cargado en el mes y venta neta resultante.
   const enviosTotal = delMes.reduce((s,v)=>s+parseMoney(v.envioCosto),0);
   const enviosCount = delMes.filter(v=>parseMoney(v.envioCosto)>0).length;
+  // Ganancia estimada: suma del margen de las ventas con costo estimable.
+  const conMargen = delMes.map(margenVenta).filter(m=>m!=null);
+  const gananciaTotal = conMargen.reduce((s,m)=>s+m,0);
 
   const filasHTML = claves.map(g=>`
     <div style="display:flex;justify-content:space-between;align-items:baseline;padding:9px 0;border-bottom:1px solid var(--light-gray)">
@@ -5923,6 +5953,7 @@ function ventasCierreMes(){
       <div style="display:flex;justify-content:space-between;padding:4px 0;color:${pendTotal>0?'var(--red-alert)':'inherit'}"><span>🧾 Sin facturar <span style="font-size:11px;opacity:.8">· ${pendList.length}</span></span><strong>$${pendTotal.toLocaleString('es-AR')}</strong></div>
       ${enviosTotal>0 ? `<div style="display:flex;justify-content:space-between;padding:4px 0;border-top:1px dashed var(--light-gray);margin-top:4px"><span>🚚 Envíos (taxi/flete) <span style="color:var(--mid-gray);font-size:11px">· ${enviosCount}</span></span><strong style="color:var(--red-alert)">− $${enviosTotal.toLocaleString('es-AR')}</strong></div>
       <div style="display:flex;justify-content:space-between;padding:4px 0"><span>Neto (ventas − envíos)</span><strong>$${(totalGen-enviosTotal).toLocaleString('es-AR')}</strong></div>` : ''}
+      ${conMargen.length ? `<div style="display:flex;justify-content:space-between;padding:4px 0;border-top:1px dashed var(--light-gray);margin-top:4px"><span>💰 Ganancia estimada <span style="color:var(--mid-gray);font-size:11px">· ${conMargen.length} c/composición</span></span><strong style="color:var(--green-ok)">$${Math.round(gananciaTotal).toLocaleString('es-AR')}</strong></div>` : ''}
     </div>`;
 
   window._ventasCierreTexto = `📊 Cierre ${fmtMonth(mes)}\n`
@@ -13822,14 +13853,19 @@ function renderProductividad(){
   const byWho = {};
   registros.forEach(r => {
     const who = r.who || '—';
-    if(!byWho[who]) byWho[who] = { tareas: 0, conHorario: 0, minutos: 0, detalle: [] };
+    if(!byWho[who]) byWho[who] = { tareas: 0, conHorario: 0, minutos: 0, conRef: 0, excedidas: 0, detalle: [] };
     byWho[who].tareas++;
     if(r.inicio && r.fin){
       const dur = calcDuracion(r.inicio, r.fin);
       if(dur){
         byWho[who].conHorario++;
         byWho[who].minutos += dur;
-        byWho[who].detalle.push({ zona: r.zona, actividad: r.actividad, inicio: r.inicio, fin: r.fin, dur, day: r.day, date: r.date });
+        // Comparación con el tiempo de referencia de la tarea (si tiene).
+        const ref = +r.ref || 0;
+        const excedida = ref > 0 && dur > ref;
+        if(ref > 0) byWho[who].conRef++;
+        if(excedida) byWho[who].excedidas++;
+        byWho[who].detalle.push({ zona: r.zona, actividad: r.actividad, inicio: r.inicio, fin: r.fin, dur, ref, excedida, day: r.day, date: r.date });
       }
     }
   });
@@ -13850,6 +13886,8 @@ function renderProductividad(){
     const pct = Math.round(d.minutos / maxMin * 100);
     const avgMin = d.conHorario > 0 ? Math.round(d.minutos / d.conHorario) : 0;
     const color = d.minutos > 240 ? 'var(--amber)' : '#2C4A3E';
+    const excPct = d.conRef > 0 ? Math.round(d.excedidas / d.conRef * 100) : 0;
+    const excColor = d.excedidas === 0 ? 'var(--green-ok)' : excPct >= 40 ? 'var(--red-alert)' : 'var(--amber)';
     html += `
       <div style="background:#FDFCFB;border:1px solid #E4E2DC;border-radius:4px;padding:18px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
@@ -13874,6 +13912,10 @@ function renderProductividad(){
               <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray)">Prom/tarea</div>
               <div style="font-size:22px;font-weight:700;color:var(--sage)">${avgMin > 0 ? fmtDur(avgMin) : '—'}</div>
             </div>
+            <div style="text-align:center" title="Tareas que superaron el tiempo de referencia">
+              <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray)">Se pasó</div>
+              <div style="font-size:22px;font-weight:700;color:${excColor}">${d.conRef > 0 ? d.excedidas + '/' + d.conRef : '—'}</div>
+            </div>
           </div>
         </div>
         <div style="height:8px;background:var(--light-gray);border-radius:4px;overflow:hidden;margin-bottom:12px">
@@ -13891,6 +13933,7 @@ function renderProductividad(){
                 <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:10px;letter-spacing:1px;text-transform:uppercase">Inicio</th>
                 <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:10px;letter-spacing:1px;text-transform:uppercase">Fin</th>
                 <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:10px;letter-spacing:1px;text-transform:uppercase">Duración</th>
+                <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:10px;letter-spacing:1px;text-transform:uppercase">Ref.</th>
               </tr></thead>
               <tbody>
                 ${d.detalle.map(t=>`<tr style="border-bottom:1px solid var(--light-gray)">
@@ -13899,7 +13942,8 @@ function renderProductividad(){
                   <td style="padding:6px 10px"><span class="badge ${getBadge(t.actividad)}">${esc(t.actividad)}</span></td>
                   <td style="padding:6px 10px;text-align:center;font-weight:600">${t.inicio}</td>
                   <td style="padding:6px 10px;text-align:center;font-weight:600">${t.fin}</td>
-                  <td style="padding:6px 10px;text-align:center">${durBadge(t.inicio,t.fin)}</td>
+                  <td style="padding:6px 10px;text-align:center">${durBadge(t.inicio,t.fin,t.ref)}</td>
+                  <td style="padding:6px 10px;text-align:center;color:var(--mid-gray)">${t.ref ? t.ref+'m' : '—'}</td>
                 </tr>`).join('')}
               </tbody>
             </table>
@@ -16912,17 +16956,47 @@ function _xlsxDownload(wb, filename){
 function exportVentasXLSX(){
   const X = window.XLSX;
   if(!X){ showToast('Error: XLSX no disponible'); return; }
-  const mes = CURR_MONTH;
-  const rows = (ventasData||[]).filter(v=>v.fecha&&v.fecha.startsWith(mes)).map(v=>({
-    Fecha: v.fecha||'', Producto: v.prod||v.descripcion||'', Cantidad: v.qty||v.cantidad||1,
-    Monto: parseMoney(v.monto||v.total||0), Categoría: v.cat||v.categoria||'', Responsable: v.resp||v.vendedor||''
-  }));
-  if(!rows.length){ showToast('Sin ventas para exportar este mes'); return; }
+  // Respetar los filtros de la pantalla (mes/pago/tipo/facturado). Sin mes elegido,
+  // exporta el mes en curso. Antes exportaba contra campos inexistentes (monto/qty)
+  // y salían todos los montos en $0 y sin cliente/forma de pago.
+  const fMes  = document.getElementById('ve-filter-mes')?.value || CURR_MONTH;
+  const fPago = document.getElementById('ve-filter-pago')?.value || '';
+  const fTipo = document.getElementById('ve-filter-tipo')?.value || '';
+  const fFact = document.getElementById('ve-filter-fact')?.value || '';
+  let lista = (ventasData||[]).filter(v=>!(v.esPedidoRamo && v.estado!=='entregado'));
+  lista = lista.filter(v=>(v.fecha||'').startsWith(fMes));
+  if(fPago) lista = lista.filter(v=>normPago(v.formaPago)===fPago);
+  if(fTipo) lista = lista.filter(v=>(v.prod||'').trim()===fTipo);
+  if(fFact==='si') lista = lista.filter(v=>v.facturado==='Sí');
+  if(fFact==='no') lista = lista.filter(v=>v.facturado!=='Sí');
+  lista.sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||''));
+  const rows = lista.map(v=>{
+    const costo = costoVenta(v);
+    const margen = costo!=null ? parseMoney(v.precio)-costo-parseMoney(v.envioCosto) : '';
+    return {
+      Fecha: v.fecha||'',
+      Producto: v.prod||'',
+      Descripción: v.desc||'',
+      Cliente: v.cliente||'',
+      Destinatario: v.destinatario||'',
+      Dedicatoria: v.dedicatoria||'',
+      Precio: parseMoney(v.precio),
+      'Forma de pago': v.formaPago||'',
+      Estado: (VENTA_ESTADO_LABEL[v.estado]||v.estado||'').replace(/^[^\wÁ-ú]+/,'').trim(),
+      Facturado: v.facturado||'',
+      'Taxi/Flete': v.taxiFlete||'',
+      'Costo envío': parseMoney(v.envioCosto),
+      'Margen estimado': margen==='' ? '' : Math.round(margen),
+      Dirección: v.dir||'',
+      Asignado: v.asignado||''
+    };
+  });
+  if(!rows.length){ showToast('Sin ventas para exportar en '+fmtMonth(fMes)); return; }
   const ws = X.utils.json_to_sheet(rows);
   const wb = X.utils.book_new();
   X.utils.book_append_sheet(wb, ws, 'Ventas');
-  _xlsxDownload(wb, `ventas-${mes}.xlsx`);
-  showToast('✅ Exportado: ventas-'+mes+'.xlsx');
+  _xlsxDownload(wb, `ventas-${fMes}.xlsx`);
+  showToast('✅ Exportado: ventas-'+fMes+'.xlsx ('+rows.length+' ventas)');
 }
 
 function exportComprasXLSX(){
