@@ -573,6 +573,12 @@
         if(document.getElementById('page-checklist')?.classList.contains('active') && !window.estaEditando('page-checklist')) window.renderChecklistTable?.();
       });
 
+      fbListen('inventarioData', val => {
+        if(!val) return;
+        if(window._inventarioLastSave && Date.now() - window._inventarioLastSave < 2000) return;
+        if(window._setInventarioData) window._setInventarioData(val);
+      });
+
       fbListen('cajaData', val => {
         if(!val) return;
         const arr = Array.isArray(val) ? val : Object.values(val||{});

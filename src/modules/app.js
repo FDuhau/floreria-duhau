@@ -167,6 +167,7 @@ function parseMoney(s){
 const PAGE_LABELS = {control:'Control','control-jardineria':'Control › Seguimiento Jardinería','control-habitaciones':'Control › Habitaciones con Plantas',
   home:'Inicio', operaciones:'Operaciones',
   checklist:'Operaciones › Checklist', stock:'Operaciones › Stock',
+  inventario:'Operaciones › Inventario',
   'eventos-maison':'Operaciones › Eventos / Maison',
   'jardineria-ops':'Operaciones › Tareas Jardinería',
   'hab-ops':'Operaciones › Habitaciones con Plantas',
@@ -310,6 +311,7 @@ function navigate(pageId, navEl){
   if(pageId==='home')               renderHome();
   if(pageId==='checklist')          initChecklist();
   if(pageId==='stock')              renderStock();
+  if(pageId==='inventario')         renderInventario();
   if(pageId==='eventos-maison')     renderKanban();
   if(pageId==='compras-floreria')   renderCompras('floreria');
   if(pageId==='compras-jardineria') renderCompras('jardineria');
@@ -17057,7 +17059,93 @@ function applyCompraFiltersExtToArr(type, arr){
   return arr;
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// INVENTARIO POR UBICACIÓN (Operaciones)
+// Lista simple de ítems (nombre + cantidad) agrupada por ubicación fija. Lo
+// carga y edita todo el equipo. Se guarda en Firebase como inventarioData.
+// ════════════════════════════════════════════════════════════════════════════
+const INV_AREAS = ['Florería','Armario back','Jaula','Estacionamiento','Pozo'];
+const INV_AREA_ICON = { 'Florería':'🌸', 'Armario back':'🗄️', 'Jaula':'🧺', 'Estacionamiento':'🅿️', 'Pozo':'🕳️' };
+let inventarioData = []; // [{area, nombre, cantidad}]
+window._setInventarioData = (arr) => {
+  inventarioData = Array.isArray(arr) ? arr : (arr && typeof arr==='object' ? Object.values(arr) : []);
+  if(document.getElementById('page-inventario')?.classList.contains('active') && !estaEditando('page-inventario')) renderInventario();
+};
+function _invSave(){ window._inventarioLastSave = Date.now(); fbSave('inventarioData', inventarioData); }
+
+function renderInventario(){
+  const cont = document.getElementById('inventario-body');
+  if(!cont) return;
+  const q = (document.getElementById('inv-search')?.value || '').trim().toLowerCase();
+  cont.innerHTML = INV_AREAS.map((area, ai)=>{
+    const items = inventarioData.map((it,i)=>({it,i})).filter(o=>o.it.area===area);
+    const vis = q ? items.filter(o=>(o.it.nombre||'').toLowerCase().includes(q)) : items;
+    const icon = INV_AREA_ICON[area] || '📦';
+    const rows = vis.length ? vis.map(({it,i})=>`
+        <tr>
+          <td><input class="form-input" value="${esc(it.nombre||'')}" placeholder="Nombre del ítem" onchange="updInv(${i},'nombre',this.value)" style="min-width:180px"></td>
+          <td style="white-space:nowrap;text-align:center">
+            <button class="btn-icon" onclick="invAdjust(${i},-1)" title="Restar" style="font-weight:700;font-size:16px">−</button>
+            <input class="form-input" type="number" min="0" value="${it.cantidad!=null?it.cantidad:0}" onchange="updInv(${i},'cantidad',this.value)" style="width:66px;text-align:center;display:inline-block">
+            <button class="btn-icon" onclick="invAdjust(${i},1)" title="Sumar" style="font-weight:700;font-size:16px">+</button>
+          </td>
+          <td style="text-align:right"><button class="btn-icon" style="color:var(--red-alert)" onclick="delInvItem(${i})" title="Eliminar">✕</button></td>
+        </tr>`).join('')
+      : `<tr><td colspan="3" style="text-align:center;color:var(--mid-gray);font-size:12px;padding:14px">${q?'Sin resultados en esta ubicación':'Sin ítems todavía — tocá "＋ Agregar ítem"'}</td></tr>`;
+    return `
+      <div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;padding:14px 16px;margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+          <div style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:600;color:var(--charcoal)">${icon} ${esc(area)} <span style="font-size:12px;font-weight:400;color:var(--mid-gray)">· ${items.length} ítem${items.length!==1?'s':''}</span></div>
+          <button class="btn-secondary" onclick="addInvItem(${ai})" style="font-size:12px">＋ Agregar ítem</button>
+        </div>
+        <div class="table-wrapper">
+          <table class="ventas-table" style="min-width:340px">
+            <thead><tr><th>Ítem</th><th style="text-align:center;width:150px">Cantidad</th><th style="width:40px"></th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function addInvItem(ai){
+  const area = INV_AREAS[ai];
+  if(!area) return;
+  const search = document.getElementById('inv-search');
+  if(search) search.value = ''; // que el ítem nuevo (vacío) sea visible
+  inventarioData.push({ area, nombre:'', cantidad:0 });
+  _invSave();
+  renderInventario();
+  // Enfocar el nombre recién agregado
+  const inputs = document.getElementById('inventario-body')?.querySelectorAll('input[placeholder="Nombre del ítem"]');
+  if(inputs && inputs.length) inputs[inputs.length-1].focus();
+}
+
+function updInv(i, field, val){
+  if(!inventarioData[i]) return;
+  if(field==='cantidad') val = Math.max(0, parseFloat(val)||0);
+  inventarioData[i][field] = val;
+  _invSave();
+}
+
+function invAdjust(i, d){
+  if(!inventarioData[i]) return;
+  inventarioData[i].cantidad = Math.max(0, (parseFloat(inventarioData[i].cantidad)||0) + d);
+  _invSave();
+  renderInventario();
+}
+
+async function delInvItem(i){
+  const it = inventarioData[i];
+  if(!it) return;
+  if(it.nombre && !(await confirmModal(`¿Eliminar "${it.nombre}" del inventario?`))) return;
+  inventarioData.splice(i,1);
+  _invSave();
+  renderInventario();
+}
+
 Object.assign(window, {
+  renderInventario, addInvItem, updInv, invAdjust, delInvItem,
   _downloadCSV, addCajaMovimiento, addCompra, addEvArregloRow, addEvArregloRowWithData,
   evSetArreglo, evSetArregloQty, evRemoveArregloRow,
   addInsumoToBase, addLpCat, addProveedor, addRecetaIngRow,
