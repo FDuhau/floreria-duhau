@@ -1333,6 +1333,11 @@
       <select class="form-input" id="ve-filter-mes" onchange="renderVentas()" style="width:170px;padding:6px 8px;font-size:12.5px"><option value="">Todos los meses</option></select>
       <select class="form-input" id="ve-filter-pago" onchange="renderVentas()" style="width:210px;padding:6px 8px;font-size:12.5px"><option value="">Todas las formas de pago</option></select>
       <select class="form-input" id="ve-filter-tipo" onchange="renderVentas()" style="width:200px;padding:6px 8px;font-size:12.5px" title="Tipo de venta = Descripción de ramo"><option value="">Todos los tipos de venta</option></select>
+      <select class="form-input" id="ve-filter-fact" onchange="renderVentas()" style="width:170px;padding:6px 8px;font-size:12.5px" title="Filtrar por estado de facturación">
+        <option value="">Facturado: todas</option>
+        <option value="no">🔴 Sin facturar</option>
+        <option value="si">✅ Facturadas</option>
+      </select>
       <button class="btn-secondary" onclick="ventasClearFilters()" style="font-size:11px;padding:6px 10px">✕ Limpiar</button>
       <div style="margin-left:auto;display:flex;gap:10px;align-items:center">
         <span id="ve-filter-summary" style="font-size:12.5px;color:var(--charcoal)"></span>
