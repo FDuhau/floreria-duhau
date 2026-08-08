@@ -5785,11 +5785,25 @@ function renderVentas(){
       </select>
     </td>
     <td>
+      <select class="form-select" onchange="updV(${i},'facturado',this.value)" style="min-width:90px;font-size:12px">
+        <option value="" ${!v.facturado?'selected':''}>—</option>
+        <option value="Sí" ${v.facturado==='Sí'?'selected':''}>✅ Sí</option>
+        <option value="No" ${v.facturado==='No'?'selected':''}>❌ No</option>
+      </select>
+    </td>
+    <td>
       <select class="form-select" style="${VENTA_ESTADO_COLOR[v.estado]||''};min-width:130px;font-size:11px;font-weight:600" onchange="updV(${i},'estado',this.value)">
         ${VENTA_ESTADOS.map(s=>`<option value="${s}"${v.estado===s?' selected':''}>${VENTA_ESTADO_LABEL[s]}</option>`).join('')}
       </select>
     </td>
     <td><input class="form-input" value="${esc(v.dir||'')}" onchange="updV(${i},'dir',this.value)" style="min-width:160px" placeholder="Dirección o retira"></td>
+    <td>
+      <select class="form-select" onchange="updV(${i},'taxiFlete',this.value)" style="min-width:100px;font-size:12px">
+        <option value="" ${!v.taxiFlete?'selected':''}>—</option>
+        <option value="Taxi" ${v.taxiFlete==='Taxi'?'selected':''}>🚕 Taxi</option>
+        <option value="Flete" ${v.taxiFlete==='Flete'?'selected':''}>🚚 Flete</option>
+      </select>
+    </td>
     <td style="white-space:nowrap">
       <button class="btn-icon" onclick="openEditSaleModal(${i})" title="Editar" style="color:var(--sage-dark)">✏️</button>
       <button class="btn-icon" style="color:var(--red-alert)" onclick="delVenta(${i})">✕</button>
@@ -6002,6 +6016,9 @@ function addSale(){
     venta.inicio = ventasData[editIdx].inicio || '';
     venta.fin = ventasData[editIdx].fin || '';
     venta.cajaRegistrado = ventasData[editIdx].cajaRegistrado || false;
+    // Preservar campos que se editan inline en la planilla (no están en el modal).
+    venta.facturado = ventasData[editIdx].facturado || '';
+    venta.taxiFlete = ventasData[editIdx].taxiFlete || '';
     ventasData[editIdx] = venta;
     fbSave('ventasData', ventasData);
     sincronizarVentaCaja(editIdx);
