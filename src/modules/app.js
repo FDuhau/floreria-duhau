@@ -1261,6 +1261,53 @@ function badgeUltimoNuevo(fecha){
   return `<div style="font-size:10px;font-weight:600;color:${color};margin-top:2px" title="Último Nuevo: ${fmtDate(fecha)}">🌸 ${txt}</div>`;
 }
 
+// ── Nuevos atrasados (solo gerencia) ─────────────────────────────────────────
+// Zonas cuyo último arreglo Nuevo ya tiene UMBRAL_NUEVO_ATRASADO días o más.
+// Solo considera zonas que alguna vez se hicieron Nuevo (tienen cadencia); las
+// que nunca tuvieron Nuevo (Retoque/Riego puro) no se listan para no hacer ruido.
+const UMBRAL_NUEVO_ATRASADO = 7;
+function nuevosAtrasados(umbral = UMBRAL_NUEVO_ATRASADO){
+  const map = mapUltimoNuevoPorZona();
+  const vistas = new Set();
+  const out = [];
+  CL_TASKS.forEach(t=>{
+    const k = _zonaKey(t.sec, t.zona);
+    if(vistas.has(k)) return;
+    vistas.add(k);
+    const fecha = map[k];
+    if(!fecha) return;
+    const dias = Math.floor((new Date(TODAY_ISO)-new Date(fecha))/86400000);
+    if(dias >= umbral) out.push({sec:t.sec, zona:t.zona, dias, fecha});
+  });
+  return out.sort((a,b)=>b.dias-a.dias);
+}
+
+// Banner de aviso arriba del checklist (solo gerencia). Lista las zonas con el
+// Nuevo vencido para que se reprogramen antes de que el arreglo se marchite.
+function renderNuevosAtrasadosBanner(){
+  let el = document.getElementById('cl-overdue-banner');
+  if(userRole !== 'gerencia'){ if(el) el.innerHTML = ''; return; }
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'cl-overdue-banner';
+    const anchor = document.getElementById('cl-progress-bar-wrap')
+      || document.getElementById('cl-table-wrap')
+      || document.getElementById('checklist-body')?.closest('.table-wrapper');
+    if(anchor) anchor.before(el); else return;
+  }
+  const list = nuevosAtrasados();
+  if(!list.length){ el.innerHTML = ''; return; }
+  const chips = list.map(z=>{
+    const sh = SEC_HEADERS[z.sec];
+    return `<span style="display:inline-block;background:#fff;border:1px solid #F0C0C0;border-radius:10px;padding:3px 9px;margin:3px 4px 0 0;font-size:11.5px;white-space:nowrap" title="Último Nuevo: ${fmtDate(z.fecha)}">${sh?sh.icon:''} ${esc(z.zona)} · <strong>${z.dias} días</strong></span>`;
+  }).join('');
+  el.innerHTML = `<div class="alert-banner" style="margin-bottom:14px">
+    <div style="font-weight:600;margin-bottom:2px">🥀 ${list.length} zona${list.length!==1?'s':''} con Nuevo atrasado (${UMBRAL_NUEVO_ATRASADO}+ días)</div>
+    <div style="font-size:11.5px;opacity:.85;margin-bottom:4px">Reprogramá un arreglo Nuevo desde la vista semanal antes de que se marchiten.</div>
+    <div>${chips}</div>
+  </div>`;
+}
+
 // ── Fases de un evento: armado → colocación → retiro (las 2 últimas opcionales) ──
 function eventoFase(ev){
   if(ev.estado === 'Pendiente de Colocacion') return 'colocacion';
@@ -1351,6 +1398,9 @@ function renderChecklistTable(){
       </div>
       <span style="font-size:12px;color:var(--mid-gray);white-space:nowrap">${done_count} / ${total} tareas${pct===100?' ✅ ¡Completada!':''}</span>
     </div>`;
+
+  // Aviso de Nuevos atrasados (gerencia). Se ubica arriba de la barra de progreso.
+  renderNuevosAtrasadosBanner();
 
   // ── Floristas: vista de tarjetas (mobile-first) en lugar de la tabla ──
   const cardsWrap = document.getElementById('cl-cards-wrap');
@@ -5744,23 +5794,33 @@ function renderVentas(){
     tipoSel.innerHTML = '<option value="">Todos los tipos de venta</option>' + tipos.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');
     tipoSel.value = cur;
   }
-  const fMes = mesSel?.value||'', fPago = pagoSel?.value||'', fTipo = tipoSel?.value||'';
-  ventasFilter = {mes:fMes, pago:fPago, tipo:fTipo};
+  const factSel = document.getElementById('ve-filter-fact');
+  const fMes = mesSel?.value||'', fPago = pagoSel?.value||'', fTipo = tipoSel?.value||'', fFact = factSel?.value||'';
+  ventasFilter = {mes:fMes, pago:fPago, tipo:fTipo, fact:fFact};
 
   const tbody=document.getElementById('ventas-body');
   let lista = ventasData.map((v,i)=>({v,i})).filter(o=>!(o.v.esPedidoRamo && o.v.estado!=='entregado'));
   if(fMes)  lista = lista.filter(o=>(o.v.fecha||'').startsWith(fMes));
   if(fPago) lista = lista.filter(o=>normPago(o.v.formaPago)===fPago);
   if(fTipo) lista = lista.filter(o=>(o.v.prod||'').trim()===fTipo);
+  // Facturado: 'si' = facturadas; 'no' = sin facturar (incluye las que quedaron vacías).
+  if(fFact==='si') lista = lista.filter(o=>o.v.facturado==='Sí');
+  if(fFact==='no') lista = lista.filter(o=>o.v.facturado!=='Sí');
   lista.sort((a,b)=>(b.v.fecha||'').localeCompare(a.v.fecha||''));
 
   // Resumen del filtro (cantidad + total)
   const sumEl = document.getElementById('ve-filter-summary');
   if(sumEl){
-    if(fMes||fPago||fTipo){
+    // Pendiente de facturar dentro de lo que se está viendo (respeta filtros).
+    const pend = lista.filter(o=>o.v.facturado!=='Sí' && parseMoney(o.v.precio)>0);
+    const totalPend = pend.reduce((s,o)=>s+parseMoney(o.v.precio),0);
+    const pillPend = pend.length
+      ? `<span style="background:#FDECEC;color:var(--red-alert);border:1px solid #F0C0C0;border-radius:10px;padding:2px 9px;font-weight:600;font-size:11.5px;white-space:nowrap">🧾 Sin facturar: ${pend.length} · $${totalPend.toLocaleString('es-AR')}</span>`
+      : '';
+    if(fMes||fPago||fTipo||fFact){
       const total = lista.reduce((s,o)=>s+parseMoney(o.v.precio),0);
-      sumEl.innerHTML = `<strong>${lista.length}</strong> venta${lista.length!==1?'s':''} · <strong>$${total.toLocaleString('es-AR')}</strong>`;
-    } else sumEl.innerHTML = '';
+      sumEl.innerHTML = `<span style="margin-right:8px"><strong>${lista.length}</strong> venta${lista.length!==1?'s':''} · <strong>$${total.toLocaleString('es-AR')}</strong></span>${pillPend}`;
+    } else sumEl.innerHTML = pillPend;
   }
 
   tbody.innerHTML = lista.map(({v,i})=>`<tr${v.fromKanban?' style="background:rgba(122,154,184,.07)"':''}>
@@ -5803,6 +5863,7 @@ function renderVentas(){
         <option value="Taxi" ${v.taxiFlete==='Taxi'?'selected':''}>🚕 Taxi</option>
         <option value="Flete" ${v.taxiFlete==='Flete'?'selected':''}>🚚 Flete</option>
       </select>
+      <input class="form-input" value="${esc(v.envioCosto||'')}" onchange="updV(${i},'envioCosto',this.value)" placeholder="$ costo envío" style="width:100px;margin-top:4px;font-size:11px" title="Costo del taxi/flete (para el cierre de mes)">
     </td>
     <td style="white-space:nowrap">
       <button class="btn-icon" onclick="openEditSaleModal(${i})" title="Editar" style="color:var(--sage-dark)">✏️</button>
@@ -5812,7 +5873,7 @@ function renderVentas(){
 }
 
 function ventasClearFilters(){
-  ['ve-filter-mes','ve-filter-pago','ve-filter-tipo'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  ['ve-filter-mes','ve-filter-pago','ve-filter-tipo','ve-filter-fact'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   renderVentas();
 }
 
@@ -5840,15 +5901,36 @@ function ventasCierreMes(){
   });
   const totalGen = delMes.reduce((s,v)=>s+parseMoney(v.precio),0);
 
+  // Facturación: cuánto se facturó y cuánto quedó pendiente en el mes.
+  const factList = delMes.filter(v=>v.facturado==='Sí');
+  const factTotal = factList.reduce((s,v)=>s+parseMoney(v.precio),0);
+  const pendList = delMes.filter(v=>v.facturado!=='Sí' && parseMoney(v.precio)>0);
+  const pendTotal = pendList.reduce((s,v)=>s+parseMoney(v.precio),0);
+  // Envíos: gasto total de taxi/flete cargado en el mes y venta neta resultante.
+  const enviosTotal = delMes.reduce((s,v)=>s+parseMoney(v.envioCosto),0);
+  const enviosCount = delMes.filter(v=>parseMoney(v.envioCosto)>0).length;
+
   const filasHTML = claves.map(g=>`
     <div style="display:flex;justify-content:space-between;align-items:baseline;padding:9px 0;border-bottom:1px solid var(--light-gray)">
       <span>Ventas <strong>${esc(g)}</strong> <span style="color:var(--mid-gray);font-size:11px">· ${grupos[g].count} venta${grupos[g].count!==1?'s':''}</span></span>
       <strong style="white-space:nowrap">Cobrar $${grupos[g].total.toLocaleString('es-AR')}</strong>
     </div>`).join('');
 
+  // Bloque de facturación + envíos (solo se muestra lo que tenga datos).
+  const factHTML = `
+    <div style="margin-top:14px;padding:12px 14px;background:#FBFAF8;border:1px solid var(--light-gray);border-radius:8px;font-size:13px">
+      <div style="display:flex;justify-content:space-between;padding:4px 0"><span>✅ Facturado <span style="color:var(--mid-gray);font-size:11px">· ${factList.length}</span></span><strong>$${factTotal.toLocaleString('es-AR')}</strong></div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0;color:${pendTotal>0?'var(--red-alert)':'inherit'}"><span>🧾 Sin facturar <span style="font-size:11px;opacity:.8">· ${pendList.length}</span></span><strong>$${pendTotal.toLocaleString('es-AR')}</strong></div>
+      ${enviosTotal>0 ? `<div style="display:flex;justify-content:space-between;padding:4px 0;border-top:1px dashed var(--light-gray);margin-top:4px"><span>🚚 Envíos (taxi/flete) <span style="color:var(--mid-gray);font-size:11px">· ${enviosCount}</span></span><strong style="color:var(--red-alert)">− $${enviosTotal.toLocaleString('es-AR')}</strong></div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0"><span>Neto (ventas − envíos)</span><strong>$${(totalGen-enviosTotal).toLocaleString('es-AR')}</strong></div>` : ''}
+    </div>`;
+
   window._ventasCierreTexto = `📊 Cierre ${fmtMonth(mes)}\n`
     + claves.map(g=>`Ventas ${g}: Cobrar $${grupos[g].total.toLocaleString('es-AR')}`).join('\n')
-    + `\n———\nTotal: $${totalGen.toLocaleString('es-AR')} · ${delMes.length} ventas`;
+    + `\n———\nTotal: $${totalGen.toLocaleString('es-AR')} · ${delMes.length} ventas`
+    + `\n✅ Facturado: $${factTotal.toLocaleString('es-AR')} (${factList.length})`
+    + `\n🧾 Sin facturar: $${pendTotal.toLocaleString('es-AR')} (${pendList.length})`
+    + (enviosTotal>0 ? `\n🚚 Envíos: −$${enviosTotal.toLocaleString('es-AR')}\nNeto: $${(totalGen-enviosTotal).toLocaleString('es-AR')}` : '');
 
   let ov = document.getElementById('ventas-cierre-modal');
   if(!ov){ ov=document.createElement('div'); ov.id='ventas-cierre-modal'; ov.className='modal-overlay'; document.body.appendChild(ov); }
@@ -5861,6 +5943,7 @@ function ventasCierreMes(){
       <span style="font-weight:700">Total</span>
       <strong>$${totalGen.toLocaleString('es-AR')}</strong>
     </div>
+    ${factHTML}
     <div class="modal-actions" style="margin-top:18px">
       <button class="btn-secondary" onclick="closeModal('ventas-cierre-modal')">Cerrar</button>
       <button class="btn-add" onclick="ventasCierreCopiar()">📋 Copiar resumen</button>
@@ -6019,6 +6102,7 @@ function addSale(){
     // Preservar campos que se editan inline en la planilla (no están en el modal).
     venta.facturado = ventasData[editIdx].facturado || '';
     venta.taxiFlete = ventasData[editIdx].taxiFlete || '';
+    venta.envioCosto = ventasData[editIdx].envioCosto || '';
     ventasData[editIdx] = venta;
     fbSave('ventasData', ventasData);
     sincronizarVentaCaja(editIdx);
