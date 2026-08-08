@@ -123,6 +123,7 @@
     <div class="nav-item nav-group-hdr" data-group-id="grp-ops" onclick="navToggleGroup('grp-ops');navigate('operaciones',this)"><span class="nav-icon">⚙️</span> Operaciones<span class="nav-chevron">›</span></div>
     <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('checklist',this)">Checklist Diaria</div>
     <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('stock',this)">Stock Florería</div>
+    <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('inventario',this)">📋 Inventario</div>
     <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('eventos-maison',this)">Eventos / Maison</div>
     <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('cotizador-ops',this)">Cotizador</div>
     <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('jardineria-ops',this)">Tareas Jardinería</div>
@@ -198,6 +199,7 @@
     <div class="quick-links" style="grid-template-columns:repeat(3,1fr)">
       <div class="quick-link" onclick="navigate('checklist')"><span class="quick-link-icon">✅</span><div class="quick-link-title">Checklist Diaria</div><div class="quick-link-sub">Tareas del día</div></div>
       <div class="quick-link" onclick="navigate('stock')"><span class="quick-link-icon">📦</span><div class="quick-link-title">Stock Florería</div><div class="quick-link-sub">Inventario de flores</div></div>
+      <div class="quick-link" onclick="navigate('inventario')"><span class="quick-link-icon">📋</span><div class="quick-link-title">Inventario</div><div class="quick-link-sub">Por ubicación · Florería, Jaula, Pozo…</div></div>
       <div class="quick-link" onclick="navigate('eventos-maison')"><span class="quick-link-icon">🗂️</span><div class="quick-link-title">Eventos / Maison</div><div class="quick-link-sub">Tablero de eventos</div></div>
       <div class="quick-link" onclick="navigate('cotizador-ops')"><span class="quick-link-icon">🧮</span><div class="quick-link-title">Cotizador</div><div class="quick-link-sub">Presupuestos rápidos</div></div>
       <div class="quick-link" onclick="navigate('jardineria-ops')"><span class="quick-link-icon">🌿</span><div class="quick-link-title">Tareas Jardinería</div><div class="quick-link-sub">Pendientes ordenadas por urgencia</div></div>
@@ -207,6 +209,18 @@
       <div class="quick-link" onclick="navigate('velas')"><span class="quick-link-icon">🕯️</span><div class="quick-link-title">Stock de Velas</div><div class="quick-link-sub">Inventario de velas</div></div>
       <div class="quick-link nav-jard-only" onclick="navigate('recordatorios-jardineria')"><span class="quick-link-icon">🔔</span><div class="quick-link-title">Recordatorios Jardín</div><div class="quick-link-sub">Alertas y mantenimiento</div></div>
     </div>
+  </div>
+
+  <!-- ══════ INVENTARIO ══════ -->
+  <div id="page-inventario" class="content">
+    <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px">
+      <div>
+        <div class="page-title">Inventario</div>
+        <div class="page-subtitle">Inventario por ubicación · nombre y cantidad · lo carga y ajusta todo el equipo</div>
+      </div>
+      <input type="text" id="inv-search" class="stock-search" placeholder="🔍  Buscar ítem…" oninput="renderInventario()" style="max-width:280px">
+    </div>
+    <div id="inventario-body"></div>
   </div>
 
   <!-- ══════ HABITACIONES OPERACIONES ══════ -->
