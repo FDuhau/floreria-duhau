@@ -940,6 +940,28 @@ function updActividad(i, val){
   else showToast(`✓ Nuevo asignado a ${CL_TASKS[i].zona} — el resto de la semana queda en Retoque`);
 }
 
+// Al COMPLETAR un arreglo Nuevo, bajar a Retoque esa misma zona en cualquier
+// otro día de la semana que todavía figure como Nuevo. Refuerza la regla "el
+// Nuevo se hace 1 sola vez por semana" desde el hecho real (se hizo), no solo
+// desde la planificación de gerencia. Sin esto, si la plantilla/planificación
+// tenía la zona en Nuevo dos días (o gerencia lo cargó doble), la florista lo
+// hacía un día y al día siguiente le volvía a aparecer como Nuevo.
+// Fuerza la creación de todos los días de la semana para limpiar también los que
+// aún no se abrieron y sincroniza la plantilla fija (así no reaparece la próxima
+// semana). Toca por índice de fila i (no por nombre de zona), consistente con el
+// resto del checklist.
+function bajarNuevoRestoSemana(i, exceptDay){
+  if(!CL_TASKS[i]) return;
+  DIAS_SEMANA_NAMES.forEach(d=>{
+    if(d===exceptDay) return;
+    const ds = getOrCreateDayState(d);
+    if(String(ds.actividad[i]||'').toLowerCase()==='nuevo'){
+      ds.actividad[i] = 'Retoque';
+      _persistCampoDia(d, 'actividad');
+    }
+  });
+}
+
 // ── Vista semanal del checklist (solo gerencia) ───────────────────────────────
 // Grilla zonas × días para asignar responsables y marcar el Nuevo de cada zona
 // de toda la semana de una sola vez.
@@ -1605,7 +1627,11 @@ function _checkFestejoChecklist(){
   if(userRole!=='florista' || !floristaNombre) return;
   const mis = CL_TASKS.map((_,i)=>i).filter(i => (clState.responsable[i]||'') === floristaNombre);
   if(!mis.length || !mis.every(i=>clState.checked[i])) return;
-  const k = 'clFestejo_' + TODAY_ISO;
+  // Guarda por florista + día: en un dispositivo compartido cada florista tiene
+  // su propio festejo. Antes la clave era solo por día, así que el primero que
+  // terminaba dejaba sin "flores de decoración" al resto (la clave ya figuraba
+  // usada). Incluir el nombre hace que a cada florista le salgan las flores.
+  const k = 'clFestejo_' + TODAY_ISO + '_' + floristaNombre;
   try{ if(localStorage.getItem(k)) return; localStorage.setItem(k,'1'); }catch(e){}
   festejarChecklist();
   navigator.vibrate?.([60,60,60,60,120]);
@@ -1785,6 +1811,8 @@ function registrarHora(i, campo){
     localStorage.setItem('cl_history', JSON.stringify(checklistHistory));
     fbSave('checklistHistory', checklistHistory);
     registrarUltimoNuevo(t.sec, t.zona, clState.actividad[i]||t.actividad, TODAY_ISO);
+    // Nuevo hecho = no vuelve a pedir Nuevo el resto de la semana en esta zona.
+    if(String(clState.actividad[i]||t.actividad).toLowerCase().includes('nuevo')) bajarNuevoRestoSemana(i, currentDay);
     renderHistoryPanel();
     // Toast de confirmación con duración
     const durTxt = durFinal ? ' · Duración: ' + fmtDur(durFinal) : '';
@@ -2022,6 +2050,8 @@ function toggleTask(i, el){
     localStorage.setItem('cl_history', JSON.stringify(checklistHistory));
     fbSave('checklistHistory', checklistHistory);
     registrarUltimoNuevo(t.sec, t.zona, clState.actividad[i]||t.actividad, TODAY_ISO);
+    // Nuevo hecho = no vuelve a pedir Nuevo el resto de la semana en esta zona.
+    if(String(clState.actividad[i]||t.actividad).toLowerCase().includes('nuevo')) bajarNuevoRestoSemana(i, currentDay);
     renderHistoryPanel();
     // Si la tarea era un arreglo Nuevo, ofrecer adjuntar foto (floristas)
     if(userRole==='florista' && String(clState.actividad[i]||t.actividad).toLowerCase().includes('nuevo')){
