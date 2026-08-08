@@ -13045,6 +13045,7 @@ async function seedComposicionesHotelBase(){
   COMPOSICIONES_HOTEL_BASE.forEach(c=>{
     arreglosComposicion[c.zona] = c.ings.map(g=>({ prod:g.prod, qty:g.qty, ...(g.unidad==='paq'?{unidad:'paq'}:{}) }));
   });
+  _arreglosComposicionLoaded = true; // ya hay datos en memoria: habilita edición/guardado
   fbSave('arreglosComposicion', arreglosComposicion);
   renderComposicionesHotel();
   if(document.getElementById('page-rentabilidad-eventos')?.classList.contains('active')) renderRentabilidadHotel();
@@ -13168,6 +13169,10 @@ async function compHotelAdd(sel){
 
 async function delArregloComposicion(zona){
   if(userRole!=='gerencia'){ showToast('⛔ Solo gerencia'); return; }
+  if(!_arreglosComposicionLoaded){
+    showToast('⏳ Las composiciones todavía se están cargando. Esperá unos segundos e intentá de nuevo.');
+    return;
+  }
   if(!await confirmModal(`¿Eliminar la composición de "${zona}"?`)) return;
   delete arreglosComposicion[zona];
   fbSave('arreglosComposicion', arreglosComposicion);
@@ -14726,7 +14731,12 @@ let arreglosHotelConfig = {}; // { nombreArreglo: { precioHyatt, cantMensual } }
 let arreglosComposicion = {}; // { zonaChecklist: [{prod, qty}] } — qué flores/varas lleva cada arreglo
 
 window._setArreglosHotelConfig = v => { arreglosHotelConfig = v || {}; };
-window._setArreglosComposicion = v => { arreglosComposicion = v || {}; };
+// Bandera: recién cuando Firebase entregó las composiciones al menos una vez se
+// permite guardarlas/borrarlas. Evita el borrado por carrera: si se edita una
+// zona con el objeto local todavía vacío (aún no sincronizó), el fbSave del
+// objeto completo pisaría TODAS las demás composiciones en Firebase.
+let _arreglosComposicionLoaded = false;
+window._setArreglosComposicion = v => { arreglosComposicion = v || {}; _arreglosComposicionLoaded = true; };
 
 // Costo de un arreglo = Σ (varas equivalentes) × costo por vara. Los ingredientes
 // en "paq" se convierten a varas con las varas por paquete de Compras.
@@ -14945,6 +14955,10 @@ function compAddRow(){ _compEditRows.push({prod:'', qty:''}); _renderCompModal()
 function compRemoveRow(i){ _compEditRows.splice(i,1); if(!_compEditRows.length) _compEditRows=[{prod:'',qty:''}]; _renderCompModal(); }
 
 function guardarArregloComposicion(){
+  if(!_arreglosComposicionLoaded){
+    showToast('⏳ Las composiciones todavía se están cargando. Esperá unos segundos e intentá de nuevo.');
+    return;
+  }
   const rows = _compEditRows
     .filter(r => r.prod && r.prod.trim() && (+r.qty)>0)
     .map(r => ({prod:r.prod.trim(), qty:+r.qty, ...(r.unidad==='paq'?{unidad:'paq'}:{})}));
