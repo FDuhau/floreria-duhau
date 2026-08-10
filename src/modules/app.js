@@ -13046,7 +13046,7 @@ async function seedComposicionesHotelBase(){
     arreglosComposicion[c.zona] = c.ings.map(g=>({ prod:g.prod, qty:g.qty, ...(g.unidad==='paq'?{unidad:'paq'}:{}) }));
   });
   _arreglosComposicionLoaded = true; // ya hay datos en memoria: habilita edición/guardado
-  fbSave('arreglosComposicion', arreglosComposicion);
+  _saveArreglosComposicion();
   renderComposicionesHotel();
   if(document.getElementById('page-rentabilidad-eventos')?.classList.contains('active')) renderRentabilidadHotel();
   showToast(`✅ ${n} composiciones del hotel cargadas`);
@@ -13175,7 +13175,7 @@ async function delArregloComposicion(zona){
   }
   if(!await confirmModal(`¿Eliminar la composición de "${zona}"?`)) return;
   delete arreglosComposicion[zona];
-  fbSave('arreglosComposicion', arreglosComposicion);
+  _saveArreglosComposicion();
   renderComposicionesHotel();
   if(document.getElementById('page-rentabilidad-eventos')?.classList.contains('active')) renderRentabilidadHotel();
   showToast('🗑️ Composición eliminada');
@@ -14736,7 +14736,28 @@ window._setArreglosHotelConfig = v => { arreglosHotelConfig = v || {}; };
 // zona con el objeto local todavía vacío (aún no sincronizó), el fbSave del
 // objeto completo pisaría TODAS las demás composiciones en Firebase.
 let _arreglosComposicionLoaded = false;
-window._setArreglosComposicion = v => { arreglosComposicion = v || {}; _arreglosComposicionLoaded = true; };
+// Normaliza lo que viene de Firebase a { zona: [ings] }. Acepta el formato NUEVO
+// (lista [{zona, ings}], apto para Firebase) y el VIEJO ({ "zona": [ings] }).
+function _normArreglosComposicion(v){
+  const obj = {};
+  if(!v) return obj;
+  const entries = Array.isArray(v) ? v : Object.values(v);
+  const esNuevo = entries.length && entries.every(x => x && typeof x==='object' && !Array.isArray(x) && ('zona' in x));
+  if(esNuevo){
+    entries.forEach(x => { if(x.zona) obj[x.zona] = Array.isArray(x.ings) ? x.ings : Object.values(x.ings||{}); });
+  } else if(typeof v === 'object' && !Array.isArray(v)){
+    Object.entries(v).forEach(([k,val]) => { obj[k] = Array.isArray(val) ? val : Object.values(val||{}); });
+  }
+  return obj;
+}
+window._setArreglosComposicion = v => { arreglosComposicion = _normArreglosComposicion(v); _arreglosComposicionLoaded = true; };
+// Guarda las composiciones del hotel como LISTA [{zona, ings}]. Clave = índice
+// numérico, así los nombres con "/", "." etc. (ej. "Gioia mesitas (c/u)") ya no
+// rompen la escritura a Firebase (RTDB no permite esos caracteres en las claves).
+function _saveArreglosComposicion(){
+  const arr = Object.entries(arreglosComposicion).map(([zona, ings]) => ({ zona, ings: ings||[] }));
+  fbSave('arreglosComposicion', arr);
+}
 
 // Costo de un arreglo = Σ (varas equivalentes) × costo por vara. Los ingredientes
 // en "paq" se convierten a varas con las varas por paquete de Compras.
@@ -15029,7 +15050,7 @@ function guardarArregloComposicion(){
     .map(r => ({prod:r.prod.trim(), qty:+r.qty, ...(r.unidad==='paq'?{unidad:'paq'}:{})}));
   if(rows.length) arreglosComposicion[_compEditZona] = rows;
   else delete arreglosComposicion[_compEditZona];
-  fbSave('arreglosComposicion', arreglosComposicion);
+  _saveArreglosComposicion();
   closeModal('arreglo-comp-modal');
   renderRentabilidadHotel();       // refresca la vista de rentabilidad (si está activa)
   renderComposicionesHotel();      // refresca la solapa Hotel de Composiciones (si está activa)
