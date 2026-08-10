@@ -14768,6 +14768,71 @@ function saveArregloHotelConfig(nombre, field, val){
   renderRentabilidadHotel();
 }
 
+// ── Lista de compra del hotel ────────────────────────────────────────────────
+// Suma las composiciones de TODOS los arreglos del hotel × su cantidad (la misma
+// que se edita en Rentabilidad Hotel) para saber cuánto hay que comprar. Separa
+// varas de paquetes (son unidades distintas) y no las mezcla.
+function listaCompraHotel(){
+  const varas = {}, paq = {};
+  let zonas = 0;
+  Object.keys(arreglosComposicion||{}).forEach(zona=>{
+    const ings = arreglosComposicion[zona] || [];
+    if(!ings.length) return;
+    zonas++;
+    const cant = +(arreglosHotelConfig[zona]?.cantidad) > 0 ? +arreglosHotelConfig[zona].cantidad : 1;
+    ings.forEach(g=>{
+      const q = (parseFloat(g.qty)||0) * cant;
+      if(!q) return;
+      const bag = g.unidad==='paq' ? paq : varas;
+      bag[g.prod] = (bag[g.prod]||0) + q;
+    });
+  });
+  const toList = obj => Object.entries(obj).map(([prod,qty])=>({prod,qty})).sort((a,b)=>b.qty-a.qty);
+  return { varas: toList(varas), paq: toList(paq), zonas };
+}
+
+function openListaCompraHotel(){
+  const { varas, paq, zonas } = listaCompraHotel();
+  const fila = ({prod,qty}) => {
+    const comprar = Math.ceil(qty - 1e-9);
+    const exacto = Math.abs(comprar - qty) > 0.01 ? ` <span style="color:var(--mid-gray);font-size:11px">(exacto ${_fmtCant(qty)})</span>` : '';
+    return `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:7px 0;border-bottom:1px solid var(--light-gray)">
+      <span>${esc(prod)}${exacto}</span><strong style="white-space:nowrap;font-size:15px">${comprar}</strong></div>`;
+  };
+  const bloque = (titulo, list) => list.length ? `
+    <div style="margin-bottom:16px">
+      <div style="font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);font-weight:600;margin-bottom:4px">${titulo}</div>
+      ${list.map(fila).join('')}
+    </div>` : '';
+
+  const txtList = list => list.map(r=>`• ${r.prod}: ${Math.ceil(r.qty-1e-9)}`).join('\n');
+  window._listaCompraHotelTexto = `🛒 Compra para cubrir el hotel\n\n🌿 VARAS:\n${txtList(varas)||'—'}\n\n📦 PAQUETES:\n${txtList(paq)||'—'}`;
+
+  let ov = document.getElementById('lista-compra-hotel-modal');
+  if(!ov){ ov=document.createElement('div'); ov.id='lista-compra-hotel-modal'; ov.className='modal-overlay'; document.body.appendChild(ov); }
+  const vacio = !varas.length && !paq.length;
+  ov.innerHTML = `<div class="modal" style="max-width:480px">
+    <button class="modal-close" onclick="closeModal('lista-compra-hotel-modal')">✕</button>
+    <div class="modal-title">🛒 Lista de compra del hotel</div>
+    <div style="font-size:12px;color:var(--mid-gray);margin:-6px 0 14px">Suma de las composiciones × la cantidad de cada arreglo · ${zonas} arreglo${zonas!==1?'s':''} con composición</div>
+    ${vacio
+      ? '<p style="color:var(--mid-gray);font-size:13px;padding:16px;text-align:center">No hay arreglos con composición cargada. Cargalos en <strong>Composiciones › Arreglos del hotel</strong> («📋 Cargar catálogo base»).</p>'
+      : bloque('🌿 Varas', varas) + bloque('📦 Paquetes', paq) + '<div style="font-size:11px;color:var(--mid-gray);margin-top:8px">Las flores con «/» son opciones: comprás esa cantidad de una de las dos. La cantidad de cada arreglo se ajusta en la tabla de abajo (columna «Cant.»).</div>'}
+    ${vacio ? '' : `<div class="modal-actions" style="margin-top:18px">
+      <button class="btn-secondary" onclick="closeModal('lista-compra-hotel-modal')">Cerrar</button>
+      <button class="btn-add" onclick="listaCompraHotelCopiar()">📋 Copiar lista</button>
+    </div>`}
+  </div>`;
+  ov.classList.add('open');
+}
+function listaCompraHotelCopiar(){
+  const txt = window._listaCompraHotelTexto || '';
+  (navigator.clipboard?.writeText(txt) || Promise.reject()).then(
+    ()=>showToast('📋 Lista copiada — lista para WhatsApp'),
+    ()=>showToast('No se pudo copiar')
+  );
+}
+
 function renderRentabilidadHotel(){
   const tbody   = document.getElementById('rent-hotel-body');
   const kpisEl  = document.getElementById('rent-hotel-kpis');
@@ -17224,6 +17289,7 @@ Object.assign(window, {
   renderCalendario, calPrevMonth, calNextMonth,
   renderProveedores, openProveedorModal, guardarProveedor, eliminarProveedor,
   renderRentabilidad, renderRentabilidadHotel, rentSetTab, saveArregloHotelConfig, saveEventLaborRate, updEventoTraslado, alertasAutomaticas,
+  openListaCompraHotel, listaCompraHotelCopiar,
   rentAddArreglo, openArregloComposicion, compUpdRow, compAddRow, compRemoveRow, guardarArregloComposicion,
   renderStock, renderStockAdmin, renderVentaHoraCell, renderVentas, renderZonasPicker,
   resetHora, resetWeekState, resetearPassword, resetearTodasPasswords, saleAutoFillPrice,

@@ -2387,6 +2387,7 @@
             Cada arreglo del <strong>checklist</strong> se muestra por separado. Cargá <strong>qué flores lleva</strong> (y cuántas varas) y el <strong>costo se calcula solo</strong> con el costo por vara de Compras. Completá el <strong>precio Hyatt</strong> para ver el margen.
           </div>
           <div style="display:flex;gap:8px;align-items:center">
+            <button class="btn-add" onclick="openListaCompraHotel()" style="padding:8px 14px;font-size:13px;white-space:nowrap" title="Cuántas varas y paquetes comprar para cubrir todo el hotel">🛒 Lista de compra</button>
             <input class="form-input" type="month" id="rent-hotel-mes" oninput="renderRentabilidadHotel()" style="padding:8px 12px;font-size:13px" title="Mes para comparar el costo real de compras">
             <select class="form-select" id="rent-arreglo-add" onchange="rentAddArreglo(this)" style="width:250px;padding:8px 12px;font-size:13px">
               <option value="">+ Definir composición de un arreglo…</option>
