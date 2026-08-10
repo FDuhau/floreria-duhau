@@ -853,6 +853,51 @@ function updTiempoRef(i, val){
   fbSave('clTiemposRef', clTiemposRef);
 }
 
+// ── Tiempos estimados por área (gerencia) ─────────────────────────────────────
+// Modal con TODAS las zonas del checklist agrupadas por sección para cargar el
+// tiempo estimado (minutos) de cada una de un saque. Queda fijo (clTiemposRef en
+// Firebase) y sirve para las métricas de cuánto se demora cada sección.
+function openTiemposEstimados(){
+  if(userRole!=='gerencia'){ showToast('⛔ Solo gerencia'); return; }
+  let ov = document.getElementById('cl-tiempos-modal');
+  if(!ov){ ov=document.createElement('div'); ov.id='cl-tiempos-modal'; ov.className='modal-overlay'; document.body.appendChild(ov); }
+  let lastSec = null;
+  const filas = CL_TASKS.map((t,i)=>{
+    let head = '';
+    if(t.sec !== lastSec){
+      lastSec = t.sec;
+      const sh = SEC_HEADERS[t.sec] || {};
+      head = `<tr><td colspan="3" style="padding:12px 12px 4px;font-weight:700;color:var(--charcoal);font-size:13px;border-bottom:1px solid var(--light-gray)">${sh.icon||'📍'} ${esc(sh.label||t.sec)}</td></tr>`;
+    }
+    const ref = getTiempoRef(i);
+    return head + `<tr>
+      <td style="padding:6px 12px;font-size:13px;font-weight:500">${esc(t.zona)}</td>
+      <td style="padding:6px 12px"><span class="badge ${getBadge(t.actividad)}" style="font-size:10px">${esc(t.actividad)}</span></td>
+      <td style="padding:6px 12px;text-align:right;white-space:nowrap">
+        <input type="number" min="0" value="${ref||''}" placeholder="—" onchange="updTiempoRef(${i},this.value)"
+          style="width:64px;padding:5px 6px;font-size:13px;text-align:center;border:1px solid var(--light-gray);border-radius:6px;background:var(--warm-white);color:var(--charcoal)"> <span style="font-size:11px;color:var(--mid-gray)">min</span>
+      </td>
+    </tr>`;
+  }).join('');
+  ov.innerHTML = `<div class="modal" style="max-width:520px;max-height:85vh;display:flex;flex-direction:column">
+    <button class="modal-close" onclick="closeModal('cl-tiempos-modal'); if(window.renderChecklistTable) renderChecklistTable();">✕</button>
+    <div class="modal-title">⏱ Tiempos estimados por área</div>
+    <div style="font-size:12px;color:var(--mid-gray);margin:-6px 0 12px">Cargá los minutos estimados de cada zona. Queda fijo y sirve para medir cuánto se demora cada sección (marca en rojo las tareas que se pasan del tiempo).</div>
+    <div style="overflow-y:auto;flex:1"><table style="width:100%;border-collapse:collapse">
+      <thead><tr>
+        <th style="text-align:left;padding:6px 12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Zona</th>
+        <th style="text-align:left;padding:6px 12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Actividad</th>
+        <th style="text-align:right;padding:6px 12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Estimado</th>
+      </tr></thead>
+      <tbody>${filas}</tbody>
+    </table></div>
+    <div class="modal-actions" style="margin-top:14px">
+      <button class="btn-add" onclick="closeModal('cl-tiempos-modal'); if(window.renderChecklistTable) renderChecklistTable();">Listo</button>
+    </div>
+  </div>`;
+  ov.classList.add('open');
+}
+
 // Persistir un campo de un día puntual del checklist (localStorage + Firebase)
 // ── Planificación fija (plantilla) del checklist ──────────────────────────────
 // Guarda quién hace cada zona y si es Nuevo/Retoque por día de forma PERSISTENTE
@@ -17310,7 +17355,7 @@ Object.assign(window, {
   renderCalendario, calPrevMonth, calNextMonth,
   renderProveedores, openProveedorModal, guardarProveedor, eliminarProveedor,
   renderRentabilidad, renderRentabilidadHotel, rentSetTab, saveArregloHotelConfig, saveEventLaborRate, updEventoTraslado, alertasAutomaticas,
-  openListaCompraHotel, listaCompraHotelCopiar,
+  openListaCompraHotel, listaCompraHotelCopiar, openTiemposEstimados,
   rentAddArreglo, openArregloComposicion, compUpdRow, compAddRow, compRemoveRow, guardarArregloComposicion,
   renderStock, renderStockAdmin, renderVentaHoraCell, renderVentas, renderZonasPicker,
   resetHora, resetWeekState, resetearPassword, resetearTodasPasswords, saleAutoFillPrice,
