@@ -898,6 +898,81 @@ function openTiemposEstimados(){
   ov.classList.add('open');
 }
 
+// ── Promedios reales por zona vs. estimado (gerencia) ─────────────────────────
+// Recorre el historial del checklist, promedia la duración real de cada zona y
+// la compara con el tiempo estimado (clTiemposRef). Para ver dónde se demora más
+// de lo previsto.
+function openPromediosZona(){
+  if(userRole!=='gerencia'){ showToast('⛔ Solo gerencia'); return; }
+  // Promedio real por sec|zona|actividad
+  const agg = {};
+  (checklistHistory||[]).forEach(r=>{
+    const dur = (+r.duracion) || calcDuracion(r.inicio||'', r.fin||'');
+    if(!dur || dur<=0) return;
+    const key = (r.sec||'')+'|'+(r.zona||'')+'|'+String(r.actividad||'').toLowerCase();
+    if(!agg[key]) agg[key] = { n:0, sum:0 };
+    agg[key].n++; agg[key].sum += dur;
+  });
+
+  const seen = new Set();
+  let lastSec = null, filas = '', totalMuestras = 0, conDatos = 0;
+  CL_TASKS.forEach((t,i)=>{
+    const key = (t.sec||'')+'|'+(t.zona||'')+'|'+String(t.actividad||'').toLowerCase();
+    if(seen.has(key)) return;
+    seen.add(key);
+    const a = agg[key];
+    if(!a) return; // solo zonas con al menos un registro real
+    conDatos++;
+    totalMuestras += a.n;
+    if(t.sec !== lastSec){
+      lastSec = t.sec;
+      const sh = SEC_HEADERS[t.sec] || {};
+      filas += `<tr><td colspan="5" style="padding:12px 12px 4px;font-weight:700;color:var(--charcoal);font-size:13px;border-bottom:1px solid var(--light-gray)">${sh.icon||'📍'} ${esc(sh.label||t.sec)}</td></tr>`;
+    }
+    const prom = Math.round(a.sum / a.n);
+    const est  = getTiempoRef(i);
+    let desvHTML = '<span style="color:var(--mid-gray)">—</span>';
+    if(est > 0){
+      const dp = Math.round((prom - est) / est * 100);
+      const col = dp <= 10 ? 'var(--green-ok)' : dp <= 30 ? 'var(--amber)' : 'var(--red-alert)';
+      desvHTML = `<span style="color:${col};font-weight:600">${dp>0?'+':''}${dp}%</span>`;
+    }
+    filas += `<tr>
+      <td style="padding:6px 12px;font-size:13px;font-weight:500">${esc(t.zona)}</td>
+      <td style="padding:6px 12px"><span class="badge ${getBadge(t.actividad)}" style="font-size:10px">${esc(t.actividad)}</span></td>
+      <td style="padding:6px 12px;text-align:center;color:var(--mid-gray);font-size:12px" title="Cantidad de veces registradas">${a.n}</td>
+      <td style="padding:6px 12px;text-align:right;font-weight:600">${fmtDur(prom)}</td>
+      <td style="padding:6px 12px;text-align:right;color:var(--mid-gray)">${est?est+'m':'—'}</td>
+      <td style="padding:6px 12px;text-align:right">${desvHTML}</td>
+    </tr>`;
+  });
+
+  let ov = document.getElementById('cl-promedios-modal');
+  if(!ov){ ov=document.createElement('div'); ov.id='cl-promedios-modal'; ov.className='modal-overlay'; document.body.appendChild(ov); }
+  ov.innerHTML = `<div class="modal" style="max-width:600px;max-height:85vh;display:flex;flex-direction:column">
+    <button class="modal-close" onclick="closeModal('cl-promedios-modal')">✕</button>
+    <div class="modal-title">📈 Promedios reales por zona</div>
+    <div style="font-size:12px;color:var(--mid-gray);margin:-6px 0 12px">Promedio de la duración real de cada zona vs. el tiempo estimado. Desvío en rojo = se tarda bastante más de lo previsto. ${conDatos?`${conDatos} zona${conDatos!==1?'s':''} con datos · ${totalMuestras} registro${totalMuestras!==1?'s':''}`:''}</div>
+    ${conDatos
+      ? `<div style="overflow-y:auto;flex:1"><table style="width:100%;border-collapse:collapse">
+          <thead><tr>
+            <th style="text-align:left;padding:6px 12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Zona</th>
+            <th style="text-align:left;padding:6px 12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Act.</th>
+            <th style="text-align:center;padding:6px 12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)" title="Cuántas veces se registró">N</th>
+            <th style="text-align:right;padding:6px 12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Prom. real</th>
+            <th style="text-align:right;padding:6px 12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Estimado</th>
+            <th style="text-align:right;padding:6px 12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Desvío</th>
+          </tr></thead>
+          <tbody>${filas}</tbody>
+        </table></div>`
+      : '<p style="color:var(--mid-gray);font-size:13px;padding:20px;text-align:center">Todavía no hay tareas completadas con horario (Inicio–Fin) para promediar. Las floristas cronometran las tareas y acá vas viendo los promedios.</p>'}
+    <div class="modal-actions" style="margin-top:14px">
+      <button class="btn-add" onclick="closeModal('cl-promedios-modal')">Cerrar</button>
+    </div>
+  </div>`;
+  ov.classList.add('open');
+}
+
 // Persistir un campo de un día puntual del checklist (localStorage + Firebase)
 // ── Planificación fija (plantilla) del checklist ──────────────────────────────
 // Guarda quién hace cada zona y si es Nuevo/Retoque por día de forma PERSISTENTE
@@ -17355,7 +17430,7 @@ Object.assign(window, {
   renderCalendario, calPrevMonth, calNextMonth,
   renderProveedores, openProveedorModal, guardarProveedor, eliminarProveedor,
   renderRentabilidad, renderRentabilidadHotel, rentSetTab, saveArregloHotelConfig, saveEventLaborRate, updEventoTraslado, alertasAutomaticas,
-  openListaCompraHotel, listaCompraHotelCopiar, openTiemposEstimados,
+  openListaCompraHotel, listaCompraHotelCopiar, openTiemposEstimados, openPromediosZona,
   rentAddArreglo, openArregloComposicion, compUpdRow, compAddRow, compRemoveRow, guardarArregloComposicion,
   renderStock, renderStockAdmin, renderVentaHoraCell, renderVentas, renderZonasPicker,
   resetHora, resetWeekState, resetearPassword, resetearTodasPasswords, saleAutoFillPrice,
