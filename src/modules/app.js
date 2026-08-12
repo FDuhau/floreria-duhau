@@ -1451,16 +1451,52 @@ function eventoFaseTag(fase){
 // programado (colocacionFecha/retiroFecha; si no se cargó, cae en ev.fecha) y,
 // si hay hora cargada, a partir de esa hora. Un día futuro no se muestra: así
 // el florista no ve un retiro/colocación antes de que corresponda.
+const MARGEN_FASE_MIN = 30; // el florista ve la fase (y recibe el aviso) 30 min antes de la hora
+function _hmToMin(hm){ if(!hm || !hm.includes(':')) return null; const [h,m]=hm.split(':').map(Number); return (h||0)*60+(m||0); }
 function faseVisibleFlorista(ev, fase){
   if(fase === 'armado') return true;
   const hoy = TODAY_ISO;
-  const d = new Date();
-  const ahora = String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
   const fecha = (fase === 'retiro' ? ev.retiroFecha : ev.colocacionFecha) || ev.fecha || '';
   const hora  = (fase === 'retiro' ? ev.retiroHora  : ev.colocacionHora)  || '';
   if(fecha && fecha > hoy) return false;                 // día futuro → todavía no
-  if(fecha === hoy && hora && ahora < hora) return false; // hoy pero antes de la hora
+  if(fecha === hoy && hora){
+    const d = new Date();
+    const nowMin = d.getHours()*60 + d.getMinutes();
+    const hMin = _hmToMin(hora);
+    if(hMin != null && nowMin < hMin - MARGEN_FASE_MIN) return false; // falta más que el margen
+  }
   return true;
+}
+// Aviso push al florista cuando se habilita la colocación/retiro (a MARGEN_FASE_MIN
+// de la hora, ese día). Una sola vez por evento/fase/día (flag persistido en el
+// evento). Corre en el timer de cada minuto.
+function checkRecordatoriosFaseEvento(){
+  if(!Array.isArray(eventosData) || !eventosData.length) return;
+  const hoy = TODAY_ISO;
+  const d = new Date();
+  const nowMin = d.getHours()*60 + d.getMinutes();
+  let cambio = false;
+  const fases = [
+    ['colocacionAsignado','colocacionFecha','colocacionHora','colocacionFin','colocacionAvisada','📍 Colocación','colocación'],
+    ['retiroAsignado','retiroFecha','retiroHora','retiroFin','retiroAvisada','🔄 Retiro','retiro'],
+  ];
+  eventosData.forEach(ev=>{
+    if(ev.estado === 'Pedidos Finalizados') return;
+    fases.forEach(([kAsig,kFecha,kHora,kFin,kAviso,lbl,faseTxt])=>{
+      const flor  = ev[kAsig];
+      const fecha = ev[kFecha] || ev.fecha || '';
+      const hora  = ev[kHora] || '';
+      if(!flor || !hora || fecha !== hoy) return; // solo con florista, hora cargada y para hoy
+      if(ev[kFin]) return;                          // ya se hizo
+      if(ev[kAviso] === hoy) return;                // ya se avisó hoy
+      const hMin = _hmToMin(hora);
+      if(hMin == null || nowMin < hMin - MARGEN_FASE_MIN) return; // todavía no se habilitó
+      notificarAsignacion(flor, `${lbl}: ${ev.nombre}`, `${faseTxt.charAt(0).toUpperCase()+faseTxt.slice(1)} programada ${hora}${ev.salon?' · '+ev.salon:''}. Ya te aparece en tu checklist.`);
+      ev[kAviso] = hoy;
+      cambio = true;
+    });
+  });
+  if(cambio) fbSave('eventosData', eventosData);
 }
 
 function renderChecklistTable(){
@@ -5461,6 +5497,10 @@ setInterval(()=>{
   if(document.getElementById('home-prod')?.innerHTML) renderProductividadHome();
   if(document.getElementById('cl-prod-card')?.innerHTML) renderProductividadCL();
   _checkCierreDia();
+  checkRecordatoriosFaseEvento();
+  // Re-render del checklist del florista para que la colocación/retiro aparezca
+  // sola al llegar la hora (sin recargar).
+  if(userRole==='florista' && document.getElementById('page-checklist')?.classList.contains('active')) renderChecklistTable();
 }, 60000);
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -13805,7 +13845,10 @@ function saveEvent(){
     colocacionInicio: eventosData[+document.getElementById('ev-idx').value]?.colocacionInicio || '',
     colocacionFin: eventosData[+document.getElementById('ev-idx').value]?.colocacionFin || '',
     retiroInicio: eventosData[+document.getElementById('ev-idx').value]?.retiroInicio || '',
-    retiroFin: eventosData[+document.getElementById('ev-idx').value]?.retiroFin || ''
+    retiroFin: eventosData[+document.getElementById('ev-idx').value]?.retiroFin || '',
+    // Flags de "ya se avisó al florista" — se preservan para no re-notificar al editar.
+    colocacionAvisada: eventosData[+document.getElementById('ev-idx').value]?.colocacionAvisada || '',
+    retiroAvisada: eventosData[+document.getElementById('ev-idx').value]?.retiroAvisada || ''
   };
 
   // Descontar stock si el evento se confirma directamente
