@@ -11963,6 +11963,7 @@ function renderHorarios(){
   calHtml += '</div>';
   cal.innerHTML = calHtml;
 
+  renderInformeHoras(lista);
   renderProductividadHorarios(lista);
 }
 
@@ -12043,6 +12044,68 @@ function limpiarDiaHorario(iso){
   document.getElementById('dia-horario-modal')?.classList.remove('open');
   renderHorarios();
   showToast('🗑 Horarios del día limpiados');
+}
+
+// ── Informe de horas del mes: PROGRAMADAS (calendario) vs REALES (ingreso/egreso) ──
+// Para cada persona, por semana del mes en curso, compara las horas planificadas
+// (horariosData) con las horas realmente fichadas (jornadaRealDia). Deja ver si
+// alguien vino de más (real > programado) o de menos (real < programado).
+function _mondayISO(iso){
+  const d = new Date(iso+'T00:00:00');
+  let day = d.getDay(); if(day===0) day = 7;
+  d.setDate(d.getDate()-(day-1));
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function renderInformeHoras(lista){
+  const cont = document.getElementById('hor-informe-hs');
+  if(!cont) return;
+  const dm = iso => iso.slice(8,10)+'/'+iso.slice(5,7);
+  const r1 = n => Math.round(n*10)/10;
+  const diasEnMes = new Date(horAnio, horMes+1, 0).getDate();
+  // Agrupar los días del mes por semana (lunes a domingo)
+  const semanas = new Map();
+  for(let d=1; d<=diasEnMes; d++){
+    const iso = `${horAnio}-${String(horMes+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const wk = _mondayISO(iso);
+    if(!semanas.has(wk)) semanas.set(wk, []);
+    semanas.get(wk).push(iso);
+  }
+  const weeks = [...semanas.entries()].sort((a,b)=>a[0].localeCompare(b[0])).map(e=>e[1]);
+
+  const cards = lista.map(nombre => {
+    let mesProg=0, mesReal=0;
+    const filasWk = weeks.map(dias => {
+      let prog=0, real=0;
+      dias.forEach(iso => {
+        const h = window.horariosData?.[nombre]?.[iso];
+        if(h && h.desde && h.hasta) prog += calcHorasDia(h.desde, h.hasta);
+        const rr = jornadaRealDia(nombre, iso);
+        if(rr) real += rr.horas;
+      });
+      mesProg += prog; mesReal += real;
+      if(prog===0 && real===0) return '';
+      const diff = r1(real - prog);
+      const col = Math.abs(diff)<0.5 ? 'var(--mid-gray)' : diff>0 ? 'var(--red-alert)' : 'var(--amber)';
+      const txt = Math.abs(diff)<0.5 ? '=' : (diff>0?'+':'')+diff+'h';
+      return `<div style="display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:3px 0;border-top:1px dashed var(--light-gray)">
+        <span style="color:var(--mid-gray);white-space:nowrap">Sem ${dm(dias[0])}–${dm(dias[dias.length-1])}</span>
+        <span style="white-space:nowrap">Prog <strong>${r1(prog)}h</strong> · Real <strong>${r1(real)}h</strong> · <span style="color:${col};font-weight:700" title="Diferencia real − programado">${txt}</span></span>
+      </div>`;
+    }).join('');
+    if(mesProg===0 && mesReal===0) return '';
+    const diffMes = r1(mesReal - mesProg);
+    const colM = Math.abs(diffMes)<0.5 ? 'var(--mid-gray)' : diffMes>0 ? 'var(--red-alert)' : 'var(--amber)';
+    const txtM = Math.abs(diffMes)<0.5 ? '= en horario' : (diffMes>0?'+'+diffMes+'h de más':diffMes+'h de menos');
+    return `<div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:10px;padding:12px 14px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px;margin-bottom:4px">
+        <strong style="font-size:14px;color:var(--charcoal)">${esc(nombre)}</strong>
+        <span style="font-size:12px">Mes: Prog <strong>${r1(mesProg)}h</strong> · Real <strong>${r1(mesReal)}h</strong> · <span style="color:${colM};font-weight:700">${txtM}</span></span>
+      </div>
+      ${filasWk}
+    </div>`;
+  }).filter(Boolean).join('');
+
+  cont.innerHTML = cards || '<div style="color:var(--mid-gray);font-size:13px;padding:14px;text-align:center;background:var(--warm-white);border:1px solid var(--light-gray);border-radius:10px">Sin horas programadas ni fichadas este mes.</div>';
 }
 
 function renderProductividadHorarios(empleados){
