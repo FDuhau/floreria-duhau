@@ -1446,6 +1446,22 @@ function eventoFaseTag(fase){
   if(fase === 'colocacion') return '<span style="font-size:9px;font-weight:700;background:#E65100;color:#fff;padding:2px 6px;border-radius:5px;margin-left:6px">📍 COLOCACIÓN</span>';
   return '<span style="font-size:9px;font-weight:700;background:#5A8C3A;color:#fff;padding:2px 6px;border-radius:5px;margin-left:6px">🔨 ARMADO</span>';
 }
+// ¿Ya es momento de que el florista vea esta fase del evento?
+// Armado: siempre (lo ve para prepararlo). Colocación/Retiro: recién el día
+// programado (colocacionFecha/retiroFecha; si no se cargó, cae en ev.fecha) y,
+// si hay hora cargada, a partir de esa hora. Un día futuro no se muestra: así
+// el florista no ve un retiro/colocación antes de que corresponda.
+function faseVisibleFlorista(ev, fase){
+  if(fase === 'armado') return true;
+  const hoy = TODAY_ISO;
+  const d = new Date();
+  const ahora = String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+  const fecha = (fase === 'retiro' ? ev.retiroFecha : ev.colocacionFecha) || ev.fecha || '';
+  const hora  = (fase === 'retiro' ? ev.retiroHora  : ev.colocacionHora)  || '';
+  if(fecha && fecha > hoy) return false;                 // día futuro → todavía no
+  if(fecha === hoy && hora && ahora < hora) return false; // hoy pero antes de la hora
+  return true;
+}
 
 function renderChecklistTable(){
   if(!clState){
@@ -1666,7 +1682,7 @@ function renderChecklistTable(){
     if(ev.estado === 'Pedidos Finalizados') return false;
     const fase = eventoFase(ev);
     const flor = eventoFlorFase(ev, fase);
-    if(isFlorista) return flor === floristaNombre;
+    if(isFlorista) return flor === floristaNombre && faseVisibleFlorista(ev, fase);
     // gerencia/operario: ven los activos que tengan alguien asignado en alguna fase
     return ev.asignado || ev.colocacionAsignado || ev.retiroAsignado;
   });
@@ -1850,7 +1866,7 @@ function renderChecklistCards(el){
     if(ev.estado==='Pedidos Finalizados') return false;
     const fase = eventoFase(ev);
     const flor = eventoFlorFase(ev, fase);
-    return flor === floristaNombre;
+    return flor === floristaNombre && faseVisibleFlorista(ev, fase);
   });
   const evHTML = eventosHoy.map(ev=>{
     const evIdx = eventosData.indexOf(ev);
@@ -12529,7 +12545,7 @@ function mostrarBriefingDia(retry = 0){
     const mis = CL_TASKS.map((_,i)=>i).filter(i => (ds.responsable?.[i]||'') === floristaNombre);
     const horario = (window.horariosData||{})[floristaNombre]?.[TODAY_ISO];
     const evs = (eventosData||[]).filter(ev => ev.estado!=='Pedidos Finalizados' &&
-      eventoFlorFase(ev, eventoFase(ev)) === floristaNombre);
+      eventoFlorFase(ev, eventoFase(ev)) === floristaNombre && faseVisibleFlorista(ev, eventoFase(ev)));
     rows = [
       ['📋', mis.length ? `Tenés ${mis.length} tarea${mis.length!==1?'s':''} asignada${mis.length!==1?'s':''} para hoy` : 'Todavía no tenés tareas asignadas'],
       horario?.desde ? ['🕐', `Tu turno: ${horario.desde} a ${horario.hasta||'—'}`] : null,
@@ -13777,7 +13793,11 @@ function saveEvent(){
     estado:document.getElementById('ev-estado').value,
     asignado:document.getElementById('ev-asignado').value||'',
     colocacionAsignado:document.getElementById('ev-colocacion')?.value||'',
+    colocacionFecha:document.getElementById('ev-colocacion-fecha')?.value||'',
+    colocacionHora:document.getElementById('ev-colocacion-hora')?.value||'',
     retiroAsignado:document.getElementById('ev-retiro')?.value||'',
+    retiroFecha:document.getElementById('ev-retiro-fecha')?.value||'',
+    retiroHora:document.getElementById('ev-retiro-hora')?.value||'',
     arreglos: evArreglosRows.filter(r=>r.arreglo&&r.qty>0),
     img: document.getElementById('ev-img-data').value||'',
     inicio: eventosData[+document.getElementById('ev-idx').value]?.inicio || '',
@@ -13841,6 +13861,11 @@ function openEventModal(i){
   document.getElementById('ev-tipo').value    = ev.tipo    || '';
   document.getElementById('ev-fecha').value   = ev.fecha   || '';
   document.getElementById('ev-hora').value    = ev.hora    || '';
+  const _setIf = (id,v)=>{ const el=document.getElementById(id); if(el) el.value = v||''; };
+  _setIf('ev-colocacion-fecha', ev.colocacionFecha);
+  _setIf('ev-colocacion-hora',  ev.colocacionHora);
+  _setIf('ev-retiro-fecha',     ev.retiroFecha);
+  _setIf('ev-retiro-hora',      ev.retiroHora);
   document.getElementById('ev-pax').value     = ev.pax     || '';
   if(document.getElementById('ev-presupuesto')) document.getElementById('ev-presupuesto').value = ev.presupuesto||'';
   if(document.getElementById('ev-costo-est')) document.getElementById('ev-costo-est').value = ev.costoEstimado||'';
