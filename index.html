@@ -1024,10 +1024,20 @@
       <select class="form-input-modal" id="ev-colocacion">
         <option value="">— Sin asignar —</option>
       </select>
-      <label class="form-label">Asignar a florista (retiro) <span style="color:var(--mid-gray);font-size:10px;font-weight:400">— retira el arreglo al finalizar el evento</span></label>
+      <div style="display:flex;gap:10px;margin-top:6px">
+        <div style="flex:1"><label class="form-label" style="font-size:10px">Día de colocación</label><input class="form-input-modal" id="ev-colocacion-fecha" type="date"></div>
+        <div style="flex:1"><label class="form-label" style="font-size:10px">Hora de colocación</label><input class="form-input-modal" id="ev-colocacion-hora" type="time"></div>
+      </div>
+      <div style="font-size:10px;color:var(--mid-gray);margin-top:2px">Al florista le aparece la colocación recién ese día y a partir de esa hora.</div>
+      <label class="form-label" style="margin-top:10px">Asignar a florista (retiro) <span style="color:var(--mid-gray);font-size:10px;font-weight:400">— retira el arreglo al finalizar el evento</span></label>
       <select class="form-input-modal" id="ev-retiro">
         <option value="">— Sin asignar —</option>
       </select>
+      <div style="display:flex;gap:10px;margin-top:6px">
+        <div style="flex:1"><label class="form-label" style="font-size:10px">Día de retiro</label><input class="form-input-modal" id="ev-retiro-fecha" type="date"></div>
+        <div style="flex:1"><label class="form-label" style="font-size:10px">Hora de retiro</label><input class="form-input-modal" id="ev-retiro-hora" type="time"></div>
+      </div>
+      <div style="font-size:10px;color:var(--mid-gray);margin-top:2px">Al florista le aparece el retiro recién ese día y a partir de esa hora.</div>
 
       <!-- ── Arreglos del evento ── -->
       <div style="margin-top:16px">
