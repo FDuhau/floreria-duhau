@@ -12112,9 +12112,69 @@ function _mondayISO(iso){
   d.setDate(d.getDate()-(day-1));
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
+// Detalle día por día de los fichajes (ingreso/salida) de UNA persona en el mes.
+// Pensado para facturación de monotributistas: días que vino y horas reales.
+function _detalleFichajesPersona(nombre){
+  const dm = iso => iso.slice(8,10)+'/'+iso.slice(5,7);
+  const r1 = n => Math.round(n*10)/10;
+  const DOW = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const diasEnMes = new Date(horAnio, horMes+1, 0).getDate();
+  let filas = '', txt = [], totHoras=0, totDias=0, totProg=0;
+  for(let d=1; d<=diasEnMes; d++){
+    const iso = `${horAnio}-${String(horMes+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const h = window.horariosData?.[nombre]?.[iso];
+    const prog = (h && h.desde && h.hasta) ? calcHorasDia(h.desde, h.hasta) : 0;
+    totProg += prog;
+    const real = jornadaRealDia(nombre, iso);
+    if(!real) continue; // solo los días que efectivamente vino (fichó)
+    totDias++; totHoras += real.horas;
+    const dow = DOW[new Date(iso+'T00:00:00').getDay()];
+    filas += `<tr>
+      <td style="padding:6px 12px;font-size:13px">${dow} ${dm(iso)}</td>
+      <td style="padding:6px 12px;text-align:center;color:var(--green-ok);font-weight:600">${real.inicio}</td>
+      <td style="padding:6px 12px;text-align:center;color:#8B3A3A;font-weight:600">${real.fin}</td>
+      <td style="padding:6px 12px;text-align:right;font-weight:700">${r1(real.horas)}h</td>
+      <td style="padding:6px 12px;text-align:right;color:var(--mid-gray)">${prog?r1(prog)+'h':'—'}</td>
+    </tr>`;
+    txt.push(`${dow} ${dm(iso)}: ${real.inicio}-${real.fin} (${r1(real.horas)}h)`);
+  }
+  window._detalleFichajesTexto = `🧾 ${nombre} — ${MESES[horMes]} ${horAnio}\n${txt.join('\n')||'Sin días trabajados'}\n———\nTotal: ${totDias} día${totDias!==1?'s':''} · ${r1(totHoras)}h reales · ${r1(totProg)}h programadas`;
+  const cuerpo = filas || `<tr><td colspan="5" style="padding:16px;text-align:center;color:var(--mid-gray)">Sin días fichados este mes.</td></tr>`;
+  return `<div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:10px;padding:14px 16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+      <strong style="font-size:15px;color:var(--charcoal)">${esc(nombre)} · ${MESES[horMes]} ${horAnio}</strong>
+      <button class="btn-secondary" style="font-size:11px;padding:5px 10px" onclick="copiarDetalleFichajes()">📋 Copiar</button>
+    </div>
+    <div class="table-wrapper"><table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead><tr>
+        <th style="text-align:left;padding:6px 12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Día</th>
+        <th style="text-align:center;padding:6px 12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Ingreso</th>
+        <th style="text-align:center;padding:6px 12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Salida</th>
+        <th style="text-align:right;padding:6px 12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Horas</th>
+        <th style="text-align:right;padding:6px 12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Prog.</th>
+      </tr></thead>
+      <tbody>${cuerpo}</tbody>
+      <tfoot><tr style="border-top:2px solid var(--charcoal)">
+        <td style="padding:8px 12px;font-weight:700">${totDias} día${totDias!==1?'s':''}</td>
+        <td></td><td></td>
+        <td style="padding:8px 12px;text-align:right;font-weight:700">${r1(totHoras)}h reales</td>
+        <td style="padding:8px 12px;text-align:right;color:var(--mid-gray)">${r1(totProg)}h prog</td>
+      </tr></tfoot>
+    </table></div>
+    <div style="font-size:11px;color:var(--mid-gray);margin-top:8px">Ingreso / Salida = fichaje real del día. «Prog.» = lo planificado en el calendario. Cambiá el mes con ◀ ▶ de arriba.</div>
+  </div>`;
+}
+function copiarDetalleFichajes(){
+  const t = window._detalleFichajesTexto || '';
+  (navigator.clipboard?.writeText(t) || Promise.reject()).then(()=>showToast('📋 Detalle copiado'), ()=>showToast('No se pudo copiar'));
+}
+
 function renderInformeHoras(lista){
   const cont = document.getElementById('hor-informe-hs');
   if(!cont) return;
+  // Una sola persona seleccionada → planilla detallada de fichajes (ingreso/salida).
+  if(lista.length === 1){ cont.innerHTML = _detalleFichajesPersona(lista[0]); return; }
   const dm = iso => iso.slice(8,10)+'/'+iso.slice(5,7);
   const r1 = n => Math.round(n*10)/10;
   const diasEnMes = new Date(horAnio, horMes+1, 0).getDate();
@@ -17561,7 +17621,7 @@ Object.assign(window, {
   renderCalendario, calPrevMonth, calNextMonth,
   renderProveedores, openProveedorModal, guardarProveedor, eliminarProveedor,
   renderRentabilidad, renderRentabilidadHotel, rentSetTab, saveArregloHotelConfig, saveEventLaborRate, updEventoTraslado, alertasAutomaticas,
-  openListaCompraHotel, listaCompraHotelCopiar, openTiemposEstimados, openPromediosZona,
+  openListaCompraHotel, listaCompraHotelCopiar, openTiemposEstimados, openPromediosZona, copiarDetalleFichajes,
   rentAddArreglo, openArregloComposicion, compUpdRow, compAddRow, compRemoveRow, guardarArregloComposicion,
   renderStock, renderStockAdmin, renderVentaHoraCell, renderVentas, renderZonasPicker,
   resetHora, resetWeekState, resetearPassword, resetearTodasPasswords, saleAutoFillPrice,
