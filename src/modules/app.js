@@ -3831,10 +3831,10 @@ function renderCompras(type){
       const _cvDiv = parseFloat(r.varasPorPaq)||parseFloat(r.totalVaras)||parseFloat(r.qty)||0;
       const _cvVal = (parseMoney(r.costo)>0 && _cvDiv>0) ? Math.round(parseMoney(r.costo)/_cvDiv) : null;
       const _cv = _cvVal!=null ? '$'+_cvVal.toLocaleString('es-AR') : '<span style="color:var(--mid-gray)">—</span>';
-      html += `<tr>
+      html += `<tr style="${_recepFlagStyle(r)}">
       <td data-label="Fecha"><input class="form-input" type="date" value="${esc(r.fecha)}" onchange="updC('${type}',${i},'fecha',this.value)" style="min-width:130px"></td>
       <td data-label="Pedido por"><input class="form-input" value="${esc(r.pedidopor)}" onchange="updC('${type}',${i},'pedidopor',this.value)" style="min-width:100px"></td>
-      <td data-label="${type==='floreria'?'Flor / Follaje':'Producto'}"><input class="form-input" value="${esc(r.prod)}" onchange="updC('${type}',${i},'prod',this.value)" style="min-width:140px"></td>
+      <td data-label="${type==='floreria'?'Flor / Follaje':'Producto'}"><input class="form-input" value="${esc(r.prod)}" onchange="updC('${type}',${i},'prod',this.value)" style="min-width:140px">${_recepFlagBadge(r, i)}</td>
       <td data-label="Descripción"><input class="form-input" value="${esc(r.desc)}" placeholder="—" onchange="updC('${type}',${i},'desc',this.value)" style="min-width:120px"></td>
       <td data-label="Cantidad"><input class="form-input" type="number" value="${esc(r.qty)}" onchange="updC('${type}',${i},'qty',this.value);renderStock();renderCompras('${type}')" style="width:65px"></td>
       <td data-label="${type==='floreria'?'Precio x paq':'Precio unit.'}"><input class="form-input" value="${esc(r.costo)}" placeholder="$" onchange="updC('${type}',${i},'costo',this.value);renderCompras('${type}')" style="width:90px"></td>
@@ -4008,8 +4008,8 @@ function _histTablaFloreria(items){
           <th style="padding:6px 10px;text-align:right;color:var(--mid-gray);font-size:10px">Costo/vara</th>
           <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:10px"></th>
         </tr></thead>
-        <tbody>${items.map(r => { const idx = comprasFlore.indexOf(r); const an = !!r.anulado; const rowStyle = an ? 'border-top:1px solid #F0EDE8;opacity:.5' : 'border-top:1px solid #F0EDE8'; const cvDiv = parseFloat(r.varasPorPaq)||parseFloat(r.totalVaras)||parseFloat(r.qty)||0; const cvVal = (parseMoney(r.costo)>0 && cvDiv>0) ? Math.round(parseMoney(r.costo)/cvDiv) : null; return `<tr style="${rowStyle}">
-          <td style="padding:6px 10px;font-weight:500;${an?'text-decoration:line-through':''}">${esc(r.prod)}</td>
+        <tbody>${items.map(r => { const idx = comprasFlore.indexOf(r); const an = !!r.anulado; const rowStyle = an ? 'border-top:1px solid #F0EDE8;opacity:.5' : 'border-top:1px solid #F0EDE8'; const cvDiv = parseFloat(r.varasPorPaq)||parseFloat(r.totalVaras)||parseFloat(r.qty)||0; const cvVal = (parseMoney(r.costo)>0 && cvDiv>0) ? Math.round(parseMoney(r.costo)/cvDiv) : null; return `<tr style="${rowStyle};${_recepFlagStyle(r)}">
+          <td style="padding:6px 10px;font-weight:500;${an?'text-decoration:line-through':''}">${esc(r.prod)}${_recepFlagBadge(r, idx)}</td>
           <td style="padding:6px 10px;color:var(--mid-gray)">${esc(r.prov||'—')}</td>
           <td style="padding:6px 10px;color:var(--mid-gray)">${esc(r.sector||'—')}${_histEventoSelector('floreria',idx,r)}</td>
           <td style="padding:6px 10px;text-align:center"><input class="form-input" type="number" value="${esc(r.paqRecibidos ?? r.qty ?? '')}" onchange="updHistCantCompra('floreria',${idx},'paqRecibidos',this.value)" style="width:55px;text-align:center" ${an?'disabled':''}></td>
@@ -7185,6 +7185,15 @@ function renderRecepcionPedidos(){
           ? `<button onclick="recepConfirmar(${globalIdx})" style="background:var(--green-ok);color:white;border:none;border-radius:6px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap">✓ Al stock · ${totalVaras} varas</button>`
           : ''}
       </div>
+      <div style="padding:8px 14px;border-top:1px solid var(--light-gray);display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:${order.recepAlerta?'rgba(200,60,60,.06)':'transparent'}">
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:${order.recepAlerta?'var(--red-alert)':'var(--mid-gray)'};cursor:pointer;white-space:nowrap">
+          <input type="checkbox" ${order.recepAlerta?'checked':''} onchange="recepToggleMal(${globalIdx}, this.checked)"> ⚠️ Mal estado
+        </label>
+        <input class="form-input" value="${esc(order.recepObs||'')}" placeholder="Aclaración (ej: vino golpeado, marchito, faltante…)" onchange="recepUpdObs(${globalIdx}, this.value)" style="flex:1;min-width:160px;font-size:12px">
+        ${order.recepFoto
+          ? `<button class="btn-secondary" style="font-size:11px;padding:5px 9px" onclick="verFotoRecep(${globalIdx})">📷 Ver</button><button class="btn-icon" style="color:var(--red-alert)" onclick="recepQuitarFoto(${globalIdx})" title="Quitar foto">✕</button>`
+          : `<label class="btn-secondary" style="font-size:11px;padding:5px 9px;cursor:pointer;white-space:nowrap">📷 Foto<input type="file" accept="image/*" capture="environment" style="display:none" onchange="recepFotoInput(${globalIdx}, this)"></label>`}
+      </div>
     </div>`;
   }).join('');
   recepUpdateGlobal(pending);
@@ -7312,6 +7321,67 @@ function recepUpdVaras(globalIdx, val){
   if(!recepState[globalIdx]) recepState[globalIdx] = {};
   recepState[globalIdx].varasPorPaq = Math.max(1, parseFloat(val)||1);
   renderRecepcionPedidos();
+}
+
+// ── Observación / foto de recepción (ej: "vino en mal estado") ────────────────
+// Se guarda en la compra (comprasFlore) y queda visible flageado en la tabla de
+// Compras y en el Historial, para que el encargado de compras lo vea al cargar
+// precios. Guarda directo en el pedido (no depende de confirmar la recepción).
+function _recepSave(){ window._comprasFloreLastSave = Date.now(); fbSave('comprasFlore', comprasFlore); }
+function recepUpdObs(globalIdx, val){
+  if(!comprasFlore[globalIdx]) return;
+  comprasFlore[globalIdx].recepObs = val;
+  _recepSave();
+}
+function recepToggleMal(globalIdx, checked){
+  if(!comprasFlore[globalIdx]) return;
+  comprasFlore[globalIdx].recepAlerta = !!checked;
+  _recepSave();
+  renderRecepcionPedidos();
+}
+function recepFotoInput(globalIdx, inputEl){
+  const file = inputEl?.files?.[0];
+  if(!file || !comprasFlore[globalIdx]) return;
+  comprimirImagen(file, 1000, 0.6, data => {
+    comprasFlore[globalIdx].recepFoto = data;
+    _recepSave();
+    renderRecepcionPedidos();
+    showToast('📷 Foto adjuntada a la recepción');
+  });
+}
+function recepQuitarFoto(globalIdx){
+  if(!comprasFlore[globalIdx]) return;
+  delete comprasFlore[globalIdx].recepFoto;
+  _recepSave();
+  renderRecepcionPedidos();
+}
+function verFotoRecep(globalIdx){
+  const c = comprasFlore[globalIdx];
+  if(!c?.recepFoto){ showToast('Sin foto'); return; }
+  let ov = document.getElementById('recep-foto-modal');
+  if(!ov){ ov=document.createElement('div'); ov.id='recep-foto-modal'; ov.className='modal-overlay'; document.body.appendChild(ov); }
+  ov.innerHTML = `<div class="modal" style="max-width:560px;text-align:center">
+    <button class="modal-close" onclick="closeModal('recep-foto-modal')">✕</button>
+    <div class="modal-title">📷 Recepción · ${esc(c.prod||'')}</div>
+    ${c.recepObs?`<div style="font-size:12px;color:${c.recepAlerta?'var(--red-alert)':'var(--mid-gray)'};margin:-6px 0 10px;font-weight:600">${c.recepAlerta?'⚠️ ':''}${esc(c.recepObs)}</div>`:''}
+    <img src="${c.recepFoto}" style="max-width:100%;border-radius:8px">
+  </div>`;
+  ov.classList.add('open');
+}
+// Estilo de fila y badge para señalar un pedido con observación/mal estado.
+function _recepFlagStyle(r){
+  if(!r) return '';
+  if(r.recepAlerta) return 'background:rgba(200,60,60,.10)';
+  if(r.recepObs || r.recepFoto) return 'background:rgba(212,150,20,.10)';
+  return '';
+}
+function _recepFlagBadge(r, idx){
+  if(!r || !(r.recepAlerta || r.recepObs || r.recepFoto)) return '';
+  const col = r.recepAlerta ? 'var(--red-alert)' : '#9A6A00';
+  const lbl = r.recepAlerta ? '⚠️ Recibido en mal estado' : '📝 Obs. recepción';
+  const foto = r.recepFoto ? ` · <a onclick="verFotoRecep(${idx})" style="cursor:pointer;text-decoration:underline">📷 ver foto</a>` : '';
+  const txt = r.recepObs ? ': '+esc(r.recepObs) : '';
+  return `<div style="margin-top:3px;font-size:11px;font-weight:600;color:${col}">${lbl}${txt}${foto}</div>`;
 }
 
 function recepConfirmar(globalIdx){
@@ -17645,6 +17715,7 @@ Object.assign(window, {
   previewEventImg, previewRecetaImg, previewStockImpact, ramoOnCatChange,
   ramoOnProdChange, recalcTotalEvento, recepCheckAll, recepConfirmar, recepConfirmarTodo,
   recepToggle, recepUncheckAll, recepUpdPaq, recepUpdVaras, recepUpdateGlobal, recetaIngRowHTML,
+  recepUpdObs, recepToggleMal, recepFotoInput, recepQuitarFoto, verFotoRecep,
   registrarHora, registrarHoraEvento, registrarHoraVenta, registrarVentaDirecta, removeKanbanCard,
   renderCaja, renderCarrito, renderCarritoOps, renderChecklistTable,
   renderComposicionesCot, renderCompraAlert, renderCompraSummary, renderCompras, renderCotEventos,
