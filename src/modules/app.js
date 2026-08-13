@@ -2735,6 +2735,37 @@ function syncEventosToKanban(){
   kanbanData.forEach(col=>{
     col.cards = col.cards.filter(c=>!c.eventoIdx && c.eventoIdx!==0);
   });
+  // Quitar del tablero las tarjetas de florería cuyo pedido/venta ya NO está
+  // pendiente (pasó a confirmado/entregado) o fue borrado. Vínculo por ventaId;
+  // para tarjetas viejas sin vínculo, match por producto + fecha. Guarda: solo
+  // se poda si las ventas ya cargaron (evita borrar por carrera al iniciar).
+  const ventasArr = ventasData || [];
+  if(ventasArr.length){
+    const ventaPorId = {};
+    ventasArr.forEach(v=>{ if(v && v.id) ventaPorId[v.id] = v; });
+    let _podadas = 0;
+    kanbanData.forEach(col=>{
+      const antes = col.cards.length;
+      col.cards = col.cards.filter(c=>{
+        if(!c || c.isEvento || !(c.tags||[]).includes('tag-floreria')) return true;
+        if(c.ventaId){
+          const v = ventaPorId[c.ventaId];
+          return !!(v && v.estado === 'pendiente'); // se queda solo si sigue pendiente
+        }
+        // Legacy sin vínculo: match por producto contenido en el título + fecha
+        const tl = (c.title||'').toLowerCase();
+        const cand = ventasArr.filter(v=> v.prod && tl.includes(String(v.prod).toLowerCase().trim()) && (v.fecha||'')===(c.date||''));
+        if(cand.length){
+          const hayPend = cand.some(v=>v.estado==='pendiente');
+          const hayDone = cand.some(v=>v.estado==='entregado' || v.estado==='confirmado');
+          if(!hayPend && hayDone) return false;
+        }
+        return true;
+      });
+      _podadas += antes - col.cards.length;
+    });
+    if(_podadas > 0) fbSave('kanbanData', kanbanData);
+  }
   // Re-add from eventosData
   eventosData.forEach((ev,idx)=>{
     const colIdx = ESTADO_COL[ev.estado] ?? 0;
@@ -6027,7 +6058,8 @@ function renderVentas(){
     } else sumEl.innerHTML = pillPend;
   }
 
-  tbody.innerHTML = lista.map(({v,i})=>`<tr${v.fromKanban?' style="background:rgba(122,154,184,.07)"':''}>
+  tbody.innerHTML = lista.map(({v,i})=>`<tr style="${(v.estado==='confirmado'||v.estado==='entregado')?'background:rgba(74,143,74,.13)':(v.fromKanban?'background:rgba(122,154,184,.07)':'')}">
+
     <td><input class="form-input" value="${esc(v.prod)}" onchange="updV(${i},'prod',this.value)" style="min-width:140px"></td>
     <td><input class="form-input" value="${esc(v.desc)}" onchange="updV(${i},'desc',this.value)" style="min-width:150px" placeholder="Flores, colores..."></td>
     <td><input class="form-input" type="date" value="${esc(v.fecha)}" onchange="updV(${i},'fecha',this.value)" style="min-width:130px"></td>
@@ -6168,7 +6200,17 @@ function ventasCierreCopiar(){
   );
 }
 
-function updV(i,field,val){ ventasData[i][field]=val; fbSave('ventasData',ventasData); sincronizarVentaCaja(i); }
+function updV(i,field,val){
+  ventasData[i][field]=val;
+  fbSave('ventasData',ventasData);
+  sincronizarVentaCaja(i);
+  // Al cambiar el estado, refrescar la planilla (color de fila) y el kanban
+  // (quitar la tarjeta si el pedido dejó de estar pendiente).
+  if(field==='estado'){
+    if(document.getElementById('page-ventas-externas')?.classList.contains('active')) renderVentas();
+    if(document.getElementById('page-eventos-maison')?.classList.contains('active')) renderKanban();
+  }
+}
 
 // Si una venta en EFECTIVO queda ENTREGADA, sumarla automáticamente a Control de Caja (una sola vez).
 function sincronizarVentaCaja(i){
@@ -6318,12 +6360,14 @@ function addSale(){
     showToast('✅ Venta actualizada');
   } else {
     // Nueva venta
+    venta.id = venta.id || genEventoId();
     ventasData.push(venta);
     fbSave('ventasData', ventasData);
     sincronizarVentaCaja(ventasData.length - 1);
     notificarVentaNueva(venta.prod, venta.cliente, asignado);
 
-    // Si está pendiente, crear tarea en kanban
+    // Si está pendiente, crear tarea en kanban (vinculada por ventaId para poder
+    // quitarla del tablero cuando el pedido pase a confirmado/entregado).
     if(estado === 'pendiente'){
       ensureKanbanCols();
       const detalles = [
@@ -6338,6 +6382,7 @@ function addSale(){
         tags: ['tag-floreria'],
         date: venta.fecha,
         asignado: asignado,
+        ventaId: venta.id,
       });
       fbSave('kanbanData', kanbanData);
       showToast('📋 Venta registrada + tarea creada en Kanban');
@@ -10921,6 +10966,7 @@ function enviarPedidoHab(){
 
   // ── AUTO: Crear tarea en Kanban para que florería lo prepare ──
   ensureKanbanCols();
+  const vidHab = genEventoId();
   const cardTitle = `${arregloEmoji(tipoFinal)} ${tipoFinal}${varianteLabel?' · '+varianteLabel:''} × ${pedido.qty}`;
   const cardDesc = `Hab. ${pedido.habitacion} · ${cliente}${pedido.tonalidad?' · '+pedido.tonalidad:''}${pedido.cuando?' · Para: '+pedido.cuando.replace('T',' '):''}${pedido.obs?' · '+pedido.obs:''}`;
   kanbanData[0].cards.push({
@@ -10928,7 +10974,8 @@ function enviarPedidoHab(){
     desc: cardDesc,
     tags: ['tag-floreria'],
     date: pedido.cuando ? pedido.cuando.split('T')[0] : TODAY_ISO,
-    pedidoHabIdx: pedidosHabData.length - 1
+    pedidoHabIdx: pedidosHabData.length - 1,
+    ventaId: vidHab,
   });
   fbSave('kanbanData', kanbanData);
 
@@ -10943,6 +10990,7 @@ function enviarPedidoHab(){
     formaPago: pedido.cobro || '',
     estado: 'pendiente',
     dir: 'Hab. ' + pedido.habitacion,
+    id: vidHab,
     fromPedidoHab: true
   });
   fbSave('ventasData', ventasData);
