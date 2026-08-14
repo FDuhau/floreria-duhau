@@ -418,7 +418,7 @@
   <div id="page-recepcion-pedidos" class="content">
     <div class="page-header">
       <div class="page-title">Recepción de Pedidos</div>
-      <div class="page-subtitle">Controlá cada ítem recibido · el stock se actualiza al confirmar todo</div>
+      <div class="page-subtitle">1) Controlá cada ítem · 2) revisá el listado · 3) recién ahí subís al stock</div>
     </div>
     <div id="recep-alert-area"></div>
     <!-- Filtro: buscar insumo y agrupar el mismo producto entre arreglos/secciones -->
@@ -433,7 +433,7 @@
     <!-- Barra de acciones rápidas -->
     <div id="recep-action-bar" style="display:none;background:#FDFCFB;border:1px solid #E4E2DC;border-radius:4px;padding:14px 20px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
       <div style="display:flex;align-items:center;gap:10px">
-        <button class="btn-secondary" onclick="recepCheckAll()" style="font-size:12px">☑ Marcar todo como recibido</button>
+        <button class="btn-secondary" onclick="recepCheckAll()" style="font-size:12px">☑ Marcar todo</button>
         <button class="btn-secondary" onclick="recepUncheckAll()" style="font-size:12px">☐ Desmarcar todo</button>
       </div>
       <div id="recep-global-progress" style="font-size:12px;color:var(--mid-gray)"></div>
@@ -443,9 +443,11 @@
     <div id="recep-confirm-all-wrap" style="display:none;background:var(--cream);border:1px solid #E4E2DC;border-radius:4px;padding:20px;margin-top:8px;text-align:center">
       <div style="font-size:13px;color:var(--mid-gray);margin-bottom:14px" id="recep-confirm-summary"></div>
       <button class="btn-recep-confirm" id="recep-btn-all" onclick="recepConfirmarTodo()" style="font-size:14px;padding:12px 40px">
-        ✓ Confirmar recepción completa y actualizar stock
+        🔎 Controlar todo · pasa a revisión
       </button>
     </div>
+    <!-- Fase 2: revisión antes de subir al stock -->
+    <div id="recep-revision" style="display:none"></div>
   </div>
 
   <!-- ══════ COMPRAS LANDING ══════ -->
