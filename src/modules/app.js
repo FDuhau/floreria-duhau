@@ -7034,9 +7034,14 @@ function toggleRecepAgrupado(){
 }
 
 function renderRecepcionPedidos(){
+  // Fase 1 (por controlar): ni recibidos ni ya controlados.
   const allPending = comprasFlore
     .map((c,i) => ({...c, _idx: i}))
-    .filter(c => c.estado !== 'recibido');
+    .filter(c => c.estado !== 'recibido' && c.estado !== 'controlado');
+  // Fase 2 (revisión): controlados, todavía SIN subir al stock.
+  const controlados = comprasFlore
+    .map((c,i) => ({...c, _idx: i}))
+    .filter(c => c.estado === 'controlado');
 
   const listEl  = document.getElementById('recep-list');
   const emptyEl = document.getElementById('recep-empty');
@@ -7046,12 +7051,19 @@ function renderRecepcionPedidos(){
 
   if(!listEl) return;
 
+  // La lista de revisión se muestra siempre que haya controlados (aunque no
+  // queden pedidos por controlar).
+  _renderRevisionRecep(controlados);
+
   if(allPending.length === 0){
     listEl.innerHTML = '';
-    emptyEl.style.display = '';
+    emptyEl.style.display = controlados.length ? 'none' : '';
     alertEl.innerHTML = '';
     if(filterBar) filterBar.style.display = 'none';
     if(groupedEl){ groupedEl.style.display = 'none'; groupedEl.innerHTML=''; }
+    // Ocultar la barra de acciones y el botón de "Controlar todo" de la fase 1.
+    const ab = document.getElementById('recep-action-bar'); if(ab) ab.style.display = 'none';
+    const cw = document.getElementById('recep-confirm-all-wrap'); if(cw) cw.style.display = 'none';
     return;
   }
   emptyEl.style.display = 'none';
@@ -7182,7 +7194,7 @@ function renderRecepcionPedidos(){
             : '<span style="color:var(--mid-gray)">Pendiente — tildá para registrar</span>'}
         </div>
         ${st.checked && totalVaras > 0
-          ? `<button onclick="recepConfirmar(${globalIdx})" style="background:var(--green-ok);color:white;border:none;border-radius:6px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap">✓ Al stock · ${totalVaras} varas</button>`
+          ? `<button onclick="recepConfirmar(${globalIdx})" style="background:#B8853A;color:white;border:none;border-radius:6px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap">🔎 Controlar · ${totalVaras} varas</button>`
           : ''}
       </div>
       <div style="padding:8px 14px;border-top:1px solid var(--light-gray);display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:${order.recepAlerta?'rgba(200,60,60,.06)':'transparent'}">
@@ -7203,7 +7215,7 @@ function recepUpdateGlobal(pending){
   if(!pending){
     pending = comprasFlore
       .map((c,i) => ({...c, _idx: i}))
-      .filter(c => c.estado !== 'recibido');
+      .filter(c => c.estado !== 'recibido' && c.estado !== 'controlado');
   }
   const total   = pending.length;
   const checked = pending.filter(o => recepState[o._idx]?.checked).length;
@@ -7222,7 +7234,7 @@ function recepUpdateGlobal(pending){
         return `<strong>${tv}</strong> varas de ${esc(o.prod)}`;
       })
       .join(' · ');
-    summEl.innerHTML = `Vas a confirmar: ${items}`;
+    summEl.innerHTML = `Vas a controlar: ${items}`;
   }
   if(btnEl) btnEl.disabled = checked === 0;
 }
@@ -7230,7 +7242,7 @@ function recepUpdateGlobal(pending){
 function recepCheckAll(){
   const pending = comprasFlore
     .map((c,i) => ({...c, _idx: i}))
-    .filter(c => c.estado !== 'recibido');
+    .filter(c => c.estado !== 'recibido' && c.estado !== 'controlado');
   pending.forEach(o => {
     if(!recepState[o._idx]) recepState[o._idx] = {};
     recepState[o._idx].checked = true;
@@ -7245,56 +7257,117 @@ function recepUncheckAll(){
   renderRecepcionPedidos();
 }
 
+// Fase 1: marca los ítems tildados como CONTROLADOS (no van al stock todavía).
+// Pasan a la lista de Revisión, donde se hace el segundo check y recién ahí se
+// suben al stock.
 async function recepConfirmarTodo(){
   const pending = comprasFlore
     .map((c,i) => ({...c, _idx: i}))
-    .filter(c => c.estado !== 'recibido');
+    .filter(c => c.estado !== 'recibido' && c.estado !== 'controlado');
   const toConfirm = pending.filter(o => recepState[o._idx]?.checked);
   if(toConfirm.length === 0){ showToast('Marcá al menos un ítem.','error'); return; }
   const parciales = toConfirm.filter(o => parseFloat(recepState[o._idx].paqRecibidos) < parseFloat(o.qty));
-  let msg = `¿Confirmar recepción de ${toConfirm.length} ítem${toConfirm.length>1?'s':''}?`;
-  if(parciales.length > 0) msg += `\n\n⚠️ ${parciales.length} ítem${parciales.length>1?'s':''}con faltantes en paquetes — reclamar al proveedor.`;
-  const totalVarasGlobal = toConfirm.reduce((s,o) => {
-    const st = recepState[o._idx];
-    return s + (parseFloat(st.paqRecibidos)||0) * (parseFloat(st.varasPorPaq)||1);
-  }, 0);
-  msg += `\n\n📊 Total a ingresar al stock: ${totalVarasGlobal} varas.`;
-  msg += '\n\nEl stock se actualizará y los ítems desaparecerán de esta lista.';
+  let msg = `¿Marcar como controlados ${toConfirm.length} ítem${toConfirm.length>1?'s':''}?`;
+  if(parciales.length > 0) msg += `\n\n⚠️ ${parciales.length} con faltantes en paquetes — reclamar al proveedor.`;
+  msg += '\n\nPasan a la lista de REVISIÓN. El stock se actualiza recién cuando confirmes la revisión.';
   if(!await confirmModal(msg)) return;
   toConfirm.forEach(o => {
     const st = recepState[o._idx];
     const paqRec = parseFloat(st.paqRecibidos) || 0;
     const varasPaq = parseFloat(st.varasPorPaq) || 1;
-    const totalVaras = paqRec * varasPaq;
-    if(totalVaras > 0){
-      const prodLower = o.prod.toLowerCase();
-      let matched = false;
-      stockData.forEach(s => {
-        if(s.prod.toLowerCase().includes(prodLower) || prodLower.includes(s.prod.toLowerCase())){
-          s.actual = +Math.max(0, s.actual + totalVaras).toFixed(1);
-          matched = true;
-        }
-      });
-      if(!matched) stockData.push({ prod: o.prod, area: o.sector||'Sin área', min:1, max:Math.max(totalVaras*2,4), actual:totalVaras });
-    }
-    comprasFlore[o._idx].estado = 'recibido';
+    comprasFlore[o._idx].estado = 'controlado';
     comprasFlore[o._idx].paqRecibidos = paqRec;
     comprasFlore[o._idx].varasPorPaq = varasPaq;
-    comprasFlore[o._idx].totalVaras = totalVaras;
-    // AUTO-PRECIO: costo por vara → cotizador
-    const costoTotal = parseMoney(o.costo);
-    if(costoTotal > 0 && varasPaq > 0){
-      cotizadorPrecios[o.prod] = Math.round(costoTotal / varasPaq);
-    }
+    comprasFlore[o._idx].totalVaras = paqRec * varasPaq;
     delete recepState[o._idx];
   });
+  window._comprasFloreLastSave = Date.now(); fbSave('comprasFlore', comprasFlore);
+  showToast(`🔎 ${toConfirm.length} ítem${toConfirm.length>1?'s controlados':' controlado'} — revisá el listado y subilo al stock`);
+  renderRecepcionPedidos();
+}
+
+// Sube UNA compra controlada al stock: suma varas, actualiza el costo/vara del
+// cotizador y la marca como recibida. Devuelve las varas ingresadas.
+function _subirCompraAlStock(idx){
+  const o = comprasFlore[idx];
+  if(!o) return 0;
+  const paqRec = parseFloat(o.paqRecibidos) || 0;
+  const varasPaq = parseFloat(o.varasPorPaq) || 1;
+  const totalVaras = paqRec * varasPaq;
+  if(totalVaras > 0){
+    const prodLower = (o.prod||'').toLowerCase();
+    let matched = false;
+    stockData.forEach(s => {
+      if(s.prod.toLowerCase().includes(prodLower) || prodLower.includes(s.prod.toLowerCase())){
+        s.actual = +Math.max(0, s.actual + totalVaras).toFixed(1);
+        matched = true;
+      }
+    });
+    if(!matched) stockData.push({ prod:o.prod, area:o.sector||'Sin área', min:1, max:Math.max(totalVaras*2,4), actual:totalVaras });
+  }
+  o.estado = 'recibido';
+  o.totalVaras = totalVaras;
+  const costoTotal = parseMoney(o.costo);
+  if(costoTotal > 0 && varasPaq > 0) cotizadorPrecios[o.prod] = Math.round(costoTotal / varasPaq);
+  return totalVaras;
+}
+
+// Fase 2: sube TODO lo controlado al stock (el segundo check ya se hizo).
+async function recepSubirStockTodo(){
+  const controlados = comprasFlore.map((c,i)=>({...c,_idx:i})).filter(c=>c.estado==='controlado');
+  if(!controlados.length){ showToast('No hay ítems controlados para subir.'); return; }
+  const totalVaras = controlados.reduce((s,o)=>s+(parseFloat(o.totalVaras)||0),0);
+  if(!await confirmModal(`¿Subir al stock ${controlados.length} ítem${controlados.length>1?'s':''}?\n\n📊 Total: ${totalVaras} varas.\nSe actualiza el stock y se calculan los costos por vara.`)) return;
+  controlados.forEach(o=>_subirCompraAlStock(o._idx));
   fbSave('stockData', stockData);
   window._comprasFloreLastSave = Date.now(); fbSave('comprasFlore', comprasFlore);
   fbSave('cotizadorPrecios', cotizadorPrecios);
-  showToast(`✅ ${toConfirm.length} ítem${toConfirm.length>1?'s ingresados':' ingresado'} al stock — precios del cotizador actualizados`);
+  showToast(`✅ ${controlados.length} ítem${controlados.length>1?'s ingresados':' ingresado'} al stock — precios actualizados`);
   renderRecepcionPedidos();
   if(document.getElementById('page-stock')?.classList.contains('active')) renderStock();
   if(document.getElementById('page-compras-floreria')?.classList.contains('active')) renderCompras('floreria');
+}
+
+// Devuelve un ítem controlado a la lista de control (para corregir).
+function recepVolverAControl(globalIdx){
+  const o = comprasFlore[globalIdx];
+  if(!o) return;
+  o.estado = 'pedido';
+  window._comprasFloreLastSave = Date.now(); fbSave('comprasFlore', comprasFlore);
+  showToast(`↩️ "${o.prod}" volvió a control`);
+  renderRecepcionPedidos();
+}
+
+// Lista de revisión (fase 2): ítems controlados, con el segundo check antes de
+// subir al stock. Se dibuja en #recep-revision.
+function _renderRevisionRecep(controlados){
+  const el = document.getElementById('recep-revision');
+  if(!el) return;
+  if(!controlados || !controlados.length){ el.style.display='none'; el.innerHTML=''; return; }
+  el.style.display = '';
+  const totalVaras = controlados.reduce((s,o)=>s+(parseFloat(o.totalVaras)||0),0);
+  el.innerHTML = `
+    <div style="background:#FBF7EE;border:1px solid #E7D9B8;border-radius:10px;padding:16px 18px;margin-top:22px">
+      <div style="font-weight:700;color:#8A6A1A;margin-bottom:4px">🔎 Revisión — ${controlados.length} ítem${controlados.length!==1?'s':''} controlado${controlados.length!==1?'s':''}, todavía SIN subir al stock</div>
+      <div style="font-size:12px;color:var(--mid-gray);margin-bottom:12px">Segundo check: revisá el listado completo (que no falte nada ni haya un error) y recién ahí subilo al stock.</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${controlados.map(o=>{
+          const idx = o._idx;
+          return `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;background:${o.recepAlerta?'rgba(200,60,60,.08)':'var(--warm-white)'};border:1px solid var(--light-gray);border-radius:8px;padding:8px 12px">
+            <div style="flex:1;min-width:160px">
+              <div style="font-weight:600">${esc(o.prod)}${o.recepAlerta?' <span style="color:var(--red-alert);font-size:11px">⚠️ mal estado</span>':''}</div>
+              <div style="font-size:11px;color:var(--mid-gray)">${o.paqRecibidos||0} paq × ${o.varasPorPaq||1} = <strong>${o.totalVaras||0} varas</strong>${o.prov?' · '+esc(o.prov):''}${o.sector?' · '+esc(o.sector):''}</div>
+              ${_recepFlagBadge(o, idx)}
+            </div>
+            <button class="btn-secondary" style="font-size:11px;padding:5px 10px;white-space:nowrap" onclick="recepVolverAControl(${idx})" title="Volver a control para corregir">↩️ Corregir</button>
+          </div>`;
+        }).join('')}
+      </div>
+      <div style="text-align:center;margin-top:16px">
+        <div style="font-size:12px;color:var(--mid-gray);margin-bottom:10px">Total a ingresar: <strong>${totalVaras} varas</strong></div>
+        <button class="btn-recep-confirm" onclick="recepSubirStockTodo()" style="font-size:14px;padding:12px 34px">✅ Confirmar y subir todo al stock</button>
+      </div>
+    </div>`;
 }
 
 
@@ -7384,6 +7457,7 @@ function _recepFlagBadge(r, idx){
   return `<div style="margin-top:3px;font-size:11px;font-weight:600;color:${col}">${lbl}${txt}${foto}</div>`;
 }
 
+// Fase 1: controlar un ítem (NO va al stock todavía; pasa a Revisión).
 function recepConfirmar(globalIdx){
   const order = comprasFlore[globalIdx];
   const st    = recepState[globalIdx];
@@ -7394,48 +7468,16 @@ function recepConfirmar(globalIdx){
   const totalVaras = paqRec * varasPaq;
   if(totalVaras <= 0){ showToast('⚠️ Ingresá paquetes y varas por paquete'); return; }
 
-  // Update stock inmediato
-  const prodLower = order.prod.toLowerCase();
-  let matched = false;
-  stockData.forEach(s => {
-    if(s.prod.toLowerCase().includes(prodLower) || prodLower.includes(s.prod.toLowerCase())){
-      s.actual = +Math.max(0, s.actual + totalVaras).toFixed(1);
-      matched = true;
-    }
-  });
-  if(!matched){
-    stockData.push({
-      prod: order.prod,
-      area: order.sector || 'Sin área',
-      min: 1,
-      max: Math.max(totalVaras * 2, 4),
-      actual: totalVaras
-    });
-  }
-  fbSave('stockData', stockData);
-
-  // Update order estado
-  comprasFlore[globalIdx].estado = 'recibido';
-  comprasFlore[globalIdx].paqRecibidos = paqRec;
-  comprasFlore[globalIdx].varasPorPaq = varasPaq;
-  comprasFlore[globalIdx].totalVaras = totalVaras;
+  order.estado = 'controlado';
+  order.paqRecibidos = paqRec;
+  order.varasPorPaq = varasPaq;
+  order.totalVaras = totalVaras;
   window._comprasFloreLastSave = Date.now(); fbSave('comprasFlore', comprasFlore);
 
-  // AUTO-PRECIO: calcular costo por vara y actualizar cotizador
-  const costoTotal = parseMoney(order.costo);
-  if(costoTotal > 0 && varasPaq > 0){
-    const costoVara = Math.round(costoTotal / varasPaq);
-    cotizadorPrecios[order.prod] = costoVara;
-    fbSave('cotizadorPrecios', cotizadorPrecios);
-  }
-
-  // Clear state
   delete recepState[globalIdx];
 
-  showToast(`✅ ${totalVaras} varas de "${order.prod}" ingresadas al stock (${paqRec} paq × ${varasPaq} varas)`);
+  showToast(`🔎 "${order.prod}" controlado — revisalo abajo antes de subir al stock`);
   renderRecepcionPedidos();
-  if(document.getElementById('page-stock')?.classList.contains('active')) renderStock();
-  if(document.getElementById('page-compras-floreria')?.classList.contains('active')) renderCompras('floreria');
 }
 
 // ════════════════════════════════════════
@@ -17716,6 +17758,7 @@ Object.assign(window, {
   ramoOnProdChange, recalcTotalEvento, recepCheckAll, recepConfirmar, recepConfirmarTodo,
   recepToggle, recepUncheckAll, recepUpdPaq, recepUpdVaras, recepUpdateGlobal, recetaIngRowHTML,
   recepUpdObs, recepToggleMal, recepFotoInput, recepQuitarFoto, verFotoRecep,
+  recepSubirStockTodo, recepVolverAControl,
   registrarHora, registrarHoraEvento, registrarHoraVenta, registrarVentaDirecta, removeKanbanCard,
   renderCaja, renderCarrito, renderCarritoOps, renderChecklistTable,
   renderComposicionesCot, renderCompraAlert, renderCompraSummary, renderCompras, renderCotEventos,
