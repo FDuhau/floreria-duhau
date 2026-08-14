@@ -1281,8 +1281,12 @@ function initChecklist(){
       📅 <strong style="color:var(--charcoal)">${CURRENT_WEEK_KEY.replace('-W',' · Semana ')}</strong>
       &nbsp;·&nbsp; ${totalDone} tarea${totalDone!==1?'s':''} completada${totalDone!==1?'s':''} esta semana
     </div>
-    <button class="btn-secondary" style="font-size:11px;padding:5px 12px;color:var(--red-alert);border-color:var(--red-alert)"
-      onclick="resetWeekState()">🗑 Limpiar semana</button>`;
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn-secondary" style="font-size:11px;padding:5px 12px;color:var(--red-alert);border-color:var(--red-alert)"
+        onclick="resetDayState()">🗑 Limpiar día</button>
+      <button class="btn-secondary" style="font-size:11px;padding:5px 12px;color:var(--red-alert);border-color:var(--red-alert)"
+        onclick="resetWeekState()">🗑 Limpiar semana</button>
+    </div>`;
 
   const tabs = document.getElementById('day-tabs-container');
   tabs.innerHTML = '';
@@ -1304,6 +1308,20 @@ function initChecklist(){
   renderFlorTurnoCard();
   renderLlamadosChecklist();
   const _htc = document.getElementById('home-tasks-count'); if(_htc) _htc.textContent = CL_TASKS.length;
+}
+
+async function resetDayState(){
+  if(userRole !== 'gerencia'){ showToast('⛔ Solo gerencia puede limpiar el día'); return; }
+  if(!await confirmModal(`¿Limpiar todas las tareas del ${currentDay}? El historial y los otros días se conservan.`)) return;
+  // Reiniciar SOLO el día activo — se re-siembra desde la plantilla fija (igual que un día nuevo)
+  delete clStateByDay[currentDay];
+  clState = getOrCreateDayState(currentDay);
+  try { localStorage.setItem(CL_STORAGE_KEY, JSON.stringify(clStateByDay)); } catch(e){}
+  window._checklistLastSave = Date.now();
+  if(window.fbSetPath) window.fbSetPath('checklist/'+currentDay, clStateByDay[currentDay]);
+  else fbSave('checklist', clStateByDay);
+  initChecklist();
+  showToast(`✅ ${currentDay} reiniciado — tareas del día limpiadas`);
 }
 
 async function resetWeekState(){
@@ -17786,7 +17804,7 @@ Object.assign(window, {
   openListaCompraHotel, listaCompraHotelCopiar, openTiemposEstimados, openPromediosZona, copiarDetalleFichajes,
   rentAddArreglo, openArregloComposicion, compUpdRow, compAddRow, compRemoveRow, guardarArregloComposicion,
   renderStock, renderStockAdmin, renderVentaHoraCell, renderVentas, renderZonasPicker,
-  resetHora, resetWeekState, resetearPassword, resetearTodasPasswords, saleAutoFillPrice,
+  resetHora, resetDayState, resetWeekState, resetearPassword, resetearTodasPasswords, saleAutoFillPrice,
   saveEvent, saveInsumosCustom, saveKanbanTask, saveLpItem, saveRamo, saveReceta, saveUrgenciaConfig,
   saveWeekState, setCotTab, setHabReporteMes, setHopsFilter, setJardReporteMes, setJopsFilter,
   setPlantilla, setStock, setStockMax, setStockMin, vaciarStock, openAddStockModal, guardarStockManual, setUrgenciaPreset, showAlertaHorario,
