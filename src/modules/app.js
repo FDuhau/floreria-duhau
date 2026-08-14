@@ -4009,7 +4009,7 @@ function _histTablaFloreria(items){
           <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:10px"></th>
         </tr></thead>
         <tbody>${items.map(r => { const idx = comprasFlore.indexOf(r); const an = !!r.anulado; const rowStyle = an ? 'border-top:1px solid #F0EDE8;opacity:.5' : 'border-top:1px solid #F0EDE8'; const cvDiv = parseFloat(r.varasPorPaq)||parseFloat(r.totalVaras)||parseFloat(r.qty)||0; const cvVal = (parseMoney(r.costo)>0 && cvDiv>0) ? Math.round(parseMoney(r.costo)/cvDiv) : null; return `<tr style="${rowStyle};${_recepFlagStyle(r)}">
-          <td style="padding:6px 10px;font-weight:500;${an?'text-decoration:line-through':''}">${esc(r.prod)}${_recepFlagBadge(r, idx)}</td>
+          <td style="padding:6px 10px;font-weight:500;${an?'text-decoration:line-through':''}">${esc(r.prod)}${r.desc?`<div style="font-size:10px;color:var(--mid-gray);font-weight:400">${esc(r.desc)}</div>`:''}${_recepFlagBadge(r, idx)}</td>
           <td style="padding:6px 10px;color:var(--mid-gray)">${esc(r.prov||'—')}</td>
           <td style="padding:6px 10px;color:var(--mid-gray)">${esc(r.sector||'—')}${_histEventoSelector('floreria',idx,r)}</td>
           <td style="padding:6px 10px;text-align:center"><input class="form-input" type="number" value="${esc(r.paqRecibidos ?? r.qty ?? '')}" onchange="updHistCantCompra('floreria',${idx},'paqRecibidos',this.value)" style="width:55px;text-align:center" ${an?'disabled':''}></td>
