@@ -593,6 +593,12 @@
         if(document.getElementById('page-galeria')?.classList.contains('active') && !window.estaEditando('page-galeria')) window.renderGaleria();
       });
 
+      // Materia prima propia (agregada a mano en fichas/galería) — compartida entre dispositivos.
+      fbListen('insumosCustom', val => {
+        if(!val) return;
+        if(window._setInsumosCustom) window._setInsumosCustom(val);
+      });
+
       fbListen('arreglosHotelConfig', val => {
         if(!val) return;
         if(window._setArreglosHotelConfig) window._setArreglosHotelConfig(val);
