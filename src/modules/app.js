@@ -6572,14 +6572,15 @@ window._setGaleriaData = (arr) => { galeriaData.splice(0, galeriaData.length, ..
 let _galeriaLightboxIdx = 0;
 
 // Sección activa del glosario dentro de Galería de Trabajos.
-// 'hotel' = arreglos standard del hotel · 'eventos' = arreglos de eventos · 'todos' = ambos.
+// 'hotel' = arreglos standard del hotel · 'eventos' = arreglos de eventos ·
+// 'ramos' = ramos ya hechos · 'todos' = todas.
 // Las fichas viejas sin sección se consideran 'eventos' (histórico de trabajos).
 let galeriaSeccion = 'hotel';
-function galSecDe(g){ return g.seccion==='hotel' ? 'hotel' : 'eventos'; }
+function galSecDe(g){ return g.seccion==='hotel' ? 'hotel' : (g.seccion==='ramos' ? 'ramos' : 'eventos'); }
 
 function setGaleriaSeccion(s){
   galeriaSeccion = s;
-  ['hotel','eventos','todos'].forEach(k=>{
+  ['hotel','eventos','ramos','todos'].forEach(k=>{
     document.getElementById('gal-tab-'+k)?.classList.toggle('active', k===s);
   });
   renderGaleria();
@@ -6638,7 +6639,7 @@ function renderGaleria(){
   if(!el) return;
 
   if(!filtered.length){
-    const secLabel = galeriaSeccion==='hotel'?'standard del hotel':galeriaSeccion==='eventos'?'de eventos':'';
+    const secLabel = galeriaSeccion==='hotel'?'standard del hotel':galeriaSeccion==='eventos'?'de eventos':galeriaSeccion==='ramos'?'de ramos':'';
     el.innerHTML = `<div style="text-align:center;padding:60px 20px;color:var(--mid-gray)">
       <div style="font-size:48px;margin-bottom:16px">🌸</div>
       <div style="font-size:14px">No hay fichas de arreglos ${esc(secLabel)} todavía.<br>Agregá la primera con "＋ Nueva ficha".</div>
@@ -6653,8 +6654,11 @@ function renderGaleria(){
       const foto = (g.fotos&&g.fotos[0]) || g.foto || '';
       const flores = Array.isArray(g.flores) ? g.flores : (g.flores?g.flores.split(',').map(f=>f.trim()):[]);
       const chips = galMateriaPrima(g).length ? galMateriaPrima(g) : flores;
-      const secBadge = galSecDe(g)==='hotel'
+      const _sd = galSecDe(g);
+      const secBadge = _sd==='hotel'
         ? `<span style="background:#E8EEF4;color:#2C5A80;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600">🏨 Hotel</span>`
+        : _sd==='ramos'
+        ? `<span style="background:var(--sage-light);color:#3A5A3A;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600">💐 Ramo</span>`
         : `<span style="background:var(--blush-light);color:#7A3A2A;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600">🎉 Evento</span>`;
       return `<div style="break-inside:avoid;margin-bottom:16px;border-radius:var(--radius-md);overflow:hidden;background:var(--warm-white);border:1px solid var(--light-gray);box-shadow:var(--shadow-sm);cursor:pointer;transition:var(--transition)" onclick="openFichaGaleria(${realIdx})" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='var(--shadow-md)'" onmouseout="this.style.transform='';this.style.boxShadow='var(--shadow-sm)'">
         ${foto
@@ -6759,7 +6763,7 @@ function imprimirFicha(idx){
     ul{margin:0;padding-left:18px}
     @media print{button{display:none}}
   </style></head><body>
-    <h1>${esc(g.titulo||'Ficha de arreglo')} — ${galSecDe(g)==='hotel'?'Standard Hotel':'Eventos'}</h1>
+    <h1>${esc(g.titulo||'Ficha de arreglo')} — ${galSecDe(g)==='hotel'?'Standard Hotel':galSecDe(g)==='ramos'?'Ramos':'Eventos'}</h1>
     <div class="wrap">
       ${foto?`<div class="foto"><img src="${foto}"></div>`:''}
       <table>${fichaRows(g).map(([l,v])=>`<tr><td class="k">${l}</td><td>${v}</td></tr>`).join('')}</table>
@@ -6829,7 +6833,7 @@ function galSectorOnChange(){
 
 function openGaleriaModal(idx){
   const g = idx!=null ? galeriaData[idx] : {};
-  const sec = idx!=null ? galSecDe(g) : (galeriaSeccion==='eventos'?'eventos':'hotel');
+  const sec = idx!=null ? galSecDe(g) : (['eventos','ramos'].includes(galeriaSeccion) ? galeriaSeccion : 'hotel');
   let ov = document.getElementById('galeria-modal');
   if(!ov){ ov=document.createElement('div'); ov.id='galeria-modal'; ov.className='modal-overlay'; document.body.appendChild(ov); }
   const ings = (g.ings&&g.ings.length) ? g.ings : [{prod:'',qty:''}];
@@ -6844,6 +6848,7 @@ function openGaleriaModal(idx){
         <select class="form-input-modal" id="gal-seccion">
           <option value="hotel"${sec==='hotel'?' selected':''}>🏨 Standard Hotel</option>
           <option value="eventos"${sec==='eventos'?' selected':''}>🎉 Eventos</option>
+          <option value="ramos"${sec==='ramos'?' selected':''}>💐 Ramos</option>
         </select></div>
       <div class="form-group"><label class="form-label">Título del arreglo *</label>
         <input class="form-input-modal" id="gal-titulo" value="${esc(g.titulo||'')}" placeholder="ej. Lobby de Alvear — Follaje"></div>
@@ -13278,6 +13283,19 @@ let insumosBDBase = [
 // Insumos personalizados agregados por el usuario (se guardan en localStorage)
 let insumosCustom = JSON.parse(localStorage.getItem('fl_insumos_custom')||'[]');
 
+// Hidratar la materia prima propia desde Firebase (se comparte entre dispositivos).
+// Fusiona con lo local para no perder lo cargado sin conexión.
+window._setInsumosCustom = (arr) => {
+  const remotos = !arr ? [] : (Array.isArray(arr) ? arr : Object.values(arr||{}));
+  const merged = [...new Set([...insumosCustom, ...remotos.map(String).map(s=>s.trim()).filter(Boolean)])];
+  insumosCustom.splice(0, insumosCustom.length, ...merged);
+  localStorage.setItem('fl_insumos_custom', JSON.stringify(insumosCustom));
+  // Refrescar el datalist de la galería si el modal está abierto
+  const dl = document.getElementById('gal-insumos-list');
+  if(dl) dl.innerHTML = getAllInsumos().map(n=>`<option value="${esc(n)}">`).join('');
+  if(typeof populateFloreriaFormHelpers==='function') populateFloreriaFormHelpers();
+};
+
 function getAllInsumos(){
   const all = [...new Set([...insumosBDBase, ...insumosCustom])];
   return all.sort((a,b)=>a.localeCompare(b,'es'));
@@ -13285,6 +13303,8 @@ function getAllInsumos(){
 
 function saveInsumosCustom(){
   localStorage.setItem('fl_insumos_custom', JSON.stringify(insumosCustom));
+  // Compartir la materia prima propia con el resto de los dispositivos
+  if(typeof fbSave==='function') fbSave('insumosCustom', insumosCustom);
 }
 
 function addInsumoToBase(nombre){
