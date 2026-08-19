@@ -1460,11 +1460,18 @@
       <button class="btn-add" onclick="openCajaModal()">+ Nuevo Movimiento</button>
     </div>
     <div class="caja-summary" id="caja-summary"></div>
+    <div id="caja-mes-titulo" style="font-size:13px;font-weight:600;color:var(--charcoal);margin:6px 2px 10px"></div>
     <div class="table-wrapper">
       <table class="caja-table">
         <thead><tr><th>Fecha</th><th>Descripción</th><th>Ticket #</th><th>Tipo</th><th>Monto</th><th>Saldo</th><th></th></tr></thead>
         <tbody id="caja-body"></tbody>
       </table>
+    </div>
+
+    <!-- ── HISTORIAL DE MESES ANTERIORES ── -->
+    <div id="caja-historial-wrap" style="margin-top:20px;display:none">
+      <button class="btn-secondary" id="caja-historial-toggle" onclick="toggleCajaHistorial()" style="font-size:12px">📁 Ver historial de meses anteriores</button>
+      <div id="caja-historial" style="display:none;margin-top:14px"></div>
     </div>
 
     <!-- ── CIERRE DE CAJA ── -->
@@ -2733,10 +2740,17 @@
           <div><label class="form-label">Sucursal</label><input class="form-input-modal" id="leg-sucursal" placeholder="Sucursal"></div>
         </div>
         <div class="modal-row">
-          <div><label class="form-label">Horas por contrato (h/mes)</label><input class="form-input-modal" type="number" id="leg-horasContrato" placeholder="ej. 160"></div>
-          <div><label class="form-label">Vacaciones Anuales (días)</label><input class="form-input-modal" type="number" id="leg-vacacionesAnuales" value="14"></div>
+          <div>
+            <label class="form-label">Tipo de contratación</label>
+            <select class="form-input-modal" id="leg-tipo" onchange="legTipoOnChange()">
+              <option value="nomina">🗓️ En nómina (cobra mensual)</option>
+              <option value="monotributista">🧾 Monotributista (cobra quincenal)</option>
+            </select>
+          </div>
+          <div><label class="form-label" id="leg-horasContrato-label">Horas por contrato (h/mes)</label><input class="form-input-modal" type="number" id="leg-horasContrato" placeholder="ej. 160"></div>
         </div>
         <div class="modal-row">
+          <div><label class="form-label">Vacaciones Anuales (días)</label><input class="form-input-modal" type="number" id="leg-vacacionesAnuales" value="14"></div>
           <div><label class="form-label">Vacaciones Tomadas (días)</label><input class="form-input-modal" type="number" id="leg-vacacionesTomadas" value="0"></div>
         </div>
         <label class="form-label">Notas</label>

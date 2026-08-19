@@ -6423,47 +6423,114 @@ async function delVenta(i){ if(!await confirmModal('¿Eliminar esta venta?')) re
 let cajaData=[];
 window._setCajaData = (arr) => { cajaData.splice(0, cajaData.length, ...arr); };
 
+const CAJA_MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+function _cajaMesLabel(m){ return m==='sin-fecha' ? 'Sin fecha' : `${CAJA_MESES[+m.slice(5,7)-1]} ${m.slice(0,4)}`; }
+
+// Una fila editable de caja (se reusa en el mes actual y en el historial).
+function cajaRowHTML(r, i, running){
+  const sc = running>=0 ? 'saldo-pos' : 'saldo-neg';
+  const rowClass = r.tipo==='ingreso' ? 'ingreso-row' : 'egreso-row';
+  return `<tr class="${rowClass}">
+    <td><input class="form-input" type="date" value="${r.fecha||''}" onchange="updCaja(${i},'fecha',this.value)" style="min-width:120px;padding:5px 7px;font-size:12px"></td>
+    <td><input class="form-input" value="${esc(r.desc)}" onchange="updCaja(${i},'desc',this.value)" style="min-width:180px;padding:5px 7px;font-size:12px"></td>
+    <td><input class="form-input" value="${esc(r.ticket||'')}" onchange="updCaja(${i},'ticket',this.value)" placeholder="—" style="width:75px;padding:5px 7px;font-size:12px"></td>
+    <td>
+      <select class="form-select" onchange="updCajaTipo(${i},this.value)" style="font-size:11px;font-weight:600;padding:4px 6px;${r.tipo==='ingreso'?'background:#EBF5E8;color:var(--green-ok)':'background:#FBE8E8;color:var(--red-alert)'}">
+        <option value="ingreso" ${r.tipo==='ingreso'?'selected':''}>💚 Ingreso</option>
+        <option value="egreso"  ${r.tipo==='egreso' ?'selected':''}>🔴 Egreso</option>
+      </select>
+    </td>
+    <td><input class="form-input" type="number" value="${r.monto}" min="0" onchange="updCajaMonto(${i},+this.value)" style="width:110px;padding:5px 7px;font-size:13px;font-weight:600;color:${r.tipo==='ingreso'?'var(--green-ok)':'var(--red-alert)'}"></td>
+    <td><span class="${sc}">$${running.toLocaleString('es-AR')}</span></td>
+    <td><button class="btn-icon" style="color:var(--red-alert)" onclick="delCaja(${i})">✕</button></td>
+  </tr>`;
+}
+
 function renderCaja(){
   const cierreFechaEl = document.getElementById('cierre-fecha');
   if(cierreFechaEl && !cierreFechaEl.value) cierreFechaEl.value = TODAY_ISO;
   renderCierreCajaHistorial();
-  let totalIn=0,totalEg=0;
-  cajaData.forEach(r=>{ if(r.tipo==='ingreso')totalIn+=r.monto;else totalEg+=r.monto; });
-  const tbody=document.getElementById('caja-body');
-  tbody.innerHTML='';
-  let running=0;
-  // Ordenar por fecha ascendente (más antiguo arriba) para que el saldo
-  // acumulado sea correcto. Se conserva el índice real para editar/borrar,
-  // y el orden de carga como desempate entre movimientos de la misma fecha.
+
+  const curMonth = TODAY_ISO.slice(0,7);
+  const mesDe = r => (r.fecha||curMonth).slice(0,7); // sin fecha → se cuenta en el mes actual
+
+  // Ordenar por fecha ascendente para que el saldo acumulado sea correcto.
+  // Se conserva el índice real (para editar/borrar) y el orden de carga como desempate.
   const orden = cajaData.map((r,i)=>({r,i}))
     .sort((a,b)=> (a.r.fecha||'9999-12-31').localeCompare(b.r.fecha||'9999-12-31') || (a.i-b.i));
-  orden.forEach(({r,i})=>{
-    running+=(r.tipo==='ingreso'?r.monto:-r.monto);
-    const sc=running>=0?'saldo-pos':'saldo-neg';
-    const rowClass=r.tipo==='ingreso'?'ingreso-row':'egreso-row';
-    const tr=document.createElement('tr');
-    tr.className=rowClass;
-    tr.innerHTML=`
-      <td><input class="form-input" type="date" value="${r.fecha||''}" onchange="updCaja(${i},'fecha',this.value)" style="min-width:120px;padding:5px 7px;font-size:12px"></td>
-      <td><input class="form-input" value="${esc(r.desc)}" onchange="updCaja(${i},'desc',this.value)" style="min-width:180px;padding:5px 7px;font-size:12px"></td>
-      <td><input class="form-input" value="${esc(r.ticket||'')}" onchange="updCaja(${i},'ticket',this.value)" placeholder="—" style="width:75px;padding:5px 7px;font-size:12px"></td>
-      <td>
-        <select class="form-select" onchange="updCajaTipo(${i},this.value)" style="font-size:11px;font-weight:600;padding:4px 6px;${r.tipo==='ingreso'?'background:#EBF5E8;color:var(--green-ok)':'background:#FBE8E8;color:var(--red-alert)'}">
-          <option value="ingreso" ${r.tipo==='ingreso'?'selected':''}>💚 Ingreso</option>
-          <option value="egreso"  ${r.tipo==='egreso' ?'selected':''}>🔴 Egreso</option>
-        </select>
-      </td>
-      <td><input class="form-input" type="number" value="${r.monto}" min="0" onchange="updCajaMonto(${i},+this.value)" style="width:110px;padding:5px 7px;font-size:13px;font-weight:600;color:${r.tipo==='ingreso'?'var(--green-ok)':'var(--red-alert)'}"></td>
-      <td><span class="${sc}">$${running.toLocaleString('es-AR')}</span></td>
-      <td><button class="btn-icon" style="color:var(--red-alert)" onclick="delCaja(${i})">✕</button></td>`;
-    tbody.appendChild(tr);
-  });
-  const saldoFinal=totalIn-totalEg;
+
+  // Saldo acumulado global por movimiento (se usa igual en mes actual e historial)
+  let running=0; const runByIdx={};
+  orden.forEach(({r,i})=>{ running += (r.tipo==='ingreso'?r.monto:-r.monto); runByIdx[i]=running; });
+
+  const delMes  = orden.filter(({r})=> mesDe(r)===curMonth);
+  const older   = orden.filter(({r})=> mesDe(r)!==curMonth);
+
+  // ── Tabla del mes actual ──
+  const tbody=document.getElementById('caja-body');
+  let inMes=0, egMes=0;
+  tbody.innerHTML = delMes.length
+    ? delMes.map(({r,i})=>{ if(r.tipo==='ingreso')inMes+=r.monto; else egMes+=r.monto; return cajaRowHTML(r,i,runByIdx[i]); }).join('')
+    : `<tr><td colspan="7" style="padding:22px;text-align:center;color:var(--mid-gray)">Sin movimientos este mes todavía. Agregá el primero con "+ Nuevo Movimiento".</td></tr>`;
+
+  const tit = document.getElementById('caja-mes-titulo');
+  if(tit) tit.textContent = `📅 Movimientos de ${_cajaMesLabel(curMonth)}`;
+
+  const arrastre  = older.reduce((s,{r})=> s+(r.tipo==='ingreso'?r.monto:-r.monto), 0);
+  const saldoFinal = arrastre + inMes - egMes;
+
+  // ── Resumen (enfocado en el mes) ──
   const sumEl=document.getElementById('caja-summary');
   sumEl.innerHTML=`
-    <div class="card"><div class="card-label">💚 Total Ingresos</div><div class="card-value green" style="font-size:28px">$${totalIn.toLocaleString('es-AR')}</div></div>
-    <div class="card"><div class="card-label">🔴 Total Egresos</div><div class="card-value red" style="font-size:28px">$${totalEg.toLocaleString('es-AR')}</div></div>
-    <div class="card"><div class="card-label">💰 Saldo Actual</div><div class="card-value ${saldoFinal>=0?'green':'red'}" style="font-size:28px">$${saldoFinal.toLocaleString('es-AR')}</div></div>`;
+    <div class="card"><div class="card-label">↩️ Saldo anterior</div><div class="card-value ${arrastre>=0?'green':'red'}" style="font-size:22px">$${arrastre.toLocaleString('es-AR')}</div></div>
+    <div class="card"><div class="card-label">💚 Ingresos del mes</div><div class="card-value green" style="font-size:24px">$${inMes.toLocaleString('es-AR')}</div></div>
+    <div class="card"><div class="card-label">🔴 Egresos del mes</div><div class="card-value red" style="font-size:24px">$${egMes.toLocaleString('es-AR')}</div></div>
+    <div class="card"><div class="card-label">💰 Saldo Actual</div><div class="card-value ${saldoFinal>=0?'green':'red'}" style="font-size:24px">$${saldoFinal.toLocaleString('es-AR')}</div></div>`;
+
+  renderCajaHistorial(older, runByIdx);
+}
+
+let _cajaHistExpanded = false;
+let _cajaMesesAbiertos = {};
+function toggleCajaHistorial(){
+  _cajaHistExpanded = !_cajaHistExpanded;
+  const cont = document.getElementById('caja-historial');
+  const btn  = document.getElementById('caja-historial-toggle');
+  if(cont) cont.style.display = _cajaHistExpanded ? 'block' : 'none';
+  if(btn)  btn.textContent = _cajaHistExpanded ? '📁 Ocultar historial de meses anteriores' : '📁 Ver historial de meses anteriores';
+}
+function toggleCajaMes(mes){ _cajaMesesAbiertos[mes] = !_cajaMesesAbiertos[mes]; renderCaja(); }
+
+function renderCajaHistorial(older, runByIdx){
+  const wrap = document.getElementById('caja-historial-wrap');
+  const cont = document.getElementById('caja-historial');
+  if(!wrap || !cont) return;
+  if(!older.length){ wrap.style.display='none'; cont.innerHTML=''; return; }
+  wrap.style.display='block';
+  cont.style.display = _cajaHistExpanded ? 'block' : 'none';
+  const btn = document.getElementById('caja-historial-toggle');
+  if(btn) btn.textContent = _cajaHistExpanded ? '📁 Ocultar historial de meses anteriores' : '📁 Ver historial de meses anteriores';
+
+  // Agrupar por mes, más reciente primero
+  const porMes = {};
+  older.forEach(({r,i})=>{ const m=(r.fecha||'').slice(0,7)||'sin-fecha'; (porMes[m]=porMes[m]||[]).push({r,i}); });
+  const meses = Object.keys(porMes).sort((a,b)=>b.localeCompare(a));
+
+  cont.innerHTML = meses.map(m=>{
+    const rows = porMes[m];
+    let inM=0, egM=0;
+    rows.forEach(({r})=>{ if(r.tipo==='ingreso')inM+=r.monto; else egM+=r.monto; });
+    const neto = inM-egM;
+    const abierto = !!_cajaMesesAbiertos[m];
+    const bodyRows = rows.map(({r,i})=>cajaRowHTML(r,i,runByIdx[i])).join('');
+    return `<div style="border:1px solid var(--light-gray);border-radius:8px;margin-bottom:10px;overflow:hidden">
+      <div onclick="toggleCajaMes('${m}')" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;background:var(--warm-white)">
+        <span style="font-weight:600;font-size:13px">${abierto?'▼':'▶'} ${_cajaMesLabel(m)} · ${rows.length} mov.</span>
+        <span style="font-size:12px;color:var(--mid-gray)">💚 $${inM.toLocaleString('es-AR')} · 🔴 $${egM.toLocaleString('es-AR')} · neto <strong style="color:${neto>=0?'var(--green-ok)':'var(--red-alert)'}">$${neto.toLocaleString('es-AR')}</strong></span>
+      </div>
+      ${abierto?`<div class="table-wrapper"><table class="caja-table"><thead><tr><th>Fecha</th><th>Descripción</th><th>Ticket #</th><th>Tipo</th><th>Monto</th><th>Saldo</th><th></th></tr></thead><tbody>${bodyRows}</tbody></table></div>`:''}
+    </div>`;
+  }).join('');
 }
 function updCaja(i,field,val){ cajaData[i][field]=val; fbSave('cajaData',cajaData); renderCaja(); }
 function updCajaTipo(i,val){ cajaData[i].tipo=val; fbSave('cajaData',cajaData); renderCaja(); }
@@ -12304,14 +12371,30 @@ function _detalleFichajesPersona(nombre){
   const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
   const diasEnMes = new Date(horAnio, horMes+1, 0).getDate();
   let filas = '', txt = [], totHoras=0, totDias=0, totProg=0;
+  // Subtotales por quincena (1–15 y 16–fin) — pensado para la facturación
+  // quincenal de los monotributistas.
+  const q = {1:{dias:0,horas:0,prog:0}, 2:{dias:0,horas:0,prog:0}};
+  // Fila de subtotal de una quincena
+  const subtotalRow = (label, qq) => qq.dias ? `<tr style="background:var(--cream)">
+      <td style="padding:5px 12px;font-size:11px;font-weight:700;color:var(--charcoal)">${label} · ${qq.dias} día${qq.dias!==1?'s':''}</td>
+      <td></td><td></td>
+      <td style="padding:5px 12px;text-align:right;font-weight:700;font-size:12px">${r1(qq.horas)}h</td>
+      <td style="padding:5px 12px;text-align:right;color:var(--mid-gray);font-size:12px">${qq.prog?r1(qq.prog)+'h':'—'}</td>
+    </tr>` : '';
+  let q1cerrada = false;
   for(let d=1; d<=diasEnMes; d++){
+    // Al pasar del día 15 al 16, cerrar la 1ª quincena con su subtotal.
+    if(d===16 && !q1cerrada){ filas += subtotalRow('1ª quincena (1–15)', q[1]); q1cerrada = true; }
     const iso = `${horAnio}-${String(horMes+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const h = window.horariosData?.[nombre]?.[iso];
     const prog = (h && h.desde && h.hasta) ? calcHorasDia(h.desde, h.hasta) : 0;
     totProg += prog;
+    const qn = d<=15 ? 1 : 2;
+    q[qn].prog += prog;
     const real = jornadaRealDia(nombre, iso);
     if(!real) continue; // solo los días que efectivamente vino (fichó)
     totDias++; totHoras += real.horas;
+    q[qn].dias++; q[qn].horas += real.horas;
     const dow = DOW[new Date(iso+'T00:00:00').getDay()];
     filas += `<tr>
       <td style="padding:6px 12px;font-size:13px">${dow} ${dm(iso)}</td>
@@ -12322,7 +12405,10 @@ function _detalleFichajesPersona(nombre){
     </tr>`;
     txt.push(`${dow} ${dm(iso)}: ${real.inicio}-${real.fin} (${r1(real.horas)}h)`);
   }
-  window._detalleFichajesTexto = `🧾 ${nombre} — ${MESES[horMes]} ${horAnio}\n${txt.join('\n')||'Sin días trabajados'}\n———\nTotal: ${totDias} día${totDias!==1?'s':''} · ${r1(totHoras)}h reales · ${r1(totProg)}h programadas`;
+  if(!q1cerrada) filas += subtotalRow('1ª quincena (1–15)', q[1]);
+  filas += subtotalRow('2ª quincena (16–fin)', q[2]);
+  const txtQ = `1ª quincena (1–15): ${q[1].dias} día${q[1].dias!==1?'s':''} · ${r1(q[1].horas)}h\n2ª quincena (16–fin): ${q[2].dias} día${q[2].dias!==1?'s':''} · ${r1(q[2].horas)}h`;
+  window._detalleFichajesTexto = `🧾 ${nombre} — ${MESES[horMes]} ${horAnio}\n${txt.join('\n')||'Sin días trabajados'}\n———\n${txtQ}\nTotal: ${totDias} día${totDias!==1?'s':''} · ${r1(totHoras)}h reales · ${r1(totProg)}h programadas`;
   const cuerpo = filas || `<tr><td colspan="5" style="padding:16px;text-align:center;color:var(--mid-gray)">Sin días fichados este mes.</td></tr>`;
   return `<div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:10px;padding:14px 16px">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
@@ -12345,7 +12431,7 @@ function _detalleFichajesPersona(nombre){
         <td style="padding:8px 12px;text-align:right;color:var(--mid-gray)">${r1(totProg)}h prog</td>
       </tr></tfoot>
     </table></div>
-    <div style="font-size:11px;color:var(--mid-gray);margin-top:8px">Ingreso / Salida = fichaje real del día. «Prog.» = lo planificado en el calendario. Cambiá el mes con ◀ ▶ de arriba.</div>
+    <div style="font-size:11px;color:var(--mid-gray);margin-top:8px">Ingreso / Salida = fichaje real del día. «Prog.» = lo planificado en el calendario. Los subtotales por quincena (1–15 y 16–fin) sirven para cruzar la facturación quincenal de monotributistas. Cambiá el mes con ◀ ▶ de arriba.</div>
   </div>`;
 }
 function copiarDetalleFichajes(){
@@ -15745,11 +15831,16 @@ function renderLegajo(){
   }
   grid.innerHTML = legajoData.map((e,i)=>{
     const vac = (e.vacacionesAnuales||14) - (e.vacacionesTomadas||0);
+    const esMono = e.tipo==='monotributista';
+    const tipoBadge = esMono
+      ? `<span style="background:#F3ECDD;color:#8A6D1F;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600">🧾 Monotributista · quincenal</span>`
+      : `<span style="background:#E8EEF4;color:#2C5A80;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600">🗓️ Nómina · mensual</span>`;
     return `<div class="card">
       <div style="font-size:16px;font-weight:600;margin-bottom:4px">${esc(e.nombre)} ${esc(e.apellido)}</div>
-      <div style="font-size:12px;color:var(--mid-gray);margin-bottom:8px;text-transform:capitalize">${esc(e.cargo||'')} · ${esc(e.sucursal||'')}</div>
+      <div style="font-size:12px;color:var(--mid-gray);margin-bottom:6px;text-transform:capitalize">${esc(e.cargo||'')} · ${esc(e.sucursal||'')}</div>
+      <div style="margin-bottom:8px">${tipoBadge}</div>
       <div style="font-size:12px;margin-bottom:4px">📅 Ingreso: <strong>${e.fechaIngreso ? fmtDate(e.fechaIngreso) : '—'}</strong></div>
-      <div style="font-size:12px;margin-bottom:4px">⏱ Horas contrato: <strong>${(+e.horasContrato||0)}h/mes</strong></div>
+      <div style="font-size:12px;margin-bottom:4px">⏱ ${esMono?'Horas ref.':'Horas contrato'}: <strong>${(+e.horasContrato||0)}h/mes</strong></div>
       <div style="font-size:12px;margin-bottom:12px">🏖️ Vacaciones restantes: <strong>${vac}</strong> días</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         <button class="btn-secondary" style="font-size:11px" onclick="verDetalleLegajo(${i})">Ver detalle</button>
@@ -15770,11 +15861,21 @@ function openLegajoModal(idx){
   document.getElementById('leg-fechaIngreso').value = e.fechaIngreso||'';
   document.getElementById('leg-cargo').value = e.cargo||'florista';
   document.getElementById('leg-sucursal').value = e.sucursal||'';
+  document.getElementById('leg-tipo').value = e.tipo || 'nomina';
   document.getElementById('leg-horasContrato').value = e.horasContrato||'';
   document.getElementById('leg-vacacionesAnuales').value = e.vacacionesAnuales||14;
   document.getElementById('leg-vacacionesTomadas').value = e.vacacionesTomadas||0;
   document.getElementById('leg-notas').value = e.notas||'';
+  legTipoOnChange();
   document.getElementById('legajo-modal').classList.add('open');
+}
+
+// Ajusta el rótulo de "Horas por contrato" según el tipo: los monotributistas
+// no tienen horas de contrato fijas (se factura por horas reales trabajadas).
+function legTipoOnChange(){
+  const tipo = document.getElementById('leg-tipo')?.value || 'nomina';
+  const lbl = document.getElementById('leg-horasContrato-label');
+  if(lbl) lbl.textContent = tipo==='monotributista' ? 'Horas de referencia (h/mes, opcional)' : 'Horas por contrato (h/mes)';
 }
 
 function guardarLegajo(){
@@ -15789,6 +15890,7 @@ function guardarLegajo(){
     fechaIngreso: document.getElementById('leg-fechaIngreso').value,
     cargo: document.getElementById('leg-cargo').value,
     sucursal: document.getElementById('leg-sucursal').value.trim(),
+    tipo: document.getElementById('leg-tipo').value || 'nomina',
     horasContrato: +document.getElementById('leg-horasContrato').value||0,
     vacacionesAnuales: +document.getElementById('leg-vacacionesAnuales').value||14,
     vacacionesTomadas: +document.getElementById('leg-vacacionesTomadas').value||0,
@@ -15821,6 +15923,7 @@ function verDetalleLegajo(idx){
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
       <div><div class="card-label">DNI</div><div>${esc(e.dni||'—')}</div></div>
       <div><div class="card-label">Cargo</div><div style="text-transform:capitalize">${esc(e.cargo||'—')}</div></div>
+      <div><div class="card-label">Contratación</div><div>${e.tipo==='monotributista'?'🧾 Monotributista · cobra quincenal':'🗓️ En nómina · cobra mensual'}</div></div>
       <div><div class="card-label">Sucursal</div><div>${esc(e.sucursal||'—')}</div></div>
       <div><div class="card-label">Fecha Ingreso</div><div>${e.fechaIngreso ? fmtDate(e.fechaIngreso) : '—'}</div></div>
       <div><div class="card-label">Horas por contrato</div><div>${(+e.horasContrato||0)}h/mes</div></div>
@@ -17836,7 +17939,7 @@ Object.assign(window, {
   renderDashboardConsolidado, renderSucursalSelector, renderSucursalIndicador, getSucursalId, getSucursalNombre, filterBySucursal,
   renderClientes, abrirFichaCliente, openNuevoClienteModal, editarCliente, guardarCliente, eliminarCliente,
   generarPresupuestoPDF, checkOnboarding, nextOnboardingStep, finishOnboarding,
-  toggleProvManager, toggleSidebar, toggleTask, updC, updCL, updActividad, updTiempoRef, updCaja, updCajaMonto, updCajaTipo,
+  toggleProvManager, toggleSidebar, toggleTask, toggleCajaHistorial, toggleCajaMes, updC, updCL, updActividad, updTiempoRef, updCaja, updCajaMonto, updCajaTipo,
   openVistaSemanal, vsToggleActividad, vsSetResp, aplicarPlantillaSemana, descargarBackup, clFotoPreview, guardarFotoChecklist, verFotoChecklist,
   openGestionZonas, clAddZona, clRenameZona, clDeleteZona, clMoveZona, clRenameSeccion, clAddSeccion,
   activarNotificaciones, openGaleriaNuevos, renderGaleriaNuevos, moveKanbanCard, clSetFiltro,
@@ -17844,7 +17947,7 @@ Object.assign(window, {
   updPedidoHabEstado, updTipoEvento, updV, updateInsumoCount, updateInsumoRow,
   updateKpiCompras, urgenciaPanelHTML, vdAutoPrice, zonaHoraBtn, zonaResetHora, zonaSetHora,
   toggleStockSugerencias,
-  renderLegajo, openLegajoModal, guardarLegajo, eliminarLegajo, verDetalleLegajo,
+  renderLegajo, openLegajoModal, guardarLegajo, eliminarLegajo, verDetalleLegajo, legTipoOnChange,
   legSubirDoc, legVerDoc, legEliminarDoc,
   renderEvaluaciones, openEvaluacionModal, guardarEvaluacion, eliminarEvaluacion,
   renderLiquidacion, saveLiquidacionHoras, exportLiquidacion,
