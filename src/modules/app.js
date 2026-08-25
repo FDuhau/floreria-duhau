@@ -6098,6 +6098,18 @@ const _VENTAS_PREFS_KEY='fd-ventas-prefs';
 let _ventasNeedRestore=true;
 function _saveVentasPrefs(){ try{ localStorage.setItem(_VENTAS_PREFS_KEY, JSON.stringify(ventasFilter)); }catch(e){} }
 function _loadVentasPrefs(){ try{ return JSON.parse(localStorage.getItem(_VENTAS_PREFS_KEY)||'{}'); }catch(e){ return {}; } }
+// Paginación incremental ("Mostrar más") de la tabla de ventas
+const VENTAS_PAGE=50;
+let ventasShown=VENTAS_PAGE, _ventasLastKey='';
+function ventasShowMore(){ ventasShown+=VENTAS_PAGE; renderVentas(); }
+function _ventasMoreRow(total){
+  if(total<=ventasShown) return '';
+  const faltan=total-ventasShown;
+  const mostrar=Math.min(VENTAS_PAGE,faltan);
+  return `<tr><td colspan="30" style="text-align:center;padding:14px">
+    <button class="btn-secondary" onclick="ventasShowMore()">Mostrar ${mostrar} más · quedan ${faltan} de ${total}</button>
+  </td></tr>`;
+}
 
 function renderVentas(){
   // Banner ítems desde Kanban
@@ -6140,6 +6152,9 @@ function renderVentas(){
   const fMes = mesSel?.value||'', fPago = pagoSel?.value||'', fTipo = tipoSel?.value||'', fFact = factSel?.value||'';
   ventasFilter = {mes:fMes, pago:fPago, tipo:fTipo, fact:fFact};
   _saveVentasPrefs();
+  // Al cambiar el filtro, volver a la primera página (no en cada re-render por edición)
+  const _vkey = JSON.stringify(ventasFilter);
+  if(_vkey !== _ventasLastKey){ ventasShown = VENTAS_PAGE; _ventasLastKey = _vkey; }
 
   const tbody=document.getElementById('ventas-body');
   let lista = ventasData.map((v,i)=>({v,i})).filter(o=>!(o.v.esPedidoRamo && o.v.estado!=='entregado'));
@@ -6166,7 +6181,7 @@ function renderVentas(){
     } else sumEl.innerHTML = pillPend;
   }
 
-  tbody.innerHTML = lista.map(({v,i})=>`<tr style="${(v.estado==='confirmado'||v.estado==='entregado')?'background:rgba(74,143,74,.13)':(v.fromKanban?'background:rgba(122,154,184,.07)':'')}">
+  tbody.innerHTML = lista.slice(0, ventasShown).map(({v,i})=>`<tr style="${(v.estado==='confirmado'||v.estado==='entregado')?'background:rgba(74,143,74,.13)':(v.fromKanban?'background:rgba(122,154,184,.07)':'')}">
 
     <td><input class="form-input" value="${esc(v.prod)}" onchange="updV(${i},'prod',this.value)" style="min-width:140px"></td>
     <td><input class="form-input" value="${esc(v.desc)}" onchange="updV(${i},'desc',this.value)" style="min-width:150px" placeholder="Flores, colores..."></td>
@@ -6214,7 +6229,7 @@ function renderVentas(){
       <button class="btn-icon" onclick="openEditSaleModal(${i})" title="Editar" style="color:var(--sage-dark)"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/></svg></button>
       <button class="btn-icon" style="color:var(--red-alert)" onclick="delVenta(${i})">✕</button>
     </td>
-  </tr>`).join('');
+  </tr>`).join('') + _ventasMoreRow(lista.length);
 }
 
 function ventasClearFilters(){
@@ -18087,7 +18102,7 @@ Object.assign(window, {
   renderEventosSinFloreria, openEsfModal, guardarEsf, eliminarEsf, exportEsfReclamo,
   renderCierreMensual, generarCierreMensual, verCierreMensual, exportCierrePDF,
   renderDashboardGerencia,
-  exportVentasXLSX, exportComprasXLSX, exportStockXLSX, exportLegajoXLSX,
+  exportVentasXLSX, exportComprasXLSX, exportStockXLSX, exportLegajoXLSX, ventasShowMore,
   toggleCfSplit, cfSplitAddRow, cfSplitRemoveRow, cfSplitUpdRow,
   cfImportFile, cfImportCancel, cfImportParseSheet, cfImportConfirm,
   toggleAnularCompra, updHistCantCompra, updHistCostoCompra,
