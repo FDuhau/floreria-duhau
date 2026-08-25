@@ -10883,8 +10883,22 @@ function renderReportesVentas(){
   const pendientes=ventasMes.filter(v=>v.estado==='pendiente').length;
   const eventosHoy=(eventosData||[]).filter(e=>e.fecha?.startsWith(mesISO)).length;
 
+  // Comparativa mes vs mes anterior
+  const [_yy,_mm] = mesISO.split('-').map(Number);
+  const _prevD = new Date(_yy, _mm-2, 1);
+  const prevISO = `${_prevD.getFullYear()}-${String(_prevD.getMonth()+1).padStart(2,'0')}`;
+  const prevTotal = (ventasData||[]).filter(v=>(v.fecha||'').startsWith(prevISO)).reduce((s,v)=>s+parseMoney(v.precio),0);
+  let deltaSub;
+  if(prevTotal>0){
+    const pct = Math.round((totalMes-prevTotal)/prevTotal*100);
+    const up = pct>=0;
+    deltaSub = `<span style="color:${up?'var(--green-ok)':'var(--red-alert)'};font-weight:600">${up?'▲':'▼'} ${Math.abs(pct)}%</span> vs mes anterior ($${prevTotal.toLocaleString('es-AR')})`;
+  } else {
+    deltaSub = totalMes>0 ? 'sin datos del mes anterior' : fmtMonth(mesISO);
+  }
+
   document.getElementById('rep-vt-kpis').innerHTML =
-    _kpiCard('Total ventas', '$'+totalMes.toLocaleString('es-AR'), mesISO) +
+    _kpiCard('Total ventas', '$'+totalMes.toLocaleString('es-AR'), deltaSub) +
     _kpiCard('Confirmadas', confirmadas, 'ventas confirmadas/entregadas', 'var(--green-ok)') +
     _kpiCard('Pendientes', pendientes, 'ventas pendientes') +
     _kpiCard('Eventos en el mes', eventosHoy, 'eventos/bodas');
@@ -10892,7 +10906,7 @@ function renderReportesVentas(){
   // Trend 6 meses
   _destroyChart('rep-vt-trend');
   const ctx1=document.getElementById('rep-vt-chart-trend')?.getContext('2d');
-  if(ctx1){
+  if(ctx1 && typeof Chart!=='undefined'){
     _chartInstances['rep-vt-trend']=new Chart(ctx1,{
       type:'line',
       data:{ labels:mesesLabels, datasets:[{ label:'Ventas ($)', data:mesesTotales, fill:true, backgroundColor:'rgba(101,130,90,0.15)', borderColor:'#65825A', borderWidth:2, tension:0.4, pointRadius:4 }] },
@@ -10905,7 +10919,7 @@ function renderReportesVentas(){
   (eventosData||[]).filter(e=>e.fecha?.startsWith(mesISO)).forEach(e=>{ estadoCount[e.estado||'Sin estado']=(estadoCount[e.estado||'Sin estado']||0)+1; });
   _destroyChart('rep-vt-ev');
   const ctx2=document.getElementById('rep-vt-chart-ev')?.getContext('2d');
-  if(ctx2&&Object.keys(estadoCount).length){
+  if(ctx2&&Object.keys(estadoCount).length&&typeof Chart!=='undefined'){
     _chartInstances['rep-vt-ev']=new Chart(ctx2,{
       type:'doughnut',
       data:{ labels:Object.keys(estadoCount), datasets:[{ data:Object.values(estadoCount), backgroundColor:['#65825A','#B49664','#A0BFAB','#D4A820','#c0392b','#7f8c8d'] }] },
@@ -10916,10 +10930,28 @@ function renderReportesVentas(){
   // Tabla
   const porEmp={};
   ventasMes.forEach(v=>{ const n=v.asignado||'Sin asignar'; if(!porEmp[n])porEmp[n]={total:0,cnt:0}; porEmp[n].total+=parseMoney(v.precio); porEmp[n].cnt++; });
-  document.getElementById('rep-vt-tabla').innerHTML=`<div class="table-wrapper"><table class="stock-table">
-    <thead><tr><th>Empleado</th><th>Ventas</th><th>Total</th></tr></thead>
-    <tbody>${Object.entries(porEmp).sort((a,b)=>b[1].total-a[1].total).map(([n,d])=>`<tr><td>${esc(n)}</td><td>${d.cnt}</td><td>$${d.total.toLocaleString('es-AR')}</td></tr>`).join('')}</tbody>
-  </table></div>`;
+
+  // Top productos del mes (por facturación)
+  const porProd={};
+  ventasMes.forEach(v=>{ const n=(v.prod||'').trim()||'Sin especificar'; if(!porProd[n])porProd[n]={total:0,cnt:0}; porProd[n].total+=parseMoney(v.precio); porProd[n].cnt++; });
+  const topProd = Object.entries(porProd).sort((a,b)=>b[1].total-a[1].total).slice(0,8);
+  const maxProd = topProd.length ? topProd[0][1].total : 0;
+
+  document.getElementById('rep-vt-tabla').innerHTML=`
+    <div class="section-title" style="font-size:16px">Ventas por empleado</div>
+    <div class="table-wrapper"><table class="stock-table">
+      <thead><tr><th>Empleado</th><th>Ventas</th><th style="text-align:right">Total</th></tr></thead>
+      <tbody>${Object.entries(porEmp).sort((a,b)=>b[1].total-a[1].total).map(([n,d])=>`<tr><td>${esc(n)}</td><td>${d.cnt}</td><td style="text-align:right">$${d.total.toLocaleString('es-AR')}</td></tr>`).join('')||'<tr><td colspan="3" style="color:var(--mid-gray)">Sin ventas este mes</td></tr>'}</tbody>
+    </table></div>
+    <div class="section-title" style="font-size:16px;margin-top:22px">Top productos del mes</div>
+    <div class="table-wrapper"><table class="stock-table">
+      <thead><tr><th>Producto</th><th>Unidades</th><th style="text-align:right">Total</th><th style="width:120px">Participación</th></tr></thead>
+      <tbody>${topProd.map(([n,d])=>{
+        const pct = maxProd>0 ? Math.round(d.total/maxProd*100) : 0;
+        return `<tr><td style="font-weight:500">${esc(n)}</td><td>${d.cnt}</td><td style="text-align:right">$${d.total.toLocaleString('es-AR')}</td>
+          <td><div class="stock-bar" style="width:100px"><div class="stock-fill ok" style="width:${pct}%"></div></div></td></tr>`;
+      }).join('')||'<tr><td colspan="4" style="color:var(--mid-gray)">Sin ventas este mes</td></tr>'}</tbody>
+    </table></div>`;
 }
 
 function exportReporteVentas(){
