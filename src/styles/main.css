@@ -1462,3 +1462,9 @@
     .caja-table thead th, .compras-table thead th, .ctrl-table thead th,
     .history-table thead th { top: 46px; }
   }
+
+  /* ── Íconos de línea en tarjetas de panel (quick-links) ── */
+  .quick-link-icon { color: var(--accent); }
+  .quick-link-icon svg { width: 24px; height: 24px; stroke: currentColor; stroke-width: 1.6;
+    fill: none; stroke-linecap: round; stroke-linejoin: round; display: block; }
+  .quick-link-icon:empty { display: none; }
