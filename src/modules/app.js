@@ -2514,7 +2514,31 @@ function getStockComprometido(item){
   return +(total.toFixed(1));
 }
 
-let stockFilter='all', stockSearch='';
+// Preferencias de la tabla de Stock (filtro, búsqueda y orden) — persistidas
+const _STOCK_PREFS_KEY = 'fd-stock-prefs';
+let stockFilter='all', stockSearch='', stockSort='estado';
+(function(){
+  try {
+    const p = JSON.parse(localStorage.getItem(_STOCK_PREFS_KEY) || '{}');
+    if(p.filter) stockFilter = p.filter;
+    if(typeof p.search === 'string') stockSearch = p.search;
+    if(p.sort) stockSort = p.sort;
+  } catch(e){}
+})();
+function _saveStockPrefs(){
+  try { localStorage.setItem(_STOCK_PREFS_KEY, JSON.stringify({filter:stockFilter, search:stockSearch, sort:stockSort})); } catch(e){}
+}
+// Refleja el estado guardado en los controles de la UI (al entrar a Stock)
+function applyStockControls(){
+  const inp = document.getElementById('stock-search-input');
+  if(inp && document.activeElement !== inp && inp.value !== stockSearch) inp.value = stockSearch;
+  const sel = document.getElementById('stock-sort');
+  if(sel && sel.value !== stockSort) sel.value = stockSort;
+  document.querySelectorAll('[data-stock-filter]').forEach(b=>{
+    b.classList.toggle('active', b.getAttribute('data-stock-filter') === stockFilter);
+  });
+}
+function setStockSort(v){ stockSort = v; _saveStockPrefs(); renderStock(); }
 
 function renderStock(){
   const tbody = document.getElementById('stock-body');
@@ -2524,13 +2548,36 @@ function renderStock(){
   // Pre-computar stock comprometido para todos los ítems de una vez
   const comprometidos = stockData.map(item => getStockComprometido(item));
 
+  // Conteos sobre TODOS los ítems (independiente del filtro visible)
   stockData.forEach((item,i)=>{
+    const al = getAlerta(item, comprometidos[i]);
+    if(al==='ok') ok++; else if(al==='atencion') at++; else co++;
+  });
+
+  // Orden de índices: filtrado + búsqueda + orden elegido
+  const _sev = {comprar:0, atencion:1, ok:2};
+  const _al = i => getAlerta(stockData[i], comprometidos[i]);
+  const _cmp = {
+    estado:      (a,b)=> _sev[_al(a)]-_sev[_al(b)] || stockData[a].prod.localeCompare(stockData[b].prod,'es'),
+    nombre:      (a,b)=> stockData[a].prod.localeCompare(stockData[b].prod,'es'),
+    area:        (a,b)=> (stockData[a].area||'').localeCompare(stockData[b].area||'','es') || stockData[a].prod.localeCompare(stockData[b].prod,'es'),
+    'actual-asc':(a,b)=> stockData[a].actual-stockData[b].actual,
+    'actual-desc':(a,b)=> stockData[b].actual-stockData[a].actual,
+    nivel:       (a,b)=> (stockData[a].actual/(stockData[a].max||1))-(stockData[b].actual/(stockData[b].max||1)),
+  };
+  const order = stockData.map((_,i)=>i).filter(i=>{
+    const al = _al(i);
+    return (stockFilter==='all'||al===stockFilter) &&
+      (stockSearch===''||stockData[i].prod.toLowerCase().includes(stockSearch)||stockData[i].area.toLowerCase().includes(stockSearch));
+  });
+  order.sort(_cmp[stockSort] || _cmp.estado);
+
+  applyStockControls();
+
+  order.forEach(i=>{
+    const item = stockData[i];
     const comp = comprometidos[i];
     const al = getAlerta(item, comp);
-    if(al==='ok') ok++; else if(al==='atencion') at++; else co++;
-    const show = (stockFilter==='all'||al===stockFilter) &&
-      (stockSearch===''||item.prod.toLowerCase().includes(stockSearch)||item.area.toLowerCase().includes(stockSearch));
-    if(!show) return;
     const pct = Math.min(100,Math.round((item.actual/item.max)*100));
     const alMap = {ok:['OK','ok'],atencion:['ATENCIÓN','atencion'],comprar:['COMPRAR','comprar']};
     const [alLabel,alClass] = alMap[al];
@@ -2642,8 +2689,8 @@ async function delStock(i){
   renderStockAdmin();
   showToast(''+item.prod+' eliminado del stock');
 }
-function filterByStatus(s,btn){ document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); stockFilter=s; renderStock(); }
-function filterStock(v){ stockSearch=v.toLowerCase(); renderStock(); }
+function filterByStatus(s){ stockFilter=s; _saveStockPrefs(); renderStock(); }
+function filterStock(v){ stockSearch=v.toLowerCase(); _saveStockPrefs(); renderStock(); }
 
 // Alta manual de un artículo en el stock de florería (compras / gerencia), para
 // cargar algo que quedó por fuera del flujo automático de recepción de compras.
@@ -17910,7 +17957,7 @@ Object.assign(window, {
   ventasClearFilters, ventasCierreMes, ventasCierreCopiar,
   eliminarUsuario, ensureKanbanCols, enviarCotizacionEvento, enviarPedidoHab, esc,
   estaEditando, evAgregarComposicion, evAgregarFlor, evZonasLabel, exportCtrlCSV, exportHabCSV,
-  exportMesHab, exportMesJard, fbSave, filterByStatus, filterStock, fmtDate, fmtDateTime,
+  exportMesHab, exportMesJard, fbSave, filterByStatus, filterStock, setStockSort, fmtDate, fmtDateTime,
   fmtDur, fmtMonth, generarTextoCotEvento, gerenciaSetFecha, getAlerta, getAllInsumos,
   getAllMonths, getArr, getBadge, getDaysBadge, getEmpleadosActivos, getFloristasActivos, getISOWeekKey, isJardinero,
   getMonthLabel, getMonthVisits, getOrCreateDayState, getProvOpts, getSectionEmoji,
