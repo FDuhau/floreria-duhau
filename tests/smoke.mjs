@@ -31,7 +31,7 @@ const PAGES = [
 // Errores que NO son culpa de la app (red/Firebase/CDN externa bloqueada).
 const IGNORE = /firebase|firestore|googleapis|gstatic|jsdelivr|net::ERR|Failed to load resource|ChunkLoadError|Chart is not defined/i;
 
-function waitPort(port, timeoutMs = 15000) {
+function waitPort(port, timeoutMs = 60000) {
   const start = Date.now();
   return new Promise((resolve, reject) => {
     (function tryOnce() {
@@ -50,10 +50,18 @@ let preview, browser, failed = false;
 const problems = [];
 
 try {
-  preview = spawn('npx', ['vite', 'preview', '--port', String(PORT)], {
-    stdio: 'ignore', env: process.env,
+  let previewLog = '';
+  preview = spawn('npx', ['vite', 'preview', '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'], {
+    stdio: ['ignore', 'pipe', 'pipe'], env: process.env,
   });
-  await waitPort(PORT);
+  preview.stdout.on('data', (d) => { previewLog += d; });
+  preview.stderr.on('data', (d) => { previewLog += d; });
+  try {
+    await waitPort(PORT);
+  } catch (e) {
+    if (previewLog.trim()) console.error('--- vite preview ---\n' + previewLog.trim() + '\n--------------------');
+    throw e;
+  }
 
   browser = await chromium.launch({ executablePath: CHROMIUM_PATH });
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
