@@ -380,11 +380,19 @@
       <div class="card"><div class="card-label">Comprar</div><div class="card-value red" id="sk-co">—</div></div>
     </div>
     <div class="stock-filter-bar">
-      <input type="text" class="stock-search" placeholder=" Buscar producto o área..." oninput="filterStock(this.value)">
-      <button class="filter-btn active" onclick="filterByStatus('all',this)">Todos</button>
-      <button class="filter-btn" onclick="filterByStatus('comprar',this)">Comprar</button>
-      <button class="filter-btn" onclick="filterByStatus('atencion',this)">Atención</button>
-      <button class="filter-btn" onclick="filterByStatus('ok',this)">OK</button>
+      <input type="text" id="stock-search-input" class="stock-search" placeholder=" Buscar producto o área..." oninput="filterStock(this.value)">
+      <button class="filter-btn active" data-stock-filter="all" onclick="filterByStatus('all')">Todos</button>
+      <button class="filter-btn" data-stock-filter="comprar" onclick="filterByStatus('comprar')">Comprar</button>
+      <button class="filter-btn" data-stock-filter="atencion" onclick="filterByStatus('atencion')">Atención</button>
+      <button class="filter-btn" data-stock-filter="ok" onclick="filterByStatus('ok')">OK</button>
+      <select id="stock-sort" class="cl-select" style="margin-left:auto" onchange="setStockSort(this.value)" title="Ordenar">
+        <option value="estado">Ordenar: Estado (críticos primero)</option>
+        <option value="nombre">Ordenar: Nombre (A-Z)</option>
+        <option value="area">Ordenar: Área</option>
+        <option value="actual-desc">Ordenar: Cantidad (mayor primero)</option>
+        <option value="actual-asc">Ordenar: Cantidad (menor primero)</option>
+        <option value="nivel">Ordenar: Nivel de stock (%)</option>
+      </select>
     </div>
     <div class="table-wrapper">
       <table class="stock-table">
