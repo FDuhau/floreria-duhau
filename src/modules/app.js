@@ -10561,6 +10561,10 @@ function _kpiCard(label, value, sub='', color='var(--sage-dark)'){
 // ── AUDITORÍA DE CAMBIOS ──────────────────────────────────────────────────────
 let auditLogData = {};
 window._setAuditLog = (val) => { auditLogData = val && typeof val === 'object' ? val : {}; };
+// Paginación incremental de la auditoría (antes se cortaba fijo en 100)
+const AUDIT_PAGE=100;
+let auditShown=AUDIT_PAGE, _auditLastKey='';
+function auditShowMore(){ auditShown+=AUDIT_PAGE; renderAuditoria(); }
 
 const AUDIT_LABELS = {
   cajaData:'Caja', ventasData:'Ventas', stockData:'Stock', eventosData:'Eventos',
@@ -10584,7 +10588,11 @@ function renderAuditoria(){
   if(filtroFecha) entries = entries.filter(e => (e.iso||'').startsWith(filtroFecha));
 
   entries.sort((a,b) => (b.ts||0) - (a.ts||0));
-  const shown = entries.slice(0,100);
+
+  // Reset a la primera página al cambiar cualquier filtro
+  const _akey = `${filtroUser}|${filtroKey}|${filtroFecha}`;
+  if(_akey !== _auditLastKey){ auditShown = AUDIT_PAGE; _auditLastKey = _akey; }
+  const shown = entries.slice(0, auditShown);
 
   if(!shown.length){ el.innerHTML='<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--mid-gray);font-size:13px">Sin registros</td></tr>'; return; }
   el.innerHTML = shown.map(e => {
@@ -10598,6 +10606,12 @@ function renderAuditoria(){
       <td style="padding:8px 12px"><span style="font-size:10px;background:var(--light-gray);padding:2px 8px;border-radius:10px;letter-spacing:.5px">${esc(e.key||'')}</span></td>
     </tr>`;
   }).join('');
+  if(entries.length > auditShown){
+    const faltan = entries.length - auditShown;
+    el.innerHTML += `<tr><td colspan="4" style="text-align:center;padding:14px">
+      <button class="btn-secondary" onclick="auditShowMore()">Mostrar ${Math.min(AUDIT_PAGE,faltan)} más · quedan ${faltan} de ${entries.length}</button>
+    </td></tr>`;
+  }
 }
 
 // Horas del mes de un empleado: PROGRAMADAS (horario que carga gerencia) y
@@ -18102,7 +18116,7 @@ Object.assign(window, {
   renderEventosSinFloreria, openEsfModal, guardarEsf, eliminarEsf, exportEsfReclamo,
   renderCierreMensual, generarCierreMensual, verCierreMensual, exportCierrePDF,
   renderDashboardGerencia,
-  exportVentasXLSX, exportComprasXLSX, exportStockXLSX, exportLegajoXLSX, ventasShowMore,
+  exportVentasXLSX, exportComprasXLSX, exportStockXLSX, exportLegajoXLSX, ventasShowMore, auditShowMore,
   toggleCfSplit, cfSplitAddRow, cfSplitRemoveRow, cfSplitUpdRow,
   cfImportFile, cfImportCancel, cfImportParseSheet, cfImportConfirm,
   toggleAnularCompra, updHistCantCompra, updHistCostoCompra,
