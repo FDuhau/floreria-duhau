@@ -63,7 +63,7 @@
 
     // ════════════ ESTADO DE CONEXIÓN Y GUARDADO ════════════
     // Indicador visible arriba al centro: avisa cuando no hay conexión
-    // y confirma cada guardado (Guardando… / Guardado ✓ / Error).
+    // y confirma cada guardado (Guardando… / Guardado / Error).
     // Usa .info/connected de Firebase (refleja la sincronización real,
     // no solo si hay wifi) + el evento offline del navegador para reaccionar
     // al instante. Las escrituras hechas sin conexión quedan en cola y se
@@ -91,7 +91,7 @@
       clearTimeout(_statusHideTimer);
       // Prioridad: sin conexión > guardando.
       if(!_isConnected){
-        el.textContent = '⚠ Sin conexión — los cambios se guardan al volver';
+        el.textContent = 'Sin conexión — los cambios se guardan al volver';
         el.dataset.state = 'offline';
         el.classList.add('visible');
         return;
@@ -111,7 +111,7 @@
       if(!_isConnected || _pendingWrites > 0) return;
       const el = _ensureStatusEl();
       clearTimeout(_statusHideTimer);
-      el.textContent  = ok ? 'Guardado ✓' : '⚠ Error al guardar';
+      el.textContent  = ok ? 'Guardado ' : 'Error al guardar';
       el.dataset.state = ok ? 'saved' : 'error';
       el.classList.add('visible');
       _statusHideTimer = setTimeout(() => {
@@ -266,7 +266,7 @@
           }
         }
         // Aviso in-app (visible aunque no haya permiso de notificaciones del navegador)
-        window.showToast?.('🔔 ' + (e.title || '') + (e.body ? ' — ' + e.body : ''));
+        window.showToast?.('' + (e.title || '') + (e.body ? ' — ' + e.body : ''));
         // Notificación del navegador si hay permiso
         if(typeof Notification !== 'undefined' && Notification.permission === 'granted'){
           try { new Notification(e.title || 'Florería Duhau', { body: e.body || '', icon: '/icon-192.png', tag: e.tag || 'general' }); } catch(err){}

@@ -89,7 +89,7 @@ document.getElementById('hero-date').textContent = DATE_STR;
   document.documentElement.setAttribute('data-theme', saved);
   const updateBtn = () => {
     const btn = document.getElementById('theme-toggle-btn');
-    if(btn) btn.textContent = saved === 'dark' ? '☀️' : '🌙';
+    if(btn) btn.textContent = saved === 'dark' ? '' : '';
   };
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', updateBtn);
   else updateBtn();
@@ -215,14 +215,14 @@ const PAGE_LABELS = {control:'Control','control-jardineria':'Control › Seguimi
 
 // ── NAVEGACIÓN INFERIOR MOBILE ──────────────────────────────────────────────
 const BOTTOM_NAV_ITEMS = {
-  gerencia:  [{icon:'🏠',label:'Inicio',page:'home'},{icon:'📋',label:'Checklist',page:'checklist'},{icon:'🎉',label:'Eventos',page:'eventos-maison'},{icon:'💰',label:'Caja',page:'caja'}],
-  florista:  [{icon:'🏠',label:'Inicio',page:'home'},{icon:'📋',label:'Checklist',page:'checklist'},{icon:'💐',label:'Ramos',page:'ramos-disponibles'},{icon:'📦',label:'Stock',page:'stock'},{icon:'🎉',label:'Eventos',page:'eventos-maison'}],
-  operario:  [{icon:'🏠',label:'Inicio',page:'home'},{icon:'🎉',label:'Eventos',page:'eventos-maison'},{icon:'📦',label:'Stock',page:'stock'},{icon:'💲',label:'Precios',page:'lista-precios'}],
-  jardinero: [{icon:'🌿',label:'Jardín',page:'jardineria-ops'},{icon:'🏡',label:'Habitac.',page:'hab-ops'},{icon:'🔔',label:'Avisos',page:'recordatorios-jardineria'}],
-  compras:   [{icon:'🛒',label:'Compras',page:'compras-floreria'},{icon:'📦',label:'Stock',page:'stock-admin'},{icon:'📬',label:'Recepción',page:'recepcion-pedidos'}],
-  comercial: [{icon:'🎉',label:'Eventos',page:'eventos-comercial'},{icon:'💰',label:'Ventas',page:'ventas-externas'},{icon:'🖼',label:'Galería',page:'galeria'},{icon:'💲',label:'Precios',page:'lista-precios'}],
-  ventas:    [{icon:'🌺',label:'Ramos',page:'ramos-disponibles'},{icon:'🏨',label:'Pedidos',page:'pedidos-habitacion'},{icon:'💲',label:'Precios',page:'lista-precios'}],
-  housekeeping: [{icon:'🛏',label:'Habitaciones',page:'control-habitaciones'}],
+  gerencia:  [{icon:'',label:'Inicio',page:'home'},{icon:'',label:'Checklist',page:'checklist'},{icon:'',label:'Eventos',page:'eventos-maison'},{icon:'',label:'Caja',page:'caja'}],
+  florista:  [{icon:'',label:'Inicio',page:'home'},{icon:'',label:'Checklist',page:'checklist'},{icon:'',label:'Ramos',page:'ramos-disponibles'},{icon:'',label:'Stock',page:'stock'},{icon:'',label:'Eventos',page:'eventos-maison'}],
+  operario:  [{icon:'',label:'Inicio',page:'home'},{icon:'',label:'Eventos',page:'eventos-maison'},{icon:'',label:'Stock',page:'stock'},{icon:'',label:'Precios',page:'lista-precios'}],
+  jardinero: [{icon:'',label:'Jardín',page:'jardineria-ops'},{icon:'',label:'Habitac.',page:'hab-ops'},{icon:'',label:'Avisos',page:'recordatorios-jardineria'}],
+  compras:   [{icon:'',label:'Compras',page:'compras-floreria'},{icon:'',label:'Stock',page:'stock-admin'},{icon:'',label:'Recepción',page:'recepcion-pedidos'}],
+  comercial: [{icon:'',label:'Eventos',page:'eventos-comercial'},{icon:'',label:'Ventas',page:'ventas-externas'},{icon:'',label:'Galería',page:'galeria'},{icon:'',label:'Precios',page:'lista-precios'}],
+  ventas:    [{icon:'',label:'Ramos',page:'ramos-disponibles'},{icon:'',label:'Pedidos',page:'pedidos-habitacion'},{icon:'',label:'Precios',page:'lista-precios'}],
+  housekeeping: [{icon:'',label:'Habitaciones',page:'control-habitaciones'}],
 };
 
 // Íconos de línea (SVG) para la barra inferior móvil, por página
@@ -258,11 +258,11 @@ function renderBottomNav(role) {
   // Florista que también es jardinero (ej. Ivan): barra combinada de ambos mundos
   if(role === 'florista' && jardineroNombre){
     items = [
-      {icon:'🏠',label:'Inicio',page:'home'},
-      {icon:'📋',label:'Checklist',page:'checklist'},
-      {icon:'🎉',label:'Eventos',page:'eventos-maison'},
-      {icon:'🌿',label:'Jardín',page:'jardineria-ops'},
-      {icon:'🏡',label:'Habitac.',page:'hab-ops'},
+      {icon:'',label:'Inicio',page:'home'},
+      {icon:'',label:'Checklist',page:'checklist'},
+      {icon:'',label:'Eventos',page:'eventos-maison'},
+      {icon:'',label:'Jardín',page:'jardineria-ops'},
+      {icon:'',label:'Habitac.',page:'hab-ops'},
     ];
   }
   nav.innerHTML = items.map(it =>
@@ -640,9 +640,9 @@ const CL_TASKS = [
 ];
 
 const SEC_HEADERS = {
-  a: {label:'ALVEAR',      cls:'cl-sec-a', rowCls:'row-sec-a', icon:'🟤'},
-  b: {label:'POSADAS',     cls:'cl-sec-b', rowCls:'row-sec-b', icon:'🔵'},
-  c: {label:'FLORERÍA',    cls:'cl-sec-c', rowCls:'row-sec-c', icon:'🌸'},
+  a: {label:'ALVEAR',      cls:'cl-sec-a', rowCls:'row-sec-a', icon:''},
+  b: {label:'POSADAS',     cls:'cl-sec-b', rowCls:'row-sec-b', icon:''},
+  c: {label:'FLORERÍA',    cls:'cl-sec-c', rowCls:'row-sec-c', icon:''},
 };
 
 // Unified checklist state — same tasks all days
@@ -678,7 +678,7 @@ window._setChecklistSecciones = (obj) => {
   Object.keys(obj).forEach(sec => {
     SEC_HEADERS[sec] = {
       label: obj[sec].label || SEC_HEADERS[sec]?.label || sec.toUpperCase(),
-      icon:  obj[sec].icon  || SEC_HEADERS[sec]?.icon  || '📍',
+      icon:  obj[sec].icon  || SEC_HEADERS[sec]?.icon  || '',
       cls:    SEC_HEADERS[sec]?.cls    || ('cl-sec-'+sec),
       rowCls: SEC_HEADERS[sec]?.rowCls || ('row-sec-'+sec),
     };
@@ -757,7 +757,7 @@ async function clAddZona(sec){
   clState = getOrCreateDayState(currentDay);
   renderChecklistTable();
   openGestionZonas();
-  showToast(`✅ Zona "${nombre.trim()}" agregada a ${SEC_HEADERS[sec]?.label||sec}`);
+  showToast(`Zona "${nombre.trim()}" agregada a ${SEC_HEADERS[sec]?.label||sec}`);
 }
 
 async function clRenameZona(index){
@@ -772,7 +772,7 @@ async function clRenameZona(index){
   _persistChecklistConfig();
   renderChecklistTable();
   openGestionZonas();
-  showToast('✏️ Zona renombrada');
+  showToast('Zona renombrada');
 }
 
 // Subir/bajar una zona dentro de su sección (dir = -1 arriba, +1 abajo)
@@ -798,7 +798,7 @@ async function clDeleteZona(index){
   clState = getOrCreateDayState(currentDay);
   renderChecklistTable();
   openGestionZonas();
-  showToast('🗑️ Zona eliminada');
+  showToast('Zona eliminada');
 }
 
 async function clRenameSeccion(sec){
@@ -809,7 +809,7 @@ async function clRenameSeccion(sec){
   _persistChecklistConfig();
   renderChecklistTable();
   openGestionZonas();
-  showToast('✏️ Sección renombrada');
+  showToast('Sección renombrada');
 }
 
 async function clAddSeccion(){
@@ -818,14 +818,14 @@ async function clAddSeccion(){
   if(!nombre || !nombre.trim()) return;
   // Nuevo código de sección libre
   let code='d'; for(let c=100;c<123;c++){ const ch=String.fromCharCode(c); if(!SEC_HEADERS[ch]){ code=ch; break; } }
-  SEC_HEADERS[code] = { label:nombre.trim(), icon:'📍', cls:'cl-sec-'+code, rowCls:'row-sec-'+code };
+  SEC_HEADERS[code] = { label:nombre.trim(), icon:'', cls:'cl-sec-'+code, rowCls:'row-sec-'+code };
   _persistChecklistConfig();
   openGestionZonas();
-  showToast(`✅ Sección "${nombre.trim()}" creada — agregá zonas`);
+  showToast(`Sección "${nombre.trim()}" creada — agregá zonas`);
 }
 
 function openGestionZonas(){
-  if(userRole!=='gerencia'){ showToast('⛔ Solo gerencia'); return; }
+  if(userRole!=='gerencia'){ showToast('Solo gerencia'); return; }
   let ov = document.getElementById('gestion-zonas-modal');
   if(!ov){
     ov = document.createElement('div');
@@ -854,7 +854,7 @@ function openGestionZonas(){
     }).join('');
     return `<div style="margin-bottom:14px;border:1px solid var(--light-gray);border-radius:10px;overflow:hidden">
       <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--cream)">
-        <span style="font-size:15px">${sh.icon||'📍'}</span>
+        <span style="font-size:15px">${sh.icon||''}</span>
         <strong style="flex:1;font-size:13.5px;color:var(--charcoal)">${esc(sh.label)}</strong>
         <button class="btn-icon" title="Renombrar sección" onclick="clRenameSeccion('${sec}')"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/></svg></button>
       </div>
@@ -884,7 +884,7 @@ function updTiempoRef(i, val){
 // tiempo estimado (minutos) de cada una de un saque. Queda fijo (clTiemposRef en
 // Firebase) y sirve para las métricas de cuánto se demora cada sección.
 function openTiemposEstimados(){
-  if(userRole!=='gerencia'){ showToast('⛔ Solo gerencia'); return; }
+  if(userRole!=='gerencia'){ showToast('Solo gerencia'); return; }
   let ov = document.getElementById('cl-tiempos-modal');
   if(!ov){ ov=document.createElement('div'); ov.id='cl-tiempos-modal'; ov.className='modal-overlay'; document.body.appendChild(ov); }
   let lastSec = null;
@@ -893,7 +893,7 @@ function openTiemposEstimados(){
     if(t.sec !== lastSec){
       lastSec = t.sec;
       const sh = SEC_HEADERS[t.sec] || {};
-      head = `<tr><td colspan="3" style="padding:12px 12px 4px;font-weight:700;color:var(--charcoal);font-size:13px;border-bottom:1px solid var(--light-gray)">${sh.icon||'📍'} ${esc(sh.label||t.sec)}</td></tr>`;
+      head = `<tr><td colspan="3" style="padding:12px 12px 4px;font-weight:700;color:var(--charcoal);font-size:13px;border-bottom:1px solid var(--light-gray)">${sh.icon||''} ${esc(sh.label||t.sec)}</td></tr>`;
     }
     const ref = getTiempoRef(i);
     return head + `<tr>
@@ -929,7 +929,7 @@ function openTiemposEstimados(){
 // la compara con el tiempo estimado (clTiemposRef). Para ver dónde se demora más
 // de lo previsto.
 function openPromediosZona(){
-  if(userRole!=='gerencia'){ showToast('⛔ Solo gerencia'); return; }
+  if(userRole!=='gerencia'){ showToast('Solo gerencia'); return; }
   // Promedio real por sec|zona|actividad
   const agg = {};
   (checklistHistory||[]).forEach(r=>{
@@ -953,7 +953,7 @@ function openPromediosZona(){
     if(t.sec !== lastSec){
       lastSec = t.sec;
       const sh = SEC_HEADERS[t.sec] || {};
-      filas += `<tr><td colspan="5" style="padding:12px 12px 4px;font-weight:700;color:var(--charcoal);font-size:13px;border-bottom:1px solid var(--light-gray)">${sh.icon||'📍'} ${esc(sh.label||t.sec)}</td></tr>`;
+      filas += `<tr><td colspan="5" style="padding:12px 12px 4px;font-weight:700;color:var(--charcoal);font-size:13px;border-bottom:1px solid var(--light-gray)">${sh.icon||''} ${esc(sh.label||t.sec)}</td></tr>`;
     }
     const prom = Math.round(a.sum / a.n);
     const est  = getTiempoRef(i);
@@ -1304,7 +1304,7 @@ function initChecklist(){
   } catch(e){ totalDone = 0; }
   weekBanner.innerHTML = `
     <div style="font-size:12px;color:var(--mid-gray)">
-      📅 <strong style="color:var(--charcoal)">${CURRENT_WEEK_KEY.replace('-W',' · Semana ')}</strong>
+      <strong style="color:var(--charcoal)">${CURRENT_WEEK_KEY.replace('-W',' · Semana ')}</strong>
       &nbsp;·&nbsp; ${totalDone} tarea${totalDone!==1?'s':''} completada${totalDone!==1?'s':''} esta semana
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -1337,7 +1337,7 @@ function initChecklist(){
 }
 
 async function resetDayState(){
-  if(userRole !== 'gerencia'){ showToast('⛔ Solo gerencia puede limpiar el día'); return; }
+  if(userRole !== 'gerencia'){ showToast('Solo gerencia puede limpiar el día'); return; }
   if(!await confirmModal(`¿Limpiar todas las tareas del ${currentDay}? El historial y los otros días se conservan.`)) return;
   // Reiniciar SOLO el día activo — se re-siembra desde la plantilla fija (igual que un día nuevo)
   delete clStateByDay[currentDay];
@@ -1347,18 +1347,18 @@ async function resetDayState(){
   if(window.fbSetPath) window.fbSetPath('checklist/'+currentDay, clStateByDay[currentDay]);
   else fbSave('checklist', clStateByDay);
   initChecklist();
-  showToast(`✅ ${currentDay} reiniciado — tareas del día limpiadas`);
+  showToast(`${currentDay} reiniciado — tareas del día limpiadas`);
 }
 
 async function resetWeekState(){
-  if(userRole !== 'gerencia'){ showToast('⛔ Solo gerencia puede limpiar la semana'); return; }
+  if(userRole !== 'gerencia'){ showToast('Solo gerencia puede limpiar la semana'); return; }
   if(!await confirmModal('¿Limpiar todas las tareas de esta semana? El historial se conserva.')) return;
   clStateByDay = {};
   fbSave('checklist', clStateByDay); // Limpiar TODOS los días de Firebase
   clState = getOrCreateDayState(currentDay);
   try { localStorage.removeItem(CL_STORAGE_KEY); } catch(e){}
   initChecklist();
-  showToast('✅ Semana reiniciada — todas las tareas limpiadas');
+  showToast('Semana reiniciada — todas las tareas limpiadas');
 }
 
 
@@ -1420,11 +1420,11 @@ function registrarUltimoNuevo(sec, zona, actividad, fecha){
 }
 
 function badgeUltimoNuevo(fecha){
-  if(!fecha) return '<div style="font-size:10px;color:var(--mid-gray);margin-top:2px;font-weight:400">🌸 Sin registro de Nuevo</div>';
+  if(!fecha) return '<div style="font-size:10px;color:var(--mid-gray);margin-top:2px;font-weight:400">Sin registro de Nuevo</div>';
   const dias = Math.max(0, Math.floor((new Date(TODAY_ISO)-new Date(fecha))/86400000));
   const color = dias>=7 ? 'var(--red-alert)' : dias>=5 ? '#A06A00' : 'var(--sage-dark)';
   const txt = dias===0 ? 'Nuevo hoy' : dias===1 ? 'Nuevo ayer' : `Nuevo hace ${dias} días`;
-  return `<div style="font-size:10px;font-weight:600;color:${color};margin-top:2px" title="Último Nuevo: ${fmtDate(fecha)}">🌸 ${txt}</div>`;
+  return `<div style="font-size:10px;font-weight:600;color:${color};margin-top:2px" title="Último Nuevo: ${fmtDate(fecha)}">${txt}</div>`;
 }
 
 // ── Nuevos atrasados (solo gerencia) ─────────────────────────────────────────
@@ -1468,7 +1468,7 @@ function renderNuevosAtrasadosBanner(){
     return `<span style="display:inline-block;background:#fff;border:1px solid #F0C0C0;border-radius:10px;padding:3px 9px;margin:3px 4px 0 0;font-size:11.5px;white-space:nowrap" title="Último Nuevo: ${fmtDate(z.fecha)}">${sh?sh.icon:''} ${esc(z.zona)} · <strong>${z.dias} días</strong></span>`;
   }).join('');
   el.innerHTML = `<div class="alert-banner" style="margin-bottom:14px">
-    <div style="font-weight:600;margin-bottom:2px">🥀 ${list.length} zona${list.length!==1?'s':''} con Nuevo atrasado (${UMBRAL_NUEVO_ATRASADO}+ días)</div>
+    <div style="font-weight:600;margin-bottom:2px">${list.length} zona${list.length!==1?'s':''} con Nuevo atrasado (${UMBRAL_NUEVO_ATRASADO}+ días)</div>
     <div style="font-size:11.5px;opacity:.85;margin-bottom:4px">Reprogramá un arreglo Nuevo desde la vista semanal antes de que se marchiten.</div>
     <div>${chips}</div>
   </div>`;
@@ -1521,8 +1521,8 @@ function checkRecordatoriosFaseEvento(){
   const nowMin = d.getHours()*60 + d.getMinutes();
   let cambio = false;
   const fases = [
-    ['colocacionAsignado','colocacionFecha','colocacionHora','colocacionFin','colocacionAvisada','📍 Colocación','colocación'],
-    ['retiroAsignado','retiroFecha','retiroHora','retiroFin','retiroAvisada','🔄 Retiro','retiro'],
+    ['colocacionAsignado','colocacionFecha','colocacionHora','colocacionFin','colocacionAvisada','Colocación','colocación'],
+    ['retiroAsignado','retiroFecha','retiroHora','retiroFin','retiroAvisada','Retiro','retiro'],
   ];
   eventosData.forEach(ev=>{
     if(ev.estado === 'Pedidos Finalizados') return;
@@ -1577,7 +1577,7 @@ function renderChecklistTable(){
       const col = pct===100?'var(--green-ok)':pct>50?'var(--sage)':'var(--amber)';
       badge = `<span style="display:inline-block;margin-left:5px;background:${col};color:white;font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px;vertical-align:middle">${done}/${total}</span>`;
     } else if(pct===100 && isActive){
-      badge = ` ✅`;
+      badge = ` `;
     }
     // Reconstruct tab text
     tabEl.innerHTML = d + badge;
@@ -1614,7 +1614,7 @@ function renderChecklistTable(){
       <div style="flex:1;height:7px;background:var(--light-gray);border-radius:4px;overflow:hidden">
         <div style="width:${pct}%;height:100%;background:${pct===100?'var(--green-ok)':'var(--sage)'};border-radius:4px;transition:width .3s"></div>
       </div>
-      <span style="font-size:12px;color:var(--mid-gray);white-space:nowrap">${done_count} / ${total} tareas${pct===100?' ✅ ¡Completada!':''}</span>
+      <span style="font-size:12px;color:var(--mid-gray);white-space:nowrap">${done_count} / ${total} tareas${pct===100?' ¡Completada!':''}</span>
     </div>`;
 
   // Aviso de Nuevos atrasados (gerencia). Se ubica arriba de la barra de progreso.
@@ -1641,7 +1641,7 @@ function renderChecklistTable(){
     filtroEl = document.createElement('div');
     filtroEl.id = 'cl-filtro-wrap';
     filtroEl.innerHTML = `
-      <input class="cl-obs-input" id="cl-filtro-txt" placeholder="🔍 Filtrar por zona o responsable..." style="flex:1;min-width:160px"
+      <input class="cl-obs-input" id="cl-filtro-txt" placeholder="Filtrar por zona o responsable..." style="flex:1;min-width:160px"
         oninput="clSetFiltro('txt',this.value)">
       <button class="filter-btn cl-fbtn" data-f="all"    onclick="clSetFiltro('estado','all')">Todas</button>
       <button class="filter-btn cl-fbtn" data-f="pend"   onclick="clSetFiltro('estado','pend')">Pendientes</button>
@@ -1829,7 +1829,7 @@ function renderChecklistTable(){
       const vtTr = document.createElement('tr');
       vtTr.style.cssText = 'background:#F5F7FC';
 
-      const detalle = [v.desc, v.colores ? '🎨 '+v.colores : '', v.dedicatoria ? '✉️ "'+v.dedicatoria+'"' : '', v.dir ? '📍 '+v.dir : '', v.fecha ? '📅 '+fmtDate(v.fecha) : ''].filter(Boolean).join(' · ');
+      const detalle = [v.desc, v.colores ? ''+v.colores : '', v.dedicatoria ? '"'+v.dedicatoria+'"' : '', v.dir ? ''+v.dir : '', v.fecha ? ''+fmtDate(v.fecha) : ''].filter(Boolean).join(' · ');
 
       if(isFlorista){
         vtTr.innerHTML = `
@@ -1863,7 +1863,7 @@ function renderChecklistTable(){
   // Mensaje si el florista no tiene tareas asignadas
   if(isFlorista && !tbody.querySelector('tr:not(.cl-section-row)')){
     tbody.innerHTML = `<tr><td colspan="6" style="padding:32px;text-align:center;color:var(--mid-gray)">
-      <div style="font-size:28px;margin-bottom:8px">📋</div>
+      <div style="font-size:28px;margin-bottom:8px"></div>
       <div style="font-size:14px;font-weight:500">No tenés tareas asignadas para hoy, ${floristaNombre}</div>
       <div style="font-size:12px;margin-top:4px">Gerencia asigna las tareas desde la checklist general.</div>
     </td></tr>`;
@@ -1880,7 +1880,7 @@ function clSetFiltro(k, v){ clFiltro[k] = v; renderChecklistTable(); }
 function festejarChecklist(){
   const cont = document.createElement('div');
   cont.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:9997;overflow:hidden';
-  const emojis = ['🌸','🌷','🌹','💐','🌻','✨'];
+  const emojis = ['','','','','',''];
   for(let i=0;i<26;i++){
     const s = document.createElement('span');
     s.textContent = emojis[Math.floor(Math.random()*emojis.length)];
@@ -1903,7 +1903,7 @@ function _checkFestejoChecklist(){
   try{ if(localStorage.getItem(k)) return; localStorage.setItem(k,'1'); }catch(e){}
   festejarChecklist();
   navigator.vibrate?.([60,60,60,60,120]);
-  showToast(`🎉 ¡Completaste todas tus tareas de hoy, ${floristaNombre}!`);
+  showToast(`¡Completaste todas tus tareas de hoy, ${floristaNombre}!`);
 }
 
 // ── Checklist en tarjetas para floristas (mobile-first) ───────────────────────
@@ -1923,7 +1923,7 @@ function renderChecklistCards(el){
     return `<div class="cl-card${done?' cl-card-done':''}">
       <div class="cl-card-top">
         <div>
-          <div class="cl-card-zona">${done?'✅ ':''}${esc(t.zona)}</div>
+          <div class="cl-card-zona">${done?'':''}${esc(t.zona)}</div>
           <div class="cl-card-sec">${sh.icon} ${sh.label}</div>
         </div>
         <div class="cl-card-badges">
@@ -1972,7 +1972,7 @@ function renderChecklistCards(el){
   const ventasHoy = (ventasData||[]).filter(v => v.asignado===floristaNombre && v.estado==='pendiente' && !v.fin);
   const vtHTML = ventasHoy.map(v=>{
     const vIdx = ventasData.indexOf(v);
-    const detalle = [v.cliente, v.colores?'🎨 '+v.colores:'', v.fecha?'📅 '+fmtDate(v.fecha):''].filter(Boolean).join(' · ');
+    const detalle = [v.cliente, v.colores?''+v.colores:'', v.fecha?''+fmtDate(v.fecha):''].filter(Boolean).join(' · ');
     return `<div class="cl-card cl-card-venta" onclick="if(!event.target.closest('button'))openVentaDetail(${vIdx})">
       <div class="cl-card-top">
         <div>
@@ -1989,7 +1989,7 @@ function renderChecklistCards(el){
 
   el.innerHTML = `
     ${misIdxs.length ? tareasHTML : `<div class="cl-cards-empty">
-      <div style="font-size:30px;margin-bottom:8px">📋</div>
+      <div style="font-size:30px;margin-bottom:8px"></div>
       No tenés tareas asignadas para hoy, ${esc(floristaNombre)}
       <div class="cl-cards-empty-sub">Gerencia asigna las tareas desde la checklist general.</div>
     </div>`}
@@ -2025,7 +2025,7 @@ function renderHoraCell(i, campo, done){
 function registrarHora(i, campo){
   if(!clState) return;
   if(userRole === 'florista' && clState.responsable[i] !== floristaNombre){
-    showToast('⛔ Solo podés operar las tareas asignadas a vos'); return;
+    showToast('Solo podés operar las tareas asignadas a vos'); return;
   }
   if(!clState.inicio) clState.inicio = CL_TASKS.map(()=>'');
   if(!clState.fin)    clState.fin    = CL_TASKS.map(()=>'');
@@ -2035,7 +2035,7 @@ function registrarHora(i, campo){
     const inicioVal = clState.inicio[i] || '';
     if(!inicioVal){
       // Mostrar alerta prominente al florista
-      showAlertaHorario('⚠️ No hay Inicio registrado para esta tarea.\nPrimero registrá el Inicio antes de marcar el Fin.');
+      showAlertaHorario('No hay Inicio registrado para esta tarea.\nPrimero registrá el Inicio antes de marcar el Fin.');
       return;
     }
   }
@@ -2050,7 +2050,7 @@ function registrarHora(i, campo){
     const inicioVal = clState.inicio[i];
     const durMin = calcDuracion(inicioVal, horaActual);
     if(durMin !== null && durMin < 0){
-      showAlertaHorario('⚠️ El Fin (' + horaActual + ') es anterior al Inicio (' + inicioVal + ').\nVerificá el horario.');
+      showAlertaHorario('El Fin (' + horaActual + ') es anterior al Inicio (' + inicioVal + ').\nVerificá el horario.');
       return;
     }
   }
@@ -2084,7 +2084,7 @@ function registrarHora(i, campo){
     renderHistoryPanel();
     // Toast de confirmación con duración
     const durTxt = durFinal ? ' · Duración: ' + fmtDur(durFinal) : '';
-    showToast('✅ Tarea finalizada — Inicio: ' + inicioFinal + ' · Fin: ' + horaActual + durTxt);
+    showToast('Tarea finalizada — Inicio: ' + inicioFinal + ' · Fin: ' + horaActual + durTxt);
     // Aviso a gerencia si se excedió el tiempo promedio de referencia
     if(excedida){
       window.pushSend?.('⏱ Tarea excedida',
@@ -2158,7 +2158,7 @@ function guardarFotoChecklist(){
   try{ localStorage.setItem('cl_history', JSON.stringify(checklistHistory)); }catch(e){}
   fbSave('checklistHistory', checklistHistory);
   closeModal('cl-foto-modal');
-  showToast('📷 Foto guardada — gerencia la puede ver en el historial');
+  showToast('Foto guardada — gerencia la puede ver en el historial');
   renderHistoryPanel();
 }
 
@@ -2214,7 +2214,7 @@ function showAlertaHorario(msg){
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9998;display:flex;align-items:center;justify-content:center;padding:20px';
     overlay.innerHTML = `
       <div style="background:white;border-radius:16px;padding:32px 28px;max-width:340px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
-        <div style="font-size:48px;margin-bottom:12px">⚠️</div>
+        <div style="font-size:48px;margin-bottom:12px"></div>
         <div id="alerta-horario-msg" style="font-size:15px;font-weight:600;color:#1A1A1A;line-height:1.5;margin-bottom:24px;white-space:pre-line"></div>
         <button onclick="document.getElementById('alerta-horario-overlay').remove()"
           style="background:#1A1A1A;color:white;border:none;border-radius:10px;padding:12px 32px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;width:100%">
@@ -2258,7 +2258,7 @@ document.addEventListener('visibilitychange', () => {
     // Mostrar indicador sutil de resincronización
     const page = document.getElementById('page-checklist');
     if(page && page.classList.contains('active')){
-      showToast('🔄 Actualizando checklist...');
+      showToast('Actualizando checklist...');
     }
   }
 });
@@ -2289,7 +2289,7 @@ function toggleTask(i, el){
   // Florista individual: solo puede marcar sus tareas
   if(userRole === 'florista' && clState.responsable[i] !== floristaNombre){
     el.checked = !el.checked; // revertir
-    showToast('⛔ Solo podés operar las tareas asignadas a vos');
+    showToast('Solo podés operar las tareas asignadas a vos');
     return;
   }
   clState.checked[i] = el.checked;
@@ -2334,7 +2334,7 @@ function toggleTask(i, el){
 
 
 async function confirmResetWeek(){
-  if(userRole !== 'gerencia'){ showToast('⛔ Solo gerencia puede realizar esta acción'); return; }
+  if(userRole !== 'gerencia'){ showToast('Solo gerencia puede realizar esta acción'); return; }
   const toArr = v => Array.isArray(v) ? v : (v ? Object.values(v) : []);
   let done = 0;
   try { done = Object.values(clStateByDay||{}).reduce((sum,ds)=>sum+toArr(ds?.checked).filter(Boolean).length,0); } catch(e){}
@@ -2378,7 +2378,7 @@ async function confirmResetWeek(){
   clState = getOrCreateDayState(currentDay);
   try { localStorage.removeItem(CL_STORAGE_KEY); } catch(e){}
   initChecklist();
-  showToast('✅ Semana archivada — checklist limpia para la nueva semana');
+  showToast('Semana archivada — checklist limpia para la nueva semana');
 }
 
 function toggleHistory(){
@@ -2387,7 +2387,7 @@ function toggleHistory(){
   const btn   = document.getElementById('history-toggle-btn');
   const show  = panel.style.display==='none';
   panel.style.display = show ? 'block' : 'none';
-  btn.textContent = show ? '✕ Cerrar Historial' : '📋 Ver Historial';
+  btn.textContent = show ? '✕ Cerrar Historial' : 'Ver Historial';
 }
 
 // ── Poda automática del historial del checklist (solo gerencia) ───────────────
@@ -2432,7 +2432,7 @@ function podarHistorial(){
   const partes = [];
   if(quitados) partes.push(`${quitados} registro${quitados!==1?'s':''} de +${HIST_MESES_RETENER} meses`);
   if(fotosQuitadas) partes.push(`${fotosQuitadas} foto${fotosQuitadas!==1?'s':''} antigua${fotosQuitadas!==1?'s':''}`);
-  showToast('🧹 Historial optimizado — se archivaron ' + partes.join(' y '));
+  showToast('Historial optimizado — se archivaron ' + partes.join(' y '));
   if(document.getElementById('history-panel')?.style.display !== 'none') renderHistoryPanel();
 }
 
@@ -2532,7 +2532,7 @@ function renderStock(){
       (stockSearch===''||item.prod.toLowerCase().includes(stockSearch)||item.area.toLowerCase().includes(stockSearch));
     if(!show) return;
     const pct = Math.min(100,Math.round((item.actual/item.max)*100));
-    const alMap = {ok:['🟢 OK','ok'],atencion:['🟡 ATENCIÓN','atencion'],comprar:['🔴 COMPRAR','comprar']};
+    const alMap = {ok:['OK','ok'],atencion:['ATENCIÓN','atencion'],comprar:['COMPRAR','comprar']};
     const [alLabel,alClass] = alMap[al];
 
     // Columna "En Pedido" — pedidos aún no recibidos
@@ -2549,7 +2549,7 @@ function renderStock(){
       const libre = +(item.actual - comp).toFixed(1);
       const needsBuy = libre < item.min;
       const color = needsBuy ? 'var(--red-alert)' : 'var(--amber)';
-      const icon = needsBuy ? '⚠️ ' : '';
+      const icon = needsBuy ? '' : '';
       const libreStr = libre%1===0 ? libre : libre.toFixed(1);
       const compStr  = comp%1===0  ? comp  : comp.toFixed(1);
       const warning  = needsBuy
@@ -2620,7 +2620,7 @@ async function vaciarStock(){
   fbSave('stockData', stockData);
   renderStock();
   if(document.getElementById('page-stock-admin')?.classList.contains('active')) renderStockAdmin();
-  showToast('🗑 Stock vaciado — listo para el pedido nuevo');
+  showToast('Stock vaciado — listo para el pedido nuevo');
 }
 function setStockMin(i,v){
   stockData[i].min=Math.max(0,+(+v).toFixed(1));
@@ -2640,7 +2640,7 @@ async function delStock(i){
   fbSave('stockData', stockData);
   renderStock();
   renderStockAdmin();
-  showToast('🗑️ '+item.prod+' eliminado del stock');
+  showToast(''+item.prod+' eliminado del stock');
 }
 function filterByStatus(s,btn){ document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); stockFilter=s; renderStock(); }
 function filterStock(v){ stockSearch=v.toLowerCase(); renderStock(); }
@@ -2664,7 +2664,7 @@ function guardarStockManual(){
   if(!prod){ showToast('Poné el nombre del producto','error'); return; }
   const area = document.getElementById('as-area').value.trim() || 'Sin área';
   const dup = stockData.find(s => (s.prod||'').trim().toLowerCase()===prod.toLowerCase() && (s.area||'').trim().toLowerCase()===area.toLowerCase());
-  if(dup){ showToast('⚠️ Ya existe ese producto en esa área'); return; }
+  if(dup){ showToast('Ya existe ese producto en esa área'); return; }
   const actual = Math.max(0, parseFloat(document.getElementById('as-actual').value)||0);
   const min = Math.max(0, parseFloat(document.getElementById('as-min').value)||0);
   const max = Math.max(min, parseFloat(document.getElementById('as-max').value)||0);
@@ -2673,7 +2673,7 @@ function guardarStockManual(){
   closeModal('add-stock-modal');
   renderStockAdmin();
   renderStock();
-  showToast('✅ '+prod+' agregado al stock');
+  showToast(''+prod+' agregado al stock');
 }
 
 function renderStockAdmin(){
@@ -2684,7 +2684,7 @@ function renderStockAdmin(){
   stockData.forEach((item,i)=>{
     const comp = comprometidos[i];
     const al = getAlerta(item, comp);
-    const alMap = {ok:['🟢 OK','ok'],atencion:['🟡 ATENCIÓN','atencion'],comprar:['🔴 COMPRAR','comprar']};
+    const alMap = {ok:['OK','ok'],atencion:['ATENCIÓN','atencion'],comprar:['COMPRAR','comprar']};
     const [alLabel,alClass] = alMap[al];
     const pct = Math.min(100,Math.round((item.actual/(item.max||1))*100));
 
@@ -2700,7 +2700,7 @@ function renderStockAdmin(){
       const libre = +(item.actual - comp).toFixed(1);
       const needsBuy = libre < item.min;
       const color = needsBuy ? 'var(--red-alert)' : 'var(--amber)';
-      const icon = needsBuy ? '⚠️ ' : '';
+      const icon = needsBuy ? '' : '';
       const compStr = comp%1===0 ? comp : comp.toFixed(1);
       const libreStr = libre%1===0 ? libre : libre.toFixed(1);
       const sub = needsBuy
@@ -2751,7 +2751,7 @@ function renderStockAdmin(){
 // Includes cards AND events from comercial
 // ════════════════════════════════════════
 // Quita un emoji decorativo al inicio de un texto (para títulos guardados)
-function _noLeadIco(s){ return String(s==null?'':s).replace(/^\s*[\u{1F000}-\u{1FAFF}☀-➿]️?\s*/u,''); }
+function _noLeadIco(s){ return String(s==null?'':s).replace(/^\s*[\u{1F000}-\u{1FAFF}-]️?\s*/u,''); }
 
 const KANBAN_DEFAULTS = [
   {title:'Pedidos Pendientes', color:'#F4F1EC', cards:[]},
@@ -2760,7 +2760,7 @@ const KANBAN_DEFAULTS = [
   {title:'Finalizados',       color:'#E8F0F8', cards:[]}
 ];
 let kanbanData = JSON.parse(JSON.stringify(KANBAN_DEFAULTS));
-const TAG_LABELS={'tag-floreria':'Florería','tag-maison':'Maison','tag-evento':'Evento','tag-urgente':'🔴 Urgente','tag-garden':'Jardinería'};
+const TAG_LABELS={'tag-floreria':'Florería','tag-maison':'Maison','tag-evento':'Evento','tag-urgente':'Urgente','tag-garden':'Jardinería'};
 const ESTADO_COL = {'Pedidos Pendientes':0,'En Proceso':1,'Pendiente de Colocacion':2,'Pendiente de Retiro':2,'Confirmado':1,'Pedidos Finalizados':3};
 let dragSrcCol=null,dragSrcIdx=null,editingTask=null;
 
@@ -2818,8 +2818,8 @@ function syncEventosToKanban(){
     const colIdx = ESTADO_COL[ev.estado] ?? 0;
     const hora = ev.hora ? ' · '+ev.hora : '';
     kanbanData[colIdx].cards.push({
-      title: '🎉 '+ev.nombre,
-      desc: `${evZonasLabel(ev)}${ev.pax?' · '+ev.pax+' pax':''}${hora}${ev.asignado?' · 👤 '+ev.asignado:''}\n${ev.notas||''}`,
+      title: ''+ev.nombre,
+      desc: `${evZonasLabel(ev)}${ev.pax?' · '+ev.pax+' pax':''}${hora}${ev.asignado?' · '+ev.asignado:''}\n${ev.notas||''}`,
       tags: ['tag-evento'],
       date: ev.fecha,
       isEvento: true,
@@ -2923,7 +2923,7 @@ function renderKanban(){
           <div class="kanban-actions">
             <button class="btn-icon kanban-move" title="Mover a la columna anterior" ${ci===0?'disabled':''} onclick="moveKanbanCard(${ci},${i},-1)">‹</button>
             <button class="btn-icon kanban-move" title="Mover a la columna siguiente" ${ci===kanbanData.length-1?'disabled':''} onclick="moveKanbanCard(${ci},${i},1)">›</button>
-            ${card.isEvento?`<button class="btn-icon" title="Ver detalle" onclick="openEventoDetail(${card.eventoIdx})"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button><button class="btn-icon" title="Ver en Comercial" onclick="navigate('eventos-comercial')">🔗</button>`:`<button class="btn-icon" onclick="openTaskModal(${ci},${i})"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/></svg></button>`}
+            ${card.isEvento?`<button class="btn-icon" title="Ver detalle" onclick="openEventoDetail(${card.eventoIdx})"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button><button class="btn-icon" title="Ver en Comercial" onclick="navigate('eventos-comercial')"></button>`:`<button class="btn-icon" onclick="openTaskModal(${ci},${i})"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/></svg></button>`}
             ${!card.isEvento?`<button class="btn-icon" style="color:var(--red-alert)" onclick="removeKanbanCard(${ci},${i})">✕</button>`:''}
           </div>
         </div>`;
@@ -3000,7 +3000,7 @@ function saveKanbanTask(){
       fromKanban: true
     });
     fbSave('eventosData', eventosData);
-    showToast('🎉 Evento registrado en Área Comercial: ' + title);
+    showToast('Evento registrado en Área Comercial: ' + title);
     if(document.getElementById('page-eventos-comercial').classList.contains('active')) renderEventos();
     renderHome();
   }
@@ -3019,7 +3019,7 @@ function saveKanbanTask(){
       fromKanban: true
     });
     fbSave('ventasData', ventasData);
-    showToast('💐 Tarea de Florería registrada en Ventas Externas: ' + title);
+    showToast('Tarea de Florería registrada en Ventas Externas: ' + title);
     if(document.getElementById('page-ventas-externas').classList.contains('active')) renderVentas();
   }
 
@@ -3126,7 +3126,7 @@ function copiarUltimoPedido(type){
       }
     } else secEl.value = last.sector || '';
   }
-  showToast('📋 Datos del último pedido cargados — ajustá lo que necesites');
+  showToast('Datos del último pedido cargados — ajustá lo que necesites');
   document.getElementById(p+'-producto')?.focus();
 }
 
@@ -3281,7 +3281,7 @@ function _compraEventosBtn(type, i, r){
     return `<span style="display:inline-block;background:#FCEEF2;border:1px solid #E0B3C4;color:#7A3A2A;border-radius:6px;font-size:10px;font-weight:600;padding:2px 6px;margin:0 3px 3px 0;white-space:nowrap">${esc(nom)} · ${esc(a.qty)}</span>`;
   }).join('');
   const has = allocs.length>0;
-  const label = has ? '✏️ Editar evento(s)' : '🎉 Asignar evento(s)';
+  const label = has ? 'Editar evento(s)' : 'Asignar evento(s)';
   const btnStyle = has
     ? 'background:#FCEEF2;border:1px solid #E0B3C4;color:#7A3A2A;font-weight:600'
     : 'background:#fff;border:1px solid var(--light-gray);color:var(--mid-gray)';
@@ -3434,7 +3434,7 @@ function addCompra(type){
     });
     cfSplitRows = [];
     document.getElementById('cf-split-wrap').style.display = 'none';
-    showToast(`✅ "${prod}" repartido en ${splits.length} áreas`);
+    showToast(`"${prod}" repartido en ${splits.length} áreas`);
   } else {
     getArr(type).unshift({
       fecha, pedidopor, prod, desc,
@@ -3672,7 +3672,7 @@ async function cfImportConfirm(){
   }
   window._comprasFloreLastSave = Date.now();
   fbSave('comprasFlore', comprasFlore);
-  showToast(`✅ ${cfImportRows.length} pedidos importados${nuevosProv?` (${nuevosProv} proveedor${nuevosProv!==1?'es':''} nuevo${nuevosProv!==1?'s':''} agregado${nuevosProv!==1?'s':''})`:''}`);
+  showToast(`${cfImportRows.length} pedidos importados${nuevosProv?` (${nuevosProv} proveedor${nuevosProv!==1?'es':''} nuevo${nuevosProv!==1?'s':''} agregado${nuevosProv!==1?'s':''})`:''}`);
   cfImportCancel();
   renderCompras('floreria');
   updateKpiCompras();
@@ -3836,7 +3836,7 @@ function renderCompras(type){
   const tbody = getTbody(type);
   if(!tbody) return;
   if(activos.length===0){
-    tbody.innerHTML=`<tr><td colspan="${NCOLS}" style="padding:20px;text-align:center;color:var(--mid-gray)">${filtered.length>0?'✅ Todos los pedidos de este período fueron recibidos. Tildá "Incluir recibidos" para verlos.':'Sin compras en este período.'}</td></tr>`;
+    tbody.innerHTML=`<tr><td colspan="${NCOLS}" style="padding:20px;text-align:center;color:var(--mid-gray)">${filtered.length>0?'Todos los pedidos de este período fueron recibidos. Tildá "Incluir recibidos" para verlos.':'Sin compras en este período.'}</td></tr>`;
     if(type==='floreria') renderCompraAlert();
     return;
   }
@@ -3894,7 +3894,7 @@ function renderCompras(type){
         ${_compraEventosBtn(type,i,r)}</td>
       <td data-label="Estado">
         <select class="form-select" onchange="updC('${type}',${i},'estado',this.value);updateKpiCompras()" style="min-width:120px">
-          <option value="pedido" ${r.estado!=='recibido'?'selected':''}>📝 Pedido</option>
+          <option value="pedido" ${r.estado!=='recibido'?'selected':''}>Pedido</option>
           <option value="recibido" ${r.estado==='recibido'?'selected':''}>Recibido</option>
         </select>
       </td>
@@ -3950,7 +3950,7 @@ function toggleHistorialCompras(type='floreria'){
   wrap.style.display = visible ? 'none' : '';
   const bar = document.getElementById(ids.bar);
   if(bar) bar.style.display = visible ? 'none' : 'flex';
-  document.getElementById(ids.btn).textContent = visible ? '📚 Ver historial de pedidos recibidos' : '📚 Ocultar historial';
+  document.getElementById(ids.btn).textContent = visible ? 'Ver historial de pedidos recibidos' : 'Ocultar historial';
   if(!visible) renderHistorialCompras(type);
 }
 
@@ -4062,11 +4062,11 @@ function _histTablaFloreria(items){
           <td style="padding:6px 10px;text-align:center"><input class="form-input" type="number" value="${esc(r.paqRecibidos ?? r.qty ?? '')}" onchange="updHistCantCompra('floreria',${idx},'paqRecibidos',this.value)" style="width:55px;text-align:center" ${an?'disabled':''}></td>
           <td style="padding:6px 10px;text-align:center"><input class="form-input" type="number" value="${esc(r.varasPorPaq ?? '')}" onchange="updHistCantCompra('floreria',${idx},'varasPorPaq',this.value)" style="width:55px;text-align:center" ${an?'disabled':''}></td>
           <td style="padding:6px 10px;text-align:center;font-weight:600">${r.totalVaras||r.qty||'—'}</td>
-          <td style="padding:6px 10px;text-align:center">${an ? '<span style="font-size:9px;font-weight:700;background:#7A7A72;color:#fff;padding:2px 7px;border-radius:5px;white-space:nowrap">🚫 Anulado</span>' : controlBadgeCompra(r)}</td>
+          <td style="padding:6px 10px;text-align:center">${an ? '<span style="font-size:9px;font-weight:700;background:#7A7A72;color:#fff;padding:2px 7px;border-radius:5px;white-space:nowrap">Anulado</span>' : controlBadgeCompra(r)}</td>
           <td style="padding:6px 10px;text-align:right"><input class="form-input" value="${esc(r.costo||'')}" placeholder="$" onchange="updHistCostoCompra('floreria',${idx},this.value)" style="width:90px;text-align:right" ${an?'disabled':''}></td>
           <td style="padding:6px 10px;text-align:right;font-weight:600">${parseMoney(r.costo)>0?'$'+_compraImporte(r).toLocaleString('es-AR'):'<span style="color:var(--mid-gray);font-weight:400">—</span>'}</td>
           <td style="padding:6px 10px;text-align:right;font-weight:700;color:var(--sage-dark)">${cvVal!=null?'$'+cvVal.toLocaleString('es-AR'):'<span style="color:var(--mid-gray);font-weight:400">—</span>'}</td>
-          <td style="padding:6px 10px;text-align:center;white-space:nowrap"><button class="btn-secondary" style="font-size:10px;padding:3px 8px" onclick="toggleAnularCompra('floreria',${idx})">${an?'↩️ Reactivar':'🚫 Anular'}</button></td>
+          <td style="padding:6px 10px;text-align:center;white-space:nowrap"><button class="btn-secondary" style="font-size:10px;padding:3px 8px" onclick="toggleAnularCompra('floreria',${idx})">${an?'↩️ Reactivar':'Anular'}</button></td>
         </tr>`; }).join('')}</tbody>
       </table>`;
 }
@@ -4091,10 +4091,10 @@ function _histTablaJardineria(items){
           <td style="padding:6px 10px;color:var(--mid-gray)">${esc(r.prov||'—')}</td>
           <td style="padding:6px 10px;color:var(--mid-gray)">${esc(r.sector||'—')}${_histEventoSelector('jardineria',idx,r)}</td>
           <td style="padding:6px 10px;text-align:center"><input class="form-input" type="number" value="${esc(r.paqRecibidos ?? r.qty ?? '')}" onchange="updHistCantCompra('jardineria',${idx},'paqRecibidos',this.value)" style="width:60px;text-align:center" ${an?'disabled':''}></td>
-          <td style="padding:6px 10px;text-align:center">${an ? '<span style="font-size:9px;font-weight:700;background:#7A7A72;color:#fff;padding:2px 7px;border-radius:5px;white-space:nowrap">🚫 Anulado</span>' : controlBadgeCompra(r)}</td>
+          <td style="padding:6px 10px;text-align:center">${an ? '<span style="font-size:9px;font-weight:700;background:#7A7A72;color:#fff;padding:2px 7px;border-radius:5px;white-space:nowrap">Anulado</span>' : controlBadgeCompra(r)}</td>
           <td style="padding:6px 10px;text-align:right"><input class="form-input" value="${esc(r.costo||'')}" placeholder="$" onchange="updHistCostoCompra('jardineria',${idx},this.value)" style="width:90px;text-align:right" ${an?'disabled':''}></td>
           <td style="padding:6px 10px;text-align:right;font-weight:600">${parseMoney(r.costo)>0?'$'+_compraImporte(r).toLocaleString('es-AR'):'<span style="color:var(--mid-gray);font-weight:400">—</span>'}</td>
-          <td style="padding:6px 10px;text-align:center;white-space:nowrap"><button class="btn-secondary" style="font-size:10px;padding:3px 8px" onclick="toggleAnularCompra('jardineria',${idx})">${an?'↩️ Reactivar':'🚫 Anular'}</button></td>
+          <td style="padding:6px 10px;text-align:center;white-space:nowrap"><button class="btn-secondary" style="font-size:10px;padding:3px 8px" onclick="toggleAnularCompra('jardineria',${idx})">${an?'↩️ Reactivar':'Anular'}</button></td>
         </tr>`; }).join('')}</tbody>
       </table>`;
 }
@@ -4140,7 +4140,7 @@ function updHistCostoCompra(type, idx, val){
   if(type==='floreria') recalcCotizadorPrecio(order);
   if(type==='floreria'){ window._comprasFloreLastSave = Date.now(); fbSave('comprasFlore', comprasFlore); }
   else { window._comprasJardLastSave = Date.now(); fbSave('comprasJard', comprasJard); }
-  showToast('💰 Precio de compra actualizado' + (type==='floreria' ? ' — costos de arreglos recalculados' : ''));
+  showToast('Precio de compra actualizado' + (type==='floreria' ? ' — costos de arreglos recalculados' : ''));
   renderHistorialCompras(type);
 }
 
@@ -4175,7 +4175,7 @@ async function toggleAnularCompra(type, idx){
   }
   if(type==='floreria'){ window._comprasFloreLastSave = Date.now(); fbSave('comprasFlore', comprasFlore); }
   else { window._comprasJardLastSave = Date.now(); fbSave('comprasJard', comprasJard); }
-  showToast(order.anulado ? '🚫 Pedido anulado — excluido de costos y métricas' : '↩️ Pedido reactivado');
+  showToast(order.anulado ? 'Pedido anulado — excluido de costos y métricas' : '↩️ Pedido reactivado');
   renderHistorialCompras(type);
 }
 
@@ -4183,7 +4183,7 @@ async function copiarBloquePedido(type, fecha){
   const arr = getArr(type);
   // Tomar todos los ítems de esa fecha (incluyendo recibidos, para replicar el pedido completo)
   const bloque = arr.filter(r => r.fecha === fecha);
-  if(!bloque.length){ showToast('⚠️ No se encontraron ítems para esa fecha'); return; }
+  if(!bloque.length){ showToast('No se encontraron ítems para esa fecha'); return; }
   if(!await confirmModal('¿Copiar el pedido del ' + fmtDate(fecha) + ' (' + bloque.length + ' ítems) con fecha de hoy?\nPodés modificar cantidades después.')) return;
   // Clonar cada ítem con fecha de hoy y estado 'pedido'
   const nuevos = bloque.map(r => ({
@@ -4201,7 +4201,7 @@ async function copiarBloquePedido(type, fecha){
   nuevos.forEach(n => arr.unshift(n));
   fbSave(type==='floreria' ? 'comprasFlore' : 'comprasJard', arr);
   renderCompras(type);
-  showToast('📋 Pedido copiado con ' + nuevos.length + ' ítems · fecha de hoy · ajustá lo que necesites');
+  showToast('Pedido copiado con ' + nuevos.length + ' ítems · fecha de hoy · ajustá lo que necesites');
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -4290,7 +4290,7 @@ function ceLoadEvento(evIdx){
   const ev = (eventosData||[])[+evIdx];
   if(!ev){ return; }
   const arr = (ev.arreglos||[]).filter(a=>a.arreglo && a.qty>0);
-  if(!arr.length){ showToast('⚠️ Ese evento no tiene arreglos cargados'); return; }
+  if(!arr.length){ showToast('Ese evento no tiene arreglos cargados'); return; }
   ceRows = arr.map(a=>({arreglo:a.arreglo, qty:+a.qty||1}));
   ceRenderRows();
   ceRender();
@@ -4304,7 +4304,7 @@ function ceRender(){
   const prods = Object.keys(impact).sort((a,b)=>a.localeCompare(b,'es'));
   if(!prods.length){
     out.innerHTML = `<div style="text-align:center;padding:40px 20px;color:var(--mid-gray)">
-      <div style="font-size:36px;margin-bottom:8px">🧮</div>
+      <div style="font-size:36px;margin-bottom:8px"></div>
       <div style="font-size:14px">Agregá arreglos y cantidades para ver cuánto comprar.</div></div>`;
     return;
   }
@@ -4365,7 +4365,7 @@ function ceCopiar(){
   if(!compra.length){ showToast('Nada para copiar'); return; }
   const txt = 'Comprar:\n' + compra.map(c=>`- ${c.paquetes} ${c.prod}`).join('\n');
   (navigator.clipboard?.writeText(txt) || Promise.reject()).then(
-    ()=>showToast('📋 Lista copiada'),
+    ()=>showToast('Lista copiada'),
     ()=>showToast('No se pudo copiar')
   );
 }
@@ -4396,7 +4396,7 @@ function addProveedor(){
   fbSave('proveedoresList', proveedoresList);
   renderProvTags();
   populateProvSelects();
-  showToast('✅ Proveedor agregado: ' + val);
+  showToast('Proveedor agregado: ' + val);
 }
 
 async function delProveedor(i){
@@ -4445,9 +4445,9 @@ function updC(type,i,field,val){
           max: Math.max(qty * 2, 4),
           actual: qty
         });
-        showToast('📦 Nuevo producto agregado al stock: ' + order.prod);
+        showToast('Nuevo producto agregado al stock: ' + order.prod);
       } else {
-        showToast('✅ Stock actualizado: +' + qty + ' ' + order.prod);
+        showToast('Stock actualizado: +' + qty + ' ' + order.prod);
       }
 
       // Banner en página de stock si está visible
@@ -4756,7 +4756,7 @@ function renderLPenCotizador(){
       </div>`;
     }).join('');
     return `<div style="margin-bottom:16px">
-      <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:8px;font-weight:500">${cat.emoji||'📦'} ${esc(cat.cat)}</div>
+      <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:8px;font-weight:500">${cat.emoji||''} ${esc(cat.cat)}</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px">${items}</div>
     </div>`;
   }).join('');
@@ -4832,15 +4832,15 @@ function copiarCotizacionOps(){
   if(!cotCarritoOps.length) return;
   const total  = cotCarritoOps.reduce((s,c)=>s+(c.precio*c.qty),0);
   const lineas = cotCarritoOps.map(c=>`• ${c.nombre} × ${c.qty}  →  $${(c.precio*c.qty).toLocaleString('es-AR')}`).join('\n');
-  const texto  = `🌸 Cotización Florería Duhau\n${'─'.repeat(32)}\n${lineas}\n${'─'.repeat(32)}\nTotal: $${total.toLocaleString('es-AR')}`;
-  navigator.clipboard.writeText(texto).then(()=>showToast('✅ Cotización copiada al portapapeles'));
+  const texto  = `Cotización Florería Duhau\n${'─'.repeat(32)}\n${lineas}\n${'─'.repeat(32)}\nTotal: $${total.toLocaleString('es-AR')}`;
+  navigator.clipboard.writeText(texto).then(()=>showToast('Cotización copiada al portapapeles'));
 }
 
 function cotGuardarMargen(val){
   const margen = Math.max(0, +val||0);
   cotizadorConfig = {...(cotizadorConfig||{}), margen};
   fbSave('cotizadorConfig', cotizadorConfig);
-  showToast('✅ Margen actualizado');
+  showToast('Margen actualizado');
 }
 
 function setCotTab(tab){
@@ -4970,8 +4970,8 @@ function copiarCotizacion(){
   const totalCosto  = cotizadorCarrito.reduce((s,c)=>s+(c.precio*c.qty),0);
   const precioFinal = Math.round(totalCosto*(1+margen/100));
   const lineas = cotizadorCarrito.map(c=>`• ${c.nombre} × ${c.qty}  →  $${(c.precio*c.qty).toLocaleString('es-AR')}`).join('\n');
-  const texto = `🌸 Cotización Florería Duhau\n${'─'.repeat(32)}\n${lineas}\n${'─'.repeat(32)}\nCosto: $${totalCosto.toLocaleString('es-AR')}\nPrecio final: $${precioFinal.toLocaleString('es-AR')} (margen ${margen}%)`;
-  navigator.clipboard.writeText(texto).then(()=>showToast('✅ Cotización copiada al portapapeles'));
+  const texto = `Cotización Florería Duhau\n${'─'.repeat(32)}\n${lineas}\n${'─'.repeat(32)}\nCosto: $${totalCosto.toLocaleString('es-AR')}\nPrecio final: $${precioFinal.toLocaleString('es-AR')} (margen ${margen}%)`;
+  navigator.clipboard.writeText(texto).then(()=>showToast('Cotización copiada al portapapeles'));
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -5052,7 +5052,7 @@ async function addTipoEvento(){
   eventoPricing.tipos.push({ nombre: nombre.trim(), margen: parseInt(margen)||40 });
   fbSave('eventoPricing', eventoPricing);
   renderEvTipos();
-  showToast('🎉 Tipo de evento agregado');
+  showToast('Tipo de evento agregado');
 }
 
 function updTipoEvento(i, field, val){
@@ -5179,7 +5179,7 @@ function renderCotEventos(){
     .filter(s => s.actual > 0);
   const flores = search ? enStock.filter(f=>f.n.toLowerCase().includes(search)) : enStock;
   if(flores.length){
-    html += `<div style="grid-column:1/-1;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);font-weight:500;margin-top:12px;margin-bottom:-4px">🌸 Flores sueltas · upgrades</div>`;
+    html += `<div style="grid-column:1/-1;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);font-weight:500;margin-top:12px;margin-bottom:-4px">Flores sueltas · upgrades</div>`;
     html += flores.map(f => {
       const costo = cotizadorPrecios[f.n] || 0;
       const pFinal = Math.round(costo*(1+margen/100));
@@ -5290,8 +5290,8 @@ function copiarCotEvento(){
   const totalCosto = evCarrito.reduce((s,c)=>s+(c.costo*c.qty),0);
   const totalFinal = evCarrito.reduce((s,c)=>s+(c.precio*c.qty),0);
   const lineas = evCarrito.map(c=>`• ${c.nombre} × ${c.qty}  →  $${(c.precio*c.qty).toLocaleString('es-AR')}`).join('\n');
-  const texto = `🎉 Cotización Evento — ${tipoNombre}\n🌸 Florería Duhau · Palacio Duhau\n${'─'.repeat(36)}\n${lineas}\n${'─'.repeat(36)}\nCosto base: $${totalCosto.toLocaleString('es-AR')}\nMargen ${tipo?.margen||0}%: $${(totalFinal-totalCosto).toLocaleString('es-AR')}\nPRECIO FINAL: $${totalFinal.toLocaleString('es-AR')}`;
-  navigator.clipboard.writeText(texto).then(()=>showToast('✅ Cotización de evento copiada'));
+  const texto = `Cotización Evento — ${tipoNombre}\nFlorería Duhau · Palacio Duhau\n${'─'.repeat(36)}\n${lineas}\n${'─'.repeat(36)}\nCosto base: $${totalCosto.toLocaleString('es-AR')}\nMargen ${tipo?.margen||0}%: $${(totalFinal-totalCosto).toLocaleString('es-AR')}\nPRECIO FINAL: $${totalFinal.toLocaleString('es-AR')}`;
+  navigator.clipboard.writeText(texto).then(()=>showToast('Cotización de evento copiada'));
 }
 
 function renderPreciosList(){
@@ -5325,7 +5325,7 @@ function renderPreciosList(){
 
   const flores  = filtered.filter(f=>f.c==='flores');
   const follaje = filtered.filter(f=>f.c==='follaje');
-  el.innerHTML = renderGroup(flores,'Flores','🌸') + renderGroup(follaje,'Follaje','🌿');
+  el.innerHTML = renderGroup(flores,'Flores','') + renderGroup(follaje,'Follaje','');
 }
 
 function cotGuardarPrecio(cotIdx, val){
@@ -5359,7 +5359,7 @@ function renderEventos(){
     const fromOpsTag = ev.fromKanban ? '<span style="font-size:10px;background:#E8F0F8;color:#2C5A80;padding:2px 7px;border-radius:4px;font-weight:600;letter-spacing:.5px">DESDE OPERACIONES</span>' : '';
     const arreglosResumen = (ev.arreglos && ev.arreglos.length)
       ? `<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">
-          <span style="font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">🌸 Arreglos</span>
+          <span style="font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Arreglos</span>
           ${ev.arreglos.map(a=>`<span style="background:var(--blush-light);color:#7A3A2A;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap">${a.qty}× ${esc(a.arreglo)}</span>`).join('')}
         </div>`
       : '';
@@ -5404,7 +5404,7 @@ function changeEventoEstado(i,val){
   if(!wasConfirmed && nowConfirmed && eventosData[i]?.arreglos?.length){
     const descuentos = descontarStockEvento(eventosData[i].arreglos);
     if(descuentos.length>0){
-      showToast('📦 Stock descontado al confirmar: '+descuentos.slice(0,3).join(' · '));
+      showToast('Stock descontado al confirmar: '+descuentos.slice(0,3).join(' · '));
       if(document.getElementById('page-stock').classList.contains('active')) renderStock();
     }
   }
@@ -5688,7 +5688,7 @@ function _checkCierreDia(){
   _cierreDiaSesion = fecha;
   guardarResumenDiario(fecha, data);
   const nPers = data.personas.length;
-  window.pushSend?.('📊 Cierre del día', `${nPers} persona${nPers!==1?'s':''} asistieron hoy · mirá el detalle en Reportes › Cierre del Día`, 'cierre-dia', 'roles:gerencia');
+  window.pushSend?.('Cierre del día', `${nPers} persona${nPers!==1?'s':''} asistieron hoy · mirá el detalle en Reportes › Cierre del Día`, 'cierre-dia', 'roles:gerencia');
   if(document.getElementById('page-cierre-dia')?.classList.contains('active')) renderCierreDia();
 }
 
@@ -5731,7 +5731,7 @@ function renderCierreDia(){
 
   if(!data.personas.length){
     cont.innerHTML = `<div style="text-align:center;padding:48px 20px;color:var(--mid-gray)">
-      <div style="font-size:40px;margin-bottom:10px">🗓️</div>
+      <div style="font-size:40px;margin-bottom:10px"></div>
       <div style="font-size:15px;font-weight:600;color:#7A7A72">Sin asistencia registrada para el ${fmtDate(fecha)}</div>
       <div style="font-size:13px;margin-top:6px">Aparecerá el detalle cuando el equipo fiche su turno o tenga tareas/eventos asignados.</div></div>`;
     return;
@@ -5850,7 +5850,7 @@ function _homeVisualHTML(hechas, totalTareas, pct, ventasMes, totalMes){
         <span class="hv-sem hv-sem-ambar">${ambar}<small>5-6<br>días</small></span>
         <span class="hv-sem hv-sem-verde">${verde}<small>al<br>día</small></span>
       </div>
-      <div class="hv-sub">${peoresTxt ? '⚠️ ' + peoresTxt : '✓ Todas las zonas al día'}</div>
+      <div class="hv-sub">${peoresTxt ? '' + peoresTxt : '✓ Todas las zonas al día'}</div>
     </div>
   </div>`;
 }
@@ -5997,19 +5997,19 @@ let jardAlertas=[]; // alertas urgentes con foto que carga gerencia para los jar
 window._setVentasData = (arr) => { ventasData.splice(0, ventasData.length, ...arr); };
 
 const VENTA_ESTADOS=['pendiente','confirmado','entregado'];
-const VENTA_ESTADO_LABEL={'pendiente':'⏳ Pendiente','confirmado':'✅ Confirmado','entregado':'🚚 Entregado'};
+const VENTA_ESTADO_LABEL={'pendiente':'⏳ Pendiente','confirmado':'Confirmado','entregado':'Entregado'};
 const VENTA_ESTADO_COLOR={'pendiente':ESTADO_COLORS['Pedidos Pendientes'],'confirmado':ESTADO_COLORS['Confirmado'],'entregado':ESTADO_COLORS['Pedidos Finalizados']};
 
 // Formas de pago canónicas (para el filtro y el cierre de mes)
 const VENTA_PAGO_OPTS=[
-  {value:'Efectivo',label:'💵 Efectivo'},
-  {value:'Tarjeta',label:'💳 Tarjeta'},
-  {value:'Transferencia',label:'🏦 Transferencia'},
-  {value:'Link de pago',label:'🔗 Link de pago'},
-  {value:'Mercado Pago',label:'💙 Mercado Pago'},
-  {value:'Cargo a rooms',label:'🏨 Cargo a rooms (hotel)'},
-  {value:'Cargo a habitación',label:'🛏 Cargo a habitación (huésped)'},
-  {value:'Cuenta corriente',label:'📋 Cuenta corriente'},
+  {value:'Efectivo',label:'Efectivo'},
+  {value:'Tarjeta',label:'Tarjeta'},
+  {value:'Transferencia',label:'Transferencia'},
+  {value:'Link de pago',label:'Link de pago'},
+  {value:'Mercado Pago',label:'Mercado Pago'},
+  {value:'Cargo a rooms',label:'Cargo a rooms (hotel)'},
+  {value:'Cargo a habitación',label:'Cargo a habitación (huésped)'},
+  {value:'Cuenta corriente',label:'Cuenta corriente'},
 ];
 // Normaliza formas de pago viejas (Débito/Crédito → Tarjeta) para filtrar bien.
 function normPago(fp){ return (fp==='Débito'||fp==='Crédito') ? 'Tarjeta' : (fp||''); }
@@ -6122,7 +6122,7 @@ function renderVentas(){
         <option value="Tarjeta" ${v.formaPago==='Tarjeta'||v.formaPago==='Débito'||v.formaPago==='Crédito'?'selected':''}>Tarjeta</option>
         <option value="Transferencia" ${v.formaPago==='Transferencia'?'selected':''}>Transferencia</option>
         <option value="Link de pago" ${v.formaPago==='Link de pago'?'selected':''}>Link de pago</option>
-        <option value="Mercado Pago" ${v.formaPago==='Mercado Pago'?'selected':''}>💙 Mercado Pago</option>
+        <option value="Mercado Pago" ${v.formaPago==='Mercado Pago'?'selected':''}>Mercado Pago</option>
         <option value="Cargo a rooms" ${v.formaPago==='Cargo a rooms'?'selected':''}>Cargo a rooms (hotel)</option>
         <option value="Cargo a habitación" ${v.formaPago==='Cargo a habitación'?'selected':''}>Cargo a habitación (huésped)</option>
         <option value="Cuenta corriente" ${v.formaPago==='Cuenta corriente'?'selected':''}>Cuenta corriente</option>
@@ -6132,7 +6132,7 @@ function renderVentas(){
       <select class="form-select" onchange="updV(${i},'facturado',this.value)" style="min-width:90px;font-size:12px">
         <option value="" ${!v.facturado?'selected':''}>—</option>
         <option value="Sí" ${v.facturado==='Sí'?'selected':''}>Sí</option>
-        <option value="No" ${v.facturado==='No'?'selected':''}>❌ No</option>
+        <option value="No" ${v.facturado==='No'?'selected':''}>No</option>
       </select>
     </td>
     <td>
@@ -6144,7 +6144,7 @@ function renderVentas(){
     <td>
       <select class="form-select" onchange="updV(${i},'taxiFlete',this.value)" style="min-width:100px;font-size:12px">
         <option value="" ${!v.taxiFlete?'selected':''}>—</option>
-        <option value="Taxi" ${v.taxiFlete==='Taxi'?'selected':''}>🚕 Taxi</option>
+        <option value="Taxi" ${v.taxiFlete==='Taxi'?'selected':''}>Taxi</option>
         <option value="Flete" ${v.taxiFlete==='Flete'?'selected':''}>Flete</option>
       </select>
       <input class="form-input" value="${esc(v.envioCosto||'')}" onchange="updV(${i},'envioCosto',this.value)" placeholder="$ costo envío" style="width:100px;margin-top:4px;font-size:11px" title="Costo del taxi/flete (para el cierre de mes)">
@@ -6213,12 +6213,12 @@ function ventasCierreMes(){
       ${conMargen.length ? `<div style="display:flex;justify-content:space-between;padding:4px 0;border-top:1px dashed var(--light-gray);margin-top:4px"><span>Ganancia estimada <span style="color:var(--mid-gray);font-size:11px">· ${conMargen.length} c/composición</span></span><strong style="color:var(--green-ok)">$${Math.round(gananciaTotal).toLocaleString('es-AR')}</strong></div>` : ''}
     </div>`;
 
-  window._ventasCierreTexto = `📊 Cierre ${fmtMonth(mes)}\n`
+  window._ventasCierreTexto = `Cierre ${fmtMonth(mes)}\n`
     + claves.map(g=>`Ventas ${g}: Cobrar $${grupos[g].total.toLocaleString('es-AR')}`).join('\n')
     + `\n———\nTotal: $${totalGen.toLocaleString('es-AR')} · ${delMes.length} ventas`
-    + `\n✅ Facturado: $${factTotal.toLocaleString('es-AR')} (${factList.length})`
-    + `\n🧾 Sin facturar: $${pendTotal.toLocaleString('es-AR')} (${pendList.length})`
-    + (enviosTotal>0 ? `\n🚚 Envíos: −$${enviosTotal.toLocaleString('es-AR')}\nNeto: $${(totalGen-enviosTotal).toLocaleString('es-AR')}` : '');
+    + `\nFacturado: $${factTotal.toLocaleString('es-AR')} (${factList.length})`
+    + `\nSin facturar: $${pendTotal.toLocaleString('es-AR')} (${pendList.length})`
+    + (enviosTotal>0 ? `\nEnvíos: −$${enviosTotal.toLocaleString('es-AR')}\nNeto: $${(totalGen-enviosTotal).toLocaleString('es-AR')}` : '');
 
   let ov = document.getElementById('ventas-cierre-modal');
   if(!ov){ ov=document.createElement('div'); ov.id='ventas-cierre-modal'; ov.className='modal-overlay'; document.body.appendChild(ov); }
@@ -6242,7 +6242,7 @@ function ventasCierreMes(){
 function ventasCierreCopiar(){
   const txt = window._ventasCierreTexto || '';
   (navigator.clipboard?.writeText(txt) || Promise.reject()).then(
-    ()=>showToast('📋 Resumen copiado'),
+    ()=>showToast('Resumen copiado'),
     ()=>showToast('No se pudo copiar')
   );
 }
@@ -6279,7 +6279,7 @@ function sincronizarVentaCaja(i){
       fbSave('ventasData', ventasData);
       fbSave('cajaData', cajaData);
       if(document.getElementById('page-caja')?.classList.contains('active')) renderCaja();
-      showToast(`💵 $${monto.toLocaleString('es-AR')} sumado a Control de Caja (efectivo)`);
+      showToast(`$${monto.toLocaleString('es-AR')} sumado a Control de Caja (efectivo)`);
     }
   }
 }
@@ -6317,7 +6317,7 @@ function populateSaleSelects(currentProd, currentAsignado){
   const prodSel = document.getElementById('sale-prod');
   let opts = '<option value="">— Seleccionar —</option>';
   if(recetasData.length){
-    opts += '<optgroup label="🫙 Composiciones">';
+    opts += '<optgroup label="Composiciones">';
     recetasData.forEach(r => {
       const costo = calcCostoComposicion(r);
       const margen = cotizadorConfig?.margen ?? 30;
@@ -6328,7 +6328,7 @@ function populateSaleSelects(currentProd, currentAsignado){
   }
   listaPreciosData.forEach(cat => {
     if(!(cat.items||[]).length) return;
-    opts += `<optgroup label="${cat.emoji||'📦'} ${esc(cat.cat)}">`;
+    opts += `<optgroup label="${cat.emoji||''} ${esc(cat.cat)}">`;
     cat.items.forEach(it => {
       opts += `<option value="${esc(it.nombre)}" data-precio="${parseMoney(it.precio)}"${it.nombre===currentProd?' selected':''}>${esc(it.nombre)} — ${esc(it.precio||'A consultar')}</option>`;
     });
@@ -6404,7 +6404,7 @@ function addSale(){
     ventasData[editIdx] = venta;
     fbSave('ventasData', ventasData);
     sincronizarVentaCaja(editIdx);
-    showToast('✅ Venta actualizada');
+    showToast('Venta actualizada');
   } else {
     // Nueva venta
     venta.id = venta.id || genEventoId();
@@ -6418,13 +6418,13 @@ function addSale(){
     if(estado === 'pendiente'){
       ensureKanbanCols();
       const detalles = [
-        venta.cliente ? '👤 '+venta.cliente : '',
+        venta.cliente ? ''+venta.cliente : '',
         venta.desc,
-        venta.dedicatoria ? '✉️ "'+venta.dedicatoria+'"' : '',
-        venta.dir ? '📍 '+venta.dir : ''
+        venta.dedicatoria ? '"'+venta.dedicatoria+'"' : '',
+        venta.dir ? ''+venta.dir : ''
       ].filter(Boolean).join('\n');
       kanbanData[0].cards.push({
-        title: '💐 ' + prod,
+        title: '' + prod,
         desc: detalles,
         tags: ['tag-floreria'],
         date: venta.fecha,
@@ -6432,14 +6432,14 @@ function addSale(){
         ventaId: venta.id,
       });
       fbSave('kanbanData', kanbanData);
-      showToast('📋 Venta registrada + tarea creada en Kanban');
+      showToast('Venta registrada + tarea creada en Kanban');
     } else {
-      showToast('✅ Venta registrada');
+      showToast('Venta registrada');
     }
   }
 
   if(asignado && asignado !== prevAsignadoVenta && estado === 'pendiente'){
-    notificarAsignacion(asignado, '💐 Nueva venta asignada', `${venta.prod}${venta.cliente ? ' · ' + venta.cliente : ''}`);
+    notificarAsignacion(asignado, 'Nueva venta asignada', `${venta.prod}${venta.cliente ? ' · ' + venta.cliente : ''}`);
   }
   closeModal('sale-modal');
   renderVentas();
@@ -6465,8 +6465,8 @@ function cajaRowHTML(r, i, running){
     <td><input class="form-input" value="${esc(r.ticket||'')}" onchange="updCaja(${i},'ticket',this.value)" placeholder="—" style="width:75px;padding:5px 7px;font-size:12px"></td>
     <td>
       <select class="form-select" onchange="updCajaTipo(${i},this.value)" style="font-size:11px;font-weight:600;padding:4px 6px;${r.tipo==='ingreso'?'background:#EBF5E8;color:var(--green-ok)':'background:#FBE8E8;color:var(--red-alert)'}">
-        <option value="ingreso" ${r.tipo==='ingreso'?'selected':''}>💚 Ingreso</option>
-        <option value="egreso"  ${r.tipo==='egreso' ?'selected':''}>🔴 Egreso</option>
+        <option value="ingreso" ${r.tipo==='ingreso'?'selected':''}>Ingreso</option>
+        <option value="egreso"  ${r.tipo==='egreso' ?'selected':''}>Egreso</option>
       </select>
     </td>
     <td><input class="form-input" type="number" value="${r.monto}" min="0" onchange="updCajaMonto(${i},+this.value)" style="width:110px;padding:5px 7px;font-size:13px;font-weight:600;color:${r.tipo==='ingreso'?'var(--green-ok)':'var(--red-alert)'}"></td>
@@ -6503,7 +6503,7 @@ function renderCaja(){
     : `<tr><td colspan="7" style="padding:22px;text-align:center;color:var(--mid-gray)">Sin movimientos este mes todavía. Agregá el primero con "+ Nuevo Movimiento".</td></tr>`;
 
   const tit = document.getElementById('caja-mes-titulo');
-  if(tit) tit.textContent = `📅 Movimientos de ${_cajaMesLabel(curMonth)}`;
+  if(tit) tit.textContent = `Movimientos de ${_cajaMesLabel(curMonth)}`;
 
   const arrastre  = older.reduce((s,{r})=> s+(r.tipo==='ingreso'?r.monto:-r.monto), 0);
   const saldoFinal = arrastre + inMes - egMes;
@@ -6526,7 +6526,7 @@ function toggleCajaHistorial(){
   const cont = document.getElementById('caja-historial');
   const btn  = document.getElementById('caja-historial-toggle');
   if(cont) cont.style.display = _cajaHistExpanded ? 'block' : 'none';
-  if(btn)  btn.textContent = _cajaHistExpanded ? '📁 Ocultar historial de meses anteriores' : '📁 Ver historial de meses anteriores';
+  if(btn)  btn.textContent = _cajaHistExpanded ? 'Ocultar historial de meses anteriores' : 'Ver historial de meses anteriores';
 }
 function toggleCajaMes(mes){ _cajaMesesAbiertos[mes] = !_cajaMesesAbiertos[mes]; renderCaja(); }
 
@@ -6538,7 +6538,7 @@ function renderCajaHistorial(older, runByIdx){
   wrap.style.display='block';
   cont.style.display = _cajaHistExpanded ? 'block' : 'none';
   const btn = document.getElementById('caja-historial-toggle');
-  if(btn) btn.textContent = _cajaHistExpanded ? '📁 Ocultar historial de meses anteriores' : '📁 Ver historial de meses anteriores';
+  if(btn) btn.textContent = _cajaHistExpanded ? 'Ocultar historial de meses anteriores' : 'Ver historial de meses anteriores';
 
   // Agrupar por mes, más reciente primero
   const porMes = {};
@@ -6555,7 +6555,7 @@ function renderCajaHistorial(older, runByIdx){
     return `<div style="border:1px solid var(--light-gray);border-radius:8px;margin-bottom:10px;overflow:hidden">
       <div onclick="toggleCajaMes('${m}')" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;background:var(--warm-white)">
         <span style="font-weight:600;font-size:13px">${abierto?'▼':'▶'} ${_cajaMesLabel(m)} · ${rows.length} mov.</span>
-        <span style="font-size:12px;color:var(--mid-gray)">💚 $${inM.toLocaleString('es-AR')} · 🔴 $${egM.toLocaleString('es-AR')} · neto <strong style="color:${neto>=0?'var(--green-ok)':'var(--red-alert)'}">$${neto.toLocaleString('es-AR')}</strong></span>
+        <span style="font-size:12px;color:var(--mid-gray)">$${inM.toLocaleString('es-AR')} · $${egM.toLocaleString('es-AR')} · neto <strong style="color:${neto>=0?'var(--green-ok)':'var(--red-alert)'}">$${neto.toLocaleString('es-AR')}</strong></span>
       </div>
       ${abierto?`<div class="table-wrapper"><table class="caja-table"><thead><tr><th>Fecha</th><th>Descripción</th><th>Ticket #</th><th>Tipo</th><th>Monto</th><th>Saldo</th><th></th></tr></thead><tbody>${bodyRows}</tbody></table></div>`:''}
     </div>`;
@@ -6598,7 +6598,7 @@ function cierresCajaDelDia(fecha){
 async function cerrarCajaDia(){
   const fecha = document.getElementById('cierre-fecha')?.value || TODAY_ISO;
   const movsDia = cierresCajaDelDia(fecha);
-  if(!movsDia.length){ showToast('⚠️ No hay movimientos para esa fecha'); return; }
+  if(!movsDia.length){ showToast('No hay movimientos para esa fecha'); return; }
   if(!await confirmModal(`¿Cerrar caja del ${fmtDate(fecha)}? Se archivará el resumen del día.`)) return;
 
   let totalIn = 0, totalEg = 0;
@@ -6622,7 +6622,7 @@ async function cerrarCajaDia(){
   else cierresCajaData.push(cierre);
   fbSave('cierresCaja', cierresCajaData);
 
-  showToast(`✅ Caja del ${fmtDate(fecha)} cerrada — Saldo: $${cierre.saldo.toLocaleString('es-AR')}`);
+  showToast(`Caja del ${fmtDate(fecha)} cerrada — Saldo: $${cierre.saldo.toLocaleString('es-AR')}`);
   renderCierreCajaHistorial();
 }
 
@@ -6655,7 +6655,7 @@ function toggleCierreDetalle(ts){
   // Mostrar detalle de movimientos en un toast/alert simple
   const cierre = cierresCajaData.find(c => c.ts === ts);
   if(!cierre) return;
-  const lines = (cierre.movimientos||[]).map(m => `${m.tipo==='ingreso'?'💚':'🔴'} ${m.desc}: $${m.monto.toLocaleString('es-AR')}`).join('\n');
+  const lines = (cierre.movimientos||[]).map(m => `${m.tipo==='ingreso'?'':''} ${m.desc}: $${m.monto.toLocaleString('es-AR')}`).join('\n');
   alertModal(`${lines}\n\nSaldo: $${cierre.saldo.toLocaleString('es-AR')}`, { title: 'Cierre ' + fmtDate(cierre.fecha) });
 }
 
@@ -6737,13 +6737,13 @@ function renderGaleria(){
   if(!filtered.length){
     const secLabel = galeriaSeccion==='hotel'?'standard del hotel':galeriaSeccion==='eventos'?'de eventos':galeriaSeccion==='ramos'?'de ramos':'';
     el.innerHTML = `<div style="text-align:center;padding:60px 20px;color:var(--mid-gray)">
-      <div style="font-size:48px;margin-bottom:16px">🌸</div>
+      <div style="font-size:48px;margin-bottom:16px"></div>
       <div style="font-size:14px">No hay fichas de arreglos ${esc(secLabel)} todavía.<br>Agregá la primera con "＋ Nueva ficha".</div>
     </div>`;
     return;
   }
 
-  const TEMP_ICON = {Primavera:'🌸',Verano:'☀️',Otoño:'🍂',Invierno:'❄️'};
+  const TEMP_ICON = {Primavera:'',Verano:'',Otoño:'',Invierno:''};
   el.innerHTML = `<div style="columns:3 280px;column-gap:16px;orphans:1;widows:1">
     ${filtered.map((g)=>{
       const realIdx = galeriaData.indexOf(g);
@@ -6759,13 +6759,13 @@ function renderGaleria(){
       return `<div style="break-inside:avoid;margin-bottom:16px;border-radius:var(--radius-md);overflow:hidden;background:var(--warm-white);border:1px solid var(--light-gray);box-shadow:var(--shadow-sm);cursor:pointer;transition:var(--transition)" onclick="openFichaGaleria(${realIdx})" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='var(--shadow-md)'" onmouseout="this.style.transform='';this.style.boxShadow='var(--shadow-sm)'">
         ${foto
           ? `<img src="${foto}" style="width:100%;display:block;object-fit:cover;max-height:380px" loading="lazy">`
-          : `<div style="width:100%;height:200px;background:linear-gradient(135deg,var(--blush-light),var(--sage-light));display:flex;align-items:center;justify-content:center;font-size:52px">🌸</div>`
+          : `<div style="width:100%;height:200px;background:linear-gradient(135deg,var(--blush-light),var(--sage-light));display:flex;align-items:center;justify-content:center;font-size:52px"></div>`
         }
         <div style="padding:14px 16px">
           <div style="font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:500;color:var(--charcoal);margin-bottom:6px">${esc(g.titulo||'Sin título')}</div>
           <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px">
             ${secBadge}
-            ${g.sector?`<span style="background:var(--cream);color:var(--mid-gray);padding:2px 8px;border-radius:20px;font-size:10px">📍 ${esc(g.sector)}</span>`:''}
+            ${g.sector?`<span style="background:var(--cream);color:var(--mid-gray);padding:2px 8px;border-radius:20px;font-size:10px">${esc(g.sector)}</span>`:''}
             ${g.tamano?`<span style="background:var(--cream);color:var(--mid-gray);padding:2px 8px;border-radius:20px;font-size:10px">${esc(g.tamano)}</span>`:''}
             ${g.temporada?`<span style="background:var(--cream);color:var(--mid-gray);padding:2px 8px;border-radius:20px;font-size:10px">${TEMP_ICON[g.temporada]||''} ${esc(g.temporada)}</span>`:''}
             ${chips.slice(0,3).map(f=>`<span style="background:var(--light-gray);color:var(--charcoal);padding:2px 8px;border-radius:20px;font-size:10px">${esc(f)}</span>`).join('')}
@@ -6830,7 +6830,7 @@ function openFichaGaleria(idx){
         ${fotos.length
           ? `<img src="${fotos[0]}" style="width:100%;border-radius:8px;object-fit:cover;cursor:zoom-in" onclick="abrirLightbox(${idx})">
              ${fotos.length>1?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${fotos.slice(1).map(f=>`<img src="${f}" style="width:56px;height:56px;object-fit:cover;border-radius:5px;border:1px solid var(--light-gray)">`).join('')}</div>`:''}`
-          : `<div style="width:100%;height:200px;background:linear-gradient(135deg,var(--blush-light),var(--sage-light));display:flex;align-items:center;justify-content:center;font-size:52px;border-radius:8px">🌸</div>`}
+          : `<div style="width:100%;height:200px;background:linear-gradient(135deg,var(--blush-light),var(--sage-light));display:flex;align-items:center;justify-content:center;font-size:52px;border-radius:8px"></div>`}
       </div>
       <div style="flex:2;min-width:300px;overflow-x:auto">
         ${rowsHTML
@@ -6890,7 +6890,7 @@ function abrirLightbox(idx){
       ${fotos.length>1?`<button onclick="event.stopPropagation();fotoIdx=(fotoIdx-1+fotos.length)%fotos.length;showFoto()" style="position:absolute;left:20px;background:rgba(255,255,255,.15);border:none;color:white;font-size:28px;padding:12px 16px;border-radius:8px;cursor:pointer">‹</button>
       <button onclick="event.stopPropagation();fotoIdx=(fotoIdx+1)%fotos.length;showFoto()" style="position:absolute;right:20px;background:rgba(255,255,255,.15);border:none;color:white;font-size:28px;padding:12px 16px;border-radius:8px;cursor:pointer">›</button>`:''}
       ${src?`<img src="${src}" style="max-width:85vw;max-height:72vh;border-radius:8px;object-fit:contain;box-shadow:0 8px 40px rgba(0,0,0,.6)">`
-           :`<div style="font-size:80px">🌸</div>`}
+           :`<div style="font-size:80px"></div>`}
       <div style="margin-top:16px;text-align:center;max-width:600px;padding:0 20px">
         <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:white;margin-bottom:6px">${esc(g.titulo||'Sin título')}</div>
         <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:8px">
@@ -7124,7 +7124,7 @@ function guardarGaleria(idx){
   fbSave('galeriaData', galeriaData);
   closeModal('galeria-modal');
   renderGaleria();
-  showToast('✅ Ficha guardada en la galería');
+  showToast('Ficha guardada en la galería');
 }
 
 function editarGaleria(idx){ openGaleriaModal(idx); }
@@ -7296,9 +7296,9 @@ function renderRecepcionPedidos(){
         <div style="text-align:center;width:36px">
           ${st.checked
             ? (paqOk
-              ? '<span style="font-size:18px">✅</span>'
-              : '<span style="font-size:18px">⚠️</span><div style="font-size:9px;color:var(--amber)">Faltante</div>')
-            : '<span style="font-size:18px;opacity:.3">⬜</span>'
+              ? '<span style="font-size:18px"></span>'
+              : '<span style="font-size:18px"></span><div style="font-size:9px;color:var(--amber)">Faltante</div>')
+            : '<span style="font-size:18px;opacity:.3"></span>'
           }
         </div>
       </div>
@@ -7386,7 +7386,7 @@ async function recepConfirmarTodo(){
   if(toConfirm.length === 0){ showToast('Marcá al menos un ítem.','error'); return; }
   const parciales = toConfirm.filter(o => parseFloat(recepState[o._idx].paqRecibidos) < parseFloat(o.qty));
   let msg = `¿Marcar como controlados ${toConfirm.length} ítem${toConfirm.length>1?'s':''}?`;
-  if(parciales.length > 0) msg += `\n\n⚠️ ${parciales.length} con faltantes en paquetes — reclamar al proveedor.`;
+  if(parciales.length > 0) msg += `\n\n${parciales.length} con faltantes en paquetes — reclamar al proveedor.`;
   msg += '\n\nPasan a la lista de REVISIÓN. El stock se actualiza recién cuando confirmes la revisión.';
   if(!await confirmModal(msg)) return;
   toConfirm.forEach(o => {
@@ -7400,7 +7400,7 @@ async function recepConfirmarTodo(){
     delete recepState[o._idx];
   });
   window._comprasFloreLastSave = Date.now(); fbSave('comprasFlore', comprasFlore);
-  showToast(`🔎 ${toConfirm.length} ítem${toConfirm.length>1?'s controlados':' controlado'} — revisá el listado y subilo al stock`);
+  showToast(`${toConfirm.length} ítem${toConfirm.length>1?'s controlados':' controlado'} — revisá el listado y subilo al stock`);
   renderRecepcionPedidos();
 }
 
@@ -7435,12 +7435,12 @@ async function recepSubirStockTodo(){
   const controlados = comprasFlore.map((c,i)=>({...c,_idx:i})).filter(c=>c.estado==='controlado');
   if(!controlados.length){ showToast('No hay ítems controlados para subir.'); return; }
   const totalVaras = controlados.reduce((s,o)=>s+(parseFloat(o.totalVaras)||0),0);
-  if(!await confirmModal(`¿Subir al stock ${controlados.length} ítem${controlados.length>1?'s':''}?\n\n📊 Total: ${totalVaras} varas.\nSe actualiza el stock y se calculan los costos por vara.`)) return;
+  if(!await confirmModal(`¿Subir al stock ${controlados.length} ítem${controlados.length>1?'s':''}?\n\nTotal: ${totalVaras} varas.\nSe actualiza el stock y se calculan los costos por vara.`)) return;
   controlados.forEach(o=>_subirCompraAlStock(o._idx));
   fbSave('stockData', stockData);
   window._comprasFloreLastSave = Date.now(); fbSave('comprasFlore', comprasFlore);
   fbSave('cotizadorPrecios', cotizadorPrecios);
-  showToast(`✅ ${controlados.length} ítem${controlados.length>1?'s ingresados':' ingresado'} al stock — precios actualizados`);
+  showToast(`${controlados.length} ítem${controlados.length>1?'s ingresados':' ingresado'} al stock — precios actualizados`);
   renderRecepcionPedidos();
   if(document.getElementById('page-stock')?.classList.contains('active')) renderStock();
   if(document.getElementById('page-compras-floreria')?.classList.contains('active')) renderCompras('floreria');
@@ -7537,7 +7537,7 @@ function recepFotoInput(globalIdx, inputEl){
     comprasFlore[globalIdx].recepFoto = data;
     _recepSave();
     renderRecepcionPedidos();
-    showToast('📷 Foto adjuntada a la recepción');
+    showToast('Foto adjuntada a la recepción');
   });
 }
 function recepQuitarFoto(globalIdx){
@@ -7554,7 +7554,7 @@ function verFotoRecep(globalIdx){
   ov.innerHTML = `<div class="modal" style="max-width:560px;text-align:center">
     <button class="modal-close" onclick="closeModal('recep-foto-modal')">✕</button>
     <div class="modal-title">Recepción · ${esc(c.prod||'')}</div>
-    ${c.recepObs?`<div style="font-size:12px;color:${c.recepAlerta?'var(--red-alert)':'var(--mid-gray)'};margin:-6px 0 10px;font-weight:600">${c.recepAlerta?'⚠️ ':''}${esc(c.recepObs)}</div>`:''}
+    ${c.recepObs?`<div style="font-size:12px;color:${c.recepAlerta?'var(--red-alert)':'var(--mid-gray)'};margin:-6px 0 10px;font-weight:600">${c.recepAlerta?'':''}${esc(c.recepObs)}</div>`:''}
     <img src="${c.recepFoto}" style="max-width:100%;border-radius:8px">
   </div>`;
   ov.classList.add('open');
@@ -7569,7 +7569,7 @@ function _recepFlagStyle(r){
 function _recepFlagBadge(r, idx){
   if(!r || !(r.recepAlerta || r.recepObs || r.recepFoto)) return '';
   const col = r.recepAlerta ? 'var(--red-alert)' : '#9A6A00';
-  const lbl = r.recepAlerta ? '⚠️ Recibido en mal estado' : '📝 Obs. recepción';
+  const lbl = r.recepAlerta ? 'Recibido en mal estado' : 'Obs. recepción';
   const foto = r.recepFoto ? ` · <a onclick="verFotoRecep(${idx})" style="cursor:pointer;text-decoration:underline">ver foto</a>` : '';
   const txt = r.recepObs ? ': '+esc(r.recepObs) : '';
   return `<div style="margin-top:3px;font-size:11px;font-weight:600;color:${col}">${lbl}${txt}${foto}</div>`;
@@ -7584,7 +7584,7 @@ function recepConfirmar(globalIdx){
   const paqRec = parseFloat(st.paqRecibidos) || 0;
   const varasPaq = parseFloat(st.varasPorPaq) || 1;
   const totalVaras = paqRec * varasPaq;
-  if(totalVaras <= 0){ showToast('⚠️ Ingresá paquetes y varas por paquete'); return; }
+  if(totalVaras <= 0){ showToast('Ingresá paquetes y varas por paquete'); return; }
 
   order.estado = 'controlado';
   order.paqRecibidos = paqRec;
@@ -7594,7 +7594,7 @@ function recepConfirmar(globalIdx){
 
   delete recepState[globalIdx];
 
-  showToast(`🔎 "${order.prod}" controlado — revisalo abajo antes de subir al stock`);
+  showToast(`"${order.prod}" controlado — revisalo abajo antes de subir al stock`);
   renderRecepcionPedidos();
 }
 
@@ -7791,7 +7791,7 @@ window._setJardRecordatorios = (arr) => {
 // Gerencia carga una foto de algo del jardín que requiere atención urgente
 // (zona + qué hacer). Les salta a los jardineros al instante como urgente.
 const JARD_ALERTA_TIPOS = ['Poda','Riego','Fertilización','Desmalezado','Plaga','Limpieza','Otro'];
-const JARD_ALERTA_ICON = { 'Poda':'✂️','Riego':'💧','Fertilización':'🌱','Desmalezado':'🌿','Plaga':'🐛','Limpieza':'🧹','Otro':'⚠️' };
+const JARD_ALERTA_ICON = { 'Poda':'','Riego':'','Fertilización':'','Desmalezado':'','Plaga':'','Limpieza':'','Otro':'' };
 
 window._setJardAlertas = (arr) => {
   const prev = jardAlertas.length;
@@ -7805,7 +7805,7 @@ function _alertasActivas(){ return jardAlertas.filter(a=>a && !a.resuelto); }
 
 let _fotoAlertaData = '';
 function openAlertaJardinModal(){
-  if(userRole!=='gerencia'){ showToast('⛔ Solo gerencia'); return; }
+  if(userRole!=='gerencia'){ showToast('Solo gerencia'); return; }
   _fotoAlertaData = '';
   const sel = document.getElementById('alerta-jard-tipo');
   if(sel) sel.innerHTML = JARD_ALERTA_TIPOS.map(t=>`<option value="${t}">${JARD_ALERTA_ICON[t]} ${t}</option>`).join('');
@@ -7829,15 +7829,15 @@ function guardarAlertaJardin(){
   const zona = document.getElementById('alerta-jard-zona').value.trim();
   const tipo = document.getElementById('alerta-jard-tipo').value;
   const nota = document.getElementById('alerta-jard-nota').value.trim();
-  if(!zona){ showToast('⚠️ Indicá la zona'); return; }
+  if(!zona){ showToast('Indicá la zona'); return; }
   const alerta = { id: Date.now(), zona, tipo, nota, foto: _fotoAlertaData||'', creado: Date.now(), por: window.currentUserLabel||'Gerencia', resuelto: false };
   jardAlertas.unshift(alerta);
   fbSave('jardAlertas', jardAlertas);
   // Push real a jardineros (incluye combinados como Ivan)
-  window.pushSend?.('🚨 Jardín URGENTE: '+tipo, `${zona}${nota?' — '+nota:''}`, 'jard-urgente', 'roles:jardinero');
+  window.pushSend?.('Jardín URGENTE: '+tipo, `${zona}${nota?' — '+nota:''}`, 'jard-urgente', 'roles:jardinero');
   closeModal('alerta-jard-modal');
   renderAlertasUrgentesJard();
-  showToast('🚨 Alerta enviada a los jardineros');
+  showToast('Alerta enviada a los jardineros');
 }
 
 async function resolverAlertaJardin(id){
@@ -7847,7 +7847,7 @@ async function resolverAlertaJardin(id){
   a.resuelto = true; a.resueltoPor = window.currentUserLabel||''; a.resueltoFecha = TODAY_ISO;
   fbSave('jardAlertas', jardAlertas);
   renderAlertasUrgentesJard();
-  showToast('✅ Alerta resuelta');
+  showToast('Alerta resuelta');
 }
 
 function _alertaAplica(){ return userRole==='jardinero' || userRole==='gerencia' || (userRole==='florista' && !!jardineroNombre); }
@@ -7858,7 +7858,7 @@ function notificarAlertasUrgentes(){
   _alertasActivas().forEach(a=>{
     if(_alertasAvisadas.has(a.id)) return;
     _alertasAvisadas.add(a.id);
-    showToast(`🚨 Jardín urgente: ${a.tipo} en ${a.zona}`);
+    showToast(`Jardín urgente: ${a.tipo} en ${a.zona}`);
     if(typeof Notification!=='undefined' && Notification.permission==='granted'){
       try{ new Notification('🚨 Jardín URGENTE: '+a.tipo, { body:`${a.zona}${a.nota?' — '+a.nota:''}`, icon:'/icon-192.png', tag:'jard-urgente' }); }catch(e){}
     }
@@ -7874,7 +7874,7 @@ function renderAlertasUrgentesJard(){
       ${activas.map(a=>`<div class="jalert-card">
         ${a.foto?`<img src="${a.foto}" class="jalert-foto" onclick="verFotoAlerta(${a.id})" alt="">`:''}
         <div class="jalert-body">
-          <div class="jalert-tipo">${JARD_ALERTA_ICON[a.tipo]||'⚠️'} ${esc(a.tipo)}</div>
+          <div class="jalert-tipo">${JARD_ALERTA_ICON[a.tipo]||''} ${esc(a.tipo)}</div>
           <div class="jalert-zona">${esc(a.zona)}</div>
           ${a.nota?`<div class="jalert-nota">${esc(a.nota)}</div>`:''}
           <div class="jalert-meta">Cargado por ${esc(a.por||'gerencia')}</div>
@@ -7910,7 +7910,7 @@ function _llamadosActivos(){ return llamadosData.filter(l=>l && !l.resuelto); }
 
 let _fotoLlamadoData = '';
 function openLlamadoModal(){
-  if(userRole!=='gerencia'){ showToast('⛔ Solo gerencia'); return; }
+  if(userRole!=='gerencia'){ showToast('Solo gerencia'); return; }
   _fotoLlamadoData = '';
   const zonaSel = document.getElementById('llamado-zona');
   if(zonaSel){
@@ -7951,8 +7951,8 @@ function guardarLlamado(){
   const zona = document.getElementById('llamado-zona').value;
   const persona = document.getElementById('llamado-persona').value;
   const nota = document.getElementById('llamado-nota').value.trim();
-  if(!persona){ showToast('⚠️ Elegí el responsable'); return; }
-  if(!nota && !_fotoLlamadoData){ showToast('⚠️ Agregá una nota o una foto'); return; }
+  if(!persona){ showToast('Elegí el responsable'); return; }
+  if(!nota && !_fotoLlamadoData){ showToast('Agregá una nota o una foto'); return; }
   const leg = legajoData.find(l=>(l.nombre+' '+l.apellido).trim()===persona || l.nombre===persona);
   const ll = {
     id: Date.now(),
@@ -7969,10 +7969,10 @@ function guardarLlamado(){
   };
   llamadosData.unshift(ll);
   fbSave('llamadosData', llamadosData);
-  window.pushSend?.('⚠️ Llamado de atención', `${zona?zona+': ':''}${nota||'Revisá tu arreglo'}`, 'llamado', persona);
+  window.pushSend?.('Llamado de atención', `${zona?zona+': ':''}${nota||'Revisá tu arreglo'}`, 'llamado', persona);
   closeModal('llamado-modal');
   renderLlamadosChecklist();
-  showToast('⚠️ Llamado enviado a '+persona+' y registrado en Evaluaciones');
+  showToast('Llamado enviado a '+persona+' y registrado en Evaluaciones');
 }
 
 const _llamadosAvisados = new Set();
@@ -7981,7 +7981,7 @@ function notificarLlamados(){
   _llamadosActivos().filter(l=>l.empleadoNombre===floristaNombre && !l.visto).forEach(l=>{
     if(_llamadosAvisados.has(l.id)) return;
     _llamadosAvisados.add(l.id);
-    showToast('⚠️ Tenés un llamado de atención de gerencia');
+    showToast('Tenés un llamado de atención de gerencia');
     if(typeof Notification!=='undefined' && Notification.permission==='granted'){
       try{ new Notification('⚠️ Llamado de atención', {body:`${l.zona?l.zona+': ':''}${l.nota||''}`, icon:'/icon-192.png', tag:'llamado'}); }catch(e){}
     }
@@ -8029,7 +8029,7 @@ async function resolverLlamado(id){
   fbSave('llamadosData', llamadosData);
   renderLlamadosChecklist();
   if(document.getElementById('page-evaluaciones')?.classList.contains('active')) renderLlamadosEval();
-  showToast('✅ Listo');
+  showToast('Listo');
 }
 
 async function eliminarLlamado(id){
@@ -8039,7 +8039,7 @@ async function eliminarLlamado(id){
   if(i>=0) llamadosData.splice(i,1);
   fbSave('llamadosData', llamadosData);
   renderLlamadosEval();
-  showToast('🗑️ Registro eliminado');
+  showToast('Registro eliminado');
 }
 
 // Registro de llamados en RRHH › Evaluaciones (agrupado por persona)
@@ -8062,7 +8062,7 @@ function renderLlamadosEval(){
       </div>
       <div style="display:flex;flex-direction:column">
         ${items.map(l=>`<div style="display:flex;gap:10px;align-items:center;padding:9px 14px;border-top:1px solid #F0EDE8">
-          ${l.foto?`<img src="${l.foto}" onclick="verFotoLlamado(${l.id})" style="width:52px;height:52px;object-fit:cover;border-radius:6px;cursor:pointer;flex-shrink:0" alt="">`:'<div style="width:52px;height:52px;border-radius:6px;background:#F0EDE8;display:flex;align-items:center;justify-content:center;flex-shrink:0">⚠️</div>'}
+          ${l.foto?`<img src="${l.foto}" onclick="verFotoLlamado(${l.id})" style="width:52px;height:52px;object-fit:cover;border-radius:6px;cursor:pointer;flex-shrink:0" alt="">`:'<div style="width:52px;height:52px;border-radius:6px;background:#F0EDE8;display:flex;align-items:center;justify-content:center;flex-shrink:0"></div>'}
           <div style="flex:1;min-width:0">
             <div style="font-size:13px;font-weight:600;color:var(--charcoal)">${esc(l.zona||'Arreglo')} ${l.resuelto?'<span style="font-size:10px;color:var(--green-ok)">✓ visto</span>':'<span style="font-size:10px;color:var(--amber)">pendiente</span>'}</div>
             ${l.nota?`<div style="font-size:12px;color:#7A7A72">${esc(l.nota)}</div>`:''}
@@ -8075,7 +8075,7 @@ function renderLlamadosEval(){
   }).join('');
 }
 
-const JARD_TIPOS_ICON = { 'Riego':'💧','Fertilización':'🌱','Desmalezado':'🌿','Poda':'✂️' };
+const JARD_TIPOS_ICON = { 'Riego':'','Fertilización':'','Desmalezado':'','Poda':'' };
 const JARD_TIPO_STYLE = {
   'Riego':        'background:#E8F4FD;color:#1A6B9A',
   'Fertilización':'background:#EBF5E8;color:#2D6A2D',
@@ -8118,7 +8118,7 @@ function renderRecordatoriosJard(){
 
   // Cartel de recordatorios nuevos agregados por gerencia (para operarios)
   const nuevosBanner = nuevosSet.size ? `<div class="jrec-aviso-banner" style="cursor:default">
-      <span class="jrec-aviso-icon">🔔</span>
+      <span class="jrec-aviso-icon"></span>
       <span><strong>${nuevosSet.size===1?'Gerencia agregó un recordatorio nuevo':'Gerencia agregó '+nuevosSet.size+' recordatorios nuevos'}:</strong> ${esc([...nuevosSet].map(r=>`${r.tipo} · ${r.task}`).join('  ·  '))}</span>
     </div>` : '';
 
@@ -8193,7 +8193,7 @@ function marcarRecordatorioHecho(idx){
   fbSave('jardRecordatorios', jardRecordatorios);
   renderRecordatoriosJard();
   renderHome();
-  showToast('✅ Marcado como hecho hoy');
+  showToast('Marcado como hecho hoy');
 }
 
 function openRecordatorioModal(idx){
@@ -8234,7 +8234,7 @@ function saveRecordatorio(){
   else { rec.creado = Date.now(); jardRecordatorios.push(rec); }
   fbSave('jardRecordatorios', jardRecordatorios);
   // Push real a los jardineros cuando gerencia agrega un recordatorio
-  if(idx<0) window.pushSend?.('🌿 Recordatorio nuevo de jardinería', `${rec.tipo} · ${rec.task}`, 'jard-rec', 'roles:jardinero');
+  if(idx<0) window.pushSend?.('Recordatorio nuevo de jardinería', `${rec.tipo} · ${rec.task}`, 'jard-rec', 'roles:jardinero');
   closeModal('jrec-modal');
   renderRecordatoriosJard();
 }
@@ -8269,7 +8269,7 @@ function marcarRecordatoriosVistos(){
 
 function renderJardRecAviso(){
   const nuevos=getRecordatoriosNuevos();
-  // Punto rojo en la barra inferior mobile (item Avisos 🔔)
+  // Punto rojo en la barra inferior mobile (item Avisos )
   document.querySelectorAll('.bottom-nav-item[data-page="recordatorios-jardineria"]').forEach(el=>{
     el.querySelector('.bottom-nav-badge')?.remove();
     if(nuevos.length) el.insertAdjacentHTML('beforeend',`<span class="bottom-nav-badge">${nuevos.length>9?'9+':nuevos.length}</span>`);
@@ -8283,7 +8283,7 @@ function renderJardRecAviso(){
   // Cartel en los paneles generales (Tareas Jardinería e Inicio)
   const detalle=nuevos.slice(0,3).map(r=>`${JARD_TIPOS_ICON[r.tipo]||''} ${r.tipo} · ${r.task}`).join('  ·  ');
   const html=nuevos.length ? `<div class="jrec-aviso-banner" onclick="navigate('recordatorios-jardineria')">
-      <span class="jrec-aviso-icon">🔔</span>
+      <span class="jrec-aviso-icon"></span>
       <span><strong>${nuevos.length===1?'Gerencia agregó un recordatorio nuevo':'Gerencia agregó '+nuevos.length+' recordatorios nuevos'}:</strong> ${esc(detalle)}${nuevos.length>3?' …':''}</span>
       <span class="jrec-aviso-cta">Ver →</span>
     </div>` : '';
@@ -8299,7 +8299,7 @@ function notificarRecordatoriosNuevos(){
   const msg = sinAvisar.length===1
     ? `Gerencia agregó un recordatorio de jardinería: ${sinAvisar[0].tipo} · ${sinAvisar[0].task}`
     : `Gerencia agregó ${sinAvisar.length} recordatorios de jardinería`;
-  showToast('🔔 '+msg);
+  showToast(''+msg);
   if(typeof Notification!=='undefined' && Notification.permission==='granted'){
     try{ new Notification('🌿 Recordatorios de jardinería', { body:msg, icon:'/icon-192.png', tag:'jard-rec' }); }catch(e){}
   }
@@ -8324,7 +8324,7 @@ function _diasDesdeTxt(isoDate){
 }
 
 // Umbrales de urgencia configurables por gerencia (regulables por estación).
-// okMax: hasta N días = 🟢 Al día · warnMax: hasta N días = 🟡 Próxima · más allá = 🔴 Urgente
+// okMax: hasta N días = Al día · warnMax: hasta N días = Próxima · más allá = Urgente
 let urgenciaConfig = { okMax:3, warnMax:7 };
 window._setUrgenciaConfig = v => { urgenciaConfig = v; };
 const URGENCIA_PRESETS = {
@@ -8341,25 +8341,25 @@ function urgenciaPanelHTML(scope){
   <div style="background:#FFFFFF;border:1px solid #E5E3DC;border-radius:12px;padding:14px 16px;margin-bottom:16px">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
       <div style="font-size:12.5px;font-weight:700;color:#1A1A1A;letter-spacing:.3px">
-        ⚙️ Umbrales de urgencia <span style="font-weight:400;color:#7A7A72">· ajustá según la estación (en verano se riega más seguido)</span>
+        Umbrales de urgencia <span style="font-weight:400;color:#7A7A72">· ajustá según la estación (en verano se riega más seguido)</span>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         <button class="btn-secondary" style="font-size:11px;padding:5px 10px" onclick="setUrgenciaPreset('verano')">Verano</button>
         <button class="btn-secondary" style="font-size:11px;padding:5px 10px" onclick="setUrgenciaPreset('primavera')">Primavera</button>
-        <button class="btn-secondary" style="font-size:11px;padding:5px 10px" onclick="setUrgenciaPreset('otono')">🍂 Otoño</button>
-        <button class="btn-secondary" style="font-size:11px;padding:5px 10px" onclick="setUrgenciaPreset('invierno')">❄️ Invierno</button>
+        <button class="btn-secondary" style="font-size:11px;padding:5px 10px" onclick="setUrgenciaPreset('otono')">Otoño</button>
+        <button class="btn-secondary" style="font-size:11px;padding:5px 10px" onclick="setUrgenciaPreset('invierno')">Invierno</button>
       </div>
     </div>
     <div style="display:flex;gap:18px;align-items:flex-end;flex-wrap:wrap;margin-top:12px">
-      <label style="font-size:11.5px;color:#7A7A72">🟢 Al día hasta (días)
+      <label style="font-size:11.5px;color:#7A7A72">Al día hasta (días)
         <input type="number" min="1" max="60" id="urg-ok-${scope}" value="${ok}"
           class="form-input" style="width:90px;padding:6px 8px;font-size:13px;margin-top:4px;display:block">
       </label>
-      <label style="font-size:11.5px;color:#7A7A72">🟡 Próxima hasta (días)
+      <label style="font-size:11.5px;color:#7A7A72">Próxima hasta (días)
         <input type="number" min="2" max="90" id="urg-warn-${scope}" value="${warn}"
           class="form-input" style="width:90px;padding:6px 8px;font-size:13px;margin-top:4px;display:block">
       </label>
-      <div style="font-size:11.5px;color:#B0AFA5;padding-bottom:8px">🔴 Urgente: más de <strong id="urg-preview-${scope}">${warn}</strong> días</div>
+      <div style="font-size:11.5px;color:#B0AFA5;padding-bottom:8px">Urgente: más de <strong id="urg-preview-${scope}">${warn}</strong> días</div>
       <button class="btn-add" style="padding:7px 14px" onclick="saveUrgenciaConfig('${scope}')">Guardar umbrales</button>
     </div>
   </div>`;
@@ -8372,17 +8372,17 @@ function setUrgenciaPreset(season){
   });
   urgenciaConfig = { okMax:p.okMax, warnMax:p.warnMax };
   fbSave('urgenciaConfig', urgenciaConfig);
-  showToast('🌡️ Umbrales de '+season+' aplicados');
+  showToast('Umbrales de '+season+' aplicados');
   renderCtrlJard?.(); renderCtrlHab?.();
 }
 function saveUrgenciaConfig(scope){
-  if(userRole!=='gerencia'){ showToast('⛔ Solo gerencia'); return; }
+  if(userRole!=='gerencia'){ showToast('Solo gerencia'); return; }
   const okV = parseInt(document.getElementById('urg-ok-'+scope)?.value,10);
   const wV  = parseInt(document.getElementById('urg-warn-'+scope)?.value,10);
-  if(isNaN(okV)||isNaN(wV)||okV<1||wV<=okV){ showToast('⚠️ "Próxima" debe ser mayor que "Al día"'); return; }
+  if(isNaN(okV)||isNaN(wV)||okV<1||wV<=okV){ showToast('"Próxima" debe ser mayor que "Al día"'); return; }
   urgenciaConfig = { okMax:okV, warnMax:wV };
   fbSave('urgenciaConfig', urgenciaConfig);
-  showToast('✅ Umbrales guardados');
+  showToast('Umbrales guardados');
   renderCtrlJard?.(); renderCtrlHab?.();
 }
 
@@ -8395,7 +8395,7 @@ function gerenciaSetFecha(tipo, idx, nuevaFecha){
   r.last = nuevaFecha;
   if(tipo==='jard'){ fbSave('jardineriaData', jardineriaData); renderCtrlJard(); }
   else { fbSave('habitacionesData', habitacionesData); renderCtrlHab(); }
-  showToast('📅 Fecha actualizada');
+  showToast('Fecha actualizada');
 }
 
 function getDaysBadge(days){
@@ -8408,10 +8408,10 @@ function getDaysBadge(days){
 }
 
 function getSectionEmoji(sec){
-  if(sec==='Palacio') return '🟢';
-  if(sec==='Jardín Central') return '🌿';
-  if(sec==='Edificio Posadas') return '🔵';
-  return '⚪';
+  if(sec==='Palacio') return '';
+  if(sec==='Jardín Central') return '';
+  if(sec==='Edificio Posadas') return '';
+  return '';
 }
 function getSectionPillCls(sec){
   if(sec==='Palacio') return 'sec-palacio';
@@ -8495,7 +8495,7 @@ async function jardAddTarea(section, group){
   _saveJardineria();
   renderJardOps();
   openGestionTareasJard();
-  showToast(`✅ Tarea "${nombre.trim()}" agregada`);
+  showToast(`Tarea "${nombre.trim()}" agregada`);
 }
 
 async function jardRenameTarea(i){
@@ -8511,7 +8511,7 @@ async function jardRenameTarea(i){
   _saveJardineria();
   renderJardOps();
   openGestionTareasJard();
-  showToast('✏️ Tarea renombrada');
+  showToast('Tarea renombrada');
 }
 
 async function jardDeleteTarea(i){
@@ -8525,7 +8525,7 @@ async function jardDeleteTarea(i){
   _saveJardineria();
   renderJardOps();
   openGestionTareasJard();
-  showToast('🗑️ Tarea eliminada');
+  showToast('Tarea eliminada');
 }
 
 async function jardAddGrupo(section){
@@ -8537,7 +8537,7 @@ async function jardAddGrupo(section){
   jardineriaData.push({section, group:g.trim(), task:t.trim(), last:null, liveVisits:0, monthlyVisits:{}, obs:'', quien:'', horaInicio:'', horaFin:'', canUndo:false});
   _saveJardineria();
   openGestionTareasJard();
-  showToast(`✅ Grupo "${g.trim()}" agregado`);
+  showToast(`Grupo "${g.trim()}" agregado`);
 }
 
 async function jardAddSeccion(){
@@ -8551,11 +8551,11 @@ async function jardAddSeccion(){
   jardineriaData.push({section:s.trim(), group:g.trim(), task:t.trim(), last:null, liveVisits:0, monthlyVisits:{}, obs:'', quien:'', horaInicio:'', horaFin:'', canUndo:false});
   _saveJardineria();
   openGestionTareasJard();
-  showToast(`✅ Sección "${s.trim()}" creada`);
+  showToast(`Sección "${s.trim()}" creada`);
 }
 
 function openGestionTareasJard(){
-  if(userRole!=='gerencia'){ showToast('⛔ Solo gerencia'); return; }
+  if(userRole!=='gerencia'){ showToast('Solo gerencia'); return; }
   let ov = document.getElementById('gestion-tareas-jard-modal');
   if(!ov){ ov=document.createElement('div'); ov.id='gestion-tareas-jard-modal'; ov.className='modal-overlay'; document.body.appendChild(ov); }
   const bySec = {};
@@ -8670,9 +8670,9 @@ function renderJardOps(){
           <div style="font-size:11px;color:var(--mid-gray);margin-top:1px">${esc(z.section)} · ${z.items.length} tarea${z.items.length!==1?'s':''}</div>
         </div>
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
-          ${z.alertCount?`<span style="background:#FDECEA;color:#C62828;padding:3px 9px;border-radius:12px;font-size:11px;font-weight:700">🔴 ${z.alertCount} urgente${z.alertCount!==1?'s':''}</span>`:''}
-          ${z.warnCount ?`<span style="background:#FFF8E1;color:#E65100;padding:3px 9px;border-radius:12px;font-size:11px;font-weight:700">🟡 ${z.warnCount} pronto</span>`:''}
-          ${z.okCount   ?`<span style="background:#E8F5E9;color:#2E7D32;padding:3px 9px;border-radius:12px;font-size:11px;font-weight:700">🟢 ${z.okCount} al día</span>`:''}
+          ${z.alertCount?`<span style="background:#FDECEA;color:#C62828;padding:3px 9px;border-radius:12px;font-size:11px;font-weight:700">${z.alertCount} urgente${z.alertCount!==1?'s':''}</span>`:''}
+          ${z.warnCount ?`<span style="background:#FFF8E1;color:#E65100;padding:3px 9px;border-radius:12px;font-size:11px;font-weight:700">${z.warnCount} pronto</span>`:''}
+          ${z.okCount   ?`<span style="background:#E8F5E9;color:#2E7D32;padding:3px 9px;border-radius:12px;font-size:11px;font-weight:700">${z.okCount} al día</span>`:''}
           <span id="${chevId}" style="font-size:14px;color:var(--mid-gray);transition:transform .2s;display:inline-block">▼</span>
         </div>
       </div>`;
@@ -8685,7 +8685,7 @@ function renderJardOps(){
       if(jopsFilter==='plan' && !jardEnPlanHoy(r)) return;
       const enPlan = jardEnPlanHoy(r);
       const planCtrl = userRole==='gerencia'
-        ? `<button class="btn-icon" title="${enPlan?'Quitar del plan de hoy':'Marcar para hoy'}" style="flex-shrink:0;font-size:14px" onclick="jardTogglePlanHoy(${i})">${enPlan?'📌':'☆'}</button>`
+        ? `<button class="btn-icon" title="${enPlan?'Quitar del plan de hoy':'Marcar para hoy'}" style="flex-shrink:0;font-size:14px" onclick="jardTogglePlanHoy(${i})">${enPlan?'':'☆'}</button>`
         : (enPlan?'<span style="flex-shrink:0;font-size:12px;background:#EBF0E8;color:var(--sage-dark);padding:2px 7px;border-radius:8px;font-weight:600">Hoy</span>':'');
       const taskEl = document.createElement('div');
       taskEl.style.cssText = 'background:var(--warm-white);padding:14px;display:flex;flex-direction:column;gap:8px'+(enPlan?';box-shadow:inset 3px 0 0 var(--sage-dark)':'');
@@ -8693,9 +8693,9 @@ function renderJardOps(){
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
           <div style="font-size:12px;font-weight:600;color:var(--charcoal);flex:1;line-height:1.4">${esc(r.task)}</div>
           ${planCtrl}
-          <span style="flex-shrink:0;font-size:15px" title="Estado">${badge.status==='ok'?'🟢':badge.status==='warn'?'🟡':badge.status==='alert'?'🔴':'⚪'}</span>
+          <span style="flex-shrink:0;font-size:15px" title="Estado">${badge.status==='ok'?'':badge.status==='warn'?'':badge.status==='alert'?'':''}</span>
         </div>
-        <div style="font-size:11px;color:var(--mid-gray)">${r.last?fmtDate(r.last):'<em>Sin registro</em>'} · 📊 ${getMonthVisits(r)} este mes</div>
+        <div style="font-size:11px;color:var(--mid-gray)">${r.last?fmtDate(r.last):'<em>Sin registro</em>'} · ${getMonthVisits(r)} este mes</div>
         <textarea id="jops-obs-${i}" class="cl-obs-input" placeholder="Observaciones..." style="width:100%;font-size:12px;resize:vertical;min-height:44px;padding:5px 7px;border-radius:4px;border:1px solid var(--light-gray);font-family:inherit;background:var(--warm-white)"
           onchange="jardineriaData[${i}].obs=this.value">${esc(r.obs||'')}</textarea>
         <div style="display:flex;gap:8px;align-items:center">
@@ -8737,7 +8737,7 @@ function renderJardOps(){
 
   if(rendered === 0){
     grid.innerHTML = `<div style="padding:40px;text-align:center;color:var(--mid-gray);font-size:14px">
-      ${jopsFilter==='all'?'🌿 Sin tareas cargadas.':jopsFilter==='plan'?(jardHayPlanHoy()?'✅ Todas las tareas de hoy completadas.':'📋 Gerencia todavía no marcó tareas para hoy. Se ven todas en «Todas».'):'✅ Sin zonas en esta categoría.'}
+      ${jopsFilter==='all'?'Sin tareas cargadas.':jopsFilter==='plan'?(jardHayPlanHoy()?'Todas las tareas de hoy completadas.':'Gerencia todavía no marcó tareas para hoy. Se ven todas en «Todas».'):'Sin zonas en esta categoría.'}
     </div>`;
   }
 }
@@ -8806,7 +8806,7 @@ function jardSetJardinero(nombre){
 
 function jardRegistrarHoraTurno(campo){
   const nombre = jardineroNombre || jardCurrentJardinero;
-  if(!nombre){ showToast('⚠️ No hay jardinero identificado'); return; }
+  if(!nombre){ showToast('No hay jardinero identificado'); return; }
   const now = new Date();
   const hh = String(now.getHours()).padStart(2,'0');
   const mm = String(now.getMinutes()).padStart(2,'0');
@@ -8858,7 +8858,7 @@ function renderJardTurnoCard(){
 
   el.innerHTML = `<div class="prod-card prod-card-personal" style="display:flex;flex-direction:column;gap:12px">
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-      <span style="font-size:20px">🌿</span>
+      <span style="font-size:20px"></span>
       <div style="flex:1;min-width:0">
         <div style="font-size:11px;color:var(--mid-gray);margin-bottom:2px">Mi jornada de hoy</div>
         <div style="font-size:17px;font-weight:700;color:var(--charcoal)">${esc(nombre||'—')}</div>
@@ -8889,7 +8889,7 @@ function renderJardTurnoCard(){
 // Firebase path: florTurnos/{nombre}/{YYYY-MM-DD}/{inicio, fin}
 
 function florRegistrarTurno(campo){
-  if(!floristaNombre){ showToast('⚠️ Error de sesión'); return; }
+  if(!floristaNombre){ showToast('Error de sesión'); return; }
   const now = new Date();
   const hh = String(now.getHours()).padStart(2,'0');
   const mm = String(now.getMinutes()).padStart(2,'0');
@@ -8945,7 +8945,7 @@ function renderFlorTurnoCard(){
 
   el.innerHTML = `<div class="prod-card prod-card-personal" style="display:flex;flex-direction:column;gap:12px">
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-      <span style="font-size:20px">🌸</span>
+      <span style="font-size:20px"></span>
       <div style="flex:1;min-width:0">
         <div style="font-size:11px;color:var(--mid-gray);margin-bottom:2px">Mi jornada de hoy</div>
         <div style="font-size:17px;font-weight:700;color:var(--charcoal)">${esc(floristaNombre)}</div>
@@ -9051,7 +9051,7 @@ function renderJardProdEquipo(){
     html += `<div style="background:#FDFCFB;border:1px solid #E4E2DC;border-radius:8px;padding:16px;margin-bottom:12px">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:8px">
         <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:18px">🌿</span>
+          <span style="font-size:18px"></span>
           <span style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:500;color:var(--charcoal)">${esc(nombre)}</span>
         </div>
         <div style="display:flex;gap:20px;flex-wrap:wrap">
@@ -9061,7 +9061,7 @@ function renderJardProdEquipo(){
           <div style="text-align:center"><div style="font-size:10px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">Tareas mes</div><div style="font-size:22px;font-weight:700;color:var(--charcoal)">${tareasTotal}</div></div>
         </div>
       </div>
-      <div style="font-size:10px;color:var(--mid-gray)">🟢 ≥6h &nbsp;🟡 2-6h &nbsp;🌿 &lt;2h &nbsp;· Tocá un día para ver el detalle</div>
+      <div style="font-size:10px;color:var(--mid-gray)">≥6h &nbsp;2-6h &nbsp;&lt;2h &nbsp;· Tocá un día para ver el detalle</div>
       ${calHtml}
       ${actividadHtml}
     </div>`;
@@ -9164,7 +9164,7 @@ function renderCtrlJard(){
 
     const monthVisits=getMonthVisits(r);
     const alCls=badge.status==='ok'?'ok':badge.status==='warn'?'atencion':'comprar';
-    const alLbl=badge.status==='ok'?'🟢 Al día':badge.status==='warn'?'🟡 Próxima':badge.status==='alert'?'🔴 Urgente':'⚪ Sin datos';
+    const alLbl=badge.status==='ok'?'Al día':badge.status==='warn'?'Próxima':badge.status==='alert'?'Urgente':'Sin datos';
     const tr=document.createElement('tr');
     tr.innerHTML=`
       <td>
@@ -9348,7 +9348,7 @@ function renderHabOps(){
 
   if(grid.children.length === 0){
     grid.innerHTML = `<div style="grid-column:1/-1;padding:40px;text-align:center;color:var(--mid-gray);font-size:14px">
-      ${hopsFilter==='all' ? '🪴 Sin habitaciones cargadas.' : '✅ Sin habitaciones en esta categoría.'}
+      ${hopsFilter==='all' ? 'Sin habitaciones cargadas.' : 'Sin habitaciones en esta categoría.'}
     </div>`;
   }
 }
@@ -9436,7 +9436,7 @@ function renderCtrlHab(){
 
     const monthVisits=getMonthVisits(r);
     const alCls=badge.status==='ok'?'ok':badge.status==='warn'?'atencion':'comprar';
-    const alLbl=badge.status==='ok'?'🟢 Al día':badge.status==='warn'?'🟡 Próxima':'🔴 Urgente';
+    const alLbl=badge.status==='ok'?'Al día':badge.status==='warn'?'Próxima':'Urgente';
     const tr=document.createElement('tr');
     tr.innerHTML=`
       <td><span class="hab-num">Hab. ${esc(r.hab)}</span></td>
@@ -9793,7 +9793,7 @@ function renderRamosDisp(){
   if(vdProd && !vdProd._populated){
     let opts = '<option value="">— Seleccionar —</option>';
     if(recetasData.length){
-      opts += '<optgroup label="🫙 Composiciones">';
+      opts += '<optgroup label="Composiciones">';
       recetasData.forEach(r => {
         const costo = calcCostoComposicion(r);
         const margen = cotizadorConfig?.margen ?? 30;
@@ -9804,7 +9804,7 @@ function renderRamosDisp(){
     }
     listaPreciosData.forEach(cat => {
       if(!(cat.items||[]).length) return;
-      opts += `<optgroup label="${cat.emoji||'📦'} ${esc(cat.cat)}">`;
+      opts += `<optgroup label="${cat.emoji||''} ${esc(cat.cat)}">`;
       cat.items.forEach(it => {
         opts += `<option value="${esc(it.nombre)}" data-precio="${parseMoney(it.precio)}">${esc(it.nombre)} — ${esc(it.precio||'')}</option>`;
       });
@@ -9824,7 +9824,7 @@ function renderRamosDisp(){
 
   if(ramosDispData.length === 0){
     grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:48px 20px;color:var(--mid-gray)">
-      <div style="font-size:40px;margin-bottom:10px">💐</div>
+      <div style="font-size:40px;margin-bottom:10px"></div>
       <div style="font-size:15px;font-weight:600;color:#7A7A72">No hay ramos armados en este momento</div>
       <div style="font-size:13px;margin-top:6px">Cargá los ramos que estén listos para vender con "+ Cargar ramo armado".</div>
     </div>`;
@@ -9838,7 +9838,7 @@ function renderRamosDisp(){
   grid.innerHTML = visibles.map(({r,i}) => {
     const foto = r.foto
       ? `<img class="lp-card-photo" src="${r.foto}" style="cursor:pointer" onclick="openRamoPhoto(this.src,'${esc(r.nombre).replace(/'/g,"\\'")}')">`
-      : `<div class="lp-card-photo-placeholder" style="cursor:default"><span style="font-size:28px">💐</span></div>`;
+      : `<div class="lp-card-photo-placeholder" style="cursor:default"><span style="font-size:28px"></span></div>`;
     return `<div class="lp-card">
       ${foto}
       <div class="lp-card-body">
@@ -9863,12 +9863,12 @@ function openRamoModal(){
   const catSel = document.getElementById('ramo-cat-sel');
   const conItems = listaPreciosData.filter(c => (c.items||[]).length > 0);
   if(conItems.length === 0){
-    showToast('⚠️ No hay productos cargados en la Lista de Precios');
+    showToast('No hay productos cargados en la Lista de Precios');
     return;
   }
   catSel.innerHTML = '<option value="">— Seleccionar categoría —</option>' +
     listaPreciosData.map((c,i)=> (c.items||[]).length
-      ? `<option value="${i}">${c.emoji||'🌿'} ${esc(c.cat)}</option>` : '').join('');
+      ? `<option value="${i}">${c.emoji||''} ${esc(c.cat)}</option>` : '').join('');
   document.getElementById('ramo-prod-sel').innerHTML = '<option value="">— Elegí primero una categoría —</option>';
   document.getElementById('ramo-prod-info').style.display = 'none';
   const f = document.getElementById('ramo-foto'); if(f) f.value='';
@@ -9899,13 +9899,13 @@ function ramoOnProdChange(){
 function saveRamo(){
   const ciV = document.getElementById('ramo-cat-sel').value;
   const iiV = document.getElementById('ramo-prod-sel').value;
-  if(ciV === '' || iiV === ''){ showToast('⚠️ Elegí categoría y producto'); return; }
+  if(ciV === '' || iiV === ''){ showToast('Elegí categoría y producto'); return; }
   const cat = listaPreciosData[+ciV];
   const it  = cat?.items[+iiV];
-  if(!it){ showToast('⚠️ Producto no válido'); return; }
+  if(!it){ showToast('Producto no válido'); return; }
   const fileInput = document.getElementById('ramo-foto');
   const file = fileInput?.files?.[0];
-  if(!file){ showToast('📷 Agregá la foto del ramo que armaste'); return; }
+  if(!file){ showToast('Agregá la foto del ramo que armaste'); return; }
 
   const ramo = {
     nombre: it.nombre,
@@ -9921,7 +9921,7 @@ function saveRamo(){
     fbSave('ramosDispData', ramosDispData);
     closeModal('ramo-modal');
     renderRamosDisp();
-    showToast('💐 Ramo cargado');
+    showToast('Ramo cargado');
   });
 }
 
@@ -9952,7 +9952,7 @@ function cambiarFotoRamo(i){
         ramosDispData[i].foto = data;
         fbSave('ramosDispData', ramosDispData);
         renderRamosDisp();
-        showToast('📷 Foto actualizada');
+        showToast('Foto actualizada');
       }
       cleanup();
     });
@@ -9985,7 +9985,7 @@ function renderFloreros(){
   if(kpi) kpi.textContent = `${florerosData.length} modelo${florerosData.length!==1?'s':''} · ${total} floreros en total`;
   if(!florerosData.length){
     grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:48px 20px;color:var(--mid-gray)">
-      <div style="font-size:40px;margin-bottom:10px">🏺</div>
+      <div style="font-size:40px;margin-bottom:10px"></div>
       <div style="font-size:15px;font-weight:600;color:#7A7A72">Todavía no cargaste floreros</div>
       <div style="font-size:13px;margin-top:6px">Cargá tus floreros con foto y cantidad con "+ Agregar florero".</div></div>`;
     return;
@@ -9996,7 +9996,7 @@ function renderFloreros(){
     const cant = +f.cantidad||0;
     const foto = f.foto
       ? `<img class="lp-card-photo" src="${f.foto}" style="cursor:pointer" onclick="openFlorFoto(${i})">`
-      : `<div class="lp-card-photo-placeholder"><span style="font-size:30px">🏺</span></div>`;
+      : `<div class="lp-card-photo-placeholder"><span style="font-size:30px"></span></div>`;
     return `<div class="lp-card">
       ${foto}
       <div class="lp-card-body">
@@ -10069,7 +10069,7 @@ function guardarFlorero(){
   fbSave('florerosData', florerosData);
   closeModal('florero-modal');
   renderFloreros();
-  showToast('🏺 Florero guardado');
+  showToast('Florero guardado');
 }
 
 async function delFlorero(i){
@@ -10091,7 +10091,7 @@ function cambiarFotoFlorero(i){
   input.onchange=()=>{
     const file=input.files?.[0]; if(!file){ cleanup(); return; }
     comprimirImagen(file, 1000, 0.7, data=>{
-      if(florerosData[i]){ florerosData[i].foto=data; window._florerosLastSave=Date.now(); fbSave('florerosData', florerosData); renderFloreros(); showToast('📷 Foto actualizada'); }
+      if(florerosData[i]){ florerosData[i].foto=data; window._florerosLastSave=Date.now(); fbSave('florerosData', florerosData); renderFloreros(); showToast('Foto actualizada'); }
       cleanup();
     });
   };
@@ -10117,7 +10117,7 @@ function renderVelas(){
   if(kpi) kpi.textContent = `${velasData.length} modelo${velasData.length!==1?'s':''} · ${total} velas en total`;
   if(!velasData.length){
     grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:48px 20px;color:var(--mid-gray)">
-      <div style="font-size:40px;margin-bottom:10px">🕯️</div>
+      <div style="font-size:40px;margin-bottom:10px"></div>
       <div style="font-size:15px;font-weight:600;color:#7A7A72">Todavía no cargaste velas</div>
       <div style="font-size:13px;margin-top:6px">Cargá tus velas con foto y cantidad con "+ Agregar vela".</div></div>`;
     return;
@@ -10128,7 +10128,7 @@ function renderVelas(){
     const cant = +f.cantidad||0;
     const foto = f.foto
       ? `<img class="lp-card-photo" src="${f.foto}" style="cursor:pointer" onclick="openVelaFoto(${i})">`
-      : `<div class="lp-card-photo-placeholder"><span style="font-size:30px">🕯️</span></div>`;
+      : `<div class="lp-card-photo-placeholder"><span style="font-size:30px"></span></div>`;
     return `<div class="lp-card">
       ${foto}
       <div class="lp-card-body">
@@ -10201,7 +10201,7 @@ function guardarVela(){
   fbSave('velasData', velasData);
   closeModal('vela-modal');
   renderVelas();
-  showToast('🕯️ Vela guardada');
+  showToast('Vela guardada');
 }
 
 async function delVela(i){
@@ -10222,7 +10222,7 @@ function cambiarFotoVela(i){
   input.onchange=()=>{
     const file=input.files?.[0]; if(!file){ cleanup(); return; }
     comprimirImagen(file, 1000, 0.7, data=>{
-      if(velasData[i]){ velasData[i].foto=data; window._velasLastSave=Date.now(); fbSave('velasData', velasData); renderVelas(); showToast('📷 Foto actualizada'); }
+      if(velasData[i]){ velasData[i].foto=data; window._velasLastSave=Date.now(); fbSave('velasData', velasData); renderVelas(); showToast('Foto actualizada'); }
       cleanup();
     });
   };
@@ -10266,7 +10266,7 @@ function confirmVentaRamo(){
   fbSave('ventasData', ventasData);
   // Avisar a todos los floristas y a gerencia para que lo saquen de la vidriera
   window.pushSend?.(
-    '💐 Ramo vendido',
+    'Ramo vendido',
     `"${r.nombre}" se vendió${cliente ? ' a ' + cliente : ''} — sacalo de la vidriera`,
     'ramo-vendido',
     'roles:florista,gerencia'
@@ -10278,7 +10278,7 @@ function confirmVentaRamo(){
   fbSave('ramosDispData', ramosDispData);
   closeModal('ramo-sell-modal');
   renderRamosDisp();
-  showToast('✅ Venta registrada en Ventas Externas');
+  showToast('Venta registrada en Ventas Externas');
 }
 
 async function vdAutoPrice(){
@@ -10301,9 +10301,9 @@ async function vdAutoPrice(){
 
 function registrarVentaDirecta(){
   const prod = document.getElementById('vd-prod')?.value?.trim();
-  if(!prod || prod === '__otro__'){ showToast('⚠️ Seleccioná el arreglo o ramo'); return; }
+  if(!prod || prod === '__otro__'){ showToast('Seleccioná el arreglo o ramo'); return; }
   const cliente = document.getElementById('vd-cliente')?.value?.trim();
-  if(!cliente){ showToast('⚠️ Ingresá el nombre del cliente'); return; }
+  if(!cliente){ showToast('Ingresá el nombre del cliente'); return; }
 
   ventasData.push({
     prod,
@@ -10328,7 +10328,7 @@ function registrarVentaDirecta(){
   });
 
   renderVentas();
-  showToast('💰 Venta directa registrada');
+  showToast('Venta directa registrada');
 }
 
 // ── COTIZADOR DE EVENTOS HYATT ────────────────────────────────────────────────
@@ -10432,7 +10432,7 @@ function generarTextoCotEvento(){
     lineas.push(`• ${qty} × ${r.arreglo}${precio ? '  —  $'+sub.toLocaleString('es-AR') : '  (precio a confirmar)'}`);
   });
 
-  return `🌸 COTIZACIÓN DE EVENTO — Florería Duhau\n${'─'.repeat(40)}\nEvento: ${nombre}\nTipo: ${tipo.nombre}\nPersonas: ${pax}\n${fecha ? 'Fecha: '+fecha+'\n' : ''}${'─'.repeat(40)}\n\nARREGLOS FLORALES:\n${lineas.join('\n')}\n\n${'─'.repeat(40)}\nTOTAL ESTIMADO: $${total.toLocaleString('es-AR')}\n${'─'.repeat(40)}\n\nEste presupuesto es orientativo. Queda sujeto a confirmación por parte de Florería Duhau.\nConsultas: operaciones@lafloreriadelduhau.com.ar`;
+  return `COTIZACIÓN DE EVENTO — Florería Duhau\n${'─'.repeat(40)}\nEvento: ${nombre}\nTipo: ${tipo.nombre}\nPersonas: ${pax}\n${fecha ? 'Fecha: '+fecha+'\n' : ''}${'─'.repeat(40)}\n\nARREGLOS FLORALES:\n${lineas.join('\n')}\n\n${'─'.repeat(40)}\nTOTAL ESTIMADO: $${total.toLocaleString('es-AR')}\n${'─'.repeat(40)}\n\nEste presupuesto es orientativo. Queda sujeto a confirmación por parte de Florería Duhau.\nConsultas: operaciones@lafloreriadelduhau.com.ar`;
 }
 
 function enviarCotizacionEvento(){
@@ -10442,13 +10442,13 @@ function enviarCotizacionEvento(){
   const subject = encodeURIComponent('Cotización Evento: ' + nombre + ' — Florería Duhau');
   const body = encodeURIComponent(texto);
   window.open('mailto:operaciones@lafloreriadelduhau.com.ar?subject=' + subject + '&body=' + body, '_blank');
-  showToast('📧 Se abrió el mail con la cotización — envialo para confirmar');
+  showToast('Se abrió el mail con la cotización — envialo para confirmar');
 }
 
 function copiarCotizacionEvento(){
   const texto = generarTextoCotEvento();
   if(!texto) return;
-  navigator.clipboard.writeText(texto).then(() => showToast('📋 Cotización copiada'));
+  navigator.clipboard.writeText(texto).then(() => showToast('Cotización copiada'));
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -10614,7 +10614,7 @@ function openFichaEmpleado(nombre, mesISO){
       ${card('Evaluación', stars, m.evalCount?`prom ${m.evalProm.toFixed(1)} · ${m.evalCount} eval`:'sin evaluar', 'var(--charcoal)')}
       ${card('Llamados de atención', m.llamados, 'este mes', m.llamados?'var(--red-alert)':'var(--green-ok)')}
     </div>
-    ${m.llamadosList.length?`<div style="margin-top:18px"><div class="card-label">Llamados de atención del mes</div>${m.llamadosList.map(l=>`<div style="display:flex;gap:8px;align-items:center;padding:7px 0;border-top:1px solid #F0EDE8;font-size:12px">${l.foto?`<img src="${l.foto}" onclick="verFotoLlamado(${l.id})" style="width:34px;height:34px;object-fit:cover;border-radius:5px;cursor:pointer">`:'<span style="color:var(--amber)">⚠️</span>'}<span style="flex:1">${esc(l.zona||'Arreglo')}${l.nota?' — '+esc(l.nota):''}</span><span style="color:var(--mid-gray);font-size:11px">${fmtDate(l.fecha)}</span></div>`).join('')}</div>`:''}
+    ${m.llamadosList.length?`<div style="margin-top:18px"><div class="card-label">Llamados de atención del mes</div>${m.llamadosList.map(l=>`<div style="display:flex;gap:8px;align-items:center;padding:7px 0;border-top:1px solid #F0EDE8;font-size:12px">${l.foto?`<img src="${l.foto}" onclick="verFotoLlamado(${l.id})" style="width:34px;height:34px;object-fit:cover;border-radius:5px;cursor:pointer">`:'<span style="color:var(--amber)"></span>'}<span style="flex:1">${esc(l.zona||'Arreglo')}${l.nota?' — '+esc(l.nota):''}</span><span style="color:var(--mid-gray);font-size:11px">${fmtDate(l.fecha)}</span></div>`).join('')}</div>`:''}
   </div>`;
   ov.classList.add('open');
 }
@@ -10685,7 +10685,7 @@ function renderReportesEquipo(){
   }
 
   // Tabla ranking (ordenada por cumplimiento) — clic en la fila abre la ficha 360
-  document.getElementById('rep-eq-tabla').innerHTML = `<div style="font-size:11px;color:var(--mid-gray);margin-bottom:8px">🏆 Ranking del mes — tocá una fila para ver la ficha completa de la persona</div>
+  document.getElementById('rep-eq-tabla').innerHTML = `<div style="font-size:11px;color:var(--mid-gray);margin-bottom:8px">Ranking del mes — tocá una fila para ver la ficha completa de la persona</div>
   <div class="table-wrapper"><table class="stock-table">
     <thead><tr><th>#</th><th>Empleado</th><th>Área</th><th>Asist.</th><th>Puntualidad</th><th>Hs prog</th><th>Hs reg</th><th>Cumplimiento</th><th>Llamados</th><th></th></tr></thead>
     <tbody>${datosEmpleado.map((d,rank)=>{
@@ -10775,7 +10775,7 @@ function renderReporteTiempos(mesISO, filtroEmp){
           <td style="font-weight:600">${fmtDur(o.prom)}</td>
           <td>${o.ref?o.ref+'m':'—'}</td>
           <td style="color:${col};font-weight:600">${desTxt}</td>
-          <td style="text-align:center">${o.exc?'<span style="color:var(--red-alert);font-weight:600">'+o.exc+' ⚠️</span>':'0'}</td>
+          <td style="text-align:center">${o.exc?'<span style="color:var(--red-alert);font-weight:600">'+o.exc+' </span>':'0'}</td>
         </tr>`;
       }).join('')}</tbody>
     </table></div>
@@ -10947,7 +10947,7 @@ function renderDashboardMargen(){
     _kpiCard('Ventas del mes', '$'+totalVentas.toLocaleString('es-AR'), ventas.length+' transacciones', 'var(--green-ok)'),
     _kpiCard('Compras / Costos', '$'+totalCompras.toLocaleString('es-AR'), compras.length+' registros', 'var(--red-alert)'),
     _kpiCard('Margen Bruto', '$'+margenBruto.toLocaleString('es-AR'), pct+'% del total vendido', margenBruto>=0?'var(--green-ok)':'var(--red-alert)'),
-    _kpiCard('% Margen', pct+'%', margenBruto>=0?'Rentable ✓':'Déficit ⚠', margenBruto>=0?'var(--green-ok)':'var(--amber)'),
+    _kpiCard('% Margen', pct+'%', margenBruto>=0?'Rentable ✓':'Déficit ', margenBruto>=0?'var(--green-ok)':'var(--amber)'),
   ].join('');
 
   // Desglose ventas por tipo
@@ -11023,14 +11023,14 @@ async function enviarPushNotif(){
   if(!title||!body){ showToast('Completá título y mensaje'); return; }
   await window.pushSend?.(title,body);
   closeModal('push-modal');
-  showToast('✅ Notificación enviada al equipo');
+  showToast('Notificación enviada al equipo');
 }
 
 async function initPushForUser(){
   if(!('Notification' in window)) return;
   if(Notification.permission==='default'){
     const granted=await window.pushRequestPermission?.();
-    if(granted) showToast('🔔 Notificaciones activadas — los avisos llegan aunque cierres la app');
+    if(granted) showToast('Notificaciones activadas — los avisos llegan aunque cierres la app');
   } else if(Notification.permission==='granted'){
     // Refrescar la suscripción con la identidad/roles del usuario logueado
     await window.pushRequestPermission?.();
@@ -11040,13 +11040,13 @@ async function initPushForUser(){
 // Activación manual desde el menú (por si se denegó o no saltó el pedido)
 async function activarNotificaciones(){
   if(!('Notification' in window) || !('PushManager' in window)){
-    showToast('⚠️ Este navegador no soporta notificaciones push'); return;
+    showToast('Este navegador no soporta notificaciones push'); return;
   }
   if(Notification.permission==='denied'){
-    showToast('⚠️ Las notificaciones están bloqueadas — habilitalas en la configuración del navegador para este sitio'); return;
+    showToast('Las notificaciones están bloqueadas — habilitalas en la configuración del navegador para este sitio'); return;
   }
   const ok = await window.pushRequestPermission?.();
-  showToast(ok ? '🔔 Notificaciones activadas en este dispositivo' : '⚠️ No se pudieron activar las notificaciones');
+  showToast(ok ? 'Notificaciones activadas en este dispositivo' : 'No se pudieron activar las notificaciones');
 }
 
 // ── PEDIDOS DE HABITACIÓN ──────────────────────────────────────────────────────
@@ -11075,7 +11075,7 @@ function renderHomeHyatt(){
     el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--mid-gray)">No hay pedidos todavía. Cargá el primero desde "Pedidos de Habitación".</div>';
     return;
   }
-  const estadoIcons = {pendiente:'⏳',preparando:'🔄',listo:'✅',entregado:'📦'};
+  const estadoIcons = {pendiente:'⏳',preparando:'',listo:'',entregado:''};
   el.innerHTML = ultimos.map(p =>
     `<div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:8px;padding:10px 14px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
       <div><strong>${arregloEmoji(p.tipo)} ${esc(p.tipo)}</strong>${p.variante?' · '+esc(p.variante):''} × ${p.qty} — Hab. ${esc(p.habitacion)} · ${esc(p.cliente)}</div>
@@ -11108,7 +11108,7 @@ function populatePHSubSelector(){
 
   // Composiciones
   if(recetasData.length){
-    opts += '<optgroup label="🫙 Composiciones">';
+    opts += '<optgroup label="Composiciones">';
     recetasData.forEach(r => {
       const ings = r.ings.map(g=>g.qty+' '+g.prod).join(', ');
       const costo = calcCostoComposicion(r);
@@ -11122,7 +11122,7 @@ function populatePHSubSelector(){
   // Items de Lista de Precios
   listaPreciosData.forEach(cat => {
     if(!(cat.items||[]).length) return;
-    opts += `<optgroup label="${cat.emoji||'📦'} ${esc(cat.cat)}">`;
+    opts += `<optgroup label="${cat.emoji||''} ${esc(cat.cat)}">`;
     cat.items.forEach(it => {
       opts += `<option value="lp:${esc(it.nombre)}">${esc(it.nombre)} — ${esc(it.precio||'A consultar')}</option>`;
     });
@@ -11160,9 +11160,9 @@ function _precioVariantePH(val){
 
 function enviarPedidoHab(){
   const tipo = document.getElementById('ph-tipo')?.value;
-  if(!tipo){ showToast('⚠️ Seleccioná el arreglo o ramo'); return; }
+  if(!tipo){ showToast('Seleccioná el arreglo o ramo'); return; }
   const cliente = document.getElementById('ph-cliente')?.value?.trim();
-  if(!cliente){ showToast('⚠️ Ingresá el nombre del huésped'); return; }
+  if(!cliente){ showToast('Ingresá el nombre del huésped'); return; }
 
   // El valor viene como "comp:Nombre" (composición) o "ramo:Nombre" (ramo)
   const tipoFinal = tipo.replace(/^(comp|ramo):/,'');
@@ -11235,7 +11235,7 @@ function enviarPedidoHab(){
   document.getElementById('ph-tipo-custom').style.display = 'none';
 
   renderPedidosHab();
-  showToast('📨 Pedido enviado · tarea creada en Kanban · registrado en Ventas');
+  showToast('Pedido enviado · tarea creada en Kanban · registrado en Ventas');
 }
 
 // Llena el selector "Tipo de arreglo" del pedido de habitación SOLO con las
@@ -11246,7 +11246,7 @@ function populatePHTipos(){
   const cur = sel.value;
   let opts = '<option value="">— Seleccionar —</option>';
   if(recetasData.length){
-    opts += '<optgroup label="🌸 Composiciones">';
+    opts += '<optgroup label="Composiciones">';
     recetasData.forEach(r => {
       opts += `<option value="comp:${esc(r.nombre)}">${arregloEmoji(r.nombre)} ${esc(r.nombre)}</option>`;
     });
@@ -11254,7 +11254,7 @@ function populatePHTipos(){
   }
   const ramos = [...new Set((ramosDispData||[]).map(r=>r.nombre).filter(Boolean))];
   if(ramos.length){
-    opts += '<optgroup label="💐 Ramos">';
+    opts += '<optgroup label="Ramos">';
     ramos.forEach(n => { opts += `<option value="ramo:${esc(n)}">${esc(n)}</option>`; });
     opts += '</optgroup>';
   }
@@ -11273,7 +11273,7 @@ function renderPedidosHab(){
     list.innerHTML = '<div style="text-align:center;padding:32px;color:var(--mid-gray)">No hay pedidos todavía.</div>';
     return;
   }
-  const estadoIcons = {pendiente:'⏳',preparando:'🔄',listo:'✅',entregado:'📦'};
+  const estadoIcons = {pendiente:'⏳',preparando:'',listo:'',entregado:''};
   const estadoLabels = {pendiente:'Pendiente',preparando:'En preparación',listo:'Listo',entregado:'Entregado'};
   const estadoColors = {pendiente:'#FDF8E8',preparando:'#EBF0E8',listo:'#E8F0F8',entregado:'#F4F1EC'};
 
@@ -11323,7 +11323,7 @@ async function delPedidoHab(i){
   pedidosHabData.splice(i,1);
   fbSave('pedidosHabData', pedidosHabData);
   renderPedidosHab();
-  showToast('🗑️ Pedido eliminado');
+  showToast('Pedido eliminado');
 }
 
 // ── renderListaPrecios ────────────────────────────────────────────────────────
@@ -11488,7 +11488,7 @@ function openLpCatModal(){ document.getElementById('lp-cat-modal').classList.add
 function addLpCat(){
   const nombre = document.getElementById('lp-cat-nombre').value.trim();
   if(!nombre) return;
-  listaPreciosData.push({ cat: nombre, emoji: '🌿', items: [] });
+  listaPreciosData.push({ cat: nombre, emoji: '', items: [] });
   fbSave('listaPreciosData',listaPreciosData);
   closeModal('lp-cat-modal');
   document.getElementById('lp-cat-nombre').value='';
@@ -11614,7 +11614,7 @@ function descargarBackup(){
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
   try{ localStorage.setItem('ultimoBackupISO', TODAY_ISO); }catch(e){}
-  showToast('💾 Backup descargado — guardalo en un lugar seguro');
+  showToast('Backup descargado — guardalo en un lugar seguro');
 }
 
 // Recordatorio mensual: avisar a gerencia si hace más de 30 días del último backup
@@ -11624,8 +11624,8 @@ function recordarBackup(){
     const dias = ult ? Math.floor((new Date(TODAY_ISO)-new Date(ult))/86400000) : null;
     if(dias===null || dias>30){
       showToast(dias===null
-        ? '💾 Nunca se descargó un backup desde este dispositivo — botón "Backup de datos" en el menú'
-        : `💾 Hace ${dias} días que no se descarga un backup — botón "Backup de datos" en el menú`, 'warn');
+        ? 'Nunca se descargó un backup desde este dispositivo — botón "Backup de datos" en el menú'
+        : `Hace ${dias} días que no se descarga un backup — botón "Backup de datos" en el menú`, 'warn');
     }
   }catch(e){}
 }
@@ -11743,7 +11743,7 @@ function applyRole(role){
         let sib = label.nextElementSibling;
         while(sib && !sib.classList.contains('nav-section-label')){
           const t = sib.textContent.trim();
-          if(['Eventos / Maison','Stock Florería','Cotizador','🏺 Stock de Floreros','🕯️ Stock de Velas'].includes(t)){
+          if(['Eventos / Maison','Stock Florería','Cotizador','Stock de Floreros','Stock de Velas'].includes(t)){
             sib.style.display = '';
           }
           sib = sib.nextElementSibling;
@@ -11774,8 +11774,8 @@ function applyRole(role){
     document.querySelectorAll('.nav-section-label, .nav-item, .nav-sub-item').forEach(el => { el.style.display = 'none'; });
     // Florista que también es jardinero (ej. Ivan): además de lo de florería, ve jardinería
     const alsoJardinero = !!jardineroNombre;
-    const OPS_ALLOW = ['Checklist Diaria','Stock Florería','Eventos / Maison','Cotizador','📦 Recepción de Pedidos','🏺 Stock de Floreros','🕯️ Stock de Velas'];
-    if(alsoJardinero) OPS_ALLOW.push('Tareas Jardinería','Habitaciones con Plantas','🔔 Recordatorios Jardín');
+    const OPS_ALLOW = ['Checklist Diaria','Stock Florería','Eventos / Maison','Cotizador','Recepción de Pedidos','Stock de Floreros','Stock de Velas'];
+    if(alsoJardinero) OPS_ALLOW.push('Tareas Jardinería','Habitaciones con Plantas','Recordatorios Jardín');
     document.querySelectorAll('.nav-section-label').forEach(label => {
       if(label.textContent.trim() === 'Principal'){
         label.style.display = '';
@@ -11814,7 +11814,7 @@ function applyRole(role){
       // Mostrar explícitamente los permitidos (revela también los nav-jard-only ocultos por defecto)
       ql.style.display = FL_QL.some(t => title.includes(t)) ? '' : 'none';
     });
-    showToast('👋 Hola ' + floristaNombre + '!');
+    showToast('Hola ' + floristaNombre + '!');
   }
 
   if(role === 'comercial'){
@@ -11846,7 +11846,7 @@ function applyRole(role){
     const grpComC = document.querySelector('[data-group-id="grp-com-vt"]');
     if(grpComC) grpComC.style.display = '';
     setTimeout(() => navExpandGroup('grp-com-vt'), 50);
-    showToast('👋 Hola Euge!');
+    showToast('Hola Euge!');
   }
 
   if(role === 'ventas'){
@@ -11948,7 +11948,7 @@ function applyRole(role){
     document.querySelector('[data-group-id="grp-ops"]').style.display = '';
     setTimeout(() => navExpandGroup('grp-ops'), 50);
     document.querySelectorAll('.quick-link').forEach(ql => ql.style.display = 'none');
-    setTimeout(()=>{ navigate('jardineria-ops'); if(jardineroNombre) showToast('👋 Hola '+jardineroNombre+'!'); }, 100);
+    setTimeout(()=>{ navigate('jardineria-ops'); if(jardineroNombre) showToast('Hola '+jardineroNombre+'!'); }, 100);
   }
 
   if(role === 'housekeeping'){
@@ -11968,7 +11968,7 @@ function applyRole(role){
     if(gCtrl) gCtrl.style.display = '';
     setTimeout(() => navExpandGroup('grp-ctrl'), 50);
     document.querySelectorAll('.quick-link').forEach(ql => ql.style.display = 'none');
-    setTimeout(()=>{ navigate('control-habitaciones'); showToast('👋 Housekeeping'); }, 100);
+    setTimeout(()=>{ navigate('control-habitaciones'); showToast('Housekeeping'); }, 100);
   }
 
   // Aplicar estado colapsado del acordeón según visibilidad de rol
@@ -12035,7 +12035,7 @@ function horariosAddPersona(nombre){
   if(!horariosPlantilla[nom]) horariosPlantilla[nom] = {};
   renderPlantilla();
   renderHorarios();
-  showToast('✅ '+nom+' agregado a horarios');
+  showToast(''+nom+' agregado a horarios');
 }
 async function horariosRemovePersona(nombre){
   const nom = (nombre||'').trim();
@@ -12046,7 +12046,7 @@ async function horariosRemovePersona(nombre){
   fbSave('horariosPersonas', nueva);
   renderPlantilla();
   renderHorarios();
-  showToast('🗑️ '+nom+' quitado de horarios');
+  showToast(''+nom+' quitado de horarios');
 }
 async function horariosAddPersonaFromSel(sel){
   const v = sel.value;
@@ -12109,7 +12109,7 @@ function renderPlantilla(){
   // Candidatos para agregar: empleados conocidos que aún no están en la lista
   const candidatos = getEmpleadosActivos().filter(n => !personas.includes(n));
   const addControl = `<div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-    <span style="font-size:11px;color:var(--mid-gray);font-weight:600">➕ Agregar persona:</span>
+    <span style="font-size:11px;color:var(--mid-gray);font-weight:600">Agregar persona:</span>
     <select onchange="horariosAddPersonaFromSel(this)" style="padding:6px 8px;border:1px solid var(--light-gray);border-radius:6px;font-size:12px;font-family:inherit;background:white">
       <option value="">— Elegí quién agregar —</option>
       ${candidatos.length ? '<optgroup label="Empleados">'+candidatos.map(n=>`<option value="${esc(n)}">${esc(n)}${isJardinero(n)?' · Jardinería':''}</option>`).join('')+'</optgroup>' : ''}
@@ -12117,7 +12117,7 @@ function renderPlantilla(){
     </select>
   </div>`;
 
-  const tip = `<div style="font-size:11px;color:var(--mid-gray);margin-top:8px">💡 Completá los horarios base y tocá <strong>"Aplicar al mes"</strong> para rellenar todo el calendario de ${['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][horMes]}. Podés incluir jardinería para coordinar los horarios de ambos equipos.</div>`;
+  const tip = `<div style="font-size:11px;color:var(--mid-gray);margin-top:8px">Completá los horarios base y tocá <strong>"Aplicar al mes"</strong> para rellenar todo el calendario de ${['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][horMes]}. Podés incluir jardinería para coordinar los horarios de ambos equipos.</div>`;
 
   if(!personas.length){
     container.innerHTML = '<div style="color:var(--mid-gray);padding:8px">No hay personas en la lista. Agregá una para empezar.</div>' + addControl + tip;
@@ -12194,7 +12194,7 @@ function aplicarPlantillaAlMes(){
 
   fbSave('horariosData', window.horariosData);
   renderHorarios();
-  showToast(`✅ Plantilla aplicada a ${meses[horMes]} · ${count} horarios cargados`);
+  showToast(`Plantilla aplicada a ${meses[horMes]} · ${count} horarios cargados`);
 }
 
 function aplicarPlantillaForce(){
@@ -12221,7 +12221,7 @@ function aplicarPlantillaForce(){
   }
   fbSave('horariosData', window.horariosData);
   renderHorarios();
-  showToast(`✅ Mes completo recargado con plantilla · ${count} horarios`);
+  showToast(`Mes completo recargado con plantilla · ${count} horarios`);
 }
 
 function renderHorarios(){
@@ -12367,7 +12367,7 @@ function guardarDiaHorario(iso){
   fbSave('horariosData', window.horariosData);
   document.getElementById('dia-horario-modal')?.classList.remove('open');
   renderHorarios();
-  showToast('✅ Horarios guardados para ' + fmtDate(iso));
+  showToast('Horarios guardados para ' + fmtDate(iso));
 }
 
 function limpiarDiaHorario(iso){
@@ -12377,7 +12377,7 @@ function limpiarDiaHorario(iso){
   fbSave('horariosData', window.horariosData);
   document.getElementById('dia-horario-modal')?.classList.remove('open');
   renderHorarios();
-  showToast('🗑 Horarios del día limpiados');
+  showToast('Horarios del día limpiados');
 }
 
 // ── Informe de horas del mes: PROGRAMADAS (calendario) vs REALES (ingreso/egreso) ──
@@ -12436,7 +12436,7 @@ function _detalleFichajesPersona(nombre){
   if(!q1cerrada) filas += subtotalRow('1ª quincena (1–15)', q[1]);
   filas += subtotalRow('2ª quincena (16–fin)', q[2]);
   const txtQ = `1ª quincena (1–15): ${q[1].dias} día${q[1].dias!==1?'s':''} · ${r1(q[1].horas)}h\n2ª quincena (16–fin): ${q[2].dias} día${q[2].dias!==1?'s':''} · ${r1(q[2].horas)}h`;
-  window._detalleFichajesTexto = `🧾 ${nombre} — ${MESES[horMes]} ${horAnio}\n${txt.join('\n')||'Sin días trabajados'}\n———\n${txtQ}\nTotal: ${totDias} día${totDias!==1?'s':''} · ${r1(totHoras)}h reales · ${r1(totProg)}h programadas`;
+  window._detalleFichajesTexto = `${nombre} — ${MESES[horMes]} ${horAnio}\n${txt.join('\n')||'Sin días trabajados'}\n———\n${txtQ}\nTotal: ${totDias} día${totDias!==1?'s':''} · ${r1(totHoras)}h reales · ${r1(totProg)}h programadas`;
   const cuerpo = filas || `<tr><td colspan="5" style="padding:16px;text-align:center;color:var(--mid-gray)">Sin días fichados este mes.</td></tr>`;
   return `<div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:10px;padding:14px 16px">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
@@ -12464,7 +12464,7 @@ function _detalleFichajesPersona(nombre){
 }
 function copiarDetalleFichajes(){
   const t = window._detalleFichajesTexto || '';
-  (navigator.clipboard?.writeText(t) || Promise.reject()).then(()=>showToast('📋 Detalle copiado'), ()=>showToast('No se pudo copiar'));
+  (navigator.clipboard?.writeText(t) || Promise.reject()).then(()=>showToast('Detalle copiado'), ()=>showToast('No se pudo copiar'));
 }
 
 function renderInformeHoras(lista){
@@ -12580,19 +12580,19 @@ function renderProductividadHorarios(empleados){
 
     let statusColor, statusIcon, statusText;
     if(hsProgramadas === 0 && minsJornada === 0 && minsTareas === 0){
-      statusColor = 'var(--mid-gray)'; statusIcon = '⬜'; statusText = 'No trabaja hoy';
+      statusColor = 'var(--mid-gray)'; statusIcon = ''; statusText = 'No trabaja hoy';
     } else if(minsJornada === 0 && minsTareas > 0){
-      statusColor = 'var(--amber)'; statusIcon = '🟡'; statusText = 'Tareas registradas · falta marcar jornada';
+      statusColor = 'var(--amber)'; statusIcon = ''; statusText = 'Tareas registradas · falta marcar jornada';
     } else if(minsJornada === 0){
       statusColor = 'var(--mid-gray)'; statusIcon = '⏳'; statusText = 'Sin actividad registrada';
     } else if(diff > 0.5){
-      statusColor = 'var(--red-alert)'; statusIcon = '🔴'; statusText = `+${diff.toFixed(1)}h extra · revisar`;
+      statusColor = 'var(--red-alert)'; statusIcon = ''; statusText = `+${diff.toFixed(1)}h extra · revisar`;
     } else if(hsProgramadas === 0){
-      statusColor = 'var(--green-ok)'; statusIcon = '✅'; statusText = `${hsTrabajadas}h trabajadas`;
+      statusColor = 'var(--green-ok)'; statusIcon = ''; statusText = `${hsTrabajadas}h trabajadas`;
     } else if(pct >= 80){
-      statusColor = 'var(--green-ok)'; statusIcon = '✅'; statusText = 'Productividad OK';
+      statusColor = 'var(--green-ok)'; statusIcon = ''; statusText = 'Productividad OK';
     } else {
-      statusColor = 'var(--amber)'; statusIcon = '🟡'; statusText = `${(hsProgramadas - hsTrabajadas).toFixed(1)}h disponibles`;
+      statusColor = 'var(--amber)'; statusIcon = ''; statusText = `${(hsProgramadas - hsTrabajadas).toFixed(1)}h disponibles`;
     }
 
     const barColor = diff > 0.5 ? 'var(--red-alert)' : pct >= 80 ? 'var(--green-ok)' : 'var(--amber)';
@@ -12675,7 +12675,7 @@ function registrarHoraEvento(evIdx, campo, fase){
       if(document.getElementById('page-eventos-comercial')?.classList.contains('active')) renderEventos();
       if(document.getElementById('page-eventos-maison')?.classList.contains('active')) renderKanban();
       renderHome();
-      showToast(`✅ Retiro finalizado: "${ev.nombre}". Evento completo.`);
+      showToast(`Retiro finalizado: "${ev.nombre}". Evento completo.`);
       return;
     }
     fbSave('eventosData', eventosData);
@@ -12696,8 +12696,8 @@ function registrarHoraEvento(evIdx, campo, fase){
         if(document.getElementById('page-eventos-comercial')?.classList.contains('active')) renderEventos();
         if(document.getElementById('page-eventos-maison')?.classList.contains('active')) renderKanban();
         renderHome();
-        notificarAsignacion(ev.retiroAsignado, '🔄 Listo para retirar', `"${ev.nombre}" ya fue colocado. Retirá el arreglo al finalizar el evento.`);
-        showToast(`✅ Colocación finalizada: "${ev.nombre}". Pendiente de retiro por ${ev.retiroAsignado}.`);
+        notificarAsignacion(ev.retiroAsignado, 'Listo para retirar', `"${ev.nombre}" ya fue colocado. Retirá el arreglo al finalizar el evento.`);
+        showToast(`Colocación finalizada: "${ev.nombre}". Pendiente de retiro por ${ev.retiroAsignado}.`);
         return;
       }
       ev.estado = 'Pedidos Finalizados';
@@ -12706,7 +12706,7 @@ function registrarHoraEvento(evIdx, campo, fase){
       if(document.getElementById('page-eventos-comercial')?.classList.contains('active')) renderEventos();
       if(document.getElementById('page-eventos-maison')?.classList.contains('active')) renderKanban();
       renderHome();
-      showToast(`✅ Colocación finalizada: "${ev.nombre}". Evento completo.`);
+      showToast(`Colocación finalizada: "${ev.nombre}". Evento completo.`);
       return;
     }
     fbSave('eventosData', eventosData);
@@ -12726,7 +12726,7 @@ function registrarHoraEvento(evIdx, campo, fase){
     if(document.getElementById('page-eventos-maison')?.classList.contains('active')) renderKanban();
     renderHome();
     // Aviso a gerencia para que asigne la colocación
-    window.pushSend?.('🌸 Evento listo para colocación', `"${ev.nombre}" fue armado por ${ev.asignado||'el equipo'}. Asigná la colocación.`, 'colocacion');
+    window.pushSend?.('Evento listo para colocación', `"${ev.nombre}" fue armado por ${ev.asignado||'el equipo'}. Asigná la colocación.`, 'colocacion');
     showToast(`⏹ Armado finalizado: "${ev.nombre}". Avisamos a gerencia para la colocación.`);
     return;
   }
@@ -12871,7 +12871,7 @@ async function migrarSeguridadLogin(pwGerenciaActual){
   loginAuth = auth;
   _persistLoginAuth();
   if(window.fbSetPath) window.fbSetPath('loginPasswords', null); // borra el texto plano de la base
-  showToast('🔒 Contraseñas protegidas — ahora se guardan cifradas');
+  showToast('Contraseñas protegidas — ahora se guardan cifradas');
 }
 
 // Garantiza loginAuth antes de gestionar usuarios (ya estás logueado como gerencia).
@@ -12888,7 +12888,7 @@ async function _ensureLoginAuth(){
     // Firebase lo tiene pero aún no asentó en la variable; esperar un poco más
     for(let i=0; i<20 && !loginAuth; i++){ await new Promise(r=>setTimeout(r, 100)); }
     if(loginAuth) return true;
-    showToast('⚠️ Esperá unos segundos, cargando usuarios…');
+    showToast('Esperá unos segundos, cargando usuarios…');
     return false;
   }
   // Genuinamente no hay loginAuth en Firebase → migrar desde loginPasswords (reales)
@@ -12944,9 +12944,9 @@ function mostrarBriefingDia(retry = 0){
     const evs = (eventosData||[]).filter(ev => ev.estado!=='Pedidos Finalizados' &&
       eventoFlorFase(ev, eventoFase(ev)) === floristaNombre && faseVisibleFlorista(ev, eventoFase(ev)));
     rows = [
-      ['📋', mis.length ? `Tenés ${mis.length} tarea${mis.length!==1?'s':''} asignada${mis.length!==1?'s':''} para hoy` : 'Todavía no tenés tareas asignadas'],
-      horario?.desde ? ['🕐', `Tu turno: ${horario.desde} a ${horario.hasta||'—'}`] : null,
-      evs.length ? ['🎉', 'Eventos: ' + esc(evs.map(e=>e.nombre).slice(0,2).join(' · '))] : null,
+      ['', mis.length ? `Tenés ${mis.length} tarea${mis.length!==1?'s':''} asignada${mis.length!==1?'s':''} para hoy` : 'Todavía no tenés tareas asignadas'],
+      horario?.desde ? ['', `Tu turno: ${horario.desde} a ${horario.hasta||'—'}`] : null,
+      evs.length ? ['', 'Eventos: ' + esc(evs.map(e=>e.nombre).slice(0,2).join(' · '))] : null,
     ];
   } else if(userRole==='gerencia'){
     const evsHoy = (eventosData||[]).filter(e => e.fecha===TODAY_ISO && e.estado!=='Pedidos Finalizados');
@@ -12954,17 +12954,17 @@ function mostrarBriefingDia(retry = 0){
     const hechas = (ds.checked||[]).filter(Boolean).length;
     const venc = jardRecordatorios.filter(r=>recEstado(r)==='vencido').length;
     rows = [
-      ['🎉', evsHoy.length ? `${evsHoy.length} evento${evsHoy.length!==1?'s':''} hoy: ${esc(evsHoy.map(e=>e.nombre).slice(0,2).join(' · '))}` : 'Sin eventos hoy'],
-      ['👥', conTurno.length ? 'Con turno hoy: ' + esc(conTurno.join(', ')) : 'Nadie con turno asignado hoy'],
-      ['✅', `Checklist: ${hechas} de ${CL_TASKS.length} tareas hechas`],
-      venc ? ['🌿', `${venc} recordatorio${venc!==1?'s':''} de jardín vencido${venc!==1?'s':''}`] : null,
+      ['', evsHoy.length ? `${evsHoy.length} evento${evsHoy.length!==1?'s':''} hoy: ${esc(evsHoy.map(e=>e.nombre).slice(0,2).join(' · '))}` : 'Sin eventos hoy'],
+      ['', conTurno.length ? 'Con turno hoy: ' + esc(conTurno.join(', ')) : 'Nadie con turno asignado hoy'],
+      ['', `Checklist: ${hechas} de ${CL_TASKS.length} tareas hechas`],
+      venc ? ['', `${venc} recordatorio${venc!==1?'s':''} de jardín vencido${venc!==1?'s':''}`] : null,
     ];
   } else if(userRole==='jardinero'){
     const venc = jardRecordatorios.filter(r=>recEstado(r)==='vencido').length;
     const prox = jardRecordatorios.filter(r=>recEstado(r)==='proximo').length;
     rows = [
-      venc ? ['🔴', `${venc} recordatorio${venc!==1?'s':''} vencido${venc!==1?'s':''} para atender`] : ['🟢', 'Recordatorios de jardín al día'],
-      prox ? ['🟡', `${prox} por vencer en los próximos días`] : null,
+      venc ? ['', `${venc} recordatorio${venc!==1?'s':''} vencido${venc!==1?'s':''} para atender`] : ['', 'Recordatorios de jardín al día'],
+      prox ? ['', `${prox} por vencer en los próximos días`] : null,
     ];
   }
   rows = rows.filter(Boolean);
@@ -12975,7 +12975,7 @@ function mostrarBriefingDia(retry = 0){
   ov.className = 'briefing-overlay';
   ov.innerHTML = `
     <div class="briefing-card">
-      <div class="briefing-flor">🌸</div>
+      <div class="briefing-flor"></div>
       <div class="briefing-saludo">${_saludoHora()}${nombre ? ', ' + esc(nombre) : ''}</div>
       <div class="briefing-fecha">${esc(fechaTxt)}</div>
       ${rows.length ? `<div class="briefing-rows">${rows.map(([ic,tx])=>`<div class="briefing-row"><span>${ic}</span><span>${tx}</span></div>`).join('')}</div>` : ''}
@@ -13047,11 +13047,11 @@ function mostrarResumenSemanal(retry=0, force=false){
   const fmtARS = n => '$' + Math.round(n).toLocaleString('es-AR');
   const flor = Object.entries(r.porFlor).sort((a,b)=>b[1].hechas-a[1].hechas);
   const rows = [
-    ['✅', `${r.regs} tareas completadas` + (flor.length ? ' — ' + esc(flor.slice(0,3).map(([n,d])=>`${n}: ${d.hechas}`).join(', ')) : '')],
+    ['', `${r.regs} tareas completadas` + (flor.length ? ' — ' + esc(flor.slice(0,3).map(([n,d])=>`${n}: ${d.hechas}`).join(', ')) : '')],
     flor.some(([,d])=>d.exc) ? ['⏱', 'Excedidas: ' + esc(flor.filter(([,d])=>d.exc).map(([n,d])=>`${n} ${d.exc}`).join(', '))] : null,
-    ['💰', `${fmtARS(r.totalVentas)} en ventas (${r.nVentas})`],
-    ['🎉', `${r.eventos} evento${r.eventos!==1?'s':''} realizado${r.eventos!==1?'s':''}`],
-    r.peorZona && r.peorDias>=5 ? ['🌸', `Zona más atrasada de Nuevo: ${esc(r.peorZona)} (${r.peorDias>900?'sin registro':r.peorDias+' días'})`] : null,
+    ['', `${fmtARS(r.totalVentas)} en ventas (${r.nVentas})`],
+    ['', `${r.eventos} evento${r.eventos!==1?'s':''} realizado${r.eventos!==1?'s':''}`],
+    r.peorZona && r.peorDias>=5 ? ['', `Zona más atrasada de Nuevo: ${esc(r.peorZona)} (${r.peorDias>900?'sin registro':r.peorDias+' días'})`] : null,
   ].filter(Boolean);
 
   const desdeTxt = new Date(desde+'T12:00:00').toLocaleDateString('es-AR',{day:'numeric',month:'short'});
@@ -13061,7 +13061,7 @@ function mostrarResumenSemanal(retry=0, force=false){
   ov.className = 'briefing-overlay';
   ov.innerHTML = `
     <div class="briefing-card">
-      <div class="briefing-flor">📊</div>
+      <div class="briefing-flor"></div>
       <div class="briefing-saludo">Resumen de la semana</div>
       <div class="briefing-fecha">${desdeTxt} — ${hastaTxt}</div>
       <div class="briefing-rows">${rows.map(([ic,tx])=>`<div class="briefing-row"><span>${ic}</span><span>${tx}</span></div>`).join('')}</div>
@@ -13072,7 +13072,7 @@ function mostrarResumenSemanal(retry=0, force=false){
   requestAnimationFrame(()=>ov.classList.add('open'));
 
   // Aviso por push a los demás dispositivos de gerencia
-  window.pushSend?.('📊 Resumen semanal listo',
+  window.pushSend?.('Resumen semanal listo',
     `${r.regs} tareas · ${fmtARS(r.totalVentas)} en ventas · ${r.eventos} eventos`,
     'resumen-semanal', 'roles:gerencia');
 }
@@ -13116,29 +13116,29 @@ async function doLogin(){
 
 async function cambiarContrasena(){
   const nueva = await promptModal('Ingresá tu nueva contraseña (mínimo 4 caracteres):', { title: 'Cambiar contraseña', password: false });
-  if(!nueva || nueva.trim().length < 4){ showToast('⚠️ La contraseña debe tener al menos 4 caracteres'); return; }
+  if(!nueva || nueva.trim().length < 4){ showToast('La contraseña debe tener al menos 4 caracteres'); return; }
   const nuevaClean = nueva.trim();
   const confirmar = await promptModal('Confirmá la nueva contraseña:', { title: 'Cambiar contraseña', password: false });
-  if(!confirmar || confirmar.trim().toLowerCase() !== nuevaClean.toLowerCase()){ showToast('⚠️ Las contraseñas no coinciden'); return; }
+  if(!confirmar || confirmar.trim().toLowerCase() !== nuevaClean.toLowerCase()){ showToast('Las contraseñas no coinciden'); return; }
   if(loginAuth){
-    if(!currentAuthId || !loginAuth[currentAuthId]){ showToast('⚠️ Error de sesión'); return; }
+    if(!currentAuthId || !loginAuth[currentAuthId]){ showToast('Error de sesión'); return; }
     await _setUserPassword(currentAuthId, nuevaClean);
   } else {
     // Modo viejo (texto plano): todavía sin migrar
     const entry = loginPasswords[currentLoginKey];
-    if(!entry){ showToast('⚠️ Error de sesión'); return; }
+    if(!entry){ showToast('Error de sesión'); return; }
     const nuevoKey = nuevaClean.toLowerCase();
-    if(nuevoKey !== currentLoginKey && loginPasswords[nuevoKey]){ showToast('⚠️ Esa contraseña ya está en uso'); return; }
+    if(nuevoKey !== currentLoginKey && loginPasswords[nuevoKey]){ showToast('Esa contraseña ya está en uso'); return; }
     loginPasswords[nuevoKey] = {...entry};
     if(nuevoKey !== currentLoginKey) delete loginPasswords[currentLoginKey];
     currentLoginKey = nuevoKey;
     fbSave('loginPasswords', loginPasswords);
   }
-  showToast('✅ Contraseña cambiada. Ahora ingresás con: ' + nuevaClean);
+  showToast('Contraseña cambiada. Ahora ingresás con: ' + nuevaClean);
 }
 
 async function openGestionPasswords(){
-  if(userRole !== 'gerencia'){ showToast('⛔ Solo gerencia'); return; }
+  if(userRole !== 'gerencia'){ showToast('Solo gerencia'); return; }
   if(!await _ensureLoginAuth()) return;
   let ov = document.getElementById('gestion-passwords-modal');
   if(!ov){
@@ -13151,13 +13151,13 @@ async function openGestionPasswords(){
     const order = {gerencia:0,operario:1,florista:2,jardinero:3,compras:4,ventas:5,comercial:6,housekeeping:7};
     return (order[a[1].role]||9) - (order[b[1].role]||9);
   });
-  const roleLabels = {gerencia:'👔 Gerencia',operario:'🏠 Operario',florista:'💐 Florista',jardinero:'🌿 Jardinero',compras:'📦 Compras',ventas:'🏨 Hyatt Ventas',comercial:'🎯 Comercial',housekeeping:'🧹 Housekeeping'};
+  const roleLabels = {gerencia:'Gerencia',operario:'Operario',florista:'Florista',jardinero:'Jardinero',compras:'Compras',ventas:'Hyatt Ventas',comercial:'Comercial',housekeeping:'Housekeeping'};
 
   ov.innerHTML = `<div class="modal" style="max-width:600px;max-height:85vh;overflow-y:auto">
     <button class="modal-close" onclick="document.getElementById('gestion-passwords-modal').classList.remove('open')">✕</button>
     <div class="modal-title">Gestión de Usuarios</div>
     <div style="font-size:12px;color:var(--mid-gray);margin-bottom:6px">Cambiá o reseteá la contraseña de cualquier usuario.</div>
-    <div style="font-size:11.5px;color:var(--sage-dark);background:#EBF5E8;border-radius:8px;padding:8px 12px;margin-bottom:16px">🔒 Las contraseñas se guardan cifradas — por seguridad no se pueden ver, solo cambiar.</div>
+    <div style="font-size:11.5px;color:var(--sage-dark);background:#EBF5E8;border-radius:8px;padding:8px 12px;margin-bottom:16px">Las contraseñas se guardan cifradas — por seguridad no se pueden ver, solo cambiar.</div>
     <div style="display:flex;flex-direction:column;gap:1px;background:var(--light-gray);border-radius:8px;overflow:hidden">
       ${entries.map(([id, e]) => `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--warm-white)">
         <div style="flex:1;min-width:0">
@@ -13184,15 +13184,15 @@ async function agregarUsuarioHousekeeping(){
   if(!nombre || !nombre.trim()) return;
   const nombreClean = nombre.trim();
   const password = await promptModal('Contraseña para ' + nombreClean + ':', { title: 'Nuevo usuario housekeeping', default: nombreClean.toLowerCase(), password: false });
-  if(!password || password.trim().length < 4){ showToast('⚠️ Mínimo 4 caracteres'); return; }
-  if(await _passwordEnUso(password.trim())){ showToast('⚠️ Esa contraseña ya está en uso'); return; }
+  if(!password || password.trim().length < 4){ showToast('Mínimo 4 caracteres'); return; }
+  if(await _passwordEnUso(password.trim())){ showToast('Esa contraseña ya está en uso'); return; }
   const id = nombreClean.toLowerCase().replace(/[.#$/[\]\s]/g,'_');
-  if(loginAuth[id]){ showToast('⚠️ Ya existe un usuario con ese nombre'); return; }
+  if(loginAuth[id]){ showToast('Ya existe un usuario con ese nombre'); return; }
   const salt = _randSalt();
   const hash = await hashPassword(password.trim(), salt);
   loginAuth[id] = { role:'housekeeping', label:nombreClean, salt, hash };
   if(window.fbSetPath) window.fbSetPath('loginAuth/'+id, loginAuth[id]); else _persistLoginAuth();
-  showToast('✅ Usuario housekeeping "' + nombreClean + '" creado — contraseña: ' + password.trim());
+  showToast('Usuario housekeeping "' + nombreClean + '" creado — contraseña: ' + password.trim());
   openGestionPasswords();
 }
 
@@ -13203,10 +13203,10 @@ async function agregarUsuarioFlorista(){
   if(!nombre || !nombre.trim()) return;
   const nombreClean = nombre.trim();
   const password = await promptModal('Contraseña para ' + nombreClean + ':', { title: 'Nuevo usuario florista', default: nombreClean.toLowerCase(), password: false });
-  if(!password || password.trim().length < 4){ showToast('⚠️ Mínimo 4 caracteres'); return; }
-  if(await _passwordEnUso(password.trim())){ showToast('⚠️ Esa contraseña ya está en uso'); return; }
+  if(!password || password.trim().length < 4){ showToast('Mínimo 4 caracteres'); return; }
+  if(await _passwordEnUso(password.trim())){ showToast('Esa contraseña ya está en uso'); return; }
   const id = nombreClean.toLowerCase().replace(/[.#$/[\]\s]/g,'_');
-  if(loginAuth[id]){ showToast('⚠️ Ya existe un usuario con ese nombre'); return; }
+  if(loginAuth[id]){ showToast('Ya existe un usuario con ese nombre'); return; }
   const salt = _randSalt();
   const hash = await hashPassword(password.trim(), salt);
   loginAuth[id] = { role:'florista', label:nombreClean, floristaNombre:nombreClean, salt, hash };
@@ -13215,7 +13215,7 @@ async function agregarUsuarioFlorista(){
     CL_RESP_OPTS.push(nombreClean);
     CL_RESP_OPTS.sort((a,b) => a.localeCompare(b,'es'));
   }
-  showToast('✅ Florista ' + nombreClean + ' creado/a — contraseña: ' + password.trim());
+  showToast('Florista ' + nombreClean + ' creado/a — contraseña: ' + password.trim());
   openGestionPasswords();
 }
 
@@ -13225,10 +13225,10 @@ async function resetearPassword(id){
   const entry = loginAuth[id];
   if(!entry){ showToast('Usuario no encontrado'); return; }
   const nueva = await promptModal('Nueva contraseña para ' + (entry.label||id) + ':', { title: 'Resetear contraseña', password: false });
-  if(!nueva || nueva.trim().length < 4){ showToast('⚠️ Mínimo 4 caracteres'); return; }
-  if(await _passwordEnUso(nueva.trim())){ showToast('⚠️ Esa contraseña ya está en uso por otro usuario'); return; }
+  if(!nueva || nueva.trim().length < 4){ showToast('Mínimo 4 caracteres'); return; }
+  if(await _passwordEnUso(nueva.trim())){ showToast('Esa contraseña ya está en uso por otro usuario'); return; }
   await _setUserPassword(id, nueva.trim());
-  showToast('✅ Contraseña de ' + (entry.label||id) + ' cambiada a: ' + nueva.trim());
+  showToast('Contraseña de ' + (entry.label||id) + ' cambiada a: ' + nueva.trim());
   openGestionPasswords();
 }
 
@@ -13237,13 +13237,13 @@ async function eliminarUsuario(id){
   if(!await _ensureLoginAuth()) return;
   const entry = loginAuth[id];
   if(!entry) return;
-  if(entry.role !== 'florista' && entry.role !== 'housekeeping'){ showToast('⚠️ Solo se pueden eliminar usuarios floristas o housekeeping'); return; }
+  if(entry.role !== 'florista' && entry.role !== 'housekeeping'){ showToast('Solo se pueden eliminar usuarios floristas o housekeeping'); return; }
   if(!await confirmModal('¿Eliminar al usuario ' + (entry.label||id) + '?\nYa no podrá ingresar al sistema.')) return;
   const idx = CL_RESP_OPTS.indexOf(entry.floristaNombre);
   if(idx > -1) CL_RESP_OPTS.splice(idx, 1);
   delete loginAuth[id];
   if(window.fbSetPath) window.fbSetPath('loginAuth/'+id, null); else _persistLoginAuth();
-  showToast('🗑️ Usuario ' + (entry.label||id) + ' eliminado');
+  showToast('Usuario ' + (entry.label||id) + ' eliminado');
   openGestionPasswords();
 }
 
@@ -13253,7 +13253,7 @@ async function resetearTodasPasswords(){
   loginAuth = await _construirLoginAuth(LOGIN_DEFAULTS);
   _persistLoginAuth();
   if(window.fbSetPath) window.fbSetPath('loginPasswords', null);
-  showToast('🔄 Todas las contraseñas reseteadas a valores originales');
+  showToast('Todas las contraseñas reseteadas a valores originales');
   openGestionPasswords();
 }
 // Focus input on load
@@ -13428,7 +13428,7 @@ function addInsumoToBase(nombre){
     insumosCustom.push(n);
     saveInsumosCustom();
     populateFloreriaFormHelpers();
-    showToast('📌 "'+n+'" agregado a la base de insumos');
+    showToast('"'+n+'" agregado a la base de insumos');
   }
 }
 
@@ -13532,7 +13532,7 @@ function agregarPedidoRapido(){
   window._comprasFloreLastSave = Date.now(); fbSave('comprasFlore', comprasFlore);
   renderCompras('floreria');
   updateKpiCompras();
-  showToast('✅ '+added+' insumo'+(added>1?'s':'')+' agregado'+(added>1?'s':'')+' al pedido');
+  showToast(''+added+' insumo'+(added>1?'s':'')+' agregado'+(added>1?'s':'')+' al pedido');
   // Scroll a la tabla
   document.getElementById('tbody-floreria')?.closest('.compras-list-wrap')?.scrollIntoView({behavior:'smooth',block:'start'});
 }
@@ -13596,7 +13596,7 @@ const COMPOSICIONES_BASE = [
 ];
 
 async function seedComposicionesBase(){
-  if(userRole!=='gerencia'){ showToast('⛔ Solo gerencia'); return; }
+  if(userRole!=='gerencia'){ showToast('Solo gerencia'); return; }
   const existentes = new Set(recetasData.map(r=>r.nombre));
   const nuevas = COMPOSICIONES_BASE.filter(c=>!existentes.has(c.nombre));
   if(!nuevas.length){ showToast('Las composiciones base ya están cargadas'); return; }
@@ -13604,7 +13604,7 @@ async function seedComposicionesBase(){
   nuevas.forEach(c=>recetasData.push({ nombre:c.nombre, ings:c.ings.map(g=>({prod:g.prod, qty:g.qty})), img:'' }));
   fbSave('recetasData', recetasData);
   renderRecetas();
-  showToast(`✅ ${nuevas.length} composiciones cargadas`);
+  showToast(`${nuevas.length} composiciones cargadas`);
 }
 
 // ── Catálogo base de arreglos fijos del hotel (por zona) ──────────────────────
@@ -13650,7 +13650,7 @@ const COMPOSICIONES_HOTEL_BASE = [
 ];
 
 async function seedComposicionesHotelBase(){
-  if(userRole!=='gerencia'){ showToast('⛔ Solo gerencia'); return; }
+  if(userRole!=='gerencia'){ showToast('Solo gerencia'); return; }
   const n = COMPOSICIONES_HOTEL_BASE.length;
   if(!await confirmModal(`¿Cargar / actualizar las ${n} composiciones base de arreglos del hotel?\n\nSe (re)cargan las zonas del catálogo con las unidades correctas (paquetes o varas). Tus zonas propias no se tocan.`)) return;
   COMPOSICIONES_HOTEL_BASE.forEach(c=>{
@@ -13660,7 +13660,7 @@ async function seedComposicionesHotelBase(){
   _saveArreglosComposicion();
   renderComposicionesHotel();
   if(document.getElementById('page-rentabilidad-eventos')?.classList.contains('active')) renderRentabilidadHotel();
-  showToast(`✅ ${n} composiciones del hotel cargadas`);
+  showToast(`${n} composiciones del hotel cargadas`);
 }
 
 // ── renderRecetas ─────────────────────────────────────────────────────────────
@@ -13681,7 +13681,7 @@ function renderRecetas(){
       <div class="receta-ingredientes">
         ${r.ings.map(ing=>`
           <div class="receta-ing-row">
-            <span style="font-size:18px;line-height:1">🌿</span>
+            <span style="font-size:18px;line-height:1"></span>
             <span style="flex:1;font-weight:500">${esc(ing.prod)}</span>
             <span style="background:#F0EEE8;border-radius:4px;padding:2px 8px;font-size:12px;font-weight:600">${_fmtCant(ing.qty)} vara${(+ing.qty)===1?'':'s'}</span>
           </div>`).join('')}
@@ -13736,7 +13736,7 @@ function renderComposicionesHotel(){
   }
 
   if(!conComp.length){
-    grid.innerHTML = '<div style="text-align:center;padding:40px;color:var(--mid-gray)">No hay arreglos del hotel con composición todavía. Usá «+ Definir composición» o «📋 Cargar catálogo base».</div>';
+    grid.innerHTML = '<div style="text-align:center;padding:40px;color:var(--mid-gray)">No hay arreglos del hotel con composición todavía. Usá «+ Definir composición» o «Cargar catálogo base».</div>';
     return;
   }
   grid.innerHTML = conComp.map(zona=>{
@@ -13756,7 +13756,7 @@ function renderComposicionesHotel(){
         ${ings.map(ing=>{
           const eqVaras = ing.unidad==='paq' ? _ingVaras(ing) : 0;
           return `<div class="receta-ing-row">
-          <span style="font-size:18px;line-height:1">🌿</span>
+          <span style="font-size:18px;line-height:1"></span>
           <span style="flex:1;font-weight:500">${esc(ing.prod)}</span>
           <span style="background:#F0EEE8;border-radius:4px;padding:2px 8px;font-size:12px;font-weight:600" title="${ing.unidad==='paq'?(eqVaras?_fmtCant(eqVaras)+' varas':'cargá varas por paquete en Compras'):''}">${_fmtIngUnidad(ing)}${ing.unidad==='paq'&&eqVaras?` · ${_fmtCant(eqVaras)}v`:''}</span>
         </div>`;
@@ -13779,7 +13779,7 @@ async function compHotelAdd(sel){
 }
 
 async function delArregloComposicion(zona){
-  if(userRole!=='gerencia'){ showToast('⛔ Solo gerencia'); return; }
+  if(userRole!=='gerencia'){ showToast('Solo gerencia'); return; }
   if(!_arreglosComposicionLoaded){
     showToast('⏳ Las composiciones todavía se están cargando. Esperá unos segundos e intentá de nuevo.');
     return;
@@ -13789,7 +13789,7 @@ async function delArregloComposicion(zona){
   _saveArreglosComposicion();
   renderComposicionesHotel();
   if(document.getElementById('page-rentabilidad-eventos')?.classList.contains('active')) renderRentabilidadHotel();
-  showToast('🗑️ Composición eliminada');
+  showToast('Composición eliminada');
 }
 
 function previewRecetaImg(input){
@@ -13815,7 +13815,7 @@ function clearRecetaImg(){
 }
 
 function arregloEmoji(n){
-  return {Bochita:'🫙',Cuenco:'🥣',Pecera:'🐟',Paila:'🪔',Buffet:'🌿'}[n]||'🌸';
+  return {Bochita:'',Cuenco:'',Pecera:'',Paila:'',Buffet:''}[n]||'';
 }
 
 // ── Modal receta ──────────────────────────────────────────────────────────────
@@ -13969,14 +13969,14 @@ function previewStockImpact(){
     const actual = stockItem ? stockItem.actual : '?';
     const after = stockItem ? +(stockItem.actual - qty).toFixed(1) : '?';
     const ok = typeof after==='number' && after>=0;
-    return `<span style="margin-right:10px">${ok?'✅':'⚠️'} <b>${esc(prod)}</b>: ${actual} → ${after>=0?after:'<span style="color:#B03020">'+after+'</span>'}${ok?'':' (insuficiente)'}</span>`;
+    return `<span style="margin-right:10px">${ok?'':''} <b>${esc(prod)}</b>: ${actual} → ${after>=0?after:'<span style="color:#B03020">'+after+'</span>'}${ok?'':' (insuficiente)'}</span>`;
   });
   const hasShortage = Object.entries(impact).some(([prod,qty])=>{
     const s = stockData.find(x=>x.prod.toLowerCase()===prod.toLowerCase());
     return s && s.actual < qty;
   });
   preview.innerHTML = `<div class="${hasShortage?'stock-impact':'stock-impact ok'}">
-    <div style="font-weight:600;margin-bottom:6px">${hasShortage?'⚠️ Stock insuficiente para algunos ingredientes':'✅ Stock suficiente para todos los arreglos'}</div>
+    <div style="font-weight:600;margin-bottom:6px">${hasShortage?'Stock insuficiente para algunos ingredientes':'Stock suficiente para todos los arreglos'}</div>
     <div style="line-height:2">${lines.join('')}</div>
   </div>`;
 }
@@ -14072,11 +14072,11 @@ function openEventoDetail(i){
     evZonasLabel(ev) !== '—' ? ['Salón / Zona', evZonasLabel(ev)] : null,
     ev.pax   ? ['Pax', ev.pax + ' personas'] : null,
     ev.precio && ev.precio !== 'A confirmar' ? ['Precio', ev.precio] : null,
-    _gastoEv > 0 ? ['💸 Gastado en compras', '$' + _gastoEv.toLocaleString('es-AR')] : null,
-    (_gastoEv > 0 && _cobroEv > 0) ? ['📊 Resultado (cobro − compras)', '$' + (_cobroEv - _gastoEv).toLocaleString('es-AR')] : null,
-    armadoTxt ? ['🔨 Armado', armadoTxt] : null,
-    colocTxt ? ['📍 Colocación', colocTxt] : null,
-    retiroTxt ? ['🔄 Retiro', retiroTxt] : null,
+    _gastoEv > 0 ? ['Gastado en compras', '$' + _gastoEv.toLocaleString('es-AR')] : null,
+    (_gastoEv > 0 && _cobroEv > 0) ? ['Resultado (cobro − compras)', '$' + (_cobroEv - _gastoEv).toLocaleString('es-AR')] : null,
+    armadoTxt ? ['Armado', armadoTxt] : null,
+    colocTxt ? ['Colocación', colocTxt] : null,
+    retiroTxt ? ['Retiro', retiroTxt] : null,
   ].filter(Boolean);
   document.getElementById('evento-detail-body').innerHTML = fields.map(([label, val]) =>
     `<div><div class="detail-field-label">${label}</div><div class="detail-field-value">${esc(String(val))}</div></div>`
@@ -14111,7 +14111,7 @@ function openEventoDetail(i){
         : '<div style="font-size:11px;color:var(--mid-gray);margin-top:4px;font-style:italic">Sin receta cargada</div>';
       return `<div style="padding:10px 0;border-bottom:1px solid var(--light-gray)">
         <div style="display:flex;align-items:center;gap:10px">
-          <span style="font-size:16px">🌸</span>
+          <span style="font-size:16px"></span>
           <span style="flex:1;font-size:13px;font-weight:600;color:var(--charcoal)">${esc(a.arreglo)}</span>
           <span style="background:var(--cream);border-radius:4px;padding:2px 10px;font-size:12px;font-weight:600">${a.qty} ud${a.qty>1?'s':''}</span>
         </div>
@@ -14175,7 +14175,7 @@ function mostrarEventosDelDia(retry = 0){
         <div onclick="closeModal('eventos-dia-modal');openEventoDetail(${i})" style="cursor:pointer;border:1px solid var(--light-gray);border-radius:10px;padding:14px 16px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;transition:border-color .2s,box-shadow .2s" onmouseover="this.style.borderColor='#1A1A1A';this.style.boxShadow='var(--shadow-sm)'" onmouseout="this.style.borderColor='var(--light-gray)';this.style.boxShadow='none'">
           <div style="min-width:0">
             <div style="font-weight:600;font-size:14px;color:var(--charcoal)">${esc(ev.nombre||'')}</div>
-            <div style="font-size:12px;color:var(--mid-gray);margin-top:3px">${esc(ev.tipo||'')}${ev.salon?' · '+esc(ev.salon):''}${ev.hora?' · '+esc(ev.hora)+'h':''}${(!isFlor&&ev.asignado)?' · 👤 '+esc(ev.asignado):''}</div>
+            <div style="font-size:12px;color:var(--mid-gray);margin-top:3px">${esc(ev.tipo||'')}${ev.salon?' · '+esc(ev.salon):''}${ev.hora?' · '+esc(ev.hora)+'h':''}${(!isFlor&&ev.asignado)?' · '+esc(ev.asignado):''}</div>
           </div>
           ${estadoBadge(ev.estado)}
         </div>`; }).join('')}
@@ -14232,7 +14232,7 @@ function saveEvent(){
     if(!wasConfirmed && ev.arreglos.length > 0){
       const descuentos = descontarStockEvento(ev.arreglos);
       if(descuentos.length>0){
-        showToast('📦 Stock descontado: '+descuentos.slice(0,3).join(' · ')+(descuentos.length>3?'…':''));
+        showToast('Stock descontado: '+descuentos.slice(0,3).join(' · ')+(descuentos.length>3?'…':''));
         if(document.getElementById('page-stock').classList.contains('active')) renderStock();
       }
     }
@@ -14248,13 +14248,13 @@ function saveEvent(){
   closeModal('event-modal');
   fbSave('eventosData', eventosData);
   if(ev.asignado && ev.asignado !== prevAsignadoEv){
-    notificarAsignacion(ev.asignado, '🎉 Nuevo evento asignado (armado)', `Se te asignó el armado de "${ev.nombre}"${ev.fecha ? ' · ' + fmtDate(ev.fecha) : ''}`);
+    notificarAsignacion(ev.asignado, 'Nuevo evento asignado (armado)', `Se te asignó el armado de "${ev.nombre}"${ev.fecha ? ' · ' + fmtDate(ev.fecha) : ''}`);
   }
   if(ev.colocacionAsignado && ev.colocacionAsignado !== prevColocEv){
-    notificarAsignacion(ev.colocacionAsignado, '📍 Colocación asignada', `Te asignaron la colocación de "${ev.nombre}"${ev.fecha ? ' · ' + fmtDate(ev.fecha) : ''}`);
+    notificarAsignacion(ev.colocacionAsignado, 'Colocación asignada', `Te asignaron la colocación de "${ev.nombre}"${ev.fecha ? ' · ' + fmtDate(ev.fecha) : ''}`);
   }
   if(ev.retiroAsignado && ev.retiroAsignado !== prevRetiroEv){
-    notificarAsignacion(ev.retiroAsignado, '🔄 Retiro asignado', `Te asignaron el retiro de "${ev.nombre}"${ev.fecha ? ' · ' + fmtDate(ev.fecha) : ''} — al finalizar el evento`);
+    notificarAsignacion(ev.retiroAsignado, 'Retiro asignado', `Te asignaron el retiro de "${ev.nombre}"${ev.fecha ? ' · ' + fmtDate(ev.fecha) : ''} — al finalizar el evento`);
   }
   syncEventosToKanban();
   fbSave('kanbanData', kanbanData);
@@ -14413,7 +14413,7 @@ function renderJordProd(){
     html += `<div style="background:#FDFCFB;border:1px solid #E4E2DC;border-radius:4px;padding:18px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
         <div style="display:flex;align-items:center;gap:10px">
-          <span style="font-size:20px">🌿</span>
+          <span style="font-size:20px"></span>
           <span style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:500;color:var(--charcoal)">${esc(who)}</span>
         </div>
         <div style="display:flex;gap:16px;flex-wrap:wrap">
@@ -14522,7 +14522,7 @@ function renderProductividad(){
       <div style="background:#FDFCFB;border:1px solid #E4E2DC;border-radius:4px;padding:18px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
           <div style="display:flex;align-items:center;gap:10px">
-            <span style="font-size:20px">👤</span>
+            <span style="font-size:20px"></span>
             <span style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:500;color:var(--charcoal)">${esc(who)}</span>
           </div>
           <div style="display:flex;gap:16px;flex-wrap:wrap">
@@ -14600,7 +14600,7 @@ function renderSucursalIndicador(){
     document.querySelector('.topbar-right')?.insertBefore(el, document.querySelector('.theme-toggle-btn'));
   }
   const nombre = getSucursalNombre(currentSucursal);
-  el.textContent = '📍 '+nombre;
+  el.textContent = ''+nombre;
   el.title = 'Sucursal actual: '+nombre;
 }
 
@@ -14638,7 +14638,7 @@ function guardarSucursal(){
   const nombre = document.getElementById('suc-nombre')?.value?.trim();
   const id = document.getElementById('suc-id')?.value?.trim().toLowerCase().replace(/\s+/g,'-');
   const direccion = document.getElementById('suc-direccion')?.value?.trim();
-  if(!nombre||!id){ showToast('⚠️ Nombre e ID son obligatorios'); return; }
+  if(!nombre||!id){ showToast('Nombre e ID son obligatorios'); return; }
   const idx = +document.getElementById('suc-idx').value;
   const entry = { id, nombre, direccion, activa: true };
   if(idx>=0) sucursalesConfig[idx] = {...sucursalesConfig[idx],...entry};
@@ -14647,7 +14647,7 @@ function guardarSucursal(){
   closeModal('suc-modal');
   renderSucursales();
   renderSucursalSelector();
-  showToast('✅ Sucursal guardada');
+  showToast('Sucursal guardada');
 }
 
 function toggleSucursalActiva(idx,val){
@@ -14707,7 +14707,7 @@ function renderDashboardConsolidado(){
         ${_kpiCard('Ventas Externas','$'+totalVentas.toLocaleString('es-AR'),ventas.length+' transacciones','var(--green-ok)')}
         ${_kpiCard('Ingresos Caja','$'+totalIngresos.toLocaleString('es-AR'),'vs $'+totalEgresos.toLocaleString('es-AR')+' egresos','var(--charcoal)')}
         ${_kpiCard('Compras','$'+totalCompras.toLocaleString('es-AR'),compras.length+' registros','var(--amber)')}
-        ${_kpiCard('Margen Bruto',margen+'%',margen>=0?'Rentable ✓':'Déficit ⚠',+margen>=0?'var(--green-ok)':'var(--red-alert)')}
+        ${_kpiCard('Margen Bruto',margen+'%',margen>=0?'Rentable ✓':'Déficit ',+margen>=0?'var(--green-ok)':'var(--red-alert)')}
       </div>
     </div>`;
   }).join('') || '<div style="color:var(--mid-gray);font-size:13px;padding:24px">Sin sucursales activas.</div>';
@@ -14740,7 +14740,7 @@ function renderClientes(){
       <div class="crm-card-info">
         <div class="crm-card-nombre">${esc(c.nombre||'—')}</div>
         ${c.empresa?`<div class="crm-card-sub">${esc(c.empresa)}</div>`:''}
-        <div class="crm-card-meta">${c.telefono?'📞 '+esc(c.telefono)+'  ':''} ${c.email?'✉️ '+esc(c.email):''}
+        <div class="crm-card-meta">${c.telefono?''+esc(c.telefono)+'  ':''} ${c.email?''+esc(c.email):''}
         </div>
       </div>
       <div class="crm-card-stats">
@@ -14806,7 +14806,7 @@ function editarCliente(idx){ closeModal('ficha-cliente-modal'); openNuevoCliente
 
 function guardarCliente(){
   const nombre = document.getElementById('crm-nombre')?.value?.trim();
-  if(!nombre){ showToast('⚠️ El nombre es obligatorio'); return; }
+  if(!nombre){ showToast('El nombre es obligatorio'); return; }
   const idx = +document.getElementById('crm-idx').value;
   const entry = {
     id: idx>=0 ? (clientesData[idx]?.id||Date.now()) : Date.now(),
@@ -14823,7 +14823,7 @@ function guardarCliente(){
   fbSave('clientesData', clientesData);
   closeModal('crm-modal');
   renderClientes();
-  showToast(idx>=0?'✅ Cliente actualizado':'✅ Cliente registrado');
+  showToast(idx>=0?'Cliente actualizado':'Cliente registrado');
 }
 
 async function eliminarCliente(idx){
@@ -14837,7 +14837,7 @@ async function eliminarCliente(idx){
 // ── PRESUPUESTOS EN PDF ───────────────────────────────────────
 function generarPresupuestoPDF(){
   const carrito = window.cotizadorCarrito || [];
-  if(!carrito.length){ showToast('⚠️ El carrito está vacío'); return; }
+  if(!carrito.length){ showToast('El carrito está vacío'); return; }
 
   const margen = +document.getElementById('cot-margen')?.value || 0;
   const cliente = document.getElementById('ppto-cliente')?.value?.trim() || '';
@@ -14911,40 +14911,40 @@ function generarPresupuestoPDF(){
 // ── ONBOARDING ────────────────────────────────────────────────
 const ONBOARDING_STEPS = {
   gerencia: [
-    { title:'Bienvenido al Panel de Gerencia', body:'Desde acá tenés visibilidad completa de operaciones, equipo, ventas, reportes y más. Usá el menú lateral para navegar entre secciones.', icon:'👋' },
-    { title:'Reportes & Auditoría', body:'En Reportes encontrás análisis de equipo, ventas, márgenes y auditoría de cambios. Todo se actualiza en tiempo real desde Firebase.', icon:'📊' },
-    { title:'Cierre de Caja', body:'Desde Control de Caja podés cerrar el día y archivar el resumen. El historial queda registrado con quién hizo el cierre.', icon:'🔒' },
-    { title:'Búsqueda global', body:'Usá Ctrl+K para buscar rápidamente en stock, ventas, eventos, glosario y páginas desde cualquier lugar de la app.', icon:'🔍' },
+    { title:'Bienvenido al Panel de Gerencia', body:'Desde acá tenés visibilidad completa de operaciones, equipo, ventas, reportes y más. Usá el menú lateral para navegar entre secciones.', icon:'' },
+    { title:'Reportes & Auditoría', body:'En Reportes encontrás análisis de equipo, ventas, márgenes y auditoría de cambios. Todo se actualiza en tiempo real desde Firebase.', icon:'' },
+    { title:'Cierre de Caja', body:'Desde Control de Caja podés cerrar el día y archivar el resumen. El historial queda registrado con quién hizo el cierre.', icon:'' },
+    { title:'Búsqueda global', body:'Usá Ctrl+K para buscar rápidamente en stock, ventas, eventos, glosario y páginas desde cualquier lugar de la app.', icon:'' },
   ],
   operario: [
-    { title:'Panel de Operaciones', body:'Desde acá gestionás los eventos del hotel, el stock de florería y el cotizador. Tu trabajo del día a día está en la sección Operaciones.', icon:'⚙️' },
-    { title:'Eventos / Maison', body:'En Eventos encontrás todos los eventos activos del hotel. Podés ver zonas, estados y detalles de cada uno.', icon:'🎉' },
-    { title:'Stock Florería', body:'En Stock podés ver disponibilidad de flores e insumos. Reportá alertas de stock bajo a gerencia.', icon:'🌸' },
+    { title:'Panel de Operaciones', body:'Desde acá gestionás los eventos del hotel, el stock de florería y el cotizador. Tu trabajo del día a día está en la sección Operaciones.', icon:'' },
+    { title:'Eventos / Maison', body:'En Eventos encontrás todos los eventos activos del hotel. Podés ver zonas, estados y detalles de cada uno.', icon:'' },
+    { title:'Stock Florería', body:'En Stock podés ver disponibilidad de flores e insumos. Reportá alertas de stock bajo a gerencia.', icon:'' },
   ],
   florista: [
-    { title:'Tu panel de trabajo', body:'Registrá tu inicio y fin de turno desde Checklist. Eso nos ayuda a calcular tu productividad del día.', icon:'🌸' },
-    { title:'Checklist Diaria', body:'En Checklist encontrás las tareas asignadas a vos. Completalas a medida que avanza el día.', icon:'✅' },
-    { title:'Inicio', body:'Desde Inicio podés ver el resumen del día: eventos, alertas de stock y productividad de la florería.', icon:'🏠' },
+    { title:'Tu panel de trabajo', body:'Registrá tu inicio y fin de turno desde Checklist. Eso nos ayuda a calcular tu productividad del día.', icon:'' },
+    { title:'Checklist Diaria', body:'En Checklist encontrás las tareas asignadas a vos. Completalas a medida que avanza el día.', icon:'' },
+    { title:'Inicio', body:'Desde Inicio podés ver el resumen del día: eventos, alertas de stock y productividad de la florería.', icon:'' },
   ],
   jardinero: [
-    { title:'Panel de Jardinería', body:'Registrá tu turno y completá las tareas de las zonas asignadas. Todo queda registrado en tiempo real.', icon:'🌿' },
-    { title:'Tareas de Jardinería', body:'En Operaciones › Tareas Jardinería encontrás el detalle de cada zona y sección del hotel.', icon:'🌳' },
-    { title:'Control & Horarios', body:'Desde Control podés ver tus horarios, productividad y recordatorios de mantenimiento.', icon:'🕐' },
+    { title:'Panel de Jardinería', body:'Registrá tu turno y completá las tareas de las zonas asignadas. Todo queda registrado en tiempo real.', icon:'' },
+    { title:'Tareas de Jardinería', body:'En Operaciones › Tareas Jardinería encontrás el detalle de cada zona y sección del hotel.', icon:'' },
+    { title:'Control & Horarios', body:'Desde Control podés ver tus horarios, productividad y recordatorios de mantenimiento.', icon:'' },
   ],
   compras: [
-    { title:'Área de Compras', body:'Gestionás las compras de florería y jardinería, recepción de pedidos y el stock general.', icon:'📦' },
-    { title:'Recepción de Pedidos', body:'Registrá cada pedido recibido con proveedor, costo y estado. Eso actualiza el stock automáticamente.', icon:'🚚' },
-    { title:'Stock Admin', body:'Desde Compras › Gestión de Stock podés ajustar máximos y mínimos de stock.', icon:'📊' },
+    { title:'Área de Compras', body:'Gestionás las compras de florería y jardinería, recepción de pedidos y el stock general.', icon:'' },
+    { title:'Recepción de Pedidos', body:'Registrá cada pedido recibido con proveedor, costo y estado. Eso actualiza el stock automáticamente.', icon:'' },
+    { title:'Stock Admin', body:'Desde Compras › Gestión de Stock podés ajustar máximos y mínimos de stock.', icon:'' },
   ],
   ventas: [
-    { title:'Panel Hyatt', body:'Tenés acceso al catálogo de ramos disponibles y pedidos de habitación. Podés consultar lista de precios.', icon:'🏨' },
-    { title:'Ramos Disponibles', body:'Aquí encontrás el catálogo actualizado de ramos con precios y descripción para ofrecer a los huéspedes.', icon:'💐' },
-    { title:'Pedidos de Habitación', body:'Registrá pedidos de los huéspedes. El equipo de florería los recibe en tiempo real.', icon:'📝' },
+    { title:'Panel Hyatt', body:'Tenés acceso al catálogo de ramos disponibles y pedidos de habitación. Podés consultar lista de precios.', icon:'' },
+    { title:'Ramos Disponibles', body:'Aquí encontrás el catálogo actualizado de ramos con precios y descripción para ofrecer a los huéspedes.', icon:'' },
+    { title:'Pedidos de Habitación', body:'Registrá pedidos de los huéspedes. El equipo de florería los recibe en tiempo real.', icon:'' },
   ],
   comercial: [
-    { title:'Área Comercial', body:'Tenés acceso a eventos, ventas externas, caja, glosario, lista de precios y composiciones.', icon:'💼' },
-    { title:'Eventos & Ventas', body:'Registrá eventos y ventas externas. Los datos alimentan los reportes de gerencia automáticamente.', icon:'🎉' },
-    { title:'Glosario & Precios', body:'En Glosario encontrás el muestrario floral. La Lista de Precios está siempre actualizada.', icon:'📖' },
+    { title:'Área Comercial', body:'Tenés acceso a eventos, ventas externas, caja, glosario, lista de precios y composiciones.', icon:'' },
+    { title:'Eventos & Ventas', body:'Registrá eventos y ventas externas. Los datos alimentan los reportes de gerencia automáticamente.', icon:'' },
+    { title:'Glosario & Precios', body:'En Glosario encontrás el muestrario floral. La Lista de Precios está siempre actualizada.', icon:'' },
   ],
 };
 
@@ -15068,7 +15068,7 @@ function runGlobalSearch(q){
     const name = (it.nombre||it.name||'').toLowerCase();
     const cat = (it.categoria||it.cat||'').toLowerCase();
     if(name.includes(q) || cat.includes(q))
-      results.push({icon:'🌸', label: it.nombre||it.name, sub: `Stock: ${it.cantidad??it.qty??'—'} · ${it.categoria||''}`, badge:'Stock', action:()=>{ closeGlobalSearch(); navigate('stock'); }});
+      results.push({icon:'', label: it.nombre||it.name, sub: `Stock: ${it.cantidad??it.qty??'—'} · ${it.categoria||''}`, badge:'Stock', action:()=>{ closeGlobalSearch(); navigate('stock'); }});
   });
 
   // Eventos
@@ -15077,7 +15077,7 @@ function runGlobalSearch(q){
     const titulo = (ev.titulo||ev.nombre||'').toLowerCase();
     const zona = (ev.zona||'').toLowerCase();
     if(titulo.includes(q) || zona.includes(q))
-      results.push({icon:'📅', label: ev.titulo||ev.nombre, sub: `${ev.fecha||''} · ${ev.zona||''}`, badge:'Eventos', action:()=>{ closeGlobalSearch(); navigate('eventos-maison'); }});
+      results.push({icon:'', label: ev.titulo||ev.nombre, sub: `${ev.fecha||''} · ${ev.zona||''}`, badge:'Eventos', action:()=>{ closeGlobalSearch(); navigate('eventos-maison'); }});
   });
 
   // Ventas
@@ -15086,7 +15086,7 @@ function runGlobalSearch(q){
     const desc = (v.descripcion||v.desc||'').toLowerCase();
     const tipo = (v.tipo||'').toLowerCase();
     if(desc.includes(q) || tipo.includes(q))
-      results.push({icon:'💰', label: v.descripcion||v.desc||'Venta', sub: `$${v.monto||v.total||0} · ${v.fecha||''}`, badge:'Ventas', action:()=>{ closeGlobalSearch(); navigate('ventas'); }});
+      results.push({icon:'', label: v.descripcion||v.desc||'Venta', sub: `$${v.monto||v.total||0} · ${v.fecha||''}`, badge:'Ventas', action:()=>{ closeGlobalSearch(); navigate('ventas'); }});
   });
 
   // Galería de Trabajos
@@ -15096,7 +15096,7 @@ function runGlobalSearch(q){
     const desc = (g.desc||'').toLowerCase();
     const cat = (g.cat||'').toLowerCase();
     if(nombre.includes(q) || desc.includes(q) || cat.includes(q))
-      results.push({icon:'🖼', label: g.nombre||'', sub: (g.desc||'').slice(0,60), badge:'Galería', action:()=>{ closeGlobalSearch(); navigate('galeria'); }});
+      results.push({icon:'', label: g.nombre||'', sub: (g.desc||'').slice(0,60), badge:'Galería', action:()=>{ closeGlobalSearch(); navigate('galeria'); }});
   });
 
   // Ramos / Catálogo
@@ -15104,7 +15104,7 @@ function runGlobalSearch(q){
     if(!r) return;
     const name = (r.nombre||'').toLowerCase();
     if(name.includes(q))
-      results.push({icon:'💐', label: r.nombre, sub: `$${r.precio||0}`, badge:'Ramos', action:()=>{ closeGlobalSearch(); navigate('ramos-disponibles'); }});
+      results.push({icon:'', label: r.nombre, sub: `$${r.precio||0}`, badge:'Ramos', action:()=>{ closeGlobalSearch(); navigate('ramos-disponibles'); }});
   });
 
   // Checklist tasks
@@ -15112,18 +15112,18 @@ function runGlobalSearch(q){
     CL_TASKS.forEach(s => {
       (s.tasks||[]).forEach(t => {
         if((t||'').toLowerCase().includes(q))
-          results.push({icon:'✅', label: t, sub: s.section||'', badge:'Checklist', action:()=>{ closeGlobalSearch(); navigate('checklist'); }});
+          results.push({icon:'', label: t, sub: s.section||'', badge:'Checklist', action:()=>{ closeGlobalSearch(); navigate('checklist'); }});
       });
     });
   }
 
   // Páginas
   const pages = [
-    {label:'Inicio', icon:'🏠', page:'home'}, {label:'Checklist Diaria', icon:'📋', page:'checklist'},
-    {label:'Stock Florería', icon:'🌸', page:'stock'}, {label:'Ventas', icon:'💰', page:'ventas'},
-    {label:'Eventos / Maison', icon:'📅', page:'eventos-maison'}, {label:'Glosario', icon:'📖', page:'glosario'},
-    {label:'Reportes Equipo', icon:'📊', page:'reportes-equipo'}, {label:'Jardinería', icon:'🌿', page:'jardineria-ops'},
-    {label:'Control Horarios', icon:'🕐', page:'control-horarios'}, {label:'Habilitaciones', icon:'🏨', page:'hab-ops'},
+    {label:'Inicio', icon:'', page:'home'}, {label:'Checklist Diaria', icon:'', page:'checklist'},
+    {label:'Stock Florería', icon:'', page:'stock'}, {label:'Ventas', icon:'', page:'ventas'},
+    {label:'Eventos / Maison', icon:'', page:'eventos-maison'}, {label:'Glosario', icon:'', page:'glosario'},
+    {label:'Reportes Equipo', icon:'', page:'reportes-equipo'}, {label:'Jardinería', icon:'', page:'jardineria-ops'},
+    {label:'Control Horarios', icon:'', page:'control-horarios'}, {label:'Habilitaciones', icon:'', page:'hab-ops'},
   ];
   pages.forEach(p => {
     if(p.label.toLowerCase().includes(q))
@@ -15224,7 +15224,7 @@ function renderCalendario(){
         const arr = ev.arreglos||[];
         const totalArr = arr.reduce((s,a)=>s+(+a.qty||0),0);
         const arrDetalle = arr.length ? ' · Arreglos: '+arr.map(a=>`${a.qty}× ${a.arreglo}`).join(', ') : '';
-        const arrBadge = totalArr ? `<span style="background:var(--blush-light);color:#7A3A2A;border-radius:10px;padding:0 5px;font-size:9.5px;font-weight:700;margin-left:4px;flex-shrink:0">🌸${totalArr}</span>` : '';
+        const arrBadge = totalArr ? `<span style="background:var(--blush-light);color:#7A3A2A;border-radius:10px;padding:0 5px;font-size:9.5px;font-weight:700;margin-left:4px;flex-shrink:0">${totalArr}</span>` : '';
         return `<div onclick="openEventoDetail(${eventosData.indexOf(ev)})" style="background:${ESTADO_BG[ev.estado]||'#E8E4DC'};border-radius:4px;padding:3px 6px;margin-bottom:3px;font-size:11px;cursor:pointer;line-height:1.3;display:flex;align-items:center;overflow:hidden" title="${esc(ev.nombre)} · ${esc(ev.estado)}${esc(arrDetalle)}"><span style="overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${esc(ev.nombre)}</span>${arrBadge}</div>`;
       }).join('')}
     </div>`;
@@ -15267,7 +15267,7 @@ function renderProveedores(){
     el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--mid-gray)">No hay proveedores registrados. Agregá el primero.</div>';
     return;
   }
-  const RUBRO_ICON = {Flores:'🌸',Insumos:'📦',Packaging:'🎁',Otros:'🏭'};
+  const RUBRO_ICON = {Flores:'',Insumos:'',Packaging:'',Otros:''};
   el.innerHTML = `<div class="table-wrapper"><table style="width:100%;border-collapse:collapse;font-size:13px">
     <thead><tr>
       <th style="text-align:left;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Proveedor</th>
@@ -15280,7 +15280,7 @@ function renderProveedores(){
     <tbody>${list.map((p)=>{
       const realIdx = (window.proveedoresList||[]).indexOf(p);
       return `<tr style="cursor:pointer" onclick="openProveedorModal(${realIdx})">
-        <td style="padding:10px 14px;border-bottom:1px solid var(--light-gray);font-weight:600">${RUBRO_ICON[p.rubro]||'🏭'} ${esc(p.nombre||'—')}</td>
+        <td style="padding:10px 14px;border-bottom:1px solid var(--light-gray);font-weight:600">${RUBRO_ICON[p.rubro]||''} ${esc(p.nombre||'—')}</td>
         <td style="padding:10px 14px;border-bottom:1px solid var(--light-gray)">${esc(p.rubro||'—')}</td>
         <td style="padding:10px 14px;border-bottom:1px solid var(--light-gray)">${esc(p.contacto||'—')}</td>
         <td style="padding:10px 14px;border-bottom:1px solid var(--light-gray)">${p.telefono?`<a href="tel:${esc(p.telefono)}" onclick="event.stopPropagation()">${esc(p.telefono)}</a>`:'—'}</td>
@@ -15338,7 +15338,7 @@ function guardarProveedor(idx){
   fbSave('proveedoresList', list);
   closeModal('prov-modal');
   renderProveedores();
-  showToast('✅ Proveedor guardado');
+  showToast('Proveedor guardado');
 }
 
 async function eliminarProveedor(idx){
@@ -15454,7 +15454,7 @@ function openListaCompraHotel(){
     </div>` : '';
 
   const txtList = list => list.map(r=>`• ${r.prod}: ${Math.ceil(r.qty-1e-9)}`).join('\n');
-  window._listaCompraHotelTexto = `🛒 Compra para cubrir el hotel\n\n🌿 VARAS:\n${txtList(varas)||'—'}\n\n📦 PAQUETES:\n${txtList(paq)||'—'}`;
+  window._listaCompraHotelTexto = `Compra para cubrir el hotel\n\nVARAS:\n${txtList(varas)||'—'}\n\nPAQUETES:\n${txtList(paq)||'—'}`;
 
   let ov = document.getElementById('lista-compra-hotel-modal');
   if(!ov){ ov=document.createElement('div'); ov.id='lista-compra-hotel-modal'; ov.className='modal-overlay'; document.body.appendChild(ov); }
@@ -15464,8 +15464,8 @@ function openListaCompraHotel(){
     <div class="modal-title">Lista de compra del hotel</div>
     <div style="font-size:12px;color:var(--mid-gray);margin:-6px 0 14px">Suma de las composiciones × la cantidad de cada arreglo · ${zonas} arreglo${zonas!==1?'s':''} con composición</div>
     ${vacio
-      ? '<p style="color:var(--mid-gray);font-size:13px;padding:16px;text-align:center">No hay arreglos con composición cargada. Cargalos en <strong>Composiciones › Arreglos del hotel</strong> («📋 Cargar catálogo base»).</p>'
-      : bloque('🌿 Varas', varas) + bloque('📦 Paquetes', paq) + '<div style="font-size:11px;color:var(--mid-gray);margin-top:8px">Las flores con «/» son opciones: comprás esa cantidad de una de las dos. La cantidad de cada arreglo se ajusta en la tabla de abajo (columna «Cant.»).</div>'}
+      ? '<p style="color:var(--mid-gray);font-size:13px;padding:16px;text-align:center">No hay arreglos con composición cargada. Cargalos en <strong>Composiciones › Arreglos del hotel</strong> («Cargar catálogo base»).</p>'
+      : bloque('Varas', varas) + bloque('Paquetes', paq) + '<div style="font-size:11px;color:var(--mid-gray);margin-top:8px">Las flores con «/» son opciones: comprás esa cantidad de una de las dos. La cantidad de cada arreglo se ajusta en la tabla de abajo (columna «Cant.»).</div>'}
     ${vacio ? '' : `<div class="modal-actions" style="margin-top:18px">
       <button class="btn-secondary" onclick="closeModal('lista-compra-hotel-modal')">Cerrar</button>
       <button class="btn-add" onclick="listaCompraHotelCopiar()">Copiar lista</button>
@@ -15476,7 +15476,7 @@ function openListaCompraHotel(){
 function listaCompraHotelCopiar(){
   const txt = window._listaCompraHotelTexto || '';
   (navigator.clipboard?.writeText(txt) || Promise.reject()).then(
-    ()=>showToast('📋 Lista copiada — lista para WhatsApp'),
+    ()=>showToast('Lista copiada — lista para WhatsApp'),
     ()=>showToast('No se pudo copiar')
   );
 }
@@ -15548,8 +15548,8 @@ function renderRentabilidadHotel(){
     if(precioHyatt && margen<0) alertasMargen.push(zona);
     if(faltaPrecio) alertasSinCosto.push(zona);
     return `<tr>
-      <td style="${th};font-weight:500;white-space:nowrap">📍 ${esc(zona)}</td>
-      <td style="${th};font-size:11px;color:var(--mid-gray);max-width:240px">${resumen}${faltaPrecio?' <span title="Falta el costo por vara de alguna flor (cargá su compra recibida)">⚠️</span>':''}</td>
+      <td style="${th};font-weight:500;white-space:nowrap">${esc(zona)}</td>
+      <td style="${th};font-size:11px;color:var(--mid-gray);max-width:240px">${resumen}${faltaPrecio?' <span title="Falta el costo por vara de alguna flor (cargá su compra recibida)"></span>':''}</td>
       <td style="${th};text-align:center">
         <input type="number" min="1" value="${cantidad}" title="Cantidad de arreglos de este tipo"
           style="width:60px;text-align:center;border:1px solid var(--light-gray);border-radius:6px;padding:4px 6px;font-size:13px;outline:none;background:var(--warm-white);color:var(--charcoal)"
@@ -15567,15 +15567,15 @@ function renderRentabilidadHotel(){
       <td style="${th};text-align:right;font-weight:700;color:${mc}">${margenPct != null ? margenPct+'%' : '—'}</td>
       <td style="${th};text-align:center;white-space:nowrap"><button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="openArregloComposicion('${zEsc}')">Composición</button></td>
     </tr>`;
-  }).join('') || `<tr><td colspan="10" style="padding:22px;text-align:center;color:var(--mid-gray)">No hay arreglos con composición cargada. Cargalos en <strong>Composiciones › Arreglos del hotel</strong> (botón «📋 Cargar catálogo base») o con el selector de arriba.</td></tr>`;
+  }).join('') || `<tr><td colspan="10" style="padding:22px;text-align:center;color:var(--mid-gray)">No hay arreglos con composición cargada. Cargalos en <strong>Composiciones › Arreglos del hotel</strong> (botón «Cargar catálogo base») o con el selector de arriba.</td></tr>`;
 
   // Panel de alertas
   const alEl = document.getElementById('rent-hotel-alertas');
   if(alEl){
     const bloques = [];
-    if(alertasMargen.length)  bloques.push(`<div style="color:#8B2020">🔴 <strong>Margen negativo</strong> (el costo supera el precio Hyatt): ${alertasMargen.map(esc).join(', ')}</div>`);
+    if(alertasMargen.length)  bloques.push(`<div style="color:#8B2020"><strong>Margen negativo</strong> (el costo supera el precio Hyatt): ${alertasMargen.map(esc).join(', ')}</div>`);
     if(alertasDesvio.length)  bloques.push(`<div style="color:#8A6D00"><strong>Costo real muy por encima del teórico</strong>: ${alertasDesvio.map(esc).join(', ')}</div>`);
-    if(alertasSinCosto.length)bloques.push(`<div style="color:#8A6D00">🌸 <strong>Flores sin costo por vara</strong> (cargá su compra recibida): ${[...new Set(alertasSinCosto)].map(esc).join(', ')}</div>`);
+    if(alertasSinCosto.length)bloques.push(`<div style="color:#8A6D00"><strong>Flores sin costo por vara</strong> (cargá su compra recibida): ${[...new Set(alertasSinCosto)].map(esc).join(', ')}</div>`);
     alEl.innerHTML = bloques.length
       ? `<div style="background:#FFFBF0;border:1px solid #E9DCae;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:12.5px;display:flex;flex-direction:column;gap:6px">${bloques.join('')}</div>`
       : '';
@@ -15681,7 +15681,7 @@ function guardarArregloComposicion(){
   closeModal('arreglo-comp-modal');
   renderRentabilidadHotel();       // refresca la vista de rentabilidad (si está activa)
   renderComposicionesHotel();      // refresca la solapa Hotel de Composiciones (si está activa)
-  showToast('✅ Composición guardada');
+  showToast('Composición guardada');
 }
 
 // Valor hora del equipo para el costo de mano de obra de eventos
@@ -15873,7 +15873,7 @@ function renderLegajo(){
       <div style="margin-bottom:8px">${tipoBadge}</div>
       <div style="font-size:12px;margin-bottom:4px">Ingreso: <strong>${e.fechaIngreso ? fmtDate(e.fechaIngreso) : '—'}</strong></div>
       <div style="font-size:12px;margin-bottom:4px">⏱ ${esMono?'Horas ref.':'Horas contrato'}: <strong>${(+e.horasContrato||0)}h/mes</strong></div>
-      <div style="font-size:12px;margin-bottom:12px">🏖️ Vacaciones restantes: <strong>${vac}</strong> días</div>
+      <div style="font-size:12px;margin-bottom:12px">Vacaciones restantes: <strong>${vac}</strong> días</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         <button class="btn-secondary" style="font-size:11px" onclick="verDetalleLegajo(${i})">Ver detalle</button>
         <button class="btn-secondary" style="font-size:11px" onclick="openLegajoModal(${i})">Editar</button>
@@ -15955,7 +15955,7 @@ function verDetalleLegajo(idx){
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
       <div><div class="card-label">DNI</div><div>${esc(e.dni||'—')}</div></div>
       <div><div class="card-label">Cargo</div><div style="text-transform:capitalize">${esc(e.cargo||'—')}</div></div>
-      <div><div class="card-label">Contratación</div><div>${e.tipo==='monotributista'?'🧾 Monotributista · cobra quincenal':'🗓️ En nómina · cobra mensual'}</div></div>
+      <div><div class="card-label">Contratación</div><div>${e.tipo==='monotributista'?'Monotributista · cobra quincenal':'En nómina · cobra mensual'}</div></div>
       <div><div class="card-label">Sucursal</div><div>${esc(e.sucursal||'—')}</div></div>
       <div><div class="card-label">Fecha Ingreso</div><div>${e.fechaIngreso ? fmtDate(e.fechaIngreso) : '—'}</div></div>
       <div><div class="card-label">Horas por contrato</div><div>${(+e.horasContrato||0)}h/mes</div></div>
@@ -16006,15 +16006,15 @@ function _legDocsHTML(e, idx){
   const otros = (e.documentos||[]).filter(d=>d.tipo==='otro');
   const otrosHTML = otros.map(d=>`<div class="leg-doc-row">
     <div style="flex:1;min-width:0">
-      <div style="font-size:13px">📎 ${esc(d.nombre)}</div>
+      <div style="font-size:13px">${esc(d.nombre)}</div>
       <div style="font-size:11px;color:var(--mid-gray)">${d.fecha?fmtDate(d.fecha):''} · ${_legDocMimeLabel(d)}</div>
     </div>
     <button class="btn-secondary" style="font-size:11px" onclick="legVerDoc(${idx},${d.id})">Ver</button>
     <button class="btn-icon" style="color:var(--red-alert)" title="Eliminar" onclick="legEliminarDoc(${idx},${d.id})">✕</button>
   </div>`).join('');
   return `<div class="card-label" style="margin-top:14px">Documentación</div>
-    ${_legDocSlot(e, idx, 'contrato', '📄', 'Contrato de trabajo')}
-    ${_legDocSlot(e, idx, 'arca', '🏛️', 'Alta de ARCA')}
+    ${_legDocSlot(e, idx, 'contrato', '', 'Contrato de trabajo')}
+    ${_legDocSlot(e, idx, 'arca', '', 'Alta de ARCA')}
     ${otrosHTML}
     <label class="btn-secondary" style="font-size:11px;cursor:pointer;margin-top:4px;display:inline-block">+ Agregar otro documento<input type="file" accept="image/*,application/pdf" style="display:none" onchange="legSubirDoc('otro',this)"></label>
     <div style="font-size:10.5px;color:var(--mid-gray);margin-top:6px">PDF o foto, hasta 5 MB por archivo. Se sincroniza con el equipo.</div>`;
@@ -16041,7 +16041,7 @@ function legSubirDoc(tipo, input){
     }
     fbSave('legajoData', legajoData);
     verDetalleLegajo(idx);
-    showToast('Documento cargado ✅');
+    showToast('Documento cargado ');
   };
   if(file.type === 'application/pdf'){
     const r = new FileReader();
@@ -16255,7 +16255,7 @@ function renderLiquidacion(){
     const d = liqFilaDatos(e, mes);
     totalExtra += d.hExtra;
     totalPesos += d.adicional;
-    const sinCal = d.calName ? '' : ' <span style="font-size:10px;color:var(--amber)" title="No se encontró su horario en el calendario; cargá las horas a mano">⚠</span>';
+    const sinCal = d.calName ? '' : ' <span style="font-size:10px;color:var(--amber)" title="No se encontró su horario en el calendario; cargá las horas a mano"></span>';
     return `<tr>
       <td>${esc(e.nombre)} ${esc(e.apellido)}${sinCal}</td>
       <td style="text-transform:capitalize">${esc(e.cargo||'')}</td>
@@ -16327,7 +16327,7 @@ function generarOrdenCompra(idx, tipo='flore'){
     @media print{button{display:none}}
   </style></head><body>
     <div style="display:flex;align-items:center;gap:16px;margin-bottom:8px">
-      <div style="font-size:32px">🌸</div>
+      <div style="font-size:32px"></div>
       <div><h1>Florería Duhau · Park Hyatt Buenos Aires</h1><div class="sub">Orden de Compra #${idx+1} — Emitida el ${fmtDate(TODAY_ISO)}</div></div>
     </div>
     <div style="margin-bottom:20px;font-size:13px">
@@ -16548,7 +16548,7 @@ if('serviceWorker' in navigator){
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       if(_swReloading) return;
       _swReloading = true;
-      try { window.showToast?.('🔄 Actualizando a la última versión…'); } catch(e){}
+      try { window.showToast?.('Actualizando a la última versión…'); } catch(e){}
       setTimeout(() => location.reload(), 800);
     });
   }
@@ -16578,7 +16578,7 @@ window.addEventListener('appinstalled', () => {
   if(fl) fl.style.display = 'none';
   document.getElementById('pwa-ios-banner')?.remove();
   document.getElementById('pwa-android-banner')?.remove();
-  showToast('✅ App instalada correctamente');
+  showToast('App instalada correctamente');
 });
 
 // Muestra el botón de instalar: ícono en topbar + botón flotante prominente.
@@ -16598,7 +16598,7 @@ function _initPWAPrompt(){
     banner.id = 'pwa-ios-banner';
     banner.innerHTML = `
       <div style="display:flex;align-items:flex-start;gap:12px">
-        <div style="font-size:24px;flex-shrink:0">📲</div>
+        <div style="font-size:24px;flex-shrink:0"></div>
         <div style="flex:1">
           <div style="font-weight:600;font-size:13px;margin-bottom:4px">Instalar app en iPhone / iPad</div>
           <div style="font-size:12px;line-height:1.5">Tocá <strong>⎙ Compartir</strong> en la barra de Safari y luego <strong>"Agregar a pantalla de inicio"</strong></div>
@@ -16615,7 +16615,7 @@ function _initPWAPrompt(){
     banner.id = 'pwa-android-banner';
     banner.innerHTML = `
       <div style="display:flex;align-items:flex-start;gap:12px">
-        <div style="font-size:24px;flex-shrink:0">📲</div>
+        <div style="font-size:24px;flex-shrink:0"></div>
         <div style="flex:1">
           <div style="font-weight:600;font-size:13px;margin-bottom:4px">Instalar app en Android</div>
           <div style="font-size:12px;line-height:1.5">Tocá el menú <strong>⋮</strong> de Chrome (arriba a la derecha) y elegí <strong>"Instalar aplicación"</strong> o <strong>"Agregar a la pantalla principal"</strong>.<br><span style="opacity:.8">Si abriste el link desde WhatsApp, abrilo primero en Chrome.</span></div>
@@ -16632,7 +16632,7 @@ function installPWA(){
   if(_pwaInstallEvent){
     _pwaInstallEvent.prompt();
     _pwaInstallEvent.userChoice.then(choice => {
-      if(choice.outcome==='accepted'){ showToast('✅ App instalada'); document.getElementById('pwa-topbar-btn')?.style && (document.getElementById('pwa-topbar-btn').style.display='none'); document.getElementById('pwa-install-btn')?.style && (document.getElementById('pwa-install-btn').style.display='none'); }
+      if(choice.outcome==='accepted'){ showToast('App instalada'); document.getElementById('pwa-topbar-btn')?.style && (document.getElementById('pwa-topbar-btn').style.display='none'); document.getElementById('pwa-install-btn')?.style && (document.getElementById('pwa-install-btn').style.display='none'); }
       _pwaInstallEvent = null;
     });
     return;
@@ -16751,7 +16751,7 @@ function renderPresupuestos(){
         <select class="cl-select" onchange="cambiarEstadoPres(${i},this.value)">
           <option value="">Estado…</option>
           <option value="aceptado">Aceptado ✓</option>
-          <option value="rechazado">Rechazado ✗</option>
+          <option value="rechazado">Rechazado </option>
           <option value="vencido">Vencido</option>
           <option value="pendiente">Pendiente</option>
         </select>
@@ -16805,7 +16805,7 @@ function presupuestoWaURL(p){
   const tel = (p.telefono||'').replace(/[^\d]/g,'');
   const monto = '$'+parseMoney(p.monto||0).toLocaleString('es-AR',{maximumFractionDigits:0});
   const lineas = [
-    '🌸 *Florería Duhau* — Park Hyatt Buenos Aires',
+    '*Florería Duhau* — Park Hyatt Buenos Aires',
     '',
     `Estimado/a ${p.cliente||''},`,
     'Le compartimos el presupuesto solicitado:',
@@ -16815,7 +16815,7 @@ function presupuestoWaURL(p){
   lineas.push(`*Total: ${monto}*`);
   if(p.vencimiento) lineas.push(`Válido hasta: ${fmtDate(p.vencimiento)}`);
   if(p.notas){ lineas.push(''); lineas.push(p.notas); }
-  lineas.push('', '¡Gracias por elegirnos! 💐');
+  lineas.push('', '¡Gracias por elegirnos! ');
   const text = encodeURIComponent(lineas.join('\n'));
   return tel ? `https://wa.me/${tel}?text=${text}` : `https://wa.me/?text=${text}`;
 }
@@ -16959,7 +16959,7 @@ function cpRenderFreeRows(){
       ? (+cotizadorPrecios[row.prod] || (ref && vpp ? ref.precio / vpp : 0))
       : 0;
     const refLabel = ref
-      ? `💡 costo ${_cpMoney(ref.precio)}/paq${ref.fecha?' · '+_ddmm(ref.fecha):''}${costoVara>0?' · '+_cpMoney(Math.round(costoVara))+'/vara':''}`
+      ? `costo ${_cpMoney(ref.precio)}/paq${ref.fecha?' · '+_ddmm(ref.fecha):''}${costoVara>0?' · '+_cpMoney(Math.round(costoVara))+'/vara':''}`
       : (row.prod ? '<span style="color:var(--mid-gray)">sin costo cargado</span>' : '');
     return `
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
@@ -17122,7 +17122,7 @@ function cpGuardar(){
   });
   fbSave('presupuestosData', presupuestosData);
   cpArrRows = []; cpFreeRows = [];
-  showToast('✅ Presupuesto armado y guardado');
+  showToast('Presupuesto armado y guardado');
   navigate('presupuestos');
 }
 
@@ -17133,7 +17133,7 @@ function cpGuardar(){
 function buildArregloOptions(){
   let opts = '<option value="">— Seleccionar —</option>';
   if((recetasData||[]).length){
-    opts += '<optgroup label="🫙 Composiciones">';
+    opts += '<optgroup label="Composiciones">';
     recetasData.forEach(r => {
       const costo = calcCostoComposicion(r);
       const margen = cotizadorConfig?.margen ?? 30;
@@ -17144,7 +17144,7 @@ function buildArregloOptions(){
   }
   (listaPreciosData||[]).forEach(cat => {
     if(!(cat.items||[]).length) return;
-    opts += `<optgroup label="${cat.emoji||'📦'} ${esc(cat.cat)}">`;
+    opts += `<optgroup label="${cat.emoji||''} ${esc(cat.cat)}">`;
     cat.items.forEach(it => {
       opts += `<option value="${esc(it.nombre)}" data-precio="${parseMoney(it.precio)}">${esc(it.nombre)} — ${esc(it.precio||'')}</option>`;
     });
@@ -17192,9 +17192,9 @@ window.notificarAsignacion = notificarAsignacion;
 function notificarVentaNueva(prod, cliente, asignado){
   const quien = cliente ? ' · ' + cliente : '';
   if(asignado){
-    window.pushSend?.('💐 Nueva venta registrada', `"${prod}"${quien} — asignada a ${asignado}`, 'venta-nueva', 'roles:gerencia,comercial');
+    window.pushSend?.('Nueva venta registrada', `"${prod}"${quien} — asignada a ${asignado}`, 'venta-nueva', 'roles:gerencia,comercial');
   } else {
-    window.pushSend?.('💐 Nueva venta · pendiente de asignar', `"${prod}"${quien} — revisá y asigná quién la prepara`, 'venta-nueva', 'roles:gerencia,comercial');
+    window.pushSend?.('Nueva venta · pendiente de asignar', `"${prod}"${quien} — revisá y asigná quién la prepara`, 'venta-nueva', 'roles:gerencia,comercial');
   }
 }
 window.notificarVentaNueva = notificarVentaNueva;
@@ -17227,12 +17227,12 @@ function guardarPedidoRamo(){
   if(document.getElementById('page-ventas-externas')?.classList.contains('active')) renderVentas();
   const cuando = document.getElementById('pr-fecha').value ? ' · ' + fmtDate(document.getElementById('pr-fecha').value) : '';
   if(asignado){
-    notificarAsignacion(asignado, '💐 Nuevo pedido asignado', `Ramo para ${cliente}${cuando}`);
-    showToast(`💐 Pedido asignado a ${asignado} — aparece en su checklist`);
+    notificarAsignacion(asignado, 'Nuevo pedido asignado', `Ramo para ${cliente}${cuando}`);
+    showToast(`Pedido asignado a ${asignado} — aparece en su checklist`);
   } else {
     // Sin asignar: avisar a Gerencia para que lo asigne a un florista.
-    window.pushSend?.('💐 Nuevo pedido de ramo', `Para ${cliente}${cuando} — asigná un florista`, 'pedido-ramo', 'Gerencia');
-    showToast('💐 Pedido creado — Gerencia lo asignará a un florista');
+    window.pushSend?.('Nuevo pedido de ramo', `Para ${cliente}${cuando} — asigná un florista`, 'pedido-ramo', 'Gerencia');
+    showToast('Pedido creado — Gerencia lo asignará a un florista');
   }
 }
 
@@ -17243,7 +17243,7 @@ function renderPedidosRamos(){
   const pedidos = (ventasData||[]).filter(v => v.esPedidoRamo && v.estado !== 'entregado' && !v.fin);
   const sorted = [...pedidos].sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||''));
   if(!sorted.length){ el.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--mid-gray);padding:24px">Sin pedidos. Tocá «+ Nuevo Pedido» para encargar un ramo y asignarlo a un florista.</td></tr>'; return; }
-  const estLbl = {pendiente:'⏳ Pendiente', confirmado:'✅ Confirmado', entregado:'🚚 Entregado'};
+  const estLbl = {pendiente:'⏳ Pendiente', confirmado:'Confirmado', entregado:'Entregado'};
   const floristas = (typeof getFloristasActivos === 'function' ? getFloristasActivos() : []);
   el.innerHTML = sorted.map(v=>{
     const i = ventasData.indexOf(v);
@@ -17279,8 +17279,8 @@ function asignarFloristaPedido(i, nombre){
   renderPedidosRamos();
   if(document.getElementById('page-checklist')?.classList.contains('active')) renderChecklistTable?.();
   if(nombre){
-    notificarAsignacion(nombre, '💐 Nuevo pedido asignado', `Ramo para ${v.cliente||''}${v.fecha ? ' · ' + fmtDate(v.fecha) : ''}`);
-    showToast(`💐 Asignado a ${nombre} — aparece en su checklist`);
+    notificarAsignacion(nombre, 'Nuevo pedido asignado', `Ramo para ${v.cliente||''}${v.fecha ? ' · ' + fmtDate(v.fecha) : ''}`);
+    showToast(`Asignado a ${nombre} — aparece en su checklist`);
   } else {
     showToast('Pedido sin asignar');
   }
@@ -17299,7 +17299,7 @@ async function eliminarPedidoRamo(i){
 // Detalle de un pedido/venta — se abre al tocarlo en el checklist, igual que los eventos
 function openVentaDetail(vIdx){
   const v = ventasData[vIdx]; if(!v) return;
-  const estados = {pendiente:'⏳ Pendiente', confirmado:'✅ Confirmado', entregado:'🚚 Entregado'};
+  const estados = {pendiente:'⏳ Pendiente', confirmado:'Confirmado', entregado:'Entregado'};
   const row = (label, val) => val ? `<div><div class="detail-field-label">${label}</div><div class="detail-field-value">${esc(String(val))}</div></div>` : '';
   let ov = document.getElementById('venta-detail-modal');
   if(!ov){ ov = document.createElement('div'); ov.id='venta-detail-modal'; ov.className='modal-overlay'; document.body.appendChild(ov); }
@@ -17464,7 +17464,7 @@ function guardarEsf(){
   fbSave('eventosSinFloreria', eventosSinFloreria);
   closeModal('modal-esf');
   renderEventosSinFloreria();
-  showToast('✅ Evento guardado');
+  showToast('Evento guardado');
 }
 
 async function eliminarEsf(idx){
@@ -17602,7 +17602,7 @@ async function generarCierreMensual(){
   }
   fbSave('cierresMensualesData', cierresMensualesData);
   renderCierreMensual();
-  showToast(`✅ Cierre de ${fmtMonth(mes)} generado`);
+  showToast(`Cierre de ${fmtMonth(mes)} generado`);
 }
 
 function verCierreMensual(idx){
@@ -17612,7 +17612,7 @@ function verCierreMensual(idx){
   const win = window.open('','_blank');
   win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Cierre ${fmtMonth(c.mes)}</title>
   <style>body{font-family:Arial,sans-serif;margin:40px;color:#1a1a1a}h1{font-size:22px}table{width:100%;border-collapse:collapse;margin:20px 0}th,td{border:1px solid #ccc;padding:8px 12px;font-size:13px}th{background:#f5f5f0}.total{font-weight:bold;font-size:16px}</style></head><body>
-  <h1>🌸 Cierre Mensual — ${fmtMonth(c.mes)}</h1>
+  <h1>Cierre Mensual — ${fmtMonth(c.mes)}</h1>
   <p style="color:#777">Generado el ${fmtDate(c.fechaCierre)}</p>
   <table><tbody>
     <tr><th>Ventas totales</th><td class="total">$${parseMoney(c.totalVentas).toLocaleString('es-AR',{minimumFractionDigits:2})}</td></tr>
@@ -17685,7 +17685,7 @@ function renderDashboardGerencia(){
       </div>
     </div>
     ${stockBajos.length>0?`<div class="dash-ger-alert"><strong>Stock bajo mínimo:</strong> ${stockBajos.slice(0,5).map(s=>`${esc(s.prod)} (${s.cantidad}/${s.min})`).join(', ')}${stockBajos.length>5?` y ${stockBajos.length-5} más...`:''}</div>`:''}
-    ${pedPend.length>0?`<div class="dash-ger-alert"><strong>🛎 Pedidos pendientes:</strong> ${pedPend.length} pedido(s) de habitación esperando atención.</div>`:''}`;
+    ${pedPend.length>0?`<div class="dash-ger-alert"><strong>Pedidos pendientes:</strong> ${pedPend.length} pedido(s) de habitación esperando atención.</div>`:''}`;
   if(_dashGerTimer) clearInterval(_dashGerTimer);
   _dashGerTimer = setInterval(renderDashboardGerencia, 300000);
 }
@@ -17742,7 +17742,7 @@ function exportVentasXLSX(){
   const wb = X.utils.book_new();
   X.utils.book_append_sheet(wb, ws, 'Ventas');
   _xlsxDownload(wb, `ventas-${fMes}.xlsx`);
-  showToast('✅ Exportado: ventas-'+fMes+'.xlsx ('+rows.length+' ventas)');
+  showToast('Exportado: ventas-'+fMes+'.xlsx ('+rows.length+' ventas)');
 }
 
 function exportComprasXLSX(){
@@ -17758,7 +17758,7 @@ function exportComprasXLSX(){
   const wb = X.utils.book_new();
   X.utils.book_append_sheet(wb, ws, 'Compras');
   _xlsxDownload(wb, `compras-${mes}.xlsx`);
-  showToast('✅ Exportado: compras-'+mes+'.xlsx');
+  showToast('Exportado: compras-'+mes+'.xlsx');
 }
 
 function exportStockXLSX(){
@@ -17773,7 +17773,7 @@ function exportStockXLSX(){
   const wb = X.utils.book_new();
   X.utils.book_append_sheet(wb, ws, 'Stock');
   _xlsxDownload(wb, `stock-${TODAY_ISO}.xlsx`);
-  showToast('✅ Exportado: stock-'+TODAY_ISO+'.xlsx');
+  showToast('Exportado: stock-'+TODAY_ISO+'.xlsx');
 }
 
 function exportLegajoXLSX(){
@@ -17788,7 +17788,7 @@ function exportLegajoXLSX(){
   const wb = X.utils.book_new();
   X.utils.book_append_sheet(wb, ws, 'Legajo');
   _xlsxDownload(wb, `legajo-${TODAY_ISO}.xlsx`);
-  showToast('✅ Exportado: legajo-'+TODAY_ISO+'.xlsx');
+  showToast('Exportado: legajo-'+TODAY_ISO+'.xlsx');
 }
 
 function applyCompraFiltersExtToArr(type, arr){
@@ -17809,7 +17809,7 @@ function applyCompraFiltersExtToArr(type, arr){
 // carga y edita todo el equipo. Se guarda en Firebase como inventarioData.
 // ════════════════════════════════════════════════════════════════════════════
 const INV_AREAS = ['Florería','Armario back','Jaula','Estacionamiento','Pozo'];
-const INV_AREA_ICON = { 'Florería':'🌸', 'Armario back':'🗄️', 'Jaula':'🧺', 'Estacionamiento':'🅿️', 'Pozo':'🕳️' };
+const INV_AREA_ICON = { 'Florería':'', 'Armario back':'', 'Jaula':'', 'Estacionamiento':'', 'Pozo':'' };
 let inventarioData = []; // [{area, nombre, cantidad}]
 window._setInventarioData = (arr) => {
   inventarioData = Array.isArray(arr) ? arr : (arr && typeof arr==='object' ? Object.values(arr) : []);
@@ -17824,7 +17824,7 @@ function renderInventario(){
   cont.innerHTML = INV_AREAS.map((area, ai)=>{
     const items = inventarioData.map((it,i)=>({it,i})).filter(o=>o.it.area===area);
     const vis = q ? items.filter(o=>(o.it.nombre||'').toLowerCase().includes(q)) : items;
-    const icon = INV_AREA_ICON[area] || '📦';
+    const icon = INV_AREA_ICON[area] || '';
     const rows = vis.length ? vis.map(({it,i})=>`
         <tr>
           <td><input class="form-input" value="${esc(it.nombre||'')}" placeholder="Nombre del ítem" onchange="updInv(${i},'nombre',this.value)" style="min-width:180px"></td>
