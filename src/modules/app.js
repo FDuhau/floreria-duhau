@@ -1,3 +1,5 @@
+import { esc, parseMoney, fmtDate, fmtDateTime } from './utils.js';
+
 // ════════════════════════════════════════
 // CONTROL DE VERSIÓN — auto-limpieza de datos locales viejos
 // Subí este número cada vez que cambies el formato de datos.
@@ -105,8 +107,7 @@ document.addEventListener('keydown', e => {
   if(e.altKey && e.key.toLowerCase() === 'd') toggleDarkMode();
 });
 
-function fmtDate(iso){ if(!iso) return '—'; const p=iso.split('-'); return `${p[2]}/${p[1]}/${p[0]}`; }
-function fmtDateTime(iso, hora){ return fmtDate(iso) + (hora?' · '+hora:''); }
+// fmtDate / fmtDateTime → src/modules/utils.js
 // Etiqueta relativa de fecha: HOY / MAÑANA / PASADO / AYER (o '' para el resto)
 function etiquetaDiaRelativa(iso){
   if(!iso) return '';
@@ -142,24 +143,7 @@ function getWeekLabel(date=new Date()){
   return `Semana ${wn} · ${y}`;
 }
 function getMonthLabel(iso){ if(!iso) return ''; const p=iso.split('-'); return MONTHS_ES[+p[1]-1]+' '+p[0]; }
-function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function parseMoney(s){
-  if(typeof s === 'number') return isFinite(s) ? s : 0;
-  let str = String(s ?? '').trim();
-  const neg = str.startsWith('-');
-  str = str.replace(/[^0-9.,]/g, '');
-  if(!str) return 0;
-  if(str.includes(',')){
-    // Formato AR: punto = miles, coma = decimal  ("1.150.000,50")
-    str = str.replace(/\./g, '').replace(',', '.');
-  } else {
-    // Solo puntos: si son grupos de miles (3 dígitos) los quitamos ("150.000" -> 150000)
-    const parts = str.split('.');
-    if(parts.length > 1 && parts.slice(1).every(p => p.length === 3)) str = parts.join('');
-  }
-  const n = parseFloat(str) || 0;
-  return neg ? -n : n;
-}
+// esc / parseMoney → src/modules/utils.js
 
 // ════════════════════════════════════════
 // NAVIGATION
