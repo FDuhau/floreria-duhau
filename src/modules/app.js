@@ -81,7 +81,7 @@ const TODAY_DAY = DAYS_ES[NOW.getDay()];
 const DATE_STR = `${TODAY_DAY} ${NOW.getDate()} de ${MONTHS_ES[NOW.getMonth()]} ${NOW.getFullYear()}`;
 document.getElementById('topbar-date').textContent = DATE_STR;
 document.getElementById('topbar-day').textContent = TODAY_DAY;
-document.getElementById('hero-date').textContent = '📅 ' + DATE_STR;
+document.getElementById('hero-date').textContent = DATE_STR;
 
 // Tema guardado — el atributo se aplica inmediatamente; el botón se actualiza tras DOMContentLoaded
 (()=>{

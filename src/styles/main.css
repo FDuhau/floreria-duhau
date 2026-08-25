@@ -1450,3 +1450,15 @@
   [data-theme="dark"] .fd-empty .fd-empty-ic,
   [data-theme="dark"] .empty-ic { background:#2E2E2B; border-color:#3A3A38; }
   [data-theme="dark"] .day-tabs { background:rgba(255,255,255,.05); }
+
+  /* ── Headers de tabla sticky (quedan bajo el topbar al scrollear) ── */
+  .checklist-table thead th, .stock-table thead th, .ventas-table thead th,
+  .caja-table thead th, .compras-table thead th, .ctrl-table thead th,
+  .history-table thead th {
+    position: sticky; top: 48px; z-index: 3;
+  }
+  @media (max-width:768px){
+    .checklist-table thead th, .stock-table thead th, .ventas-table thead th,
+    .caja-table thead th, .compras-table thead th, .ctrl-table thead th,
+    .history-table thead th { top: 46px; }
+  }
