@@ -6092,8 +6092,12 @@ function grupoCobranza(fp){
   if(p==='Cargo a rooms'||p==='Cargo a habitación') return 'Hotel';
   return p || 'Sin forma de pago';
 }
-// Filtros activos de Ventas Externas
+// Filtros activos de Ventas Externas (persistidos entre sesiones)
 let ventasFilter={mes:'',pago:'',tipo:''};
+const _VENTAS_PREFS_KEY='fd-ventas-prefs';
+let _ventasNeedRestore=true;
+function _saveVentasPrefs(){ try{ localStorage.setItem(_VENTAS_PREFS_KEY, JSON.stringify(ventasFilter)); }catch(e){} }
+function _loadVentasPrefs(){ try{ return JSON.parse(localStorage.getItem(_VENTAS_PREFS_KEY)||'{}'); }catch(e){ return {}; } }
 
 function renderVentas(){
   // Banner ítems desde Kanban
@@ -6124,8 +6128,18 @@ function renderVentas(){
     tipoSel.value = cur;
   }
   const factSel = document.getElementById('ve-filter-fact');
+  // Restaurar filtros guardados en la primera carga (tras recargar la app)
+  if(_ventasNeedRestore){
+    const pr = _loadVentasPrefs();
+    if(mesSel  && !mesSel.value  && pr.mes)  mesSel.value  = pr.mes;
+    if(pagoSel && !pagoSel.value && pr.pago) pagoSel.value = pr.pago;
+    if(tipoSel && !tipoSel.value && pr.tipo) tipoSel.value = pr.tipo;
+    if(factSel && !factSel.value && pr.fact) factSel.value = pr.fact;
+    _ventasNeedRestore = false;
+  }
   const fMes = mesSel?.value||'', fPago = pagoSel?.value||'', fTipo = tipoSel?.value||'', fFact = factSel?.value||'';
   ventasFilter = {mes:fMes, pago:fPago, tipo:fTipo, fact:fFact};
+  _saveVentasPrefs();
 
   const tbody=document.getElementById('ventas-body');
   let lista = ventasData.map((v,i)=>({v,i})).filter(o=>!(o.v.esPedidoRamo && o.v.estado!=='entregado'));
