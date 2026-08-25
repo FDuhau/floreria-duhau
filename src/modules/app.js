@@ -14978,14 +14978,18 @@ function toggleDarkMode(){
   document.documentElement.setAttribute('data-theme', next);
   localStorage.setItem('fd-theme', next);
   const btn = document.getElementById('theme-toggle-btn');
-  if(btn) btn.textContent = next === 'dark' ? '☀️' : '🌙';
+  if(btn) btn.innerHTML = _themeIconSVG(next === 'dark');
 }
+
+const _SUN_SVG  = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>';
+const _MOON_SVG = '<svg viewBox="0 0 24 24"><path d="M21 12.8A8 8 0 1111.2 3a6 6 0 009.8 9.8z"/></svg>';
+function _themeIconSVG(isDark){ return isDark ? _SUN_SVG : _MOON_SVG; }
 
 function initDarkMode(){
   const saved = localStorage.getItem('fd-theme') || 'light';
   document.documentElement.setAttribute('data-theme', saved);
   const btn = document.getElementById('theme-toggle-btn');
-  if(btn) btn.textContent = saved === 'dark' ? '☀️' : '🌙';
+  if(btn) btn.innerHTML = _themeIconSVG(saved === 'dark');
 }
 
 // ── BÚSQUEDA GLOBAL ──────────────────────────────────────────
