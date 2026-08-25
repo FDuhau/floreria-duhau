@@ -225,6 +225,32 @@ const BOTTOM_NAV_ITEMS = {
   housekeeping: [{icon:'🛏',label:'Habitaciones',page:'control-habitaciones'}],
 };
 
+// Íconos de línea (SVG) para la barra inferior móvil, por página
+const _BOTTOM_ICON_PATHS = {
+  'home':'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>',
+  'checklist':'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 3h6v3H9z"/><path d="M8.5 13l2 2 4-4"/>',
+  'eventos-maison':'<path d="M4 20l5-13 8 8z"/><path d="M14 4l1 2M18 3l-1 3M20 8l-2 1"/>',
+  'eventos-comercial':'<path d="M4 20l5-13 8 8z"/><path d="M14 4l1 2M18 3l-1 3M20 8l-2 1"/>',
+  'ramos-disponibles':'<circle cx="12" cy="7" r="3"/><path d="M12 10v8M8 14l4 4 4-4"/>',
+  'stock':'<path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/>',
+  'stock-admin':'<path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/>',
+  'lista-precios':'<path d="M4 12l8-8h6v6l-8 8z"/><circle cx="15" cy="9" r="1.2"/>',
+  'jardineria-ops':'<path d="M11 20C6 20 4 15 4 11c5 0 7 4 7 9z"/><path d="M13 20c5 0 7-5 7-11-5 0-7 4-7 11z"/>',
+  'hab-ops':'<path d="M3 8v10M3 12h18v6M21 12v-2a2 2 0 00-2-2h-5v4"/><circle cx="7" cy="11" r="1.5"/>',
+  'control-habitaciones':'<path d="M3 8v10M3 12h18v6M21 12v-2a2 2 0 00-2-2h-5v4"/><circle cx="7" cy="11" r="1.5"/>',
+  'recordatorios-jardineria':'<path d="M18 8a6 6 0 10-12 0c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M13.7 21a2 2 0 01-3.4 0"/>',
+  'compras-floreria':'<path d="M3 4h2l2 12h11l2-8H6"/><circle cx="9" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/>',
+  'recepcion-pedidos':'<path d="M3 12l3-8h12l3 8v6H3z"/><path d="M3 12h5l1 2h6l1-2h5"/>',
+  'ventas-externas':'<path d="M4 12l8-8h6v6l-8 8z"/><circle cx="15" cy="9" r="1.2"/>',
+  'galeria':'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M4 18l5-5 4 4 3-3 4 4"/>',
+  'pedidos-habitacion':'<path d="M4 21V4h11v17M15 9h5v12M8 8h3M8 12h3M8 16h3"/>',
+  'caja':'<path d="M3 8h15a2 2 0 012 2v7a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M3 8V6a2 2 0 012-2h11v4"/><circle cx="17" cy="13.5" r="1.3"/>',
+};
+function _bottomIcon(page){
+  const p = _BOTTOM_ICON_PATHS[page] || '<circle cx="12" cy="12" r="8"/>';
+  return '<svg viewBox="0 0 24 24">'+p+'</svg>';
+}
+
 function renderBottomNav(role) {
   const nav = document.getElementById('bottom-nav');
   if(!nav) return;
@@ -241,7 +267,7 @@ function renderBottomNav(role) {
   }
   nav.innerHTML = items.map(it =>
     `<div class="bottom-nav-item" data-page="${it.page}" onclick="navigate('${it.page}',null);updateBottomNav('${it.page}')">
-      <span class="bottom-nav-icon">${it.icon}</span>
+      <span class="bottom-nav-icon">${_bottomIcon(it.page)}</span>
       <span class="bottom-nav-label">${it.label}</span>
     </div>`
   ).join('');
@@ -302,7 +328,7 @@ function navigate(pageId, navEl){
   document.querySelectorAll('.content').forEach(p=>p.classList.remove('active'));
   const pg = document.getElementById('page-'+pageId);
   if(pg) pg.classList.add('active');
-  document.getElementById('breadcrumb').innerHTML = '🌸 <span>'+(PAGE_LABELS[pageId]||pageId)+'</span>';
+  document.getElementById('breadcrumb').innerHTML = '<span>'+(PAGE_LABELS[pageId]||pageId)+'</span>';
   document.querySelectorAll('.nav-item,.nav-sub-item').forEach(n=>n.classList.remove('active'));
   if(navEl) navEl.classList.add('active');
   // Auto-expandir el grupo del sub-item navegado programáticamente
@@ -822,7 +848,7 @@ function openGestionZonas(){
         <div style="flex:1;min-width:0;font-size:13px;color:var(--charcoal)">${esc(t.zona)} <span style="font-size:10px;color:var(--mid-gray)">· ${esc(t.actividad)}</span></div>
         <button class="btn-icon" title="Subir" ${upDis} onclick="clMoveZona(${i},-1)">▲</button>
         <button class="btn-icon" title="Bajar" ${dnDis} onclick="clMoveZona(${i},1)">▼</button>
-        <button class="btn-icon" title="Renombrar" onclick="clRenameZona(${i})">✏️</button>
+        <button class="btn-icon" title="Renombrar" onclick="clRenameZona(${i})"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/></svg></button>
         <button class="btn-icon" title="Eliminar" style="color:var(--red-alert)" onclick="clDeleteZona(${i})">✕</button>
       </div>`;
     }).join('');
@@ -830,7 +856,7 @@ function openGestionZonas(){
       <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--cream)">
         <span style="font-size:15px">${sh.icon||'📍'}</span>
         <strong style="flex:1;font-size:13.5px;color:var(--charcoal)">${esc(sh.label)}</strong>
-        <button class="btn-icon" title="Renombrar sección" onclick="clRenameSeccion('${sec}')">✏️</button>
+        <button class="btn-icon" title="Renombrar sección" onclick="clRenameSeccion('${sec}')"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/></svg></button>
       </div>
       <div style="display:flex;flex-direction:column;gap:1px;background:var(--light-gray)">${zonasHTML || '<div style="padding:10px 12px;background:var(--warm-white);font-size:12px;color:var(--mid-gray)">Sin zonas todavía</div>'}</div>
       <div style="padding:8px 12px;background:var(--warm-white)"><button class="btn-secondary" style="font-size:11.5px;padding:5px 12px" onclick="clAddZona('${sec}')">+ Agregar zona a ${esc(sh.label)}</button></div>
@@ -839,7 +865,7 @@ function openGestionZonas(){
 
   ov.innerHTML = `<div class="modal" style="max-width:600px;max-height:88vh;overflow-y:auto">
     <button class="modal-close" onclick="document.getElementById('gestion-zonas-modal').classList.remove('open')">✕</button>
-    <div class="modal-title">🗂 Gestionar zonas del checklist</div>
+    <div class="modal-title">Gestionar zonas del checklist</div>
     <div style="font-size:12px;color:var(--mid-gray);margin-bottom:14px">Renombrá o agregá zonas y secciones. Los cambios se aplican a todos los días y se sincronizan con el equipo.</div>
     ${seccionesHTML}
     <div style="margin-top:8px"><button class="btn-add" style="font-size:12px;padding:8px 16px" onclick="clAddSeccion()">+ Agregar sección / área</button></div>
@@ -951,7 +977,7 @@ function openPromediosZona(){
   if(!ov){ ov=document.createElement('div'); ov.id='cl-promedios-modal'; ov.className='modal-overlay'; document.body.appendChild(ov); }
   ov.innerHTML = `<div class="modal" style="max-width:600px;max-height:85vh;display:flex;flex-direction:column">
     <button class="modal-close" onclick="closeModal('cl-promedios-modal')">✕</button>
-    <div class="modal-title">📈 Promedios reales por zona</div>
+    <div class="modal-title">Promedios reales por zona</div>
     <div style="font-size:12px;color:var(--mid-gray);margin:-6px 0 12px">Promedio de la duración real de cada zona vs. el tiempo estimado. Desvío en rojo = se tarda bastante más de lo previsto. ${conDatos?`${conDatos} zona${conDatos!==1?'s':''} con datos · ${totalMuestras} registro${totalMuestras!==1?'s':''}`:''}</div>
     ${conDatos
       ? `<div style="overflow-y:auto;flex:1"><table style="width:100%;border-collapse:collapse">
@@ -1101,7 +1127,7 @@ function renderVistaSemanal(){
   let lastSec = null;
   let html = `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;padding:10px 14px;background:#EEF3EC;border:1px solid #D8E3D4;border-radius:8px">
     <div style="font-size:12px;color:#3A4A34">✓ Esta planificación queda <strong>guardada fija</strong> y se aplica sola al empezar cada semana nueva. Editá cuando haga falta y se guarda solo.</div>
-    <button class="btn-secondary" style="font-size:11.5px;white-space:nowrap" onclick="aplicarPlantillaSemana()" title="Volver a aplicar la planificación fija a la semana actual">📋 Aplicar a esta semana</button>
+    <button class="btn-secondary" style="font-size:11.5px;white-space:nowrap" onclick="aplicarPlantillaSemana()" title="Volver a aplicar la planificación fija a la semana actual">Aplicar a esta semana</button>
   </div>
   <table class="stock-table" style="min-width:900px">
     <thead><tr><th style="min-width:150px;position:sticky;left:0;background:var(--warm-white);z-index:1">Zona</th>${dias.map(d=>{
@@ -1283,9 +1309,9 @@ function initChecklist(){
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn-secondary" style="font-size:11px;padding:5px 12px;color:var(--red-alert);border-color:var(--red-alert)"
-        onclick="resetDayState()">🗑 Limpiar día</button>
+        onclick="resetDayState()">Limpiar día</button>
       <button class="btn-secondary" style="font-size:11px;padding:5px 12px;color:var(--red-alert);border-color:var(--red-alert)"
-        onclick="resetWeekState()">🗑 Limpiar semana</button>
+        onclick="resetWeekState()">Limpiar semana</button>
     </div>`;
 
   const tabs = document.getElementById('day-tabs-container');
@@ -1354,7 +1380,7 @@ function durBadge(inicio, fin, ref){
   if(!mins) return '<span style="font-size:11px;color:var(--mid-gray)">—</span>';
   // Excedida: superó el tiempo promedio de referencia definido por gerencia
   if(ref && mins > ref){
-    return `<span title="Excedió la referencia de ${ref}m" style="font-size:11px;font-weight:600;color:var(--red-alert);background:#FDECEC;padding:2px 8px;border-radius:10px">⚠️ ${fmtDur(mins)}</span>`;
+    return `<span title="Excedió la referencia de ${ref}m" style="font-size:11px;font-weight:600;color:var(--red-alert);background:#FDECEC;padding:2px 8px;border-radius:10px">${fmtDur(mins)}</span>`;
   }
   const color = mins > 60 ? 'var(--amber)' : 'var(--green-ok)';
   const bg    = mins > 60 ? '#FDF8E8'      : '#EBF5E8';
@@ -1460,9 +1486,9 @@ function eventoFlorFase(ev, fase){
     : (ev.asignado||'');
 }
 function eventoFaseTag(fase){
-  if(fase === 'retiro') return '<span style="font-size:9px;font-weight:700;background:#7A5CB8;color:#fff;padding:2px 6px;border-radius:5px;margin-left:6px">🔄 RETIRO</span>';
-  if(fase === 'colocacion') return '<span style="font-size:9px;font-weight:700;background:#E65100;color:#fff;padding:2px 6px;border-radius:5px;margin-left:6px">📍 COLOCACIÓN</span>';
-  return '<span style="font-size:9px;font-weight:700;background:#5A8C3A;color:#fff;padding:2px 6px;border-radius:5px;margin-left:6px">🔨 ARMADO</span>';
+  if(fase === 'retiro') return '<span style="font-size:9px;font-weight:700;background:#7A5CB8;color:#fff;padding:2px 6px;border-radius:5px;margin-left:6px">RETIRO</span>';
+  if(fase === 'colocacion') return '<span style="font-size:9px;font-weight:700;background:#E65100;color:#fff;padding:2px 6px;border-radius:5px;margin-left:6px">COLOCACIÓN</span>';
+  return '<span style="font-size:9px;font-weight:700;background:#5A8C3A;color:#fff;padding:2px 6px;border-radius:5px;margin-left:6px">ARMADO</span>';
 }
 // ¿Ya es momento de que el florista vea esta fase del evento?
 // Armado: siempre (lo ve para prepararlo). Colocación/Retiro: recién el día
@@ -1744,7 +1770,7 @@ function renderChecklistTable(){
     const evHeader = document.createElement('tr');
     evHeader.className = 'cl-section-row';
     evHeader.style.cssText = 'background:#FDF0E8';
-    evHeader.innerHTML = `<td colspan="${isFlorista?6:10}" style="font-weight:600;color:#B8602A">🎉 Eventos del día</td>`;
+    evHeader.innerHTML = `<td colspan="${isFlorista?6:10}" style="font-weight:600;color:#B8602A">Eventos del día</td>`;
     tbody.appendChild(evHeader);
 
     eventosHoy.forEach(ev => {
@@ -1759,7 +1785,7 @@ function renderChecklistTable(){
 
       if(isFlorista){
         evTr.innerHTML = `
-          <td style="font-weight:600;font-size:12.5px;color:#B8602A">🎉 ${esc(ev.nombre)}${badgeDiaRelativa(ev.fecha)}${faseTag}</td>
+          <td style="font-weight:600;font-size:12.5px;color:#B8602A">${esc(ev.nombre)}${badgeDiaRelativa(ev.fecha)}${faseTag}</td>
           <td style="font-size:12px">${esc(ev.tipo)} · ${esc(ev.salon||'')}</td>
           <td></td>
           <td style="font-size:11px;color:var(--mid-gray)">${ev.pax?ev.pax+' pax':''} ${ev.hora?'· '+ev.hora:''}</td>
@@ -1768,7 +1794,7 @@ function renderChecklistTable(){
       } else {
         evTr.innerHTML = `
           <td style="width:32px"></td>
-          <td style="font-weight:600;font-size:12.5px;color:#B8602A">🎉 ${esc(ev.nombre)}${badgeDiaRelativa(ev.fecha)}${faseTag}</td>
+          <td style="font-weight:600;font-size:12.5px;color:#B8602A">${esc(ev.nombre)}${badgeDiaRelativa(ev.fecha)}${faseTag}</td>
           <td style="font-size:12px">${esc(ev.tipo)}</td>
           <td></td>
           <td style="font-size:11px;color:var(--mid-gray)">${esc(ev.salon||'')} · ${ev.pax?ev.pax+' pax':''} ${ev.hora?'· '+ev.hora:''}</td>
@@ -1795,7 +1821,7 @@ function renderChecklistTable(){
     const vtHeader = document.createElement('tr');
     vtHeader.className = 'cl-section-row';
     vtHeader.style.cssText = 'background:#E8EDF8';
-    vtHeader.innerHTML = `<td colspan="${isFlorista?6:10}" style="font-weight:600;color:#2C5A80">💐 Ventas pendientes</td>`;
+    vtHeader.innerHTML = `<td colspan="${isFlorista?6:10}" style="font-weight:600;color:#2C5A80">Ventas pendientes</td>`;
     tbody.appendChild(vtHeader);
 
     ventasHoy.forEach(v => {
@@ -1807,7 +1833,7 @@ function renderChecklistTable(){
 
       if(isFlorista){
         vtTr.innerHTML = `
-          <td style="font-weight:600;font-size:12.5px;color:#2C5A80">💐 ${esc(v.prod)}${badgeDiaRelativa(v.fecha)}</td>
+          <td style="font-weight:600;font-size:12.5px;color:#2C5A80">${esc(v.prod)}${badgeDiaRelativa(v.fecha)}</td>
           <td style="font-size:12px">${esc(v.cliente||'')}</td>
           <td></td>
           <td style="font-size:11px;color:var(--mid-gray);max-width:200px;overflow:hidden;text-overflow:ellipsis">${esc(detalle)}</td>
@@ -1816,7 +1842,7 @@ function renderChecklistTable(){
       } else {
         vtTr.innerHTML = `
           <td style="width:32px"></td>
-          <td style="font-weight:600;font-size:12.5px;color:#2C5A80">💐 ${esc(v.prod)}${badgeDiaRelativa(v.fecha)}</td>
+          <td style="font-weight:600;font-size:12.5px;color:#2C5A80">${esc(v.prod)}${badgeDiaRelativa(v.fecha)}</td>
           <td style="font-size:12px">${esc(v.cliente||'')}</td>
           <td></td>
           <td style="font-size:11px;color:var(--mid-gray);max-width:200px">${esc(detalle)}</td>
@@ -1926,11 +1952,11 @@ function renderChecklistCards(el){
     const evIdx = eventosData.indexOf(ev);
     const fase = eventoFase(ev);
     const faseCls = fase==='retiro' ? 'cl-fase-retiro' : fase==='colocacion' ? 'cl-fase-coloc' : 'cl-fase-armado';
-    const faseLbl = fase==='retiro' ? '🔄 RETIRO' : fase==='colocacion' ? '📍 COLOCACIÓN' : '🔨 ARMADO';
+    const faseLbl = fase==='retiro' ? 'RETIRO' : fase==='colocacion' ? 'COLOCACIÓN' : 'ARMADO';
     return `<div class="cl-card cl-card-evento" onclick="if(!event.target.closest('button'))openEventoDetail(${evIdx})">
       <div class="cl-card-top">
         <div>
-          <div class="cl-card-zona">🎉 ${esc(ev.nombre)}</div>
+          <div class="cl-card-zona">${esc(ev.nombre)}</div>
           <div class="cl-card-sec">${esc(ev.tipo||'')}${ev.salon?' · '+esc(ev.salon):''}${ev.pax?' · '+ev.pax+' pax':''}${ev.hora?' · '+ev.hora:''}</div>
         </div>
         <span class="cl-card-fase ${faseCls}">${faseLbl}</span>
@@ -1950,7 +1976,7 @@ function renderChecklistCards(el){
     return `<div class="cl-card cl-card-venta" onclick="if(!event.target.closest('button'))openVentaDetail(${vIdx})">
       <div class="cl-card-top">
         <div>
-          <div class="cl-card-zona">💐 ${esc(v.prod||'')}</div>
+          <div class="cl-card-zona">${esc(v.prod||'')}</div>
           <div class="cl-card-sec">${esc(detalle)}</div>
         </div>
       </div>
@@ -1967,8 +1993,8 @@ function renderChecklistCards(el){
       No tenés tareas asignadas para hoy, ${esc(floristaNombre)}
       <div class="cl-cards-empty-sub">Gerencia asigna las tareas desde la checklist general.</div>
     </div>`}
-    ${evHTML ? '<div class="cl-cards-sec-hdr" style="color:#B8602A">🎉 Eventos del día</div>'+evHTML : ''}
-    ${vtHTML ? '<div class="cl-cards-sec-hdr" style="color:#2C5A80">💐 Ventas pendientes</div>'+vtHTML : ''}`;
+    ${evHTML ? '<div class="cl-cards-sec-hdr" style="color:#B8602A">Eventos del día</div>'+evHTML : ''}
+    ${vtHTML ? '<div class="cl-cards-sec-hdr" style="color:#2C5A80">Ventas pendientes</div>'+vtHTML : ''}`;
 }
 
 function renderHoraCell(i, campo, done){
@@ -2444,7 +2470,7 @@ function renderHistoryPanel(){
       <td style="text-align:center">${durBadge(r.inicio,r.fin,parseInt(r.ref)||0)}</td>
       <td><span class="responsable-tag">${esc(r.who)}</span></td>
       <td style="font-size:12px;color:var(--mid-gray)">${esc(r.hora)}</td>
-      <td style="text-align:center">${r.img?`<button class="btn-icon" onclick="verFotoChecklist(${realIdx})" title="Ver foto del arreglo">📷</button>`:''}</td>
+      <td style="text-align:center">${r.img?`<button class="btn-icon" onclick="verFotoChecklist(${realIdx})" title="Ver foto del arreglo"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><rect x="3" y="7" width="18" height="13" rx="2"/><circle cx="12" cy="13" r="3.5"/><path d="M8 7l1.5-2h5L16 7"/></svg></button>`:''}</td>
     </tr>`;}).join('');
 }
 
@@ -2560,8 +2586,8 @@ function renderStock(){
 
   const alertEl = document.getElementById('stock-alert-area');
   alertEl.innerHTML='';
-  if(co>0) alertEl.innerHTML+=`<div class="alert-banner">🔴 <strong>${co} producto${co>1?'s':''} en stock crítico</strong> — comprar hoy.</div>`;
-  if(at>0) alertEl.innerHTML+=`<div class="alert-banner amber">🟡 <strong>${at} producto${at>1?'s':''} en nivel bajo</strong> — considerar reponer esta semana.</div>`;
+  if(co>0) alertEl.innerHTML+=`<div class="alert-banner"><strong>${co} producto${co>1?'s':''} en stock crítico</strong> — comprar hoy.</div>`;
+  if(at>0) alertEl.innerHTML+=`<div class="alert-banner amber"><strong>${at} producto${at>1?'s':''} en nivel bajo</strong> — considerar reponer esta semana.</div>`;
 
   // Banner específico de comprometidos que exceden el stock libre
   const comprometidosAlerta = stockData.filter((s,i)=>{
@@ -2569,7 +2595,7 @@ function renderStock(){
     return (s.actual - comprometidos[i]) < s.min;
   });
   if(comprometidosAlerta.length>0){
-    alertEl.innerHTML+=`<div class="alert-banner amber">⚠️ <strong>${comprometidosAlerta.length} producto${comprometidosAlerta.length>1?'s':''} comprometido${comprometidosAlerta.length>1?'s':''} en eventos pendientes</strong>: ${comprometidosAlerta.map(s=>esc(s.prod)).join(', ')} — comprá antes del evento.</div>`;
+    alertEl.innerHTML+=`<div class="alert-banner amber"><strong>${comprometidosAlerta.length} producto${comprometidosAlerta.length>1?'s':''} comprometido${comprometidosAlerta.length>1?'s':''} en eventos pendientes</strong>: ${comprometidosAlerta.map(s=>esc(s.prod)).join(', ')} — comprá antes del evento.</div>`;
   }
 }
 
@@ -2715,7 +2741,7 @@ function renderStockAdmin(){
   if(alertEl){
     const crits = stockData.filter((s,i)=>getAlerta(s,comprometidos[i])==='comprar');
     alertEl.innerHTML = crits.length
-      ? `<div class="alert-banner">🔴 <strong>${crits.length} producto${crits.length>1?'s':''} en stock crítico:</strong> ${crits.map(s=>esc(s.prod)).join(', ')}.</div>`
+      ? `<div class="alert-banner"><strong>${crits.length} producto${crits.length>1?'s':''} en stock crítico:</strong> ${crits.map(s=>esc(s.prod)).join(', ')}.</div>`
       : '';
   }
 }
@@ -2724,11 +2750,14 @@ function renderStockAdmin(){
 // DATA — KANBAN
 // Includes cards AND events from comercial
 // ════════════════════════════════════════
+// Quita un emoji decorativo al inicio de un texto (para títulos guardados)
+function _noLeadIco(s){ return String(s==null?'':s).replace(/^\s*[\u{1F000}-\u{1FAFF}☀-➿]️?\s*/u,''); }
+
 const KANBAN_DEFAULTS = [
-  {title:'📋 Pedidos Pendientes', color:'#F4F1EC', cards:[]},
-  {title:'🔄 En Proceso',        color:'#EBF0E8', cards:[]},
-  {title:'📦 Pendiente de Colocación', color:'#FDF0E8', cards:[]},
-  {title:'✅ Finalizados',       color:'#E8F0F8', cards:[]}
+  {title:'Pedidos Pendientes', color:'#F4F1EC', cards:[]},
+  {title:'En Proceso',        color:'#EBF0E8', cards:[]},
+  {title:'Pendiente de Colocación', color:'#FDF0E8', cards:[]},
+  {title:'Finalizados',       color:'#E8F0F8', cards:[]}
 ];
 let kanbanData = JSON.parse(JSON.stringify(KANBAN_DEFAULTS));
 const TAG_LABELS={'tag-floreria':'Florería','tag-maison':'Maison','tag-evento':'Evento','tag-urgente':'🔴 Urgente','tag-garden':'Jardinería'};
@@ -2832,7 +2861,7 @@ function renderKanban(){
   const alertEl = document.getElementById('kanban-eventos-alert');
   const próximos = eventosData.filter(e=>e.estado!=='Pedidos Finalizados'&&(e.fecha||'')>=TODAY_ISO).sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')).slice(0,2);
   if(alertEl) alertEl.innerHTML = próximos.length
-    ? `<div class="alert-banner green">🎉 Próximos eventos: ${próximos.map(e=>`<strong>${esc(e.nombre)}</strong> — ${fmtDateTime(e.fecha,e.hora)}`).join(' · ')}</div>`
+    ? `<div class="alert-banner green">Próximos eventos: ${próximos.map(e=>`<strong>${esc(e.nombre)}</strong> — ${fmtDateTime(e.fecha,e.hora)}`).join(' · ')}</div>`
     : '';
 
   const board=document.getElementById('kanban-board');
@@ -2861,7 +2890,7 @@ function renderKanban(){
       renderKanban();
     });
     colEl.innerHTML=`<div class="kanban-col-header">
-      <div class="kanban-col-title">${col.title}</div>
+      <div class="kanban-col-title">${_noLeadIco(col.title)}</div>
       <span class="kanban-count">${col.cards.length}</span>
     </div>`;
     col.cards.forEach((card,i)=>{
@@ -2890,11 +2919,11 @@ function renderKanban(){
         ${descLines.length?`<div class="kanban-card-desc">${descLines.map(esc).join('<br>')}</div>`:''}
         <div class="kanban-card-tags">${(card.tags||[]).map(t=>`<span class="kanban-tag ${t}">${TAG_LABELS[t]||t}</span>`).join('')}</div>
         <div class="kanban-card-meta">
-          <span class="kanban-date">📅 ${card.date}</span>
+          <span class="kanban-date">${card.date}</span>
           <div class="kanban-actions">
             <button class="btn-icon kanban-move" title="Mover a la columna anterior" ${ci===0?'disabled':''} onclick="moveKanbanCard(${ci},${i},-1)">‹</button>
             <button class="btn-icon kanban-move" title="Mover a la columna siguiente" ${ci===kanbanData.length-1?'disabled':''} onclick="moveKanbanCard(${ci},${i},1)">›</button>
-            ${card.isEvento?`<button class="btn-icon" title="Ver detalle" onclick="openEventoDetail(${card.eventoIdx})">👁</button><button class="btn-icon" title="Ver en Comercial" onclick="navigate('eventos-comercial')">🔗</button>`:`<button class="btn-icon" onclick="openTaskModal(${ci},${i})">✏️</button>`}
+            ${card.isEvento?`<button class="btn-icon" title="Ver detalle" onclick="openEventoDetail(${card.eventoIdx})"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button><button class="btn-icon" title="Ver en Comercial" onclick="navigate('eventos-comercial')">🔗</button>`:`<button class="btn-icon" onclick="openTaskModal(${ci},${i})"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/></svg></button>`}
             ${!card.isEvento?`<button class="btn-icon" style="color:var(--red-alert)" onclick="removeKanbanCard(${ci},${i})">✕</button>`:''}
           </div>
         </div>`;
@@ -3051,7 +3080,7 @@ function populateFloreriaFormHelpers(){
   const sec = document.getElementById('cf-sector');
   if(sec && sec.options.length <= 1){
     sec.innerHTML = getAreaUsoOpts('') +
-      '<option value="__otra__">✏️ Otra (escribir)...</option>';
+      '<option value="__otra__">Otra (escribir)...</option>';
     sec.onchange = async function(){
       if(this.value === '__otra__'){
         const custom = await promptModal('Escribí el área / uso:', { title: 'Área / uso' });
@@ -3607,7 +3636,7 @@ function renderCfImportPreview(colMap){
       </table>
     </div>
     <div style="display:flex;gap:8px;margin-top:12px">
-      <button class="btn-add" onclick="cfImportConfirm()">✅ Confirmar importación de ${cfImportRows.length} pedidos</button>
+      <button class="btn-add" onclick="cfImportConfirm()">Confirmar importación de ${cfImportRows.length} pedidos</button>
       <button class="btn-secondary" onclick="cfImportCancel()">✕ Cancelar</button>
     </div>`;
 }
@@ -3706,9 +3735,9 @@ function renderCompraSummary(type, filtered){
   const recibidos = activas.filter(r=>r.estado==='recibido').reduce((s,r)=>s+_compraImporte(r),0);
   const enPedido = activas.filter(r=>r.estado!=='recibido').length;
   summaryEl.innerHTML = `
-    <div class="card"><div class="card-label">💰 Total período</div><div class="card-value" style="font-size:26px">$${total.toLocaleString('es-AR')}</div><div class="card-sub">${activas.length} órdenes</div></div>
-    <div class="card"><div class="card-label">📦 Recibido</div><div class="card-value green" style="font-size:26px">$${recibidos.toLocaleString('es-AR')}</div></div>
-    <div class="card"><div class="card-label">📝 En pedido</div><div class="card-value amber" style="font-size:26px">${enPedido}</div><div class="card-sub">esperando recepción</div></div>`;
+    <div class="card"><div class="card-label">Total período</div><div class="card-value" style="font-size:26px">$${total.toLocaleString('es-AR')}</div><div class="card-sub">${activas.length} órdenes</div></div>
+    <div class="card"><div class="card-label">Recibido</div><div class="card-value green" style="font-size:26px">$${recibidos.toLocaleString('es-AR')}</div></div>
+    <div class="card"><div class="card-label">En pedido</div><div class="card-value amber" style="font-size:26px">${enPedido}</div><div class="card-sub">esperando recepción</div></div>`;
 }
 
 // Returns HTML badge showing stock status for a given product name
@@ -3720,18 +3749,18 @@ function getStockBadge(prodName){
     s.prod.toLowerCase().includes(lower) || lower.includes(s.prod.toLowerCase())
   );
   if(matches.length === 0){
-    return '<span class="stock-inline-badge sib-none">⚪ Sin datos</span>';
+    return '<span class="stock-inline-badge sib-none">Sin datos</span>';
   }
   // Use the best (highest actual) match
   const best = matches.reduce((a,b) => a.actual > b.actual ? a : b);
   const al = getAlerta(best);
   if(al === 'ok'){
-    return `<span class="stock-inline-badge sib-ok">🟢 ${best.actual} uds</span>`;
+    return `<span class="stock-inline-badge sib-ok">${best.actual} uds</span>`;
   } else if(al === 'atencion'){
-    return `<span class="stock-inline-badge sib-low">🟡 ${best.actual} uds</span><div style="font-size:10px;color:#A06A00;margin-top:2px">Mín: ${best.min}</div>`;
+    return `<span class="stock-inline-badge sib-low">${best.actual} uds</span><div style="font-size:10px;color:#A06A00;margin-top:2px">Mín: ${best.min}</div>`;
   } else {
     const label = best.actual <= 0 ? 'Sin stock' : best.actual+' uds';
-    return `<span class="stock-inline-badge sib-out">🔴 ${label}</span><div style="font-size:10px;color:var(--red-alert);margin-top:2px">Mín: ${best.min}</div>`;
+    return `<span class="stock-inline-badge sib-out">${label}</span><div style="font-size:10px;color:var(--red-alert);margin-top:2px">Mín: ${best.min}</div>`;
   }
 }
 
@@ -3831,12 +3860,12 @@ function renderCompras(type){
       <td colspan="${NCOLS}" style="background:#F4F1EC;padding:10px 14px;border-bottom:2px solid #E5E3DC">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
           <div>
-            <strong style="font-size:14px;color:#1A1A1A">📦 Pedido del ${fecha!=='sin-fecha' ? fmtDate(fecha) : 'sin fecha'}</strong>
+            <strong style="font-size:14px;color:#1A1A1A">Pedido del ${fecha!=='sin-fecha' ? fmtDate(fecha) : 'sin fecha'}</strong>
             <span style="color:#7A7A72;font-size:12px;margin-left:10px">${cantItems} ítem${cantItems!==1?'s':''} · ${cantTotal} unidades</span>
           </div>
           <div style="display:flex;align-items:center;gap:10px">
             <span style="font-weight:600;color:#1A1A1A;font-size:13px">${totalBloque ? '$'+totalBloque.toLocaleString('es-AR') : ''}</span>
-            <button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="copiarBloquePedido('${type}','${fecha}')" title="Copiar este pedido con fecha de hoy para modificar">📋 Copiar pedido</button>
+            <button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="copiarBloquePedido('${type}','${fecha}')" title="Copiar este pedido con fecha de hoy para modificar">Copiar pedido</button>
           </div>
         </div>
       </td>
@@ -3866,12 +3895,12 @@ function renderCompras(type){
       <td data-label="Estado">
         <select class="form-select" onchange="updC('${type}',${i},'estado',this.value);updateKpiCompras()" style="min-width:120px">
           <option value="pedido" ${r.estado!=='recibido'?'selected':''}>📝 Pedido</option>
-          <option value="recibido" ${r.estado==='recibido'?'selected':''}>📦 Recibido</option>
+          <option value="recibido" ${r.estado==='recibido'?'selected':''}>Recibido</option>
         </select>
       </td>
       <td data-label="Stock actual" style="vertical-align:middle">${getStockBadge(r.prod)}</td>
       <td class="compra-row-acciones" style="white-space:nowrap">
-        <button class="btn-secondary" style="font-size:10px;padding:3px 7px;margin-right:4px" onclick="generarOrdenCompra(${i},'${type==='floreria'?'flore':'jard'}')" title="Generar Orden de Compra">📄 OC</button>
+        <button class="btn-secondary" style="font-size:10px;padding:3px 7px;margin-right:4px" onclick="generarOrdenCompra(${i},'${type==='floreria'?'flore':'jard'}')" title="Generar Orden de Compra">OC</button>
         <button class="btn-icon" style="color:var(--red-alert)" onclick="delC('${type}',${i})">✕</button>
       </td>
     </tr>`;
@@ -3886,7 +3915,7 @@ function renderCompraAlert(){
   const alertEl=document.getElementById('compra-floreria-alert');
   if(alertEl){
     const crits=stockData.filter(s=>getAlerta(s)==='comprar');
-    alertEl.innerHTML=crits.length?`<div class="alert-banner" style="margin-bottom:16px">🔴 <strong>${crits.length} producto${crits.length>1?'s':''} con stock crítico:</strong> ${crits.map(s=>esc(s.prod)).join(', ')}. Consideralos para el próximo pedido.</div>`:'';
+    alertEl.innerHTML=crits.length?`<div class="alert-banner" style="margin-bottom:16px"><strong>${crits.length} producto${crits.length>1?'s':''} con stock crítico:</strong> ${crits.map(s=>esc(s.prod)).join(', ')}. Consideralos para el próximo pedido.</div>`:'';
   }
 }
 
@@ -3985,12 +4014,12 @@ function renderHistorialCompras(type='floreria'){
     html += `<div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:10px;margin-bottom:12px;overflow:hidden">
       <div style="background:#F4F1EC;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <div>
-          <strong style="font-size:14px;color:#1A1A1A">📦 Pedido del ${fecha!=='sin-fecha' ? fmtDate(fecha) : 'sin fecha'}</strong>
+          <strong style="font-size:14px;color:#1A1A1A">Pedido del ${fecha!=='sin-fecha' ? fmtDate(fecha) : 'sin fecha'}</strong>
           <span style="color:#7A7A72;font-size:12px;margin-left:10px">${items.length} ítem${items.length!==1?'s':''}${metaExtra}</span>
         </div>
         <div style="display:flex;align-items:center;gap:10px">
           <span style="font-weight:600;color:#1A1A1A;font-size:13px">${totalBloque ? '$'+totalBloque.toLocaleString('es-AR') : ''}</span>
-          <button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="copiarBloquePedido('${type}','${fecha}')" title="Copiar este pedido con fecha de hoy">📋 Copiar pedido</button>
+          <button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="copiarBloquePedido('${type}','${fecha}')" title="Copiar este pedido con fecha de hoy">Copiar pedido</button>
         </div>
       </div>
       <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">${type==='floreria' ? _histTablaFloreria(items) : _histTablaJardineria(items)}</div>
@@ -4082,11 +4111,11 @@ function controlBadgeCompra(r){
   const base = 'font-size:10px;font-weight:600;padding:3px 8px;border-radius:6px;display:inline-block;line-height:1.4;white-space:nowrap';
   const info = `Pedí ${fn(qty)} · Llegó ${fn(recibido)}`;
   if(diff === 0){
-    return `<span style="${base};background:#EBF5E8;color:#2C6B3A">✅ ${info}</span>`;
+    return `<span style="${base};background:#EBF5E8;color:#2C6B3A">${info}</span>`;
   }
   const detalle = diff < 0 ? `faltan ${fn(-diff)}` : `sobran ${fn(diff)}`;
   const colores = diff < 0 ? 'background:#FCEBEA;color:#B0281B' : 'background:#FDF3E3;color:#8A5A16';
-  return `<span style="${base};${colores}">⚠️ ${info} · ${detalle}</span>`;
+  return `<span style="${base};${colores}">${info} · ${detalle}</span>`;
 }
 
 // Recalcula el costo por vara en el cotizador a partir del costo y el divisor
@@ -4309,12 +4338,12 @@ function ceRender(){
 
   out.innerHTML = `
     <div style="background:#EBF5E8;border:1px solid #C6E0BE;border-radius:12px;padding:16px 18px;margin-bottom:16px">
-      <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#2C6B3A;font-weight:600;margin-bottom:8px">🛒 Comprar</div>
+      <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#2C6B3A;font-weight:600;margin-bottom:8px">Comprar</div>
       ${compra.length
         ? `<div style="font-size:16px;color:#1A1A1A;line-height:1.7">${compra.map(c=>`<strong>${c.paquetes}</strong> ${esc(c.prod)}`).join(' &nbsp;·&nbsp; ')}</div>`
         : '<div style="font-size:13px;color:var(--mid-gray)">Ningún producto tiene varas por paquete cargadas en Compras todavía.</div>'}
-      ${faltantes.length ? `<div style="font-size:12px;color:var(--red-alert);margin-top:8px">⚠️ Sin varas por paquete (cargalas en Compras Florería): ${faltantes.map(esc).join(', ')}</div>` : ''}
-      ${compra.length ? `<button class="btn-secondary" style="font-size:12px;margin-top:12px" onclick="ceCopiar()">📋 Copiar lista</button>` : ''}
+      ${faltantes.length ? `<div style="font-size:12px;color:var(--red-alert);margin-top:8px">Sin varas por paquete (cargalas en Compras Florería): ${faltantes.map(esc).join(', ')}</div>` : ''}
+      ${compra.length ? `<button class="btn-secondary" style="font-size:12px;margin-top:12px" onclick="ceCopiar()">Copiar lista</button>` : ''}
     </div>
     <div class="table-wrapper">
       <table style="width:100%;border-collapse:collapse;font-size:13px;background:var(--warm-white);border:1px solid var(--light-gray);border-radius:10px;overflow:hidden">
@@ -4424,7 +4453,7 @@ function updC(type,i,field,val){
       // Banner en página de stock si está visible
       const alertEl = document.getElementById('stock-alert-area');
       if(alertEl){
-        alertEl.innerHTML = `<div class="alert-banner green">📦 <strong>${esc(order.prod)}</strong> recibido — se ${matched?'agregaron <strong>'+qty+'</strong> unidades al stock existente':'creó un nuevo ítem en stock con <strong>'+qty+'</strong> unidades'}.</div>`;
+        alertEl.innerHTML = `<div class="alert-banner green"><strong>${esc(order.prod)}</strong> recibido — se ${matched?'agregaron <strong>'+qty+'</strong> unidades al stock existente':'creó un nuevo ítem en stock con <strong>'+qty+'</strong> unidades'}.</div>`;
         setTimeout(()=>{ if(alertEl && alertEl.children[0]) alertEl.removeChild(alertEl.children[0]); renderStock(); }, 5000);
       }
 
@@ -4640,7 +4669,7 @@ function renderComposicionesCot(){
   const comps = search ? recetasData.filter(r => r.nombre.toLowerCase().includes(search)) : recetasData;
   if(!comps.length){ wrap.innerHTML = ''; return; }
 
-  wrap.innerHTML = `<div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:8px;font-weight:500">🫙 Composiciones</div>
+  wrap.innerHTML = `<div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:8px;font-weight:500">Composiciones</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px">${comps.map(r => {
       const ri = recetasData.indexOf(r);
       const costoBase = calcCostoComposicion(r);
@@ -5116,7 +5145,7 @@ function renderCotEventos(){
   // ── COMPOSICIONES ──
   const comps = recetasData.filter(r => !search || r.nombre.toLowerCase().includes(search) || r.ings.some(g=>g.prod.toLowerCase().includes(search)));
   if(comps.length){
-    html += `<div style="grid-column:1/-1;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);font-weight:500;margin-bottom:-4px">🫙 Composiciones</div>`;
+    html += `<div style="grid-column:1/-1;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);font-weight:500;margin-bottom:-4px">Composiciones</div>`;
     html += comps.map(r => {
       const ri = recetasData.indexOf(r);
       const costoBase = calcCostoComposicion(r);
@@ -5131,7 +5160,7 @@ function renderCotEventos(){
           <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
             <span style="font-size:11px;color:var(--mid-gray)">costo: $${costoBase.toLocaleString('es-AR')}</span>
             <span style="font-size:12px;color:var(--sage-dark);font-weight:600">→ $${pFinal.toLocaleString('es-AR')}</span>
-            ${sinCosto ? '<span style="font-size:9px;color:var(--amber)">⚠️ falta precio</span>' : ''}
+            ${sinCosto ? '<span style="font-size:9px;color:var(--amber)">falta precio</span>' : ''}
           </div>
         </div>
         <input type="number" id="evcot_comp_${ri}" value="1" min="1"
@@ -5317,7 +5346,7 @@ function renderEventos(){
   const bannerEl = document.getElementById('eventos-kanban-banner');
   if(bannerEl){
     bannerEl.innerHTML = fromOps.length
-      ? `<div class="alert-banner green" style="margin-bottom:16px">📋 <strong>${fromOps.length} evento${fromOps.length>1?'s':''} cargado${fromOps.length>1?'s':''} desde Operaciones</strong> — revisá los datos y completá los detalles.</div>`
+      ? `<div class="alert-banner green" style="margin-bottom:16px"><strong>${fromOps.length} evento${fromOps.length>1?'s':''} cargado${fromOps.length>1?'s':''} desde Operaciones</strong> — revisá los datos y completá los detalles.</div>`
       : '';
   }
   // Solo mostrar eventos actuales (no finalizados — esos van a Historial)
@@ -5350,8 +5379,8 @@ function renderEventos(){
         <div class="event-price">${esc(ev.precio)}</div>
         <div class="event-actions">
           <select class="event-status-sel" style="${stStyle}" onchange="changeEventoEstado(${i},this.value)">${stOpts}</select>
-          <button class="btn-icon" title="Ver detalle" onclick="openEventoDetail(${i})">👁</button>
-          <button class="btn-icon" onclick="openEventModal(${i})" title="Editar">✏️</button>
+          <button class="btn-icon" title="Ver detalle" onclick="openEventoDetail(${i})"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
+          <button class="btn-icon" onclick="openEventModal(${i})" title="Editar"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/></svg></button>
           <button class="btn-icon" style="color:var(--red-alert)" onclick="deleteEvento(${i})">✕</button>
         </div>
       </div>
@@ -5521,7 +5550,7 @@ function renderProductividadHome(){
     const cards=nombres.map(n=>_prodCardHTML(n,getProdEmpleado(n),false)).join('');
     el.innerHTML=`<div class="home-dash-card" style="margin-bottom:20px">
       <div class="home-card-title" style="display:flex;justify-content:space-between;align-items:center">
-        <span>👥 Productividad del Equipo</span>
+        <span>Productividad del Equipo</span>
         <span style="font-size:12px;font-weight:400;color:var(--mid-gray)">${conTurno} de ${total} con turno hoy</span>
       </div>
       <div class="prod-equipo-grid">${cards}</div>
@@ -5729,12 +5758,12 @@ function renderCierreDia(){
 
     const eventosHtml = p.eventos.length
       ? `<div style="margin-top:10px"><div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:6px">Eventos</div>
-          ${p.eventos.map(e=>`<div style="font-size:12.5px;padding:3px 0">🎉 <strong>${esc(e.nombre)}</strong> <span style="color:var(--mid-gray)">· ${e.roles.join(', ')}</span></div>`).join('')}</div>`
+          ${p.eventos.map(e=>`<div style="font-size:12.5px;padding:3px 0"><strong>${esc(e.nombre)}</strong> <span style="color:var(--mid-gray)">· ${e.roles.join(', ')}</span></div>`).join('')}</div>`
       : '';
 
     const ventasHtml = p.ventas.length
       ? `<div style="margin-top:10px"><div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:6px">Ventas</div>
-          ${p.ventas.map(v=>`<div style="font-size:12.5px;padding:3px 0">💐 ${esc(v.prod)}${v.cliente?' · '+esc(v.cliente):''} <span style="color:var(--mid-gray)">(${esc(v.estado)})</span></div>`).join('')}</div>`
+          ${p.ventas.map(v=>`<div style="font-size:12.5px;padding:3px 0">${esc(v.prod)}${v.cliente?' · '+esc(v.cliente):''} <span style="color:var(--mid-gray)">(${esc(v.estado)})</span></div>`).join('')}</div>`
       : '';
 
     const nada = !checklistHtml && !jardHtml && !eventosHtml && !ventasHtml
@@ -5795,7 +5824,7 @@ function _homeVisualHTML(hechas, totalTareas, pct, ventasMes, totalMes){
 
   return `<div class="home-visual-grid">
     <div class="card hv-card card-clickable" onclick="navigate('checklist')">
-      <div class="card-label">✅ Progreso del checklist</div>
+      <div class="card-label">Progreso del checklist</div>
       <div class="hv-ring-row">
         <svg viewBox="0 0 80 80" class="hv-ring" aria-hidden="true">
           <circle cx="40" cy="40" r="34" fill="none" stroke="var(--light-gray)" stroke-width="8"/>
@@ -5807,7 +5836,7 @@ function _homeVisualHTML(hechas, totalTareas, pct, ventasMes, totalMes){
       </div>
     </div>
     <div class="card hv-card card-clickable" onclick="navigate('ventas-externas')">
-      <div class="card-label">💰 Ventas acumuladas del mes</div>
+      <div class="card-label">Ventas acumuladas del mes</div>
       <svg viewBox="0 0 ${W} ${H}" class="hv-spark" preserveAspectRatio="none" aria-hidden="true">
         <polygon points="${areaPts}" fill="var(--sage)" opacity="0.14"/>
         <polyline points="${pts}" fill="none" stroke="var(--sage)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
@@ -5815,7 +5844,7 @@ function _homeVisualHTML(hechas, totalTareas, pct, ventasMes, totalMes){
       <div class="hv-sub">${fmtARS(totalMes)} al día ${diaHoy}</div>
     </div>
     <div class="card hv-card card-clickable" onclick="navigate('checklist')">
-      <div class="card-label">🌸 Arreglos Nuevos por zona</div>
+      <div class="card-label">Arreglos Nuevos por zona</div>
       <div class="hv-semaforo">
         <span class="hv-sem hv-sem-rojo">${rojo}<small>+7 días<br>o sin registro</small></span>
         <span class="hv-sem hv-sem-ambar">${ambar}<small>5-6<br>días</small></span>
@@ -5859,27 +5888,27 @@ function renderHome(){
   document.getElementById('home-kpis').innerHTML = `
     <div class="cards-grid cards-grid-4" style="margin-bottom:24px">
       <div class="card card-clickable" onclick="navigate('eventos-maison')">
-        <div class="card-label">📅 Eventos Hoy</div>
+        <div class="card-label">Eventos Hoy</div>
         <div class="card-value${eventosHoy.length ? '' : ' neutral'}">${eventosHoy.length}</div>
         <div class="card-sub">${eventosHoy.length === 1 ? '1 evento programado' : eventosHoy.length + ' eventos programados'}</div>
       </div>
       <div class="card card-clickable" onclick="navigate('eventos-maison')">
-        <div class="card-label">🗂 Eventos Activos</div>
+        <div class="card-label">Eventos Activos</div>
         <div class="card-value">${activos.length}</div>
         <div class="card-sub">sin finalizar</div>
       </div>
       ${!isFlorHome ? `<div class="card card-clickable" onclick="navigate('ventas-externas')">
-        <div class="card-label">💰 Ventas del Mes</div>
+        <div class="card-label">Ventas del Mes</div>
         <div class="card-value" style="font-size:22px">${fmtARS(totalMes)}</div>
         <div class="card-sub">${ventasMes.length} transacciones</div>
       </div>` : ''}
       <div class="card card-clickable" onclick="navigate('checklist')">
-        <div class="card-label">✅ Checklist Hoy</div>
+        <div class="card-label">Checklist Hoy</div>
         <div class="card-value${pct===100?' green':''}">${hechas}<span style="font-size:16px;font-weight:400;color:var(--mid-gray)">/${totalTareas}</span></div>
         <div class="card-sub">${pct}% completado</div>
       </div>
       ${recAlerts.length && !isFlorHome ? `<div class="card card-clickable" onclick="navigate('recordatorios-jardineria')" style="border-left:3px solid var(--red-alert)">
-        <div class="card-label">🌿 Recordatorios Jardín</div>
+        <div class="card-label">Recordatorios Jardín</div>
         <div class="card-value red">${recAlerts.length}</div>
         <div class="card-sub">${recAlerts.filter(r=>recEstado(r)==='vencido').length} vencido${recAlerts.filter(r=>recEstado(r)==='vencido').length!==1?'s':''} · ${recAlerts.filter(r=>recEstado(r)==='proximo').length} próximo${recAlerts.filter(r=>recEstado(r)==='proximo').length!==1?'s':''}</div>
       </div>` : ''}
@@ -5951,7 +5980,7 @@ function renderHome(){
       </div>
       <div class="home-cl-tasks">
         ${pct === 100
-          ? '<div style="color:var(--sage-dark);font-weight:600;font-size:13px;padding:8px 0">🎉 ¡Todas las tareas completadas!</div>'
+          ? '<div style="color:var(--sage-dark);font-weight:600;font-size:13px;padding:8px 0">¡Todas las tareas completadas!</div>'
           : pendientesCL.map(t => `<div class="home-cl-task">· ${esc(t.zona)} — ${esc(t.actividad||'')}</div>`).join('')
         }
       </div>
@@ -6025,7 +6054,7 @@ function renderVentas(){
   if(vkb){
     const fromOps = ventasData.filter(v=>v.fromKanban && v.estado==='pendiente');
     vkb.innerHTML = fromOps.length
-      ? `<div class="alert-banner" style="background:#E8F0F8;border-color:#B0C8E0;color:#2C5A80">📋 <strong>${fromOps.length} ramo${fromOps.length>1?'s':''} cargado${fromOps.length>1?'s':''} desde Operaciones</strong> — completá precio y cliente.</div>`
+      ? `<div class="alert-banner" style="background:#E8F0F8;border-color:#B0C8E0;color:#2C5A80"><strong>${fromOps.length} ramo${fromOps.length>1?'s':''} cargado${fromOps.length>1?'s':''} desde Operaciones</strong> — completá precio y cliente.</div>`
       : '';
   }
   // ── Poblar selects de filtro (mes, forma de pago, tipo = descripción de ramo) ──
@@ -6068,7 +6097,7 @@ function renderVentas(){
     const pend = lista.filter(o=>o.v.facturado!=='Sí' && parseMoney(o.v.precio)>0);
     const totalPend = pend.reduce((s,o)=>s+parseMoney(o.v.precio),0);
     const pillPend = pend.length
-      ? `<span style="background:#FDECEC;color:var(--red-alert);border:1px solid #F0C0C0;border-radius:10px;padding:2px 9px;font-weight:600;font-size:11.5px;white-space:nowrap">🧾 Sin facturar: ${pend.length} · $${totalPend.toLocaleString('es-AR')}</span>`
+      ? `<span style="background:#FDECEC;color:var(--red-alert);border:1px solid #F0C0C0;border-radius:10px;padding:2px 9px;font-weight:600;font-size:11.5px;white-space:nowrap">Sin facturar: ${pend.length} · $${totalPend.toLocaleString('es-AR')}</span>`
       : '';
     if(fMes||fPago||fTipo||fFact){
       const total = lista.reduce((s,o)=>s+parseMoney(o.v.precio),0);
@@ -6089,20 +6118,20 @@ function renderVentas(){
     <td>
       <select class="form-select" onchange="updV(${i},'formaPago',this.value)" style="min-width:140px;font-size:12px">
         <option value="">—</option>
-        <option value="Efectivo" ${v.formaPago==='Efectivo'?'selected':''}>💵 Efectivo</option>
-        <option value="Tarjeta" ${v.formaPago==='Tarjeta'||v.formaPago==='Débito'||v.formaPago==='Crédito'?'selected':''}>💳 Tarjeta</option>
-        <option value="Transferencia" ${v.formaPago==='Transferencia'?'selected':''}>🏦 Transferencia</option>
-        <option value="Link de pago" ${v.formaPago==='Link de pago'?'selected':''}>🔗 Link de pago</option>
+        <option value="Efectivo" ${v.formaPago==='Efectivo'?'selected':''}>Efectivo</option>
+        <option value="Tarjeta" ${v.formaPago==='Tarjeta'||v.formaPago==='Débito'||v.formaPago==='Crédito'?'selected':''}>Tarjeta</option>
+        <option value="Transferencia" ${v.formaPago==='Transferencia'?'selected':''}>Transferencia</option>
+        <option value="Link de pago" ${v.formaPago==='Link de pago'?'selected':''}>Link de pago</option>
         <option value="Mercado Pago" ${v.formaPago==='Mercado Pago'?'selected':''}>💙 Mercado Pago</option>
-        <option value="Cargo a rooms" ${v.formaPago==='Cargo a rooms'?'selected':''}>🏨 Cargo a rooms (hotel)</option>
-        <option value="Cargo a habitación" ${v.formaPago==='Cargo a habitación'?'selected':''}>🛏 Cargo a habitación (huésped)</option>
-        <option value="Cuenta corriente" ${v.formaPago==='Cuenta corriente'?'selected':''}>📋 Cuenta corriente</option>
+        <option value="Cargo a rooms" ${v.formaPago==='Cargo a rooms'?'selected':''}>Cargo a rooms (hotel)</option>
+        <option value="Cargo a habitación" ${v.formaPago==='Cargo a habitación'?'selected':''}>Cargo a habitación (huésped)</option>
+        <option value="Cuenta corriente" ${v.formaPago==='Cuenta corriente'?'selected':''}>Cuenta corriente</option>
       </select>
     </td>
     <td>
       <select class="form-select" onchange="updV(${i},'facturado',this.value)" style="min-width:90px;font-size:12px">
         <option value="" ${!v.facturado?'selected':''}>—</option>
-        <option value="Sí" ${v.facturado==='Sí'?'selected':''}>✅ Sí</option>
+        <option value="Sí" ${v.facturado==='Sí'?'selected':''}>Sí</option>
         <option value="No" ${v.facturado==='No'?'selected':''}>❌ No</option>
       </select>
     </td>
@@ -6116,12 +6145,12 @@ function renderVentas(){
       <select class="form-select" onchange="updV(${i},'taxiFlete',this.value)" style="min-width:100px;font-size:12px">
         <option value="" ${!v.taxiFlete?'selected':''}>—</option>
         <option value="Taxi" ${v.taxiFlete==='Taxi'?'selected':''}>🚕 Taxi</option>
-        <option value="Flete" ${v.taxiFlete==='Flete'?'selected':''}>🚚 Flete</option>
+        <option value="Flete" ${v.taxiFlete==='Flete'?'selected':''}>Flete</option>
       </select>
       <input class="form-input" value="${esc(v.envioCosto||'')}" onchange="updV(${i},'envioCosto',this.value)" placeholder="$ costo envío" style="width:100px;margin-top:4px;font-size:11px" title="Costo del taxi/flete (para el cierre de mes)">
     </td>
     <td style="white-space:nowrap">
-      <button class="btn-icon" onclick="openEditSaleModal(${i})" title="Editar" style="color:var(--sage-dark)">✏️</button>
+      <button class="btn-icon" onclick="openEditSaleModal(${i})" title="Editar" style="color:var(--sage-dark)"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/></svg></button>
       <button class="btn-icon" style="color:var(--red-alert)" onclick="delVenta(${i})">✕</button>
     </td>
   </tr>`).join('');
@@ -6177,11 +6206,11 @@ function ventasCierreMes(){
   // Bloque de facturación + envíos (solo se muestra lo que tenga datos).
   const factHTML = `
     <div style="margin-top:14px;padding:12px 14px;background:#FBFAF8;border:1px solid var(--light-gray);border-radius:8px;font-size:13px">
-      <div style="display:flex;justify-content:space-between;padding:4px 0"><span>✅ Facturado <span style="color:var(--mid-gray);font-size:11px">· ${factList.length}</span></span><strong>$${factTotal.toLocaleString('es-AR')}</strong></div>
-      <div style="display:flex;justify-content:space-between;padding:4px 0;color:${pendTotal>0?'var(--red-alert)':'inherit'}"><span>🧾 Sin facturar <span style="font-size:11px;opacity:.8">· ${pendList.length}</span></span><strong>$${pendTotal.toLocaleString('es-AR')}</strong></div>
-      ${enviosTotal>0 ? `<div style="display:flex;justify-content:space-between;padding:4px 0;border-top:1px dashed var(--light-gray);margin-top:4px"><span>🚚 Envíos (taxi/flete) <span style="color:var(--mid-gray);font-size:11px">· ${enviosCount}</span></span><strong style="color:var(--red-alert)">− $${enviosTotal.toLocaleString('es-AR')}</strong></div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0"><span>Facturado <span style="color:var(--mid-gray);font-size:11px">· ${factList.length}</span></span><strong>$${factTotal.toLocaleString('es-AR')}</strong></div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0;color:${pendTotal>0?'var(--red-alert)':'inherit'}"><span>Sin facturar <span style="font-size:11px;opacity:.8">· ${pendList.length}</span></span><strong>$${pendTotal.toLocaleString('es-AR')}</strong></div>
+      ${enviosTotal>0 ? `<div style="display:flex;justify-content:space-between;padding:4px 0;border-top:1px dashed var(--light-gray);margin-top:4px"><span>Envíos (taxi/flete) <span style="color:var(--mid-gray);font-size:11px">· ${enviosCount}</span></span><strong style="color:var(--red-alert)">− $${enviosTotal.toLocaleString('es-AR')}</strong></div>
       <div style="display:flex;justify-content:space-between;padding:4px 0"><span>Neto (ventas − envíos)</span><strong>$${(totalGen-enviosTotal).toLocaleString('es-AR')}</strong></div>` : ''}
-      ${conMargen.length ? `<div style="display:flex;justify-content:space-between;padding:4px 0;border-top:1px dashed var(--light-gray);margin-top:4px"><span>💰 Ganancia estimada <span style="color:var(--mid-gray);font-size:11px">· ${conMargen.length} c/composición</span></span><strong style="color:var(--green-ok)">$${Math.round(gananciaTotal).toLocaleString('es-AR')}</strong></div>` : ''}
+      ${conMargen.length ? `<div style="display:flex;justify-content:space-between;padding:4px 0;border-top:1px dashed var(--light-gray);margin-top:4px"><span>Ganancia estimada <span style="color:var(--mid-gray);font-size:11px">· ${conMargen.length} c/composición</span></span><strong style="color:var(--green-ok)">$${Math.round(gananciaTotal).toLocaleString('es-AR')}</strong></div>` : ''}
     </div>`;
 
   window._ventasCierreTexto = `📊 Cierre ${fmtMonth(mes)}\n`
@@ -6195,7 +6224,7 @@ function ventasCierreMes(){
   if(!ov){ ov=document.createElement('div'); ov.id='ventas-cierre-modal'; ov.className='modal-overlay'; document.body.appendChild(ov); }
   ov.innerHTML = `<div class="modal" style="max-width:460px">
     <button class="modal-close" onclick="closeModal('ventas-cierre-modal')">✕</button>
-    <div class="modal-title">📊 Cierre de mes · ${fmtMonth(mes)}</div>
+    <div class="modal-title">Cierre de mes · ${fmtMonth(mes)}</div>
     <div style="font-size:12px;color:var(--mid-gray);margin:-6px 0 14px">Cobranzas por forma de pago</div>
     ${filasHTML}
     <div style="display:flex;justify-content:space-between;align-items:baseline;padding:12px 0 0;margin-top:6px;border-top:2px solid var(--charcoal);font-size:17px">
@@ -6205,7 +6234,7 @@ function ventasCierreMes(){
     ${factHTML}
     <div class="modal-actions" style="margin-top:18px">
       <button class="btn-secondary" onclick="closeModal('ventas-cierre-modal')">Cerrar</button>
-      <button class="btn-add" onclick="ventasCierreCopiar()">📋 Copiar resumen</button>
+      <button class="btn-add" onclick="ventasCierreCopiar()">Copiar resumen</button>
     </div>
   </div>`;
   ov.classList.add('open');
@@ -6483,9 +6512,9 @@ function renderCaja(){
   const sumEl=document.getElementById('caja-summary');
   sumEl.innerHTML=`
     <div class="card"><div class="card-label">↩️ Saldo anterior</div><div class="card-value ${arrastre>=0?'green':'red'}" style="font-size:22px">$${arrastre.toLocaleString('es-AR')}</div></div>
-    <div class="card"><div class="card-label">💚 Ingresos del mes</div><div class="card-value green" style="font-size:24px">$${inMes.toLocaleString('es-AR')}</div></div>
-    <div class="card"><div class="card-label">🔴 Egresos del mes</div><div class="card-value red" style="font-size:24px">$${egMes.toLocaleString('es-AR')}</div></div>
-    <div class="card"><div class="card-label">💰 Saldo Actual</div><div class="card-value ${saldoFinal>=0?'green':'red'}" style="font-size:24px">$${saldoFinal.toLocaleString('es-AR')}</div></div>`;
+    <div class="card"><div class="card-label">Ingresos del mes</div><div class="card-value green" style="font-size:24px">$${inMes.toLocaleString('es-AR')}</div></div>
+    <div class="card"><div class="card-label">Egresos del mes</div><div class="card-value red" style="font-size:24px">$${egMes.toLocaleString('es-AR')}</div></div>
+    <div class="card"><div class="card-label">Saldo Actual</div><div class="card-value ${saldoFinal>=0?'green':'red'}" style="font-size:24px">$${saldoFinal.toLocaleString('es-AR')}</div></div>`;
 
   renderCajaHistorial(older, runByIdx);
 }
@@ -6687,7 +6716,7 @@ function getGaleriaSectorOpts(current){
   const extra = cur && !all.includes(cur) ? `<option value="${esc(cur)}" selected>${esc(cur)}</option>` : '';
   return `<option value="">— Área del hotel —</option>` + extra +
     all.map(z=>`<option value="${esc(z)}"${z===cur?' selected':''}>${esc(z)}</option>`).join('') +
-    `<option value="__otra__">✏️ Otra (escribir)...</option>`;
+    `<option value="__otra__">Otra (escribir)...</option>`;
 }
 
 function renderGaleria(){
@@ -6723,10 +6752,10 @@ function renderGaleria(){
       const chips = galMateriaPrima(g).length ? galMateriaPrima(g) : flores;
       const _sd = galSecDe(g);
       const secBadge = _sd==='hotel'
-        ? `<span style="background:#E8EEF4;color:#2C5A80;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600">🏨 Hotel</span>`
+        ? `<span style="background:#E8EEF4;color:#2C5A80;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600">Hotel</span>`
         : _sd==='ramos'
-        ? `<span style="background:var(--sage-light);color:#3A5A3A;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600">💐 Ramo</span>`
-        : `<span style="background:var(--blush-light);color:#7A3A2A;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600">🎉 Evento</span>`;
+        ? `<span style="background:var(--sage-light);color:#3A5A3A;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600">Ramo</span>`
+        : `<span style="background:var(--blush-light);color:#7A3A2A;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600">Evento</span>`;
       return `<div style="break-inside:avoid;margin-bottom:16px;border-radius:var(--radius-md);overflow:hidden;background:var(--warm-white);border:1px solid var(--light-gray);box-shadow:var(--shadow-sm);cursor:pointer;transition:var(--transition)" onclick="openFichaGaleria(${realIdx})" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='var(--shadow-md)'" onmouseout="this.style.transform='';this.style.boxShadow='var(--shadow-sm)'">
         ${foto
           ? `<img src="${foto}" style="width:100%;display:block;object-fit:cover;max-height:380px" loading="lazy">`
@@ -6744,9 +6773,9 @@ function renderGaleria(){
           <div style="display:flex;justify-content:space-between;align-items:center">
             <span style="font-size:11px;color:var(--mid-gray)">${g.precio?esc(g.precio):(g.fecha?fmtDate(g.fecha):'')}</span>
             <div style="display:flex;gap:4px" onclick="event.stopPropagation()">
-              ${(g.fotos&&g.fotos.length>1)?`<span style="font-size:10px;color:var(--mid-gray);padding:2px 6px">📷 ${g.fotos.length}</span>`:''}
-              <button class="btn-icon" onclick="editarGaleria(${realIdx})" title="Editar">✏️</button>
-              <button class="btn-icon" style="color:var(--red-alert)" onclick="eliminarGaleria(${realIdx})" title="Eliminar">🗑</button>
+              ${(g.fotos&&g.fotos.length>1)?`<span style="font-size:10px;color:var(--mid-gray);padding:2px 6px">${g.fotos.length}</span>`:''}
+              <button class="btn-icon" onclick="editarGaleria(${realIdx})" title="Editar"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/></svg></button>
+              <button class="btn-icon" style="color:var(--red-alert)" onclick="eliminarGaleria(${realIdx})" title="Eliminar"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg></button>
             </div>
           </div>
         </div>
@@ -6792,8 +6821,8 @@ function openFichaGaleria(idx){
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:6px">
       <div class="modal-title" style="margin:0">${esc(g.titulo||'Ficha de arreglo')}</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <button class="btn-secondary" style="font-size:12px" onclick="imprimirFicha(${idx})">🖨 Imprimir</button>
-        <button class="btn-secondary" style="font-size:12px" onclick="closeModal('ficha-galeria-modal');editarGaleria(${idx})">✏️ Editar</button>
+        <button class="btn-secondary" style="font-size:12px" onclick="imprimirFicha(${idx})">Imprimir</button>
+        <button class="btn-secondary" style="font-size:12px" onclick="closeModal('ficha-galeria-modal');editarGaleria(${idx})">Editar</button>
       </div>
     </div>
     <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start">
@@ -6913,9 +6942,9 @@ function openGaleriaModal(idx){
     <div class="modal-row">
       <div class="form-group"><label class="form-label">Sección *</label>
         <select class="form-input-modal" id="gal-seccion">
-          <option value="hotel"${sec==='hotel'?' selected':''}>🏨 Standard Hotel</option>
-          <option value="eventos"${sec==='eventos'?' selected':''}>🎉 Eventos</option>
-          <option value="ramos"${sec==='ramos'?' selected':''}>💐 Ramos</option>
+          <option value="hotel"${sec==='hotel'?' selected':''}>Standard Hotel</option>
+          <option value="eventos"${sec==='eventos'?' selected':''}>Eventos</option>
+          <option value="ramos"${sec==='ramos'?' selected':''}>Ramos</option>
         </select></div>
       <div class="form-group"><label class="form-label">Título del arreglo *</label>
         <input class="form-input-modal" id="gal-titulo" value="${esc(g.titulo||'')}" placeholder="ej. Lobby de Alvear — Follaje"></div>
@@ -6976,8 +7005,7 @@ function openGaleriaModal(idx){
         </div>`).join('')}
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <label class="btn-secondary" style="cursor:pointer;font-size:12px">
-          📷 Subir fotos <input type="file" accept="image/*" multiple style="display:none" onchange="galeriaAddFotos(${idx!=null?idx:'null'},this)">
+        <label class="btn-secondary" style="cursor:pointer;font-size:12px">Subir fotos <input type="file" accept="image/*" multiple style="display:none" onchange="galeriaAddFotos(${idx!=null?idx:'null'},this)">
         </label>
         <span style="color:var(--mid-gray);font-size:12px">o</span>
         <div style="display:flex;gap:6px;flex:1;min-width:180px">
@@ -7224,7 +7252,7 @@ function renderRecepcionPedidos(){
     return `<div class="recep-pedido" id="recep-pedido-${globalIdx}">
       <div class="recep-pedido-header">
         <div>
-          <div class="recep-pedido-title">📦 ${esc(order.prod)}</div>
+          <div class="recep-pedido-title">${esc(order.prod)}</div>
           <div class="recep-pedido-meta">${esc(order.fecha)} · ${esc(order.prov||'Sin proveedor')} · ${esc(order.sector||'')} ${estadoBadge}</div>
         </div>
         <div style="text-align:right">
@@ -7284,17 +7312,17 @@ function renderRecepcionPedidos(){
             : '<span style="color:var(--mid-gray)">Pendiente — tildá para registrar</span>'}
         </div>
         ${st.checked && totalVaras > 0
-          ? `<button onclick="recepConfirmar(${globalIdx})" style="background:#B8853A;color:white;border:none;border-radius:6px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap">🔎 Controlar · ${totalVaras} varas</button>`
+          ? `<button onclick="recepConfirmar(${globalIdx})" style="background:#B8853A;color:white;border:none;border-radius:6px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap">Controlar · ${totalVaras} varas</button>`
           : ''}
       </div>
       <div style="padding:8px 14px;border-top:1px solid var(--light-gray);display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:${order.recepAlerta?'rgba(200,60,60,.06)':'transparent'}">
         <label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:${order.recepAlerta?'var(--red-alert)':'var(--mid-gray)'};cursor:pointer;white-space:nowrap">
-          <input type="checkbox" ${order.recepAlerta?'checked':''} onchange="recepToggleMal(${globalIdx}, this.checked)"> ⚠️ Mal estado
+          <input type="checkbox" ${order.recepAlerta?'checked':''} onchange="recepToggleMal(${globalIdx}, this.checked)"> Mal estado
         </label>
         <input class="form-input" value="${esc(order.recepObs||'')}" placeholder="Aclaración (ej: vino golpeado, marchito, faltante…)" onchange="recepUpdObs(${globalIdx}, this.value)" style="flex:1;min-width:160px;font-size:12px">
         ${order.recepFoto
-          ? `<button class="btn-secondary" style="font-size:11px;padding:5px 9px" onclick="verFotoRecep(${globalIdx})">📷 Ver</button><button class="btn-icon" style="color:var(--red-alert)" onclick="recepQuitarFoto(${globalIdx})" title="Quitar foto">✕</button>`
-          : `<label class="btn-secondary" style="font-size:11px;padding:5px 9px;cursor:pointer;white-space:nowrap">📷 Foto<input type="file" accept="image/*" capture="environment" style="display:none" onchange="recepFotoInput(${globalIdx}, this)"></label>`}
+          ? `<button class="btn-secondary" style="font-size:11px;padding:5px 9px" onclick="verFotoRecep(${globalIdx})">Ver</button><button class="btn-icon" style="color:var(--red-alert)" onclick="recepQuitarFoto(${globalIdx})" title="Quitar foto">✕</button>`
+          : `<label class="btn-secondary" style="font-size:11px;padding:5px 9px;cursor:pointer;white-space:nowrap">Foto<input type="file" accept="image/*" capture="environment" style="display:none" onchange="recepFotoInput(${globalIdx}, this)"></label>`}
       </div>
     </div>`;
   }).join('');
@@ -7438,14 +7466,14 @@ function _renderRevisionRecep(controlados){
   const totalVaras = controlados.reduce((s,o)=>s+(parseFloat(o.totalVaras)||0),0);
   el.innerHTML = `
     <div style="background:#FBF7EE;border:1px solid #E7D9B8;border-radius:10px;padding:16px 18px;margin-top:22px">
-      <div style="font-weight:700;color:#8A6A1A;margin-bottom:4px">🔎 Revisión — ${controlados.length} ítem${controlados.length!==1?'s':''} controlado${controlados.length!==1?'s':''}, todavía SIN subir al stock</div>
+      <div style="font-weight:700;color:#8A6A1A;margin-bottom:4px">Revisión — ${controlados.length} ítem${controlados.length!==1?'s':''} controlado${controlados.length!==1?'s':''}, todavía SIN subir al stock</div>
       <div style="font-size:12px;color:var(--mid-gray);margin-bottom:12px">Segundo check: revisá el listado completo (que no falte nada ni haya un error) y recién ahí subilo al stock.</div>
       <div style="display:flex;flex-direction:column;gap:8px">
         ${controlados.map(o=>{
           const idx = o._idx;
           return `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;background:${o.recepAlerta?'rgba(200,60,60,.08)':'var(--warm-white)'};border:1px solid var(--light-gray);border-radius:8px;padding:8px 12px">
             <div style="flex:1;min-width:160px">
-              <div style="font-weight:600">${esc(o.prod)}${o.recepAlerta?' <span style="color:var(--red-alert);font-size:11px">⚠️ mal estado</span>':''}</div>
+              <div style="font-weight:600">${esc(o.prod)}${o.recepAlerta?' <span style="color:var(--red-alert);font-size:11px">mal estado</span>':''}</div>
               <div style="font-size:11px;color:var(--mid-gray)">${o.paqRecibidos||0} paq × ${o.varasPorPaq||1} = <strong>${o.totalVaras||0} varas</strong>${o.prov?' · '+esc(o.prov):''}${o.sector?' · '+esc(o.sector):''}</div>
               ${_recepFlagBadge(o, idx)}
             </div>
@@ -7455,7 +7483,7 @@ function _renderRevisionRecep(controlados){
       </div>
       <div style="text-align:center;margin-top:16px">
         <div style="font-size:12px;color:var(--mid-gray);margin-bottom:10px">Total a ingresar: <strong>${totalVaras} varas</strong></div>
-        <button class="btn-recep-confirm" onclick="recepSubirStockTodo()" style="font-size:14px;padding:12px 34px">✅ Confirmar y subir todo al stock</button>
+        <button class="btn-recep-confirm" onclick="recepSubirStockTodo()" style="font-size:14px;padding:12px 34px">Confirmar y subir todo al stock</button>
       </div>
     </div>`;
 }
@@ -7525,7 +7553,7 @@ function verFotoRecep(globalIdx){
   if(!ov){ ov=document.createElement('div'); ov.id='recep-foto-modal'; ov.className='modal-overlay'; document.body.appendChild(ov); }
   ov.innerHTML = `<div class="modal" style="max-width:560px;text-align:center">
     <button class="modal-close" onclick="closeModal('recep-foto-modal')">✕</button>
-    <div class="modal-title">📷 Recepción · ${esc(c.prod||'')}</div>
+    <div class="modal-title">Recepción · ${esc(c.prod||'')}</div>
     ${c.recepObs?`<div style="font-size:12px;color:${c.recepAlerta?'var(--red-alert)':'var(--mid-gray)'};margin:-6px 0 10px;font-weight:600">${c.recepAlerta?'⚠️ ':''}${esc(c.recepObs)}</div>`:''}
     <img src="${c.recepFoto}" style="max-width:100%;border-radius:8px">
   </div>`;
@@ -7542,7 +7570,7 @@ function _recepFlagBadge(r, idx){
   if(!r || !(r.recepAlerta || r.recepObs || r.recepFoto)) return '';
   const col = r.recepAlerta ? 'var(--red-alert)' : '#9A6A00';
   const lbl = r.recepAlerta ? '⚠️ Recibido en mal estado' : '📝 Obs. recepción';
-  const foto = r.recepFoto ? ` · <a onclick="verFotoRecep(${idx})" style="cursor:pointer;text-decoration:underline">📷 ver foto</a>` : '';
+  const foto = r.recepFoto ? ` · <a onclick="verFotoRecep(${idx})" style="cursor:pointer;text-decoration:underline">ver foto</a>` : '';
   const txt = r.recepObs ? ': '+esc(r.recepObs) : '';
   return `<div style="margin-top:3px;font-size:11px;font-weight:600;color:${col}">${lbl}${txt}${foto}</div>`;
 }
@@ -7842,7 +7870,7 @@ function renderAlertasUrgentesJard(){
   const esGerencia = userRole==='gerencia';
   const html = activas.length ? `
     <div class="jalert-wrap">
-      <div class="jalert-hdr">🚨 ${activas.length} ${activas.length===1?'atención urgente':'atenciones urgentes'} del jardín</div>
+      <div class="jalert-hdr">${activas.length} ${activas.length===1?'atención urgente':'atenciones urgentes'} del jardín</div>
       ${activas.map(a=>`<div class="jalert-card">
         ${a.foto?`<img src="${a.foto}" class="jalert-foto" onclick="verFotoAlerta(${a.id})" alt="">`:''}
         <div class="jalert-body">
@@ -7969,11 +7997,11 @@ function renderLlamadosChecklist(){
   else lista = [];
   if(!lista.length){ el.innerHTML=''; return; }
   el.innerHTML = `<div class="jalert-wrap" style="border-color:#C99A00;background:#FFFBF0">
-    <div class="jalert-hdr" style="color:#8A6D00">⚠️ ${lista.length} ${lista.length===1?'llamado de atención':'llamados de atención'}</div>
+    <div class="jalert-hdr" style="color:#8A6D00">${lista.length} ${lista.length===1?'llamado de atención':'llamados de atención'}</div>
     ${lista.map(l=>`<div class="jalert-card">
       ${l.foto?`<img src="${l.foto}" class="jalert-foto" onclick="verFotoLlamado(${l.id})" alt="">`:''}
       <div class="jalert-body">
-        <div class="jalert-tipo">⚠️ ${esc(l.zona||'Arreglo')}</div>
+        <div class="jalert-tipo">${esc(l.zona||'Arreglo')}</div>
         ${userRole==='gerencia'?`<div class="jalert-zona">Para: ${esc(l.empleadoNombre)}</div>`:''}
         ${l.nota?`<div class="jalert-nota">${esc(l.nota)}</div>`:''}
         <div class="jalert-meta">${fmtDate(l.fecha)} · por ${esc(l.por||'gerencia')}</div>
@@ -8029,7 +8057,7 @@ function renderLlamadosEval(){
     const items = byPers[pers].sort((a,b)=>b.creado-a.creado);
     return `<div style="border:1px solid var(--light-gray);border-radius:10px;margin-bottom:12px;overflow:hidden">
       <div style="padding:10px 14px;background:#FFFBF0;display:flex;justify-content:space-between;align-items:center">
-        <strong style="color:#8A6D00">⚠️ ${esc(pers)}</strong>
+        <strong style="color:#8A6D00">${esc(pers)}</strong>
         <span style="font-size:12px;color:var(--mid-gray)">${items.length} llamado${items.length!==1?'s':''}</span>
       </div>
       <div style="display:flex;flex-direction:column">
@@ -8083,9 +8111,9 @@ function renderRecordatoriosJard(){
 
   document.getElementById('jrec-kpis').innerHTML = `
     <div class="cards-grid cards-grid-3" style="margin-bottom:24px">
-      <div class="card"><div class="card-label">🔴 Vencidos</div><div class="card-value red">${vencidos.length}</div><div class="card-sub">requieren atención ya</div></div>
-      <div class="card"><div class="card-label">🟡 Próximos</div><div class="card-value amber">${proximos.length}</div><div class="card-sub">en los próximos 3 días</div></div>
-      <div class="card"><div class="card-label">🟢 Al día</div><div class="card-value green">${ok.length}</div><div class="card-sub">sin vencer</div></div>
+      <div class="card"><div class="card-label">Vencidos</div><div class="card-value red">${vencidos.length}</div><div class="card-sub">requieren atención ya</div></div>
+      <div class="card"><div class="card-label">Próximos</div><div class="card-value amber">${proximos.length}</div><div class="card-sub">en los próximos 3 días</div></div>
+      <div class="card"><div class="card-label">Al día</div><div class="card-value green">${ok.length}</div><div class="card-sub">sin vencer</div></div>
     </div>`;
 
   // Cartel de recordatorios nuevos agregados por gerencia (para operarios)
@@ -8096,7 +8124,7 @@ function renderRecordatoriosJard(){
 
   const alertas = [...vencidos,...proximos];
   document.getElementById('jrec-alertas').innerHTML = nuevosBanner + (alertas.length
-    ? `<div class="section-title" style="margin-bottom:14px">⚠️ Alertas Activas</div>
+    ? `<div class="section-title" style="margin-bottom:14px">Alertas Activas</div>
        ${alertas.map(r=>{
          const idx=jardRecordatorios.indexOf(r);
          const est=recEstado(r);
@@ -8116,7 +8144,7 @@ function renderRecordatoriosJard(){
            </div>
          </div>`;
        }).join('')}`
-    : `<div class="jrec-all-ok">✅ Todo al día — sin alertas pendientes</div>`);
+    : `<div class="jrec-all-ok">Todo al día — sin alertas pendientes</div>`);
 
   // Al abrir la sección, el operario queda al día: se limpian badge y carteles
   if(nuevosSet.size) marcarRecordatoriosVistos();
@@ -8150,7 +8178,7 @@ function renderRecordatoriosJard(){
               <td>${r.ultimaVez?fmtDate(r.ultimaVez):'—'}</td>
               <td><span style="${color}">${proximo}</span></td>
               <td style="white-space:nowrap">
-                <button class="btn-icon" onclick="openRecordatorioModal(${i})" title="Editar">✏️</button>
+                <button class="btn-icon" onclick="openRecordatorioModal(${i})" title="Editar"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/></svg></button>
                 <button class="btn-icon" style="color:var(--red-alert)" onclick="deleteRecordatorio(${i})" title="Eliminar">✕</button>
               </td>
             </tr>`;
@@ -8316,8 +8344,8 @@ function urgenciaPanelHTML(scope){
         ⚙️ Umbrales de urgencia <span style="font-weight:400;color:#7A7A72">· ajustá según la estación (en verano se riega más seguido)</span>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <button class="btn-secondary" style="font-size:11px;padding:5px 10px" onclick="setUrgenciaPreset('verano')">☀️ Verano</button>
-        <button class="btn-secondary" style="font-size:11px;padding:5px 10px" onclick="setUrgenciaPreset('primavera')">🌸 Primavera</button>
+        <button class="btn-secondary" style="font-size:11px;padding:5px 10px" onclick="setUrgenciaPreset('verano')">Verano</button>
+        <button class="btn-secondary" style="font-size:11px;padding:5px 10px" onclick="setUrgenciaPreset('primavera')">Primavera</button>
         <button class="btn-secondary" style="font-size:11px;padding:5px 10px" onclick="setUrgenciaPreset('otono')">🍂 Otoño</button>
         <button class="btn-secondary" style="font-size:11px;padding:5px 10px" onclick="setUrgenciaPreset('invierno')">❄️ Invierno</button>
       </div>
@@ -8544,12 +8572,12 @@ function openGestionTareasJard(){
         const r = jardineriaData[i];
         return `<div style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--warm-white)">
           <div style="flex:1;min-width:0;font-size:12.5px;color:var(--charcoal)">${esc(r.task)}</div>
-          <button class="btn-icon" title="Renombrar" onclick="jardRenameTarea(${i})">✏️</button>
+          <button class="btn-icon" title="Renombrar" onclick="jardRenameTarea(${i})"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/></svg></button>
           <button class="btn-icon" style="color:var(--red-alert)" title="Eliminar" onclick="jardDeleteTarea(${i})">✕</button>
         </div>`;
       }).join('');
       return `<div style="margin:6px 0;border:1px solid var(--light-gray);border-radius:8px;overflow:hidden">
-        <div style="padding:7px 12px;background:var(--cream);font-size:12px;font-weight:600;color:var(--charcoal)">🌿 ${esc(grp)}</div>
+        <div style="padding:7px 12px;background:var(--cream);font-size:12px;font-weight:600;color:var(--charcoal)">${esc(grp)}</div>
         <div style="display:flex;flex-direction:column;gap:1px;background:var(--light-gray)">${tareasHTML}</div>
         <div style="padding:6px 12px;background:var(--warm-white)"><button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="jardAddTarea('${secEsc}','${grpEsc}')">+ Agregar tarea</button></div>
       </div>`;
@@ -8563,7 +8591,7 @@ function openGestionTareasJard(){
   }).join('');
   ov.innerHTML = `<div class="modal" style="max-width:620px;max-height:88vh;overflow-y:auto">
     <button class="modal-close" onclick="closeModal('gestion-tareas-jard-modal')">✕</button>
-    <div class="modal-title">🗂 Gestionar tareas de jardinería</div>
+    <div class="modal-title">Gestionar tareas de jardinería</div>
     <div style="font-size:12px;color:var(--mid-gray);margin-bottom:14px">Agregá, renombrá o eliminá las tareas que hacen los jardineros. Los cambios se aplican para todos y se sincronizan con el equipo.</div>
     ${secHTML}
     <div style="margin-top:8px"><button class="btn-add" style="font-size:12px;padding:8px 16px" onclick="jardAddSeccion()">+ Agregar sección / zona</button></div>
@@ -8582,9 +8610,9 @@ function renderJardOps(){
   });
   const kpisEl = document.getElementById('jops-kpis');
   if(kpisEl) kpisEl.innerHTML=`
-    <div class="card"><div class="card-label">🔴 Urgente</div><div class="card-value red" style="font-size:32px">${kAlert}</div><div class="card-sub">intervenir hoy</div></div>
-    <div class="card"><div class="card-label">🟡 Próxima</div><div class="card-value amber" style="font-size:32px">${kWarn}</div><div class="card-sub">requieren visita pronto</div></div>
-    <div class="card"><div class="card-label">🟢 Al día</div><div class="card-value green" style="font-size:32px">${kOk}</div><div class="card-sub">zonas recientes</div></div>`;
+    <div class="card"><div class="card-label">Urgente</div><div class="card-value red" style="font-size:32px">${kAlert}</div><div class="card-sub">intervenir hoy</div></div>
+    <div class="card"><div class="card-label">Próxima</div><div class="card-value amber" style="font-size:32px">${kWarn}</div><div class="card-sub">requieren visita pronto</div></div>
+    <div class="card"><div class="card-label">Al día</div><div class="card-value green" style="font-size:32px">${kOk}</div><div class="card-sub">zonas recientes</div></div>`;
 
   const statusOrder = {alert:0, warn:1, ok:2, none:3};
 
@@ -8658,7 +8686,7 @@ function renderJardOps(){
       const enPlan = jardEnPlanHoy(r);
       const planCtrl = userRole==='gerencia'
         ? `<button class="btn-icon" title="${enPlan?'Quitar del plan de hoy':'Marcar para hoy'}" style="flex-shrink:0;font-size:14px" onclick="jardTogglePlanHoy(${i})">${enPlan?'📌':'☆'}</button>`
-        : (enPlan?'<span style="flex-shrink:0;font-size:12px;background:#EBF0E8;color:var(--sage-dark);padding:2px 7px;border-radius:8px;font-weight:600">📌 Hoy</span>':'');
+        : (enPlan?'<span style="flex-shrink:0;font-size:12px;background:#EBF0E8;color:var(--sage-dark);padding:2px 7px;border-radius:8px;font-weight:600">Hoy</span>':'');
       const taskEl = document.createElement('div');
       taskEl.style.cssText = 'background:var(--warm-white);padding:14px;display:flex;flex-direction:column;gap:8px'+(enPlan?';box-shadow:inset 3px 0 0 var(--sage-dark)':'');
       taskEl.innerHTML = `
@@ -8667,7 +8695,7 @@ function renderJardOps(){
           ${planCtrl}
           <span style="flex-shrink:0;font-size:15px" title="Estado">${badge.status==='ok'?'🟢':badge.status==='warn'?'🟡':badge.status==='alert'?'🔴':'⚪'}</span>
         </div>
-        <div style="font-size:11px;color:var(--mid-gray)">📅 ${r.last?fmtDate(r.last):'<em>Sin registro</em>'} · 📊 ${getMonthVisits(r)} este mes</div>
+        <div style="font-size:11px;color:var(--mid-gray)">${r.last?fmtDate(r.last):'<em>Sin registro</em>'} · 📊 ${getMonthVisits(r)} este mes</div>
         <textarea id="jops-obs-${i}" class="cl-obs-input" placeholder="Observaciones..." style="width:100%;font-size:12px;resize:vertical;min-height:44px;padding:5px 7px;border-radius:4px;border:1px solid var(--light-gray);font-family:inherit;background:var(--warm-white)"
           onchange="jardineriaData[${i}].obs=this.value">${esc(r.obs||'')}</textarea>
         <div style="display:flex;gap:8px;align-items:center">
@@ -9095,11 +9123,11 @@ function renderCtrlJard(){
   });
   const totalMesJard = jardineriaData.reduce((s,r)=>s+getMonthVisits(r),0);
   document.getElementById('ctrl-jard-kpis').innerHTML=urgenciaPanelHTML('jard')+`
-    <div class="card"><div class="card-label">🟢 Al día</div><div class="card-value green" style="font-size:32px">${kOk}</div><div class="card-sub">zonas recientes</div></div>
-    <div class="card"><div class="card-label">🟡 Próxima</div><div class="card-value amber" style="font-size:32px">${kWarn}</div><div class="card-sub">requieren visita pronto</div></div>
-    <div class="card"><div class="card-label">🔴 Urgente</div><div class="card-value red" style="font-size:32px">${kAlert}</div><div class="card-sub">intervenir hoy</div></div>
-    <div class="card"><div class="card-label">⚪ Sin registro</div><div class="card-value" style="font-size:32px;color:var(--mid-gray)">${kNone}</div><div class="card-sub">primer registro pendiente</div></div>
-    <div class="card"><div class="card-label">📊 Visitas este mes</div><div class="card-value" style="font-size:32px;color:var(--charcoal)">${totalMesJard}</div><div class="card-sub">${fmtMonth(CURR_MONTH)}</div></div>`;
+    <div class="card"><div class="card-label">Al día</div><div class="card-value green" style="font-size:32px">${kOk}</div><div class="card-sub">zonas recientes</div></div>
+    <div class="card"><div class="card-label">Próxima</div><div class="card-value amber" style="font-size:32px">${kWarn}</div><div class="card-sub">requieren visita pronto</div></div>
+    <div class="card"><div class="card-label">Urgente</div><div class="card-value red" style="font-size:32px">${kAlert}</div><div class="card-sub">intervenir hoy</div></div>
+    <div class="card"><div class="card-label">Sin registro</div><div class="card-value" style="font-size:32px;color:var(--mid-gray)">${kNone}</div><div class="card-sub">primer registro pendiente</div></div>
+    <div class="card"><div class="card-label">Visitas este mes</div><div class="card-value" style="font-size:32px;color:var(--charcoal)">${totalMesJard}</div><div class="card-sub">${fmtMonth(CURR_MONTH)}</div></div>`;
 
   const tbody=document.getElementById('ctrl-jard-body');
   tbody.innerHTML='';
@@ -9130,7 +9158,7 @@ function renderCtrlJard(){
       lastGroup=r.group;
       const gr=document.createElement('tr');
       gr.className='ctrl-group-row';
-      gr.innerHTML=`<td colspan="7">🌿 ${esc(r.group)}</td>`;
+      gr.innerHTML=`<td colspan="7">${esc(r.group)}</td>`;
       tbody.appendChild(gr);
     }
 
@@ -9274,9 +9302,9 @@ function renderHabOps(){
   });
   const kpisEl = document.getElementById('hops-kpis');
   if(kpisEl) kpisEl.innerHTML=`
-    <div class="card"><div class="card-label">🔴 Urgente</div><div class="card-value red" style="font-size:32px">${kAlert}</div><div class="card-sub">visitar hoy</div></div>
-    <div class="card"><div class="card-label">🟡 Próxima</div><div class="card-value amber" style="font-size:32px">${kWarn}</div><div class="card-sub">próxima visita</div></div>
-    <div class="card"><div class="card-label">🟢 Al día</div><div class="card-value green" style="font-size:32px">${kOk}</div><div class="card-sub">al día</div></div>`;
+    <div class="card"><div class="card-label">Urgente</div><div class="card-value red" style="font-size:32px">${kAlert}</div><div class="card-sub">visitar hoy</div></div>
+    <div class="card"><div class="card-label">Próxima</div><div class="card-value amber" style="font-size:32px">${kWarn}</div><div class="card-sub">próxima visita</div></div>
+    <div class="card"><div class="card-label">Al día</div><div class="card-value green" style="font-size:32px">${kOk}</div><div class="card-sub">al día</div></div>`;
 
   const statusOrder = {alert:0, warn:1, ok:2, none:3};
   const sorted = habitacionesData
@@ -9298,13 +9326,13 @@ function renderHabOps(){
 
     card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-        <div style="font-size:20px;font-weight:600;color:var(--charcoal);font-family:'Cormorant Garamond',serif">🛏 Hab. ${esc(r.hab)}</div>
+        <div style="font-size:20px;font-weight:600;color:var(--charcoal);font-family:'Cormorant Garamond',serif">Hab. ${esc(r.hab)}</div>
         <span class="days-badge ${badge.cls}" style="flex-shrink:0">${badge.label}</span>
       </div>
-      ${r.comentarioHK ? `<div style="background:#FDF3E3;border:1px solid #E9D8B0;border-radius:6px;padding:8px 11px;font-size:12.5px;color:#8A5A16;line-height:1.4"><strong>🧹 Housekeeping:</strong> ${esc(r.comentarioHK)}</div>` : ''}
+      ${r.comentarioHK ? `<div style="background:#FDF3E3;border:1px solid #E9D8B0;border-radius:6px;padding:8px 11px;font-size:12.5px;color:#8A5A16;line-height:1.4"><strong>Housekeeping:</strong> ${esc(r.comentarioHK)}</div>` : ''}
       <div style="display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--mid-gray)">
-        <span>📅 Última visita: ${r.last ? fmtDate(r.last) : '<em>Sin registro</em>'}</span>
-        <span style="font-family:'Cormorant Garamond',serif;font-size:16px;color:var(--charcoal)" title="Visitas este mes">📊 ${monthVisits} <span style="font-size:10px;color:var(--mid-gray)">este mes</span></span>
+        <span>Última visita: ${r.last ? fmtDate(r.last) : '<em>Sin registro</em>'}</span>
+        <span style="font-family:'Cormorant Garamond',serif;font-size:16px;color:var(--charcoal)" title="Visitas este mes">${monthVisits} <span style="font-size:10px;color:var(--mid-gray)">este mes</span></span>
       </div>
       <textarea id="hops-obs-${i}" class="cl-obs-input" placeholder="Observaciones..." style="width:100%;font-size:12px;resize:vertical;min-height:44px;padding:5px 7px;border-radius:4px;border:1px solid var(--light-gray);font-family:inherit;background:var(--warm-white)"
         onchange="habitacionesData[${i}].notas=this.value">${esc(r.notas||'')}</textarea>
@@ -9379,11 +9407,11 @@ function renderCtrlHab(){
 
   const totalMesHab = habitacionesData.reduce((s,r)=>s+getMonthVisits(r),0);
   document.getElementById('ctrl-hab-kpis').innerHTML=urgenciaPanelHTML('hab')+`
-    <div class="card"><div class="card-label">🟢 Al día</div><div class="card-value green" style="font-size:32px">${kOk}</div><div class="card-sub">visitadas recientemente</div></div>
-    <div class="card"><div class="card-label">🟡 Próxima</div><div class="card-value amber" style="font-size:32px">${kWarn}</div><div class="card-sub">programar ingreso</div></div>
-    <div class="card"><div class="card-label">🔴 Urgente</div><div class="card-value red" style="font-size:32px">${kAlert}</div><div class="card-sub">ingresar esta semana</div></div>
+    <div class="card"><div class="card-label">Al día</div><div class="card-value green" style="font-size:32px">${kOk}</div><div class="card-sub">visitadas recientemente</div></div>
+    <div class="card"><div class="card-label">Próxima</div><div class="card-value amber" style="font-size:32px">${kWarn}</div><div class="card-sub">programar ingreso</div></div>
+    <div class="card"><div class="card-label">Urgente</div><div class="card-value red" style="font-size:32px">${kAlert}</div><div class="card-sub">ingresar esta semana</div></div>
     <div class="card"><div class="card-label">Total registradas</div><div class="card-value" style="font-size:32px">${habitacionesData.length}</div><div class="card-sub">habitaciones con plantas</div></div>
-    <div class="card"><div class="card-label">📊 Visitas este mes</div><div class="card-value" style="font-size:32px;color:var(--charcoal)">${totalMesHab}</div><div class="card-sub">${fmtMonth(CURR_MONTH)}</div></div>`;
+    <div class="card"><div class="card-label">Visitas este mes</div><div class="card-value" style="font-size:32px;color:var(--charcoal)">${totalMesHab}</div><div class="card-sub">${fmtMonth(CURR_MONTH)}</div></div>`;
 
   const tbody=document.getElementById('ctrl-hab-body');
   tbody.innerHTML='';
@@ -9429,7 +9457,7 @@ function renderCtrlHab(){
       </td>
       <td>
         ${isHK
-          ? '<span style="color:var(--mid-gray);font-size:12px">👁 solo lectura</span>'
+          ? '<span style="color:var(--mid-gray);font-size:12px">solo lectura</span>'
           : `<div style="display:flex;gap:6px;align-items:center">
           <select id="hab-quien-${i}" class="cl-select" style="font-size:12px;padding:5px 8px;flex:1">
             <option value="">— Jardinero —</option>
@@ -9821,7 +9849,7 @@ function renderRamosDisp(){
           <div class="lp-price-input" style="font-weight:700;color:#1A1A1A">${esc(r.precio||'A consultar')}</div>
           <div class="lp-card-actions" style="display:flex;gap:6px">
             <button class="btn-add" style="padding:6px 12px;font-size:12px" onclick="openVentaRamo(${i})">✓ Vender</button>
-            ${userRole!=='ventas' ? `<button class="btn-icon" onclick="cambiarFotoRamo(${i})" title="Cambiar foto">📷</button>` : ''}
+            ${userRole!=='ventas' ? `<button class="btn-icon" onclick="cambiarFotoRamo(${i})" title="Cambiar foto"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><rect x="3" y="7" width="18" height="13" rx="2"/><circle cx="12" cy="13" r="3.5"/><path d="M8 7l1.5-2h5L16 7"/></svg></button>` : ''}
             ${userRole!=='ventas' ? `<button class="btn-icon" style="color:var(--red-alert)" onclick="delRamo(${i})" title="Descartar (no registra venta)">✕</button>` : ''}
           </div>
         </div>
@@ -9981,8 +10009,8 @@ function renderFloreros(){
           <span style="font-size:11px;color:var(--mid-gray)">en stock</span>
         </div>
         <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
-          <button class="btn-secondary" style="font-size:11px" onclick="openFloreroModal(${i})">✏️ Editar</button>
-          <button class="btn-icon" onclick="cambiarFotoFlorero(${i})" title="Cambiar foto">📷</button>
+          <button class="btn-secondary" style="font-size:11px" onclick="openFloreroModal(${i})">Editar</button>
+          <button class="btn-icon" onclick="cambiarFotoFlorero(${i})" title="Cambiar foto"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><rect x="3" y="7" width="18" height="13" rx="2"/><circle cx="12" cy="13" r="3.5"/><path d="M8 7l1.5-2h5L16 7"/></svg></button>
           <button class="btn-icon" style="color:var(--red-alert)" onclick="delFlorero(${i})" title="Eliminar">✕</button>
         </div>
       </div>
@@ -10113,8 +10141,8 @@ function renderVelas(){
           <span style="font-size:11px;color:var(--mid-gray)">en stock</span>
         </div>
         <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
-          <button class="btn-secondary" style="font-size:11px" onclick="openVelaModal(${i})">✏️ Editar</button>
-          <button class="btn-icon" onclick="cambiarFotoVela(${i})" title="Cambiar foto">📷</button>
+          <button class="btn-secondary" style="font-size:11px" onclick="openVelaModal(${i})">Editar</button>
+          <button class="btn-icon" onclick="cambiarFotoVela(${i})" title="Cambiar foto"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><rect x="3" y="7" width="18" height="13" rx="2"/><circle cx="12" cy="13" r="3.5"/><path d="M8 7l1.5-2h5L16 7"/></svg></button>
           <button class="btn-icon" style="color:var(--red-alert)" onclick="delVela(${i})" title="Eliminar">✕</button>
         </div>
       </div>
@@ -10358,7 +10386,7 @@ function calcularArreglosEvento(){
       ${precioUnit > 0 ? `<div style="display:flex;justify-content:space-between;margin-top:8px;font-size:13px">
         <span style="color:var(--mid-gray)">$${precioUnit.toLocaleString('es-AR')} c/u</span>
         <strong style="color:var(--charcoal)">$${subtotal.toLocaleString('es-AR')}</strong>
-      </div>` : '<div style="font-size:11px;color:var(--amber);margin-top:4px">⚠️ Sin precio configurado — consultar a florería</div>'}
+      </div>` : '<div style="font-size:11px;color:var(--amber);margin-top:4px">Sin precio configurado — consultar a florería</div>'}
     </div>`;
   }).join('');
 
@@ -10576,7 +10604,7 @@ function openFichaEmpleado(nombre, mesISO){
   const stars = m.evalProm!=null ? '★'.repeat(Math.round(m.evalProm))+'☆'.repeat(5-Math.round(m.evalProm)) : '—';
   ov.innerHTML = `<div class="modal" style="max-width:640px;max-height:88vh;overflow-y:auto">
     <button class="modal-close" onclick="closeModal('ficha-empleado-modal')">✕</button>
-    <div class="modal-title">👤 ${esc(nombre)}</div>
+    <div class="modal-title">${esc(nombre)}</div>
     <div style="font-size:12px;color:var(--mid-gray);margin-bottom:16px">Ficha del mes · ${esc(fmtMonth(mesISO))} · ${isJardinero(nombre)?'Jardinería':'Florería'}</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px">
       ${card('Asistencia', (m.asistencia!=null?m.asistencia+'%':'—'), `${m.diasFichados}/${m.diasProg} días fichados`, asisCol)}
@@ -10880,7 +10908,7 @@ function renderReportesStock(){
   _destroyChart('rep-st-critico');
   const ctx2=document.getElementById('rep-st-chart-critico')?.getContext('2d');
   if(ctx2&&topCrit.length){ _chartInstances['rep-st-critico']=new Chart(ctx2,{ type:'bar', indexAxis:'y', data:{ labels:topCrit.map(s=>s.nombre||s.producto||''), datasets:[{ label:'Disponible', data:topCrit.map(s=>s.cantidad||0), backgroundColor:'rgba(192,57,43,0.6)', borderColor:'#c0392b', borderWidth:2, borderRadius:3 }, { label:'Mínimo', data:topCrit.map(s=>s.minimo||0), backgroundColor:'rgba(101,130,90,0.3)', borderColor:'#65825A', borderWidth:2, borderRadius:3 }] }, options:{ responsive:true, plugins:{legend:{labels:{font:{size:11}}}}, scales:{ x:{beginAtZero:true,ticks:{font:{size:11}}}, y:{ticks:{font:{size:10}}} } } }); }
-  else if(ctx2){ ctx2.canvas.parentElement.innerHTML+='<div style="text-align:center;color:var(--green-ok);padding:20px;font-size:12px">✅ Sin ítems críticos</div>'; }
+  else if(ctx2){ ctx2.canvas.parentElement.innerHTML+='<div style="text-align:center;color:var(--green-ok);padding:20px;font-size:12px">Sin ítems críticos</div>'; }
 
   document.getElementById('rep-st-tabla').innerHTML=criticos.length?`<div class="table-wrapper"><table class="stock-table">
     <thead><tr><th>Producto</th><th>Disponible</th><th>Mínimo</th><th>Diferencia</th></tr></thead>
@@ -10976,12 +11004,12 @@ function openPushNotifModal(){
     ov=document.createElement('div'); ov.id='push-modal'; ov.className='modal-overlay';
     ov.innerHTML=`<div class="modal" style="max-width:400px">
       <button class="modal-close" onclick="closeModal('push-modal')">✕</button>
-      <div class="modal-title">🔔 Enviar Notificación</div>
+      <div class="modal-title">Enviar Notificación</div>
       <div class="form-group"><label class="form-label">Título</label><input class="form-input-modal" id="pn-titulo" placeholder="ej. Recordatorio de reunión"></div>
       <div class="form-group"><label class="form-label">Mensaje</label><textarea class="form-input-modal" id="pn-body" rows="3" placeholder="ej. Reunión de equipo a las 10:00"></textarea></div>
       <div class="modal-actions">
         <button class="btn-secondary" onclick="closeModal('push-modal')">Cancelar</button>
-        <button class="btn-add" onclick="enviarPushNotif()">📤 Enviar a todos</button>
+        <button class="btn-add" onclick="enviarPushNotif()">Enviar a todos</button>
       </div>
     </div>`;
     document.body.appendChild(ov);
@@ -11227,7 +11255,7 @@ function populatePHTipos(){
   const ramos = [...new Set((ramosDispData||[]).map(r=>r.nombre).filter(Boolean))];
   if(ramos.length){
     opts += '<optgroup label="💐 Ramos">';
-    ramos.forEach(n => { opts += `<option value="ramo:${esc(n)}">💐 ${esc(n)}</option>`; });
+    ramos.forEach(n => { opts += `<option value="ramo:${esc(n)}">${esc(n)}</option>`; });
     opts += '</optgroup>';
   }
   if(!recetasData.length && !ramos.length){
@@ -11274,9 +11302,9 @@ function renderPedidosHab(){
       ${isGerOrOps ? `<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
         <select class="form-input" style="width:170px;padding:5px 8px;font-size:12px" onchange="updPedidoHabEstado(${i},this.value)">
           <option value="pendiente" ${p.estado==='pendiente'?'selected':''}>⏳ Pendiente</option>
-          <option value="preparando" ${p.estado==='preparando'?'selected':''}>🔄 En preparación</option>
-          <option value="listo" ${p.estado==='listo'?'selected':''}>✅ Listo</option>
-          <option value="entregado" ${p.estado==='entregado'?'selected':''}>📦 Entregado</option>
+          <option value="preparando" ${p.estado==='preparando'?'selected':''}>En preparación</option>
+          <option value="listo" ${p.estado==='listo'?'selected':''}>Listo</option>
+          <option value="entregado" ${p.estado==='entregado'?'selected':''}>Entregado</option>
         </select>
         <button class="btn-icon" style="color:var(--red-alert);font-size:12px" onclick="delPedidoHab(${i})">✕ Eliminar</button>
       </div>` : ''}
@@ -11329,10 +11357,10 @@ function renderListaPrecios(){
         ? `<img class="lp-card-photo" src="${photos[0]}" onclick="lpOpenViewer(${ci},${realIdx},0)" style="cursor:pointer">`
         : (editable
           ? `<label class="lp-card-photo-placeholder">
-              <span style="font-size:28px">📷</span><span>Agregar foto</span>
+              <span style="font-size:28px"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><rect x="3" y="7" width="18" height="13" rx="2"/><circle cx="12" cy="13" r="3.5"/><path d="M8 7l1.5-2h5L16 7"/></svg></span><span>Agregar foto</span>
               <input type="file" accept="image/*" multiple style="display:none" onchange="lpAddPhotos(${ci},${realIdx},this)">
              </label>`
-          : `<div class="lp-card-photo-placeholder"><span style="font-size:28px">📷</span></div>`);
+          : `<div class="lp-card-photo-placeholder"><span style="font-size:28px"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><rect x="3" y="7" width="18" height="13" rx="2"/><circle cx="12" cy="13" r="3.5"/><path d="M8 7l1.5-2h5L16 7"/></svg></span></div>`);
 
       const photoStrip = photos.length > 1
         ? `<div class="lp-photo-strip">
@@ -11341,7 +11369,7 @@ function renderListaPrecios(){
                 <img src="${p}" onclick="lpOpenViewer(${ci},${realIdx},${pi})">
                 ${editable ? `<button class="lp-photo-del" onclick="lpRemovePhoto(${ci},${realIdx},${pi})">✕</button>` : ''}
               </div>`).join('')}
-            ${editable ? `<label class="lp-add-photo"><span style="font-size:20px">📷</span>+<input type="file" accept="image/*" multiple style="display:none" onchange="lpAddPhotos(${ci},${realIdx},this)"></label>` : ''}
+            ${editable ? `<label class="lp-add-photo"><span style="font-size:20px"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><rect x="3" y="7" width="18" height="13" rx="2"/><circle cx="12" cy="13" r="3.5"/><path d="M8 7l1.5-2h5L16 7"/></svg></span>+<input type="file" accept="image/*" multiple style="display:none" onchange="lpAddPhotos(${ci},${realIdx},this)"></label>` : ''}
           </div>` : '';
 
       if(editable){
@@ -11349,7 +11377,7 @@ function renderListaPrecios(){
           ${mainPhoto}
           ${photos.length===1?`<div class="lp-photo-strip">
             <div class="lp-photo-thumb"><img src="${photos[0]}" onclick="lpOpenViewer(${ci},${realIdx},0)"><button class="lp-photo-del" onclick="lpRemovePhoto(${ci},${realIdx},0)">✕</button></div>
-            <label class="lp-add-photo"><span style="font-size:20px">📷</span>+<input type="file" accept="image/*" multiple style="display:none" onchange="lpAddPhotos(${ci},${realIdx},this)"></label>
+            <label class="lp-add-photo"><span style="font-size:20px"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><rect x="3" y="7" width="18" height="13" rx="2"/><circle cx="12" cy="13" r="3.5"/><path d="M8 7l1.5-2h5L16 7"/></svg></span>+<input type="file" accept="image/*" multiple style="display:none" onchange="lpAddPhotos(${ci},${realIdx},this)"></label>
           </div>`:photoStrip}
           <div class="lp-card-body">
             <input class="lp-card-name" value="${esc(it.nombre)}" onchange="lpUpdItem(${ci},${realIdx},'nombre',this.value)">
@@ -12085,7 +12113,7 @@ function renderPlantilla(){
     <select onchange="horariosAddPersonaFromSel(this)" style="padding:6px 8px;border:1px solid var(--light-gray);border-radius:6px;font-size:12px;font-family:inherit;background:white">
       <option value="">— Elegí quién agregar —</option>
       ${candidatos.length ? '<optgroup label="Empleados">'+candidatos.map(n=>`<option value="${esc(n)}">${esc(n)}${isJardinero(n)?' · Jardinería':''}</option>`).join('')+'</optgroup>' : ''}
-      <option value="__otra__">✏️ Otra persona (escribir)…</option>
+      <option value="__otra__">Otra persona (escribir)…</option>
     </select>
   </div>`;
 
@@ -12107,7 +12135,7 @@ function renderPlantilla(){
         <td style="font-weight:600">
           <div style="display:flex;align-items:center;gap:6px">
             <span>${esc(nombre)}</span>
-            ${isJardinero(nombre) ? '<span style="font-size:9px;background:#EBF5E8;color:#2C6B3A;padding:1px 6px;border-radius:8px;font-weight:600;white-space:nowrap">🌿 Jard.</span>' : ''}
+            ${isJardinero(nombre) ? '<span style="font-size:9px;background:#EBF5E8;color:#2C6B3A;padding:1px 6px;border-radius:8px;font-weight:600;white-space:nowrap">Jard.</span>' : ''}
             <button class="btn-icon" title="Quitar de la lista de horarios" onclick="horariosRemovePersona('${esc(nombre)}')" style="color:var(--red-alert);font-size:12px;padding:0 4px;margin-left:auto">✕</button>
           </div>
         </td>
@@ -12288,7 +12316,7 @@ function openDiaHorario(iso){
 
   ov.innerHTML = `<div class="modal" style="max-width:500px">
     <button class="modal-close" onclick="document.getElementById('dia-horario-modal').classList.remove('open')">✕</button>
-    <div class="modal-title">📅 ${diaLabel}</div>
+    <div class="modal-title">${diaLabel}</div>
     <div style="font-size:12px;color:var(--mid-gray);margin-bottom:14px">Cargá las horas de cada empleado para este día.</div>
     <div style="display:flex;flex-direction:column;gap:10px">
       ${lista.map(nombre => {
@@ -12315,7 +12343,7 @@ function openDiaHorario(iso){
       }).join('')}
     </div>
     <div class="modal-actions" style="margin-top:16px">
-      <button class="btn-secondary" onclick="limpiarDiaHorario('${iso}')">🗑 Limpiar día</button>
+      <button class="btn-secondary" onclick="limpiarDiaHorario('${iso}')">Limpiar día</button>
       <button class="btn-add" onclick="guardarDiaHorario('${iso}')">✓ Guardar</button>
     </div>
   </div>`;
@@ -12413,7 +12441,7 @@ function _detalleFichajesPersona(nombre){
   return `<div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:10px;padding:14px 16px">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
       <strong style="font-size:15px;color:var(--charcoal)">${esc(nombre)} · ${MESES[horMes]} ${horAnio}</strong>
-      <button class="btn-secondary" style="font-size:11px;padding:5px 10px" onclick="copiarDetalleFichajes()">📋 Copiar</button>
+      <button class="btn-secondary" style="font-size:11px;padding:5px 10px" onclick="copiarDetalleFichajes()">Copiar</button>
     </div>
     <div class="table-wrapper"><table style="width:100%;border-collapse:collapse;font-size:13px">
       <thead><tr>
@@ -13127,7 +13155,7 @@ async function openGestionPasswords(){
 
   ov.innerHTML = `<div class="modal" style="max-width:600px;max-height:85vh;overflow-y:auto">
     <button class="modal-close" onclick="document.getElementById('gestion-passwords-modal').classList.remove('open')">✕</button>
-    <div class="modal-title">👥 Gestión de Usuarios</div>
+    <div class="modal-title">Gestión de Usuarios</div>
     <div style="font-size:12px;color:var(--mid-gray);margin-bottom:6px">Cambiá o reseteá la contraseña de cualquier usuario.</div>
     <div style="font-size:11.5px;color:var(--sage-dark);background:#EBF5E8;border-radius:8px;padding:8px 12px;margin-bottom:16px">🔒 Las contraseñas se guardan cifradas — por seguridad no se pueden ver, solo cambiar.</div>
     <div style="display:flex;flex-direction:column;gap:1px;background:var(--light-gray);border-radius:8px;overflow:hidden">
@@ -13137,13 +13165,13 @@ async function openGestionPasswords(){
           <div style="font-size:11px;color:var(--mid-gray)">${roleLabels[e.role]||e.role}</div>
         </div>
         <div style="background:#F4F1EC;padding:4px 12px;border-radius:6px;font-size:12px;color:var(--mid-gray);min-width:70px;text-align:center">•••••</div>
-        <button onclick="resetearPassword('${esc(id)}')" style="background:none;border:1px solid var(--light-gray);border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:inherit;color:var(--charcoal);white-space:nowrap">✏️ Cambiar</button>
+        <button onclick="resetearPassword('${esc(id)}')" style="background:none;border:1px solid var(--light-gray);border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:inherit;color:var(--charcoal);white-space:nowrap">Cambiar</button>
         ${(e.role==='florista'||e.role==='housekeeping') ? `<button onclick="eliminarUsuario('${esc(id)}')" style="background:none;border:1px solid #E8CECE;border-radius:6px;padding:5px 8px;font-size:11px;cursor:pointer;font-family:inherit;color:var(--red-alert);white-space:nowrap">✕</button>` : ''}
       </div>`).join('')}
     </div>
     <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn-add" onclick="agregarUsuarioFlorista()" style="font-size:12px;padding:8px 16px">+ Agregar florista</button>
-      <button class="btn-secondary" onclick="agregarUsuarioHousekeeping()" style="font-size:12px;padding:8px 16px">🧹 Agregar housekeeping</button>
+      <button class="btn-secondary" onclick="agregarUsuarioHousekeeping()" style="font-size:12px;padding:8px 16px">Agregar housekeeping</button>
     </div>
   </div>`;
   ov.classList.add('open');
@@ -13645,7 +13673,7 @@ function renderRecetas(){
       <div class="receta-header">
         <div class="receta-nombre">${ARREGLOS_BASE.includes(r.nombre)?arregloEmoji(r.nombre)+' ':''}<b>${esc(r.nombre)}</b></div>
         <div style="display:flex;gap:6px">
-          <button class="btn-icon" onclick="openRecetaModal(${i})" title="Editar">✏️</button>
+          <button class="btn-icon" onclick="openRecetaModal(${i})" title="Editar"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/></svg></button>
           <button class="btn-icon" style="color:var(--red-alert)" onclick="delReceta(${i})" title="Eliminar">✕</button>
         </div>
       </div>
@@ -13702,7 +13730,7 @@ function renderComposicionesHotel(){
       <select class="form-input" style="min-width:260px" onchange="compHotelAdd(this)">
         <option value="">+ Definir composición de una zona…</option>
         ${sinComp.length ? '<optgroup label="Zonas del checklist">'+sinComp.map(z=>`<option value="${esc(z)}">${esc(z)}</option>`).join('')+'</optgroup>' : ''}
-        <option value="__otra__">✏️ Otra zona (escribir nombre)…</option>
+        <option value="__otra__">Otra zona (escribir nombre)…</option>
       </select>
     </div>`;
   }
@@ -13717,9 +13745,9 @@ function renderComposicionesHotel(){
     const zEsc = esc(zona).replace(/'/g,"\\'");
     return `<div class="receta-card">
       <div class="receta-header">
-        <div class="receta-nombre">📍 <b>${esc(zona)}</b></div>
+        <div class="receta-nombre"><b>${esc(zona)}</b></div>
         <div style="display:flex;gap:6px">
-          <button class="btn-icon" onclick="openArregloComposicion('${zEsc}')" title="Editar composición">✏️</button>
+          <button class="btn-icon" onclick="openArregloComposicion('${zEsc}')" title="Editar composición"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/></svg></button>
           <button class="btn-icon" style="color:var(--red-alert)" onclick="delArregloComposicion('${zEsc}')" title="Eliminar composición">✕</button>
         </div>
       </div>
@@ -14140,7 +14168,7 @@ function mostrarEventosDelDia(retry = 0){
   let ov = document.getElementById('eventos-dia-modal');
   if(!ov){ ov = document.createElement('div'); ov.id='eventos-dia-modal'; ov.className='modal-overlay'; document.body.appendChild(ov); }
   ov.innerHTML = `<div class="modal" style="max-width:540px">
-    <div class="modal-header"><h2>🎉 Eventos de hoy</h2><button class="modal-close" onclick="closeModal('eventos-dia-modal')">✕</button></div>
+    <div class="modal-header"><h2>Eventos de hoy</h2><button class="modal-close" onclick="closeModal('eventos-dia-modal')">✕</button></div>
     <div style="font-size:12.5px;color:var(--mid-gray);margin-bottom:16px">${isFlor?'Tus eventos asignados para hoy. Tocá uno para ver el detalle.':'Eventos del día — priorizá la colocación de los que ya estén armados.'}</div>
     <div style="display:flex;flex-direction:column;gap:10px">
       ${sorted.map(ev=>{ const i = eventosData.indexOf(ev); return `
@@ -14590,7 +14618,7 @@ function renderSucursales(){
         <label style="font-size:12px;color:var(--mid-gray);display:flex;align-items:center;gap:4px;cursor:pointer">
           <input type="checkbox" ${s.activa?'checked':''} onchange="toggleSucursalActiva(${i},this.checked)"> Activa
         </label>
-        <button class="btn-icon" onclick="openEditSucursal(${i})" title="Editar">✏️</button>
+        <button class="btn-icon" onclick="openEditSucursal(${i})" title="Editar"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/></svg></button>
         ${sucursalesConfig.length>1?`<button class="btn-icon" style="color:var(--red-alert)" onclick="eliminarSucursal(${i})" title="Eliminar">✕</button>`:''}
       </div>
     </div>`).join('');
@@ -14716,7 +14744,7 @@ function renderClientes(){
         </div>
       </div>
       <div class="crm-card-stats">
-        ${eventos.length?`<span class="crm-badge">🎉 ${eventos.length} evento${eventos.length!==1?'s':''}</span>`:''}
+        ${eventos.length?`<span class="crm-badge">${eventos.length} evento${eventos.length!==1?'s':''}</span>`:''}
         ${totalGastado>0?`<span class="crm-badge green">$${totalGastado.toLocaleString('es-AR')}</span>`:''}
         ${c.tipo?`<span class="crm-badge blue">${esc(c.tipo)}</span>`:''}
       </div>
@@ -14757,8 +14785,8 @@ function abrirFichaCliente(idx){
       <span style="font-size:11px;color:var(--mid-gray);white-space:nowrap">${fmtDate(h.fecha)}</span>
     </div>`).join(''):'<div style="color:var(--mid-gray);font-size:13px">Sin historial registrado.</div>'}
     <div class="modal-actions" style="margin-top:20px">
-      <button class="btn-secondary" onclick="editarCliente(${idx})">✏️ Editar</button>
-      <button class="btn-secondary" style="color:var(--red-alert)" onclick="eliminarCliente(${idx})">🗑 Eliminar</button>
+      <button class="btn-secondary" onclick="editarCliente(${idx})">Editar</button>
+      <button class="btn-secondary" style="color:var(--red-alert)" onclick="eliminarCliente(${idx})">Eliminar</button>
     </div>`;
   document.getElementById('ficha-cliente-modal').classList.add('open');
 }
@@ -15258,7 +15286,7 @@ function renderProveedores(){
         <td style="padding:10px 14px;border-bottom:1px solid var(--light-gray)">${p.telefono?`<a href="tel:${esc(p.telefono)}" onclick="event.stopPropagation()">${esc(p.telefono)}</a>`:'—'}</td>
         <td style="padding:10px 14px;border-bottom:1px solid var(--light-gray)">${p.email?`<a href="mailto:${esc(p.email)}" onclick="event.stopPropagation()">${esc(p.email)}</a>`:'—'}</td>
         <td style="padding:10px 14px;border-bottom:1px solid var(--light-gray);text-align:right">
-          <button class="btn-icon" onclick="event.stopPropagation();eliminarProveedor(${realIdx})" title="Eliminar">🗑</button>
+          <button class="btn-icon" onclick="event.stopPropagation();eliminarProveedor(${realIdx})" title="Eliminar"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg></button>
         </td>
       </tr>
       ${p.notas?`<tr onclick="openProveedorModal(${realIdx})" style="cursor:pointer"><td colspan="6" style="padding:4px 14px 10px;border-bottom:1px solid var(--light-gray);font-size:12px;color:var(--mid-gray)">${esc(p.notas)}</td></tr>`:''}`;
@@ -15433,14 +15461,14 @@ function openListaCompraHotel(){
   const vacio = !varas.length && !paq.length;
   ov.innerHTML = `<div class="modal" style="max-width:480px">
     <button class="modal-close" onclick="closeModal('lista-compra-hotel-modal')">✕</button>
-    <div class="modal-title">🛒 Lista de compra del hotel</div>
+    <div class="modal-title">Lista de compra del hotel</div>
     <div style="font-size:12px;color:var(--mid-gray);margin:-6px 0 14px">Suma de las composiciones × la cantidad de cada arreglo · ${zonas} arreglo${zonas!==1?'s':''} con composición</div>
     ${vacio
       ? '<p style="color:var(--mid-gray);font-size:13px;padding:16px;text-align:center">No hay arreglos con composición cargada. Cargalos en <strong>Composiciones › Arreglos del hotel</strong> («📋 Cargar catálogo base»).</p>'
       : bloque('🌿 Varas', varas) + bloque('📦 Paquetes', paq) + '<div style="font-size:11px;color:var(--mid-gray);margin-top:8px">Las flores con «/» son opciones: comprás esa cantidad de una de las dos. La cantidad de cada arreglo se ajusta en la tabla de abajo (columna «Cant.»).</div>'}
     ${vacio ? '' : `<div class="modal-actions" style="margin-top:18px">
       <button class="btn-secondary" onclick="closeModal('lista-compra-hotel-modal')">Cerrar</button>
-      <button class="btn-add" onclick="listaCompraHotelCopiar()">📋 Copiar lista</button>
+      <button class="btn-add" onclick="listaCompraHotelCopiar()">Copiar lista</button>
     </div>`}
   </div>`;
   ov.classList.add('open');
@@ -15537,7 +15565,7 @@ function renderRentabilidadHotel(){
       </td>
       <td style="${th};text-align:right;font-weight:600;color:${precioHyatt? (margen>=0?'var(--green-ok)':'var(--red-alert)') : 'var(--mid-gray)'}">${precioHyatt ? '$'+margen.toLocaleString('es-AR') : '—'}</td>
       <td style="${th};text-align:right;font-weight:700;color:${mc}">${margenPct != null ? margenPct+'%' : '—'}</td>
-      <td style="${th};text-align:center;white-space:nowrap"><button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="openArregloComposicion('${zEsc}')">✏️ Composición</button></td>
+      <td style="${th};text-align:center;white-space:nowrap"><button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="openArregloComposicion('${zEsc}')">Composición</button></td>
     </tr>`;
   }).join('') || `<tr><td colspan="10" style="padding:22px;text-align:center;color:var(--mid-gray)">No hay arreglos con composición cargada. Cargalos en <strong>Composiciones › Arreglos del hotel</strong> (botón «📋 Cargar catálogo base») o con el selector de arriba.</td></tr>`;
 
@@ -15546,7 +15574,7 @@ function renderRentabilidadHotel(){
   if(alEl){
     const bloques = [];
     if(alertasMargen.length)  bloques.push(`<div style="color:#8B2020">🔴 <strong>Margen negativo</strong> (el costo supera el precio Hyatt): ${alertasMargen.map(esc).join(', ')}</div>`);
-    if(alertasDesvio.length)  bloques.push(`<div style="color:#8A6D00">⚠️ <strong>Costo real muy por encima del teórico</strong>: ${alertasDesvio.map(esc).join(', ')}</div>`);
+    if(alertasDesvio.length)  bloques.push(`<div style="color:#8A6D00"><strong>Costo real muy por encima del teórico</strong>: ${alertasDesvio.map(esc).join(', ')}</div>`);
     if(alertasSinCosto.length)bloques.push(`<div style="color:#8A6D00">🌸 <strong>Flores sin costo por vara</strong> (cargá su compra recibida): ${[...new Set(alertasSinCosto)].map(esc).join(', ')}</div>`);
     alEl.innerHTML = bloques.length
       ? `<div style="background:#FFFBF0;border:1px solid #E9DCae;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:12.5px;display:flex;flex-direction:column;gap:6px">${bloques.join('')}</div>`
@@ -15618,7 +15646,7 @@ function _renderCompModal(){
   const faltan = [...new Set(_compEditRows.filter(r=>r.prod && !cotizadorPrecioVara(r.prod)).map(r=>r.prod))];
   ov.innerHTML = `<div class="modal" style="max-width:560px;max-height:88vh;overflow-y:auto">
     <button class="modal-close" onclick="closeModal('arreglo-comp-modal')">✕</button>
-    <div class="modal-title">🫙 Composición · ${esc(_compEditZona)}</div>
+    <div class="modal-title">Composición · ${esc(_compEditZona)}</div>
     <div style="font-size:12px;color:var(--mid-gray);margin-bottom:14px">Cargá qué flores lleva y la cantidad. Si un producto va por <strong>paquete</strong> (ej. Monstera, Limonium), elegí «paq» y se convierte a varas con las varas por paquete de <strong>Compras</strong>. El costo por vara también sale de Compras.</div>
     <datalist id="comp-flor-list">${_floresDatalistOpts()}</datalist>
     <div style="display:flex;gap:6px;font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--mid-gray);margin-bottom:5px">
@@ -15626,7 +15654,7 @@ function _renderCompModal(){
     </div>
     ${rowsHTML}
     <button class="btn-secondary" style="font-size:11px;margin-top:4px" onclick="compAddRow()">+ Agregar flor</button>
-    ${faltan.length?`<div style="font-size:11px;color:var(--amber);margin-top:10px">⚠️ Sin costo por vara todavía: ${esc(faltan.join(', '))}. Cargá su compra recibida en Compras para que se calcule.</div>`:''}
+    ${faltan.length?`<div style="font-size:11px;color:var(--amber);margin-top:10px">Sin costo por vara todavía: ${esc(faltan.join(', '))}. Cargá su compra recibida en Compras para que se calcule.</div>`:''}
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding-top:12px;border-top:1px solid var(--light-gray)">
       <div style="font-size:13px;color:var(--mid-gray)">Costo del arreglo: <strong style="font-size:17px;color:var(--charcoal)">$${Math.round(total).toLocaleString('es-AR')}</strong></div>
       <button class="btn-add" onclick="guardarArregloComposicion()">Guardar</button>
@@ -15766,7 +15794,7 @@ function _renderRentTiposSummary(eventos){
     return mb-ma;
   });
   if(!tipos.length){ el.innerHTML=''; return; }
-  el.innerHTML = `<div class="section-title" style="margin-bottom:10px">📊 Rentabilidad por tipo de evento</div>
+  el.innerHTML = `<div class="section-title" style="margin-bottom:10px">Rentabilidad por tipo de evento</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px">
     ${tipos.map(t=>{
       const o=porTipo[t];
@@ -15837,13 +15865,13 @@ function renderLegajo(){
     const vac = (e.vacacionesAnuales||14) - (e.vacacionesTomadas||0);
     const esMono = e.tipo==='monotributista';
     const tipoBadge = esMono
-      ? `<span style="background:#F3ECDD;color:#8A6D1F;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600">🧾 Monotributista · quincenal</span>`
-      : `<span style="background:#E8EEF4;color:#2C5A80;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600">🗓️ Nómina · mensual</span>`;
+      ? `<span style="background:#F3ECDD;color:#8A6D1F;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600">Monotributista · quincenal</span>`
+      : `<span style="background:#E8EEF4;color:#2C5A80;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600">Nómina · mensual</span>`;
     return `<div class="card">
       <div style="font-size:16px;font-weight:600;margin-bottom:4px">${esc(e.nombre)} ${esc(e.apellido)}</div>
       <div style="font-size:12px;color:var(--mid-gray);margin-bottom:6px;text-transform:capitalize">${esc(e.cargo||'')} · ${esc(e.sucursal||'')}</div>
       <div style="margin-bottom:8px">${tipoBadge}</div>
-      <div style="font-size:12px;margin-bottom:4px">📅 Ingreso: <strong>${e.fechaIngreso ? fmtDate(e.fechaIngreso) : '—'}</strong></div>
+      <div style="font-size:12px;margin-bottom:4px">Ingreso: <strong>${e.fechaIngreso ? fmtDate(e.fechaIngreso) : '—'}</strong></div>
       <div style="font-size:12px;margin-bottom:4px">⏱ ${esMono?'Horas ref.':'Horas contrato'}: <strong>${(+e.horasContrato||0)}h/mes</strong></div>
       <div style="font-size:12px;margin-bottom:12px">🏖️ Vacaciones restantes: <strong>${vac}</strong> días</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
@@ -16443,7 +16471,7 @@ function renderCompraFiltersPanel(type){
   const badge = activeCount > 0 ? `<span style="background:var(--sage);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:6px">${activeCount}</span>` : '';
   wrap.innerHTML = `
     <div style="margin-bottom:12px">
-      <button class="btn-secondary" style="font-size:12px" onclick="toggleCompraFilters('${type}')">🔍 Filtros avanzados${badge}</button>
+      <button class="btn-secondary" style="font-size:12px" onclick="toggleCompraFilters('${type}')">Filtros avanzados${badge}</button>
       ${activeCount>0?`<button class="btn-secondary" style="font-size:12px;margin-left:6px" onclick="clearCompraFiltersExt('${type}')">✕ Limpiar filtros</button>`:''}
     </div>
     <div id="${p}-ext-panel" style="display:none;background:var(--light-gray);border-radius:10px;padding:14px;margin-bottom:14px">
@@ -16657,7 +16685,7 @@ function renderTVDashboard(){
   const now = new Date();
   el.innerHTML = `
     <div class="tv-header">
-      <div class="tv-logo">🌸 Florería Duhau · Park Hyatt Buenos Aires</div>
+      <div class="tv-logo">Florería Duhau · Park Hyatt Buenos Aires</div>
       <div class="tv-clock">${now.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})} · ${now.toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'})}</div>
     </div>
     <div class="tv-kpis">
@@ -16668,7 +16696,7 @@ function renderTVDashboard(){
       <div class="tv-kpi ${pedidos>0?'tv-kpi-alert':''}"><div class="tv-kpi-val">${pedidos}</div><div class="tv-kpi-lbl">Pedidos habitación pendientes</div></div>
     </div>
     <div class="tv-eventos">
-      <div class="tv-section-title">📅 Próximos eventos</div>
+      <div class="tv-section-title">Próximos eventos</div>
       <div class="tv-ev-grid">${(eventosData||[]).filter(e=>e.fecha>=today).sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')).slice(0,6).map(e=>`
         <div class="tv-ev-card">
           <div class="tv-ev-date">${fmtDate(e.fecha)}</div>
@@ -16718,8 +16746,8 @@ function renderPresupuestos(){
     <td style="white-space:nowrap">${p.vencimiento ? fmtDate(p.vencimiento) : '—'}</td>
     <td onclick="event.stopPropagation()">
       <div class="table-actions">
-        <button class="btn-mini" onclick="verPresupuesto(${i})">👁 Ver</button>
-        <button class="btn-mini wa" title="Enviar por WhatsApp" onclick="enviarPresupuestoWhatsApp(${i})">💬 WhatsApp</button>
+        <button class="btn-mini" onclick="verPresupuesto(${i})">Ver</button>
+        <button class="btn-mini wa" title="Enviar por WhatsApp" onclick="enviarPresupuestoWhatsApp(${i})">WhatsApp</button>
         <select class="cl-select" onchange="cambiarEstadoPres(${i},this.value)">
           <option value="">Estado…</option>
           <option value="aceptado">Aceptado ✓</option>
@@ -16727,7 +16755,7 @@ function renderPresupuestos(){
           <option value="vencido">Vencido</option>
           <option value="pendiente">Pendiente</option>
         </select>
-        <button class="btn-icon" title="Eliminar" onclick="eliminarPresupuesto(${i})">🗑</button>
+        <button class="btn-icon" title="Eliminar" onclick="eliminarPresupuesto(${i})"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg></button>
       </div>
     </td>
   </tr>`;
@@ -16855,8 +16883,8 @@ function verPresupuesto(idx){
       <div class="footer">Florería Duhau · Park Hyatt Buenos Aires · Av. Alvear 1661, CABA<br>Tel / WhatsApp: +54 9 11 7050-1615</div>
     </div>
     <div class="actions">
-      <button class="b-print" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
-      <a class="b-wa" href="${waURL}" target="_blank" rel="noopener">💬 Enviar por WhatsApp</a>
+      <button class="b-print" onclick="window.print()">Imprimir / Guardar PDF</button>
+      <a class="b-wa" href="${waURL}" target="_blank" rel="noopener">Enviar por WhatsApp</a>
     </div>
   </body></html>`);
   win.document.close();
@@ -17228,7 +17256,7 @@ function renderPedidosRamos(){
          </select>`
       : (v.asignado
           ? `<span style="font-weight:600;color:var(--sage-dark)">${esc(v.asignado)}</span>`
-          : `<span style="font-weight:600;color:#9A6A1E">⚠ Sin asignar</span>`);
+          : `<span style="font-weight:600;color:#9A6A1E">Sin asignar</span>`);
     return `<tr${hecho?' style="opacity:.55"':''}>
       <td style="white-space:nowrap">${v.fecha?fmtDate(v.fecha):'—'}</td>
       <td><strong>${esc(v.prod||'—')}</strong></td>
@@ -17237,7 +17265,7 @@ function renderPedidosRamos(){
       <td>${asignCell}</td>
       <td style="white-space:nowrap;font-weight:600">${esc(v.precio||'—')}</td>
       <td><span style="font-size:11px">${estLbl[v.estado]||esc(v.estado||'')}${v.fin?' · '+esc(v.fin):''}</span></td>
-      <td style="white-space:nowrap"><button class="btn-icon" title="Eliminar" onclick="eliminarPedidoRamo(${i})">🗑</button></td>
+      <td style="white-space:nowrap"><button class="btn-icon" title="Eliminar" onclick="eliminarPedidoRamo(${i})"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg></button></td>
     </tr>`;
   }).join('');
 }
@@ -17276,7 +17304,7 @@ function openVentaDetail(vIdx){
   let ov = document.getElementById('venta-detail-modal');
   if(!ov){ ov = document.createElement('div'); ov.id='venta-detail-modal'; ov.className='modal-overlay'; document.body.appendChild(ov); }
   ov.innerHTML = `<div class="modal" style="max-width:480px">
-    <div class="modal-header"><h2>💐 ${esc(v.prod||'Pedido')}</h2><button class="modal-close" onclick="closeModal('venta-detail-modal')">✕</button></div>
+    <div class="modal-header"><h2>${esc(v.prod||'Pedido')}</h2><button class="modal-close" onclick="closeModal('venta-detail-modal')">✕</button></div>
     <div class="modal-body">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 16px">
         ${row('Cliente', v.cliente)}
@@ -17286,7 +17314,7 @@ function openVentaDetail(vIdx){
         ${row('Precio', v.precio)}
         ${row('Estado', estados[v.estado] || v.estado)}
       </div>
-      ${v.dir ? `<div style="margin-top:14px"><div class="detail-field-label">Dirección de entrega</div><div class="detail-field-value">📍 ${esc(v.dir)}</div></div>` : ''}
+      ${v.dir ? `<div style="margin-top:14px"><div class="detail-field-label">Dirección de entrega</div><div class="detail-field-value">${esc(v.dir)}</div></div>` : ''}
       ${v.dedicatoria ? `<div style="margin-top:14px;background:var(--cream);border-radius:8px;padding:12px 14px"><div class="detail-field-label">Dedicatoria</div><div style="font-style:italic;font-size:14px;color:var(--charcoal);margin-top:4px">"${esc(v.dedicatoria)}"</div></div>` : ''}
       ${v.desc ? `<div style="margin-top:14px"><div class="detail-field-label">Detalle</div><div class="detail-field-value">${esc(v.desc)}</div></div>` : ''}
     </div>
@@ -17375,8 +17403,8 @@ function renderEventosSinFloreria(){
       <td style="white-space:nowrap;font-weight:600;color:#B03020">${ev.monto?('$'+parseMoney(ev.monto).toLocaleString('es-AR',{maximumFractionDigits:0})):'—'}</td>
       <td><span style="background:${st.bg};color:${st.col};padding:2px 8px;border-radius:10px;font-size:11px;white-space:nowrap">${st.lbl}</span></td>
       <td onclick="event.stopPropagation()" style="white-space:nowrap">
-        <button class="btn-icon" title="Editar" onclick="openEsfModal(${realIdx})">✏️</button>
-        <button class="btn-icon" title="Eliminar" onclick="eliminarEsf(${realIdx})">🗑</button>
+        <button class="btn-icon" title="Editar" onclick="openEsfModal(${realIdx})"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/></svg></button>
+        <button class="btn-icon" title="Eliminar" onclick="eliminarEsf(${realIdx})"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg></button>
       </td>
     </tr>`;
   }).join('');
@@ -17531,8 +17559,8 @@ function renderCierreMensual(){
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <h3 style="margin:0">${fmtMonth(c.mes)}</h3>
         <div style="display:flex;gap:8px">
-          <button class="btn-secondary" style="font-size:12px" onclick="verCierreMensual(${i})">👁 Ver detalle</button>
-          <button class="btn-secondary" style="font-size:12px" onclick="exportCierrePDF(${i})">📄 PDF</button>
+          <button class="btn-secondary" style="font-size:12px" onclick="verCierreMensual(${i})">Ver detalle</button>
+          <button class="btn-secondary" style="font-size:12px" onclick="exportCierrePDF(${i})">PDF</button>
         </div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">
@@ -17626,10 +17654,10 @@ function renderDashboardGerencia(){
   const conversion = presupuestos.length ? Math.round(presAceptados.length/presupuestos.length*100) : 0;
   const margen = tvMes > 0 ? Math.round((tvMes-tcMes)/tvMes*100) : 0;
   el.innerHTML = `
-    <div class="dash-ger-update">Última actualización: ${new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})} · <button class="btn-secondary" style="font-size:11px" onclick="renderDashboardGerencia()">🔄 Actualizar</button></div>
+    <div class="dash-ger-update">Última actualización: ${new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})} · <button class="btn-secondary" style="font-size:11px" onclick="renderDashboardGerencia()">Actualizar</button></div>
     <div class="dash-ger-grid">
       <div class="dash-ger-section">
-        <div class="dash-ger-title">💰 Finanzas del mes</div>
+        <div class="dash-ger-title">Finanzas del mes</div>
         <div class="kpi-grid-mini">
           <div class="kpi-card"><div class="kpi-val green">$${tvMes.toLocaleString('es-AR',{minimumFractionDigits:0})}</div><div class="kpi-lbl">Ventas del mes</div></div>
           <div class="kpi-card"><div class="kpi-val">$${tcMes.toLocaleString('es-AR',{minimumFractionDigits:0})}</div><div class="kpi-lbl">Compras del mes</div></div>
@@ -17638,7 +17666,7 @@ function renderDashboardGerencia(){
         </div>
       </div>
       <div class="dash-ger-section">
-        <div class="dash-ger-title">📅 Operaciones</div>
+        <div class="dash-ger-title">Operaciones</div>
         <div class="kpi-grid-mini">
           <div class="kpi-card"><div class="kpi-val">${evHoy.length}</div><div class="kpi-lbl">Eventos hoy</div></div>
           <div class="kpi-card"><div class="kpi-val">${evMes.length}</div><div class="kpi-lbl">Eventos del mes</div></div>
@@ -17647,7 +17675,7 @@ function renderDashboardGerencia(){
         </div>
       </div>
       <div class="dash-ger-section">
-        <div class="dash-ger-title">🤝 Comercial</div>
+        <div class="dash-ger-title">Comercial</div>
         <div class="kpi-grid-mini">
           <div class="kpi-card"><div class="kpi-val">${ventas.length}</div><div class="kpi-lbl">Ventas del mes</div></div>
           <div class="kpi-card"><div class="kpi-val">${presupuestos.length}</div><div class="kpi-lbl">Presupuestos enviados</div></div>
@@ -17656,7 +17684,7 @@ function renderDashboardGerencia(){
         </div>
       </div>
     </div>
-    ${stockBajos.length>0?`<div class="dash-ger-alert"><strong>⚠️ Stock bajo mínimo:</strong> ${stockBajos.slice(0,5).map(s=>`${esc(s.prod)} (${s.cantidad}/${s.min})`).join(', ')}${stockBajos.length>5?` y ${stockBajos.length-5} más...`:''}</div>`:''}
+    ${stockBajos.length>0?`<div class="dash-ger-alert"><strong>Stock bajo mínimo:</strong> ${stockBajos.slice(0,5).map(s=>`${esc(s.prod)} (${s.cantidad}/${s.min})`).join(', ')}${stockBajos.length>5?` y ${stockBajos.length-5} más...`:''}</div>`:''}
     ${pedPend.length>0?`<div class="dash-ger-alert"><strong>🛎 Pedidos pendientes:</strong> ${pedPend.length} pedido(s) de habitación esperando atención.</div>`:''}`;
   if(_dashGerTimer) clearInterval(_dashGerTimer);
   _dashGerTimer = setInterval(renderDashboardGerencia, 300000);

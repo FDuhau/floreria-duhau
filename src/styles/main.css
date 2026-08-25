@@ -814,7 +814,8 @@
       border-radius:8px; display:flex; align-items:center; justify-content:center;
     }
     .bottom-nav-item.active { color:#F7F5F2; }
-    .bottom-nav-icon { font-size:22px; line-height:1; }
+    .bottom-nav-icon { font-size:22px; line-height:1; display:flex; align-items:center; justify-content:center; }
+    .bottom-nav-icon svg { width:23px; height:23px; stroke:currentColor; stroke-width:1.7; fill:none; stroke-linecap:round; stroke-linejoin:round; }
     .bottom-nav-label { font-size:9px; letter-spacing:.4px; text-transform:uppercase; font-weight:500; }
   }
 
