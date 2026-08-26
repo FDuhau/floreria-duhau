@@ -321,7 +321,15 @@
           ['checked','actividad','obs','tiempo','inicio','fin','responsable'].forEach(k => {
             const raw = ds[k];
             if(Array.isArray(raw)) incoming[day][k] = raw;
-            else if(raw && typeof raw === 'object') incoming[day][k] = Object.values(raw);
+            else if(raw && typeof raw === 'object'){
+              // Firebase guarda arrays dispersos como objeto con claves numéricas
+              // (pasa al guardar por celda). Reconstruir POR ÍNDICE para no perder
+              // la posición de cada tarea (Object.values las corría de lugar).
+              const arr = [];
+              Object.keys(raw).forEach(kk => { const idx = Number(kk); if(Number.isInteger(idx) && idx >= 0) arr[idx] = raw[kk]; });
+              for(let z = 0; z < arr.length; z++){ if(arr[z] === undefined) arr[z] = (k === 'checked' ? false : ''); }
+              incoming[day][k] = arr;
+            }
             else incoming[day][k] = [];
           });
         });
