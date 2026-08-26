@@ -1499,6 +1499,21 @@ function faseVisibleFlorista(ev, fase){
   }
   return true;
 }
+// Devuelve la fase (armado/colocación/retiro) en la que ESTE florista está
+// asignado a este evento y que ya corresponde mostrar por fecha/hora, o null.
+// Independiente del estado global del evento: así la colocación/retiro le
+// aparece a su florista el día y hora programados aunque el estado no se
+// haya movido en el kanban. Prioriza la fase más avanzada que esté visible.
+function florFaseVisible(ev, nombre){
+  const asignadas = [];
+  if(_sameName(ev.asignado, nombre)) asignadas.push('armado');
+  if(_sameName(ev.colocacionAsignado, nombre)) asignadas.push('colocacion');
+  if(_sameName(ev.retiroAsignado, nombre)) asignadas.push('retiro');
+  for(const f of ['retiro','colocacion','armado']){
+    if(asignadas.includes(f) && faseVisibleFlorista(ev, f)) return f;
+  }
+  return null;
+}
 // Aviso push al florista cuando se habilita la colocación/retiro (a MARGEN_FASE_MIN
 // de la hora, ese día). Una sola vez por evento/fase/día (flag persistido en el
 // evento). Corre en el timer de cada minuto.
@@ -1748,9 +1763,7 @@ function renderChecklistTable(){
   // ── Eventos del día (fase armado, colocación o retiro según el estado) ──
   const eventosHoy = eventosData.filter(ev => {
     if(ev.estado === 'Pedidos Finalizados') return false;
-    const fase = eventoFase(ev);
-    const flor = eventoFlorFase(ev, fase);
-    if(isFlorista) return _sameName(flor, floristaNombre) && faseVisibleFlorista(ev, fase);
+    if(isFlorista) return florFaseVisible(ev, floristaNombre) !== null;
     // gerencia/operario: ven los activos que tengan alguien asignado en alguna fase
     return ev.asignado || ev.colocacionAsignado || ev.retiroAsignado;
   });
@@ -1765,7 +1778,7 @@ function renderChecklistTable(){
       const evIdx = eventosData.indexOf(ev);
       const evTr = document.createElement('tr');
       evTr.style.cssText = 'background:#FEFAF6';
-      const fase = eventoFase(ev);
+      const fase = isFlorista ? florFaseVisible(ev, floristaNombre) : eventoFase(ev);
       const flor = eventoFlorFase(ev, fase);
       const faseTag = eventoFaseTag(fase);
       const iniVal = fase === 'retiro' ? ev.retiroInicio : fase === 'colocacion' ? ev.colocacionInicio : ev.inicio;
@@ -1932,13 +1945,11 @@ function renderChecklistCards(el){
   // Eventos del día asignados a la florista (armado, colocación o retiro según fase)
   const eventosHoy = eventosData.filter(ev=>{
     if(ev.estado==='Pedidos Finalizados') return false;
-    const fase = eventoFase(ev);
-    const flor = eventoFlorFase(ev, fase);
-    return _sameName(flor, floristaNombre) && faseVisibleFlorista(ev, fase);
+    return florFaseVisible(ev, floristaNombre) !== null;
   });
   const evHTML = eventosHoy.map(ev=>{
     const evIdx = eventosData.indexOf(ev);
-    const fase = eventoFase(ev);
+    const fase = florFaseVisible(ev, floristaNombre) || eventoFase(ev);
     const faseCls = fase==='retiro' ? 'cl-fase-retiro' : fase==='colocacion' ? 'cl-fase-coloc' : 'cl-fase-armado';
     const faseLbl = fase==='retiro' ? 'RETIRO' : fase==='colocacion' ? 'COLOCACIÓN' : 'ARMADO';
     return `<div class="cl-card cl-card-evento" onclick="if(!event.target.closest('button'))openEventoDetail(${evIdx})">
