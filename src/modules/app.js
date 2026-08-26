@@ -1186,7 +1186,7 @@ function loadWeekState(){
 // ── Guardar estado del checklist ─────────────────────────────────────────────
 // Guarda solo el día que cambió, no toda la semana.
 // Así dos personas editando días distintos nunca se pisan.
-function saveWeekState(day, campo){
+function saveWeekState(day, campo, i){
   try {
     localStorage.setItem(CL_STORAGE_KEY, JSON.stringify(clStateByDay));
   } catch(e){}
@@ -1195,7 +1195,12 @@ function saveWeekState(day, campo){
   const ds = clStateByDay[d];
   if(!ds) return;
 
-  if(campo && window.fbUpdate){
+  if(campo && i != null && window.fbSet && Array.isArray(ds[campo])){
+    // Guardar SOLO la celda que cambió (checklist/<día>/<campo>/<i>).
+    // Así dos floristas marcando tareas distintas del mismo día no se pisan:
+    // cada uno escribe su propia celda y Firebase las mergea del lado del server.
+    window.fbSet('checklist/'+d+'/'+campo+'/'+i, ds[campo][i]);
+  } else if(campo && window.fbUpdate){
     // Guardar SOLO el campo que cambió — no pisa los otros campos
     const updates = {};
     updates[campo] = ds[campo];
@@ -2094,7 +2099,7 @@ function registrarHora(i, campo){
     if(userRole==='florista' && String(clState.actividad[i]||t.actividad).toLowerCase().includes('nuevo')){
       ofrecerFotoNuevo(checklistHistory.length-1, t.zona);
     }
-    saveWeekState(currentDay, 'checked');
+    saveWeekState(currentDay, 'checked', i);
     navigator.vibrate?.([40,60,80]);
     _checkFestejoChecklist();
   } else if(campo === 'inicio'){
@@ -2102,7 +2107,7 @@ function registrarHora(i, campo){
     navigator.vibrate?.(30);
   }
 
-  saveWeekState(currentDay, campo);
+  saveWeekState(currentDay, campo, i);
   renderChecklistTable();
 }
 
@@ -2243,9 +2248,9 @@ async function resetHora(i, campo){
   // Si se borra el Fin, la tarea deja de estar completada (queda reabierta).
   if(campo === 'fin' && clState.checked?.[i]){
     clState.checked[i] = false;
-    saveWeekState(currentDay, 'checked');
+    saveWeekState(currentDay, 'checked', i);
   }
-  saveWeekState(currentDay, campo);
+  saveWeekState(currentDay, campo, i);
   renderChecklistTable();
 }
 
@@ -2274,13 +2279,13 @@ function updCL(i, field, val){
     if(!Array.isArray(clState.checked)) clState.checked = CL_TASKS.map(()=>false);
     if(clState.checked[i] !== debeEstar){
       clState.checked[i] = debeEstar;
-      saveWeekState(currentDay, 'checked');
+      saveWeekState(currentDay, 'checked', i);
     }
-    saveWeekState(currentDay, field);
+    saveWeekState(currentDay, field, i);
     renderChecklistTable();
     return;
   }
-  saveWeekState(currentDay, field);
+  saveWeekState(currentDay, field, i);
 }
 
 function toggleTask(i, el){
@@ -2327,7 +2332,7 @@ function toggleTask(i, el){
     navigator.vibrate?.(40);
     _checkFestejoChecklist();
   }
-  saveWeekState(currentDay, 'checked');
+  saveWeekState(currentDay, 'checked', i);
   renderChecklistTable();
 }
 
