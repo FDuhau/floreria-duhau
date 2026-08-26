@@ -1464,6 +1464,10 @@ function eventoFase(ev){
   if(ev.estado === 'Pendiente de Retiro') return 'retiro';
   return 'armado';
 }
+// Compara nombres de forma robusta: ignora mayúsculas, acentos y espacios
+// de más. Evita que un evento asignado a "Iván " no le figure a "Ivan".
+function _normName(s){ return String(s||'').trim().toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu,'').replace(/\s+/g,' '); }
+function _sameName(a,b){ const na=_normName(a); return na!=='' && na===_normName(b); }
 function eventoFlorFase(ev, fase){
   return fase === 'retiro' ? (ev.retiroAsignado||'')
     : fase === 'colocacion' ? (ev.colocacionAsignado||'')
@@ -1746,7 +1750,7 @@ function renderChecklistTable(){
     if(ev.estado === 'Pedidos Finalizados') return false;
     const fase = eventoFase(ev);
     const flor = eventoFlorFase(ev, fase);
-    if(isFlorista) return flor === floristaNombre && faseVisibleFlorista(ev, fase);
+    if(isFlorista) return _sameName(flor, floristaNombre) && faseVisibleFlorista(ev, fase);
     // gerencia/operario: ven los activos que tengan alguien asignado en alguna fase
     return ev.asignado || ev.colocacionAsignado || ev.retiroAsignado;
   });
@@ -1930,7 +1934,7 @@ function renderChecklistCards(el){
     if(ev.estado==='Pedidos Finalizados') return false;
     const fase = eventoFase(ev);
     const flor = eventoFlorFase(ev, fase);
-    return flor === floristaNombre && faseVisibleFlorista(ev, fase);
+    return _sameName(flor, floristaNombre) && faseVisibleFlorista(ev, fase);
   });
   const evHTML = eventosHoy.map(ev=>{
     const evIdx = eventosData.indexOf(ev);
@@ -1953,7 +1957,7 @@ function renderChecklistCards(el){
   }).join('');
 
   // Ventas / pedidos pendientes asignados
-  const ventasHoy = (ventasData||[]).filter(v => v.asignado===floristaNombre && v.estado==='pendiente' && !v.fin);
+  const ventasHoy = (ventasData||[]).filter(v => _sameName(v.asignado, floristaNombre) && v.estado==='pendiente' && !v.fin);
   const vtHTML = ventasHoy.map(v=>{
     const vIdx = ventasData.indexOf(v);
     const detalle = [v.cliente, v.colores?''+v.colores:'', v.fecha?''+fmtDate(v.fecha):''].filter(Boolean).join(' · ');
