@@ -2497,7 +2497,7 @@ function getAlerta(item, comprometido){
 function getStockEnPedido(item){
   // Pedidos en curso (pedidos aún no recibidos)
   const pending = [...comprasFlore,...comprasJard].filter(c=>
-    c.estado!=='recibido' && c.prod && c.prod.toLowerCase().includes(item.prod.toLowerCase())
+    c.estado!=='recibido' && !c.anulado && c.prod && c.prod.toLowerCase().includes(item.prod.toLowerCase())
   );
   return +(pending.reduce((s,c)=>s+parseFloat(c.qty||0),0).toFixed(1));
 }
@@ -3870,7 +3870,9 @@ function renderCompras(type){
   // Con proveedor o un rango de fechas activo mostramos TODO (recibidos incluidos),
   // para que el filtro devuelva el historial completo del período, no solo lo pendiente.
   const incluirRecibidos = document.getElementById(p+'-filter-recibidos')?.checked || !!fProv || !!fDesde || !!fHasta;
-  const activos = incluirRecibidos ? filtered : filtered.filter(r => r.estado !== 'recibido');
+  // Lo marcado "no llegó" (el proveedor no lo tenía) desaparece siempre de Compras.
+  const visibles = filtered.filter(r => !r.noLlego);
+  const activos = incluirRecibidos ? visibles : visibles.filter(r => r.estado !== 'recibido');
   const NCOLS = type==='floreria' ? 13 : 12;
 
   // Resumen del proveedor filtrado (total comprado + cantidad de pedidos)
@@ -3944,13 +3946,16 @@ function renderCompras(type){
         : `<input class="form-input" value="${esc(r.sector)}" onchange="updC('${type}',${i},'sector',this.value)" style="min-width:110px">`}
         ${_compraEventosBtn(type,i,r)}</td>
       <td data-label="Estado">
-        <select class="form-select" onchange="updC('${type}',${i},'estado',this.value);updateKpiCompras()" style="min-width:120px">
+        ${r.estado==='controlado'
+          ? `<span class="badge" style="background:#FBF3D9;color:#8A6D00;border:1px solid #E9D9A0;font-size:11px;padding:3px 8px;border-radius:4px;white-space:nowrap">Controlado · falta precio</span>`
+          : `<select class="form-select" onchange="updC('${type}',${i},'estado',this.value);updateKpiCompras()" style="min-width:120px">
           <option value="pedido" ${r.estado!=='recibido'?'selected':''}>Pedido</option>
           <option value="recibido" ${r.estado==='recibido'?'selected':''}>Recibido</option>
-        </select>
+        </select>`}
       </td>
       <td data-label="Stock actual" style="vertical-align:middle">${getStockBadge(r.prod)}</td>
       <td class="compra-row-acciones" style="white-space:nowrap">
+        ${type==='floreria' && r.estado==='controlado' ? `<button class="btn-primary" style="font-size:10px;padding:3px 8px;margin-right:4px" onclick="recibirRenglonCompra(${i})" title="Recibir este ítem y subirlo al stock">✓ Recibir</button>` : ''}
         <button class="btn-secondary" style="font-size:10px;padding:3px 7px;margin-right:4px" onclick="generarOrdenCompra(${i},'${type==='floreria'?'flore':'jard'}')" title="Generar Orden de Compra">OC</button>
         <button class="btn-icon" style="color:var(--red-alert)" onclick="delC('${type}',${i})">✕</button>
       </td>
@@ -4471,6 +4476,22 @@ function updC(type,i,field,val){
   const order = getArr(type)[i];
   const prevEstado = order.estado;
   order[field] = val;
+
+  // AUTO-RECIBIR (florería): si el renglón ya está CONTROLADO (los floristas lo
+  // recepcionaron) y se le carga el PRECIO, se sube al stock solo y queda
+  // "recibido" — evita el paso manual de "subir al stock".
+  if(type==='floreria' && field==='costo' && order.estado==='controlado' && parseMoney(val)>0){
+    _subirCompraAlStock(i); // setea estado='recibido', suma varas al stock y calcula costo/vara
+    window._comprasFloreLastSave = Date.now();
+    fbSave('comprasFlore', comprasFlore);
+    fbSave('stockData', stockData);
+    fbSave('cotizadorPrecios', cotizadorPrecios);
+    showToast('✓ ' + (order.prod||'') + ' recibido y subido al stock');
+    renderCompras('floreria');
+    if(document.getElementById('page-stock')?.classList.contains('active')) renderStock();
+    if(document.getElementById('page-recepcion-pedidos')?.classList.contains('active')) renderRecepcionPedidos();
+    return;
+  }
 
   // AUTO-STOCK: al marcar como "recibido" por primera vez → actualizar stock
   if(field==='estado' && val==='recibido' && prevEstado!=='recibido'){
@@ -7235,7 +7256,7 @@ function renderRecepcionPedidos(){
   // Fase 1 (por controlar): ni recibidos ni ya controlados.
   const allPending = comprasFlore
     .map((c,i) => ({...c, _idx: i}))
-    .filter(c => c.estado !== 'recibido' && c.estado !== 'controlado');
+    .filter(c => c.estado !== 'recibido' && c.estado !== 'controlado' && !c.noLlego);
   // Fase 2 (revisión): controlados, todavía SIN subir al stock.
   const controlados = comprasFlore
     .map((c,i) => ({...c, _idx: i}))
@@ -7413,7 +7434,7 @@ function recepUpdateGlobal(pending){
   if(!pending){
     pending = comprasFlore
       .map((c,i) => ({...c, _idx: i}))
-      .filter(c => c.estado !== 'recibido' && c.estado !== 'controlado');
+      .filter(c => c.estado !== 'recibido' && c.estado !== 'controlado' && !c.noLlego);
   }
   const total   = pending.length;
   const checked = pending.filter(o => recepState[o._idx]?.checked).length;
@@ -7440,7 +7461,7 @@ function recepUpdateGlobal(pending){
 function recepCheckAll(){
   const pending = comprasFlore
     .map((c,i) => ({...c, _idx: i}))
-    .filter(c => c.estado !== 'recibido' && c.estado !== 'controlado');
+    .filter(c => c.estado !== 'recibido' && c.estado !== 'controlado' && !c.noLlego);
   pending.forEach(o => {
     if(!recepState[o._idx]) recepState[o._idx] = {};
     recepState[o._idx].checked = true;
@@ -7461,13 +7482,17 @@ function recepUncheckAll(){
 async function recepConfirmarTodo(){
   const pending = comprasFlore
     .map((c,i) => ({...c, _idx: i}))
-    .filter(c => c.estado !== 'recibido' && c.estado !== 'controlado');
+    .filter(c => c.estado !== 'recibido' && c.estado !== 'controlado' && !c.noLlego);
   const toConfirm = pending.filter(o => recepState[o._idx]?.checked);
   if(toConfirm.length === 0){ showToast('Marcá al menos un ítem.','error'); return; }
+  // Lo pedido que NO se tildó se interpreta como "no llegó" (el proveedor no lo tenía):
+  // se anula y desaparece de Compras y de Recepción, sin borrarse definitivamente.
+  const noLlegaron = pending.filter(o => !recepState[o._idx]?.checked);
   const parciales = toConfirm.filter(o => parseFloat(recepState[o._idx].paqRecibidos) < parseFloat(o.qty));
   let msg = `¿Marcar como controlados ${toConfirm.length} ítem${toConfirm.length>1?'s':''}?`;
   if(parciales.length > 0) msg += `\n\n${parciales.length} con faltantes en paquetes — reclamar al proveedor.`;
-  msg += '\n\nPasan a la lista de REVISIÓN. El stock se actualiza recién cuando confirmes la revisión.';
+  if(noLlegaron.length > 0) msg += `\n\n${noLlegaron.length} ítem${noLlegaron.length>1?'s sin tildar se marcan como "no llegó" y desaparecen':' sin tildar se marca como "no llegó" y desaparece'} de Compras.`;
+  msg += '\n\nLos controlados pasan a la lista de REVISIÓN. El stock se actualiza recién cuando confirmes la revisión.';
   if(!await confirmModal(msg)) return;
   toConfirm.forEach(o => {
     const st = recepState[o._idx];
@@ -7479,8 +7504,15 @@ async function recepConfirmarTodo(){
     comprasFlore[o._idx].totalVaras = paqRec * varasPaq;
     delete recepState[o._idx];
   });
+  noLlegaron.forEach(o => {
+    comprasFlore[o._idx].anulado = true;
+    comprasFlore[o._idx].noLlego = true;
+    delete recepState[o._idx];
+  });
   window._comprasFloreLastSave = Date.now(); fbSave('comprasFlore', comprasFlore);
-  showToast(`${toConfirm.length} ítem${toConfirm.length>1?'s controlados':' controlado'} — revisá el listado y subilo al stock`);
+  let toastMsg = `${toConfirm.length} ítem${toConfirm.length>1?'s controlados':' controlado'} — revisá el listado y subilo al stock`;
+  if(noLlegaron.length > 0) toastMsg += ` · ${noLlegaron.length} marcado${noLlegaron.length>1?'s':''} "no llegó"`;
+  showToast(toastMsg);
   renderRecepcionPedidos();
 }
 
@@ -7508,6 +7540,22 @@ function _subirCompraAlStock(idx){
   const costoTotal = parseMoney(o.costo);
   if(costoTotal > 0 && varasPaq > 0) cotizadorPrecios[o.prod] = Math.round(costoTotal / varasPaq);
   return totalVaras;
+}
+
+// Recibir UN renglón desde Compras (botón check por fila): sube ese ítem
+// controlado al stock y lo deja "recibido", sin esperar a la revisión en lote.
+function recibirRenglonCompra(i){
+  const o = comprasFlore[i];
+  if(!o) return;
+  _subirCompraAlStock(i);
+  window._comprasFloreLastSave = Date.now();
+  fbSave('comprasFlore', comprasFlore);
+  fbSave('stockData', stockData);
+  fbSave('cotizadorPrecios', cotizadorPrecios);
+  showToast('✓ ' + (o.prod||'') + ' recibido');
+  renderCompras('floreria');
+  if(document.getElementById('page-stock')?.classList.contains('active')) renderStock();
+  if(document.getElementById('page-recepcion-pedidos')?.classList.contains('active')) renderRecepcionPedidos();
 }
 
 // Fase 2: sube TODO lo controlado al stock (el segundo check ya se hizo).
@@ -18057,7 +18105,7 @@ Object.assign(window, {
   ramoOnProdChange, recalcTotalEvento, recepCheckAll, recepConfirmar, recepConfirmarTodo,
   recepToggle, recepUncheckAll, recepUpdPaq, recepUpdVaras, recepUpdateGlobal, recetaIngRowHTML,
   recepUpdObs, recepToggleMal, recepFotoInput, recepQuitarFoto, verFotoRecep,
-  recepSubirStockTodo, recepVolverAControl,
+  recepSubirStockTodo, recepVolverAControl, recibirRenglonCompra,
   registrarHora, registrarHoraEvento, registrarHoraVenta, registrarVentaDirecta, removeKanbanCard,
   renderCaja, renderCarrito, renderCarritoOps, renderChecklistTable,
   renderComposicionesCot, renderCompraAlert, renderCompraSummary, renderCompras, renderCotEventos,
