@@ -22,3 +22,22 @@ window.ensureXLSX = ensureXLSX;
 // Precarga no bloqueante: apenas la app terminó de cargar.
 if (document.readyState === 'complete') ensureXLSX();
 else window.addEventListener('load', () => ensureXLSX());
+
+// pdf.js — igual criterio que XLSX: chunk aparte, se baja bajo demanda al
+// importar el daily report en PDF. Queda en window.pdfjsLib.
+let _pdfjsPromise = null;
+function ensurePDFJS() {
+  if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  if (!_pdfjsPromise) {
+    _pdfjsPromise = Promise.all([
+      import('pdfjs-dist/build/pdf.min.mjs'),
+      import('pdfjs-dist/build/pdf.worker.min.mjs?url'),
+    ]).then(([lib, workerMod]) => {
+      lib.GlobalWorkerOptions.workerSrc = workerMod.default;
+      window.pdfjsLib = lib;
+      return lib;
+    });
+  }
+  return _pdfjsPromise;
+}
+window.ensurePDFJS = ensurePDFJS;

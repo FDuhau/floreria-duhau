@@ -901,6 +901,8 @@
           <div class="day-tab active" id="ev-view-tab-lista" onclick="setEventosView('lista')">Lista</div>
           <div class="day-tab" id="ev-view-tab-cal" onclick="setEventosView('calendario')">Calendario</div>
         </div>
+        <button class="btn-secondary" onclick="document.getElementById('ev-import-file').click()" style="font-size:12px" title="Importar los eventos del Daily Report (DDR - Florist) en PDF">Importar daily (PDF)</button>
+        <input type="file" id="ev-import-file" accept="application/pdf,.pdf" style="display:none" onchange="evImportFile(this)">
         <button class="btn-add" onclick="openEventModal(-1)">+ Nuevo Evento</button>
       </div>
     </div>
@@ -915,6 +917,15 @@
         <button class="btn-secondary" onclick="calNextMonth()">Siguiente ›</button>
       </div>
       <div id="cal-grid"></div>
+    </div>
+  </div>
+
+  <!-- ══════ IMPORTAR DAILY (PDF) — vista previa de eventos ══════ -->
+  <div class="modal-overlay" id="ev-import-modal">
+    <div class="modal" style="max-width:720px;width:96vw">
+      <button class="modal-close" onclick="closeModal('ev-import-modal')">✕</button>
+      <div class="modal-title">Importar daily (PDF)</div>
+      <div id="ev-import-body"></div>
     </div>
   </div>
 
