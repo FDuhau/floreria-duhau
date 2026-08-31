@@ -3729,6 +3729,263 @@ async function cfImportConfirm(){
   updateKpiCompras();
 }
 
+// ════════════════════════════════════════════════════════════════════════
+//  Importar EVENTOS desde el "Daily Report" (DDR - Florist) en PDF
+//  El daily del Park Hyatt trae los eventos del día + 3 días siguientes, así
+//  que dailies consecutivos se pisan: se deduplica por "Número Orden de
+//  Evento" (único por orden). Nunca escribe directo: pasa por una vista
+//  previa donde cada evento sale como NUEVO / YA CARGADO / MODIFICADO y se
+//  confirma. Al actualizar un modificado solo se tocan los datos del evento,
+//  nunca el estado ni las asignaciones que cargó el equipo.
+// ════════════════════════════════════════════════════════════════════════
+let evImportParsed = [];   // eventos detectados en el PDF, con su _status y _sel
+
+const _EV_MESES = {enero:1,febrero:2,marzo:3,abril:4,mayo:5,junio:6,julio:7,agosto:8,septiembre:9,setiembre:9,octubre:10,noviembre:11,diciembre:12};
+function _evStripAcc(s){return String(s||'').toLowerCase().replace(/[áàäâ]/g,'a').replace(/[éèëê]/g,'e').replace(/[íìïî]/g,'i').replace(/[óòöô]/g,'o').replace(/[úùüû]/g,'u').replace(/ñ/g,'n');}
+
+function _evBannerDate(txt){
+  const m = _evStripAcc(txt).match(/fecha del evento\s+\w+,\s*([a-z]+)\s+(\d{1,2}),\s*(\d{4})/);
+  if(!m) return '';
+  const mm = _EV_MESES[m[1]]; if(!mm) return '';
+  return `${m[3]}-${String(mm).padStart(2,'0')}-${String(m[2]).padStart(2,'0')}`;
+}
+function _evValRightOf(lines, label){
+  for(const ln of lines){
+    const idx = ln.cells.findIndex(c=>c.str.replace(/\s+/g,' ').startsWith(label));
+    if(idx>=0 && ln.cells[idx+1]) return ln.cells[idx+1].str;
+  }
+  return '';
+}
+function _evFirst(lines, re){ for(const ln of lines){ const m = ln.text.match(re); if(m) return m[1].trim(); } return ''; }
+
+// "2 arreglos altos para buffet + 4 bochitas mesas cocktail + 4 bochitas para
+// livings" (+ Tonos "Follaje") → ["2 arreglos altos para buffet con follaje",
+// "8 bochitas con follaje"]: separa por +, suma los del mismo tipo (descartando
+// el lugar) y aclara el material (con flores / con follaje) en todos los ítems.
+function _evTransformArreglo(desc, tono){
+  const material = /follaje/i.test(tono||'') ? 'con follaje' : (tono ? 'con flores' : '');
+  const parts = String(desc||'').split('+').map(s=>s.trim()).filter(Boolean);
+  const LOC = /\b(para|del|de|en|mesas?|sobre)\b/i;
+  const items = parts.map(p=>{
+    const m = p.match(/^(\d+)\s+(.*)$/);
+    const qty = m?+m[1]:1, rest = (m?m[2]:p).trim();
+    const i = rest.search(LOC);
+    let base = (i>=0?rest.slice(0,i):rest).trim().toLowerCase();
+    if(!base) base = rest.toLowerCase();
+    return {qty, rest, base};
+  });
+  const groups=[]; const by={};
+  items.forEach(it=>{ if(by[it.base]==null){by[it.base]=groups.length;groups.push({base:it.base,qty:0,items:[]});} const g=groups[by[it.base]]; g.qty+=it.qty; g.items.push(it); });
+  return groups.map(g=>{
+    const text = g.items.length===1 ? `${g.items[0].qty} ${g.items[0].rest}` : `${g.qty} ${g.base}`;
+    return material ? `${text} ${material}` : text;
+  });
+}
+
+const _EV_DAY_RE = /^(lun|mar|mi[eé]|jue|vie|s[áa]b|dom)/i;
+// Lee un PDF (Uint8Array) con pdf.js y devuelve páginas como líneas ordenadas.
+async function _evExtractPages(data){
+  const pdfjs = await window.ensurePDFJS();
+  const doc = await pdfjs.getDocument({ data, isEvalSupported:false }).promise;
+  const pages = [];
+  for(let p=1;p<=doc.numPages;p++){
+    const page = await doc.getPage(p);
+    const tc = await page.getTextContent();
+    const buckets = {};
+    for(const it of tc.items){
+      if(!it.str.trim()) continue;
+      const x = Math.round(it.transform[4]);
+      const y = Math.round(it.transform[5]);
+      const key = Math.round(y/4)*4;
+      (buckets[key] ||= []).push({x, str:it.str.trim()});
+    }
+    const lines = Object.keys(buckets).map(Number).sort((a,b)=>b-a).map(y=>{
+      const cells = buckets[y].sort((a,b)=>a.x-b.x);
+      return { y, cells, text: cells.map(c=>c.str).join('  ') };
+    });
+    pages.push(lines);
+  }
+  return pages;
+}
+// Divide el documento en bloques por el banner "Fecha del Evento …" y extrae
+// los campos de cada evento por rótulo.
+function _evParseEvents(pages){
+  const all = pages.flat();
+  const blocks=[]; let cur=null;
+  for(const ln of all){
+    if(/fecha del evento\s+\w+,/i.test(_evStripAcc(ln.text))){ cur={date:_evBannerDate(ln.text), lines:[]}; blocks.push(cur); }
+    else if(cur) cur.lines.push(ln);
+  }
+  return blocks.map(b=>{
+    const L=b.lines;
+    const nombre = _evValRightOf(L,'Evento :') || _evValRightOf(L,'Evento:');
+    const salon  = _evValRightOf(L,'Ubicacion');
+    const ordenId= _evValRightOf(L,'Numero Orden');
+    const reserva= _evValRightOf(L,'Reserva:');
+    const sm     = _evValRightOf(L,'SM:');
+    const contacto = _evValRightOf(L,'Contacto en');
+    const catering = _evValRightOf(L,'Catering-');
+    const pax  = _evFirst(L,/Cantidad de pax:\s*(\d+)/i);
+    const tono = _evFirst(L,/Tonos de las flores:\s*(.+)/i);
+    const armadoEvento = _evFirst(L,/Armado del evento:\s*(.+)/i);
+    const listos = _evFirst(L,/Arreglos listos a las:\s*(.+)/i);
+    let horaIni='', horaFin='';
+    for(const ln of L){ if(_EV_DAY_RE.test(_evStripAcc(ln.cells[0]?.str||''))){ const hs=ln.cells.filter(c=>/^\d{1,2}:\d{2}$/.test(c.str)); horaIni=hs[0]?.str||''; horaFin=hs[1]?.str||''; break; } }
+    let precio=''; for(const ln of L){ const c=ln.cells.find(c=>/^\d{1,3}(\.\d{3})*,\d{2}$/.test(c.str)); if(c){precio=c.str;break;} }
+    // "Tipo de arreglo": el texto está en la(s) línea(s) siguientes al rótulo.
+    let arregloRaw=''; const STOP=/^(Tonos de las flores:|Armado del evento:|Arreglos listos a las:|Cantidad de pax:|Precio|Diversos|Tipo EO)/i;
+    const ti = L.findIndex(ln=>/^Tipo de arreglo:/i.test(ln.text));
+    if(ti>=0){ const buf=[]; for(let k=ti+1;k<L.length;k++){ if(STOP.test(L[k].text)) break; buf.push(L[k].text); } arregloRaw=buf.join(' ').trim(); }
+    const arreglos = arregloRaw ? _evTransformArreglo(arregloRaw, tono) : [];
+    // Notas libres del bloque de servicio (texto suelto a x≈199 que no es rótulo).
+    const KNOWN=/^(Tipo de arreglo:|Tonos de las flores:|Armado del evento:|Arreglos listos a las:|Cantidad de pax:|Flores$|Diversos|Todo$|Descripcion|Hora del)/i;
+    const notaParts=[];
+    for(const ln of L){ const c0=ln.cells[0]; if(c0 && c0.x>=190 && c0.x<=212 && !KNOWN.test(ln.text) && ln.text!==arregloRaw) notaParts.push(ln.text); }
+    const notaLibre = notaParts.join(' ').trim();
+    return {date:b.date, nombre, salon, ordenId, reserva, sm, contacto, catering, pax, tono, armadoEvento, listos, horaIni, horaFin, precio, arreglos, notaLibre};
+  }).filter(e=>e.ordenId || e.nombre);
+}
+
+// Arma el texto de notas del evento a partir de lo detectado.
+function _evComposeNotas(e){
+  const L=[];
+  if(e.arreglos.length) L.push('Arreglos:\n'+e.arreglos.map(a=>'- '+a).join('\n'));
+  if(e.notaLibre) L.push(e.notaLibre);
+  if(e.tono) L.push('Tono: '+e.tono);
+  const arm=[]; if(e.armadoEvento) arm.push('Armado: '+e.armadoEvento); if(e.listos) arm.push('Listos: '+e.listos);
+  if(arm.length) L.push(arm.join(' · '));
+  if(e.horaIni||e.horaFin) L.push('Horario: '+(e.horaIni||'?')+(e.horaFin?'–'+e.horaFin:''));
+  const cont=[]; if(e.contacto) cont.push('Contacto: '+e.contacto); if(e.sm) cont.push('SM: '+e.sm); if(e.catering) cont.push('Catering: '+e.catering);
+  if(cont.length) L.push(cont.join(' · '));
+  if(e.ordenId) L.push('Nº Orden: '+e.ordenId);
+  return L.join('\n');
+}
+// Firma de los datos descriptivos, para detectar si un daily posterior cambió algo.
+function _evSig(o){ return [o.fecha,o.nombre,o.salon,o.hora,o.pax,String(o.precio||''),o.notas].join('¦'); }
+
+// Convierte un evento parseado al objeto de la app (sin pisar workflow existente).
+function _evToEvento(e){
+  return {
+    nombre: e.nombre || 'Evento sin nombre',
+    ordenId: e.ordenId || '',
+    tipo: 'Evento',
+    fecha: e.date || '',
+    hora: e.horaIni || '',
+    horaFin: e.horaFin || '',
+    salon: e.salon || '',
+    zonas: [],
+    pax: +e.pax || 0,
+    precio: e.precio || 'A confirmar',
+    notas: _evComposeNotas(e),
+    organizador: e.reserva || '',
+    estado: 'Pedidos Pendientes',
+    arreglos: [],
+    importadoDaily: true
+  };
+}
+
+function evImportFile(input){
+  const file = input.files?.[0];
+  input.value = '';
+  if(!file) return;
+  showToast('Leyendo el daily…');
+  const reader = new FileReader();
+  reader.onload = async (ev) => {
+    try{
+      const pages = await _evExtractPages(new Uint8Array(ev.target.result));
+      const parsed = _evParseEvents(pages);
+      if(!parsed.length){ showToast('No encontré eventos en ese PDF. ¿Es el Daily Report (DDR - Florist)?','error'); return; }
+      // Deduplicar contra lo ya cargado por Nº Orden de Evento.
+      const byOrden = {};
+      eventosData.forEach((ev,i)=>{ if(ev.ordenId) byOrden[ev.ordenId]=i; });
+      evImportParsed = parsed.map(e=>{
+        const nuevo = _evToEvento(e);
+        const existIdx = e.ordenId!=null && byOrden[e.ordenId]!=null ? byOrden[e.ordenId] : -1;
+        let status='nuevo', cambios=[];
+        if(existIdx>=0){
+          const prev = eventosData[existIdx];
+          const campos = [['fecha','Fecha'],['nombre','Nombre'],['salon','Salón'],['hora','Hora'],['pax','Pax'],['precio','Precio'],['notas','Detalle']];
+          campos.forEach(([k,lbl])=>{ if(String(prev[k]??'')!==String(nuevo[k]??'')) cambios.push(lbl); });
+          status = cambios.length ? 'modificado' : 'cargado';
+        }
+        return { nuevo, existIdx, status, cambios, _sel: status!=='cargado' };
+      });
+      renderEvImportPreview();
+      document.getElementById('ev-import-modal').classList.add('open');
+    }catch(err){
+      showToast('No pude leer el PDF: '+(err.message||err),'error');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function evImportToggle(i){ if(evImportParsed[i] && evImportParsed[i].status!=='cargado'){ evImportParsed[i]._sel=!evImportParsed[i]._sel; renderEvImportPreview(); } }
+
+function renderEvImportPreview(){
+  const el = document.getElementById('ev-import-body'); if(!el) return;
+  const n = evImportParsed.filter(e=>e.status==='nuevo').length;
+  const m = evImportParsed.filter(e=>e.status==='modificado').length;
+  const c = evImportParsed.filter(e=>e.status==='cargado').length;
+  const BADGE = {
+    nuevo:      '<span style="background:#E6F2E6;color:#2E6B2E;font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px">NUEVO</span>',
+    modificado: '<span style="background:#FBF3D9;color:#8A6D00;font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px">MODIFICADO</span>',
+    cargado:    '<span style="background:#EFEDE8;color:#8A857A;font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px">YA CARGADO</span>'
+  };
+  const rows = evImportParsed.map((e,i)=>{
+    const o=e.nuevo;
+    const dis = e.status==='cargado';
+    const cambios = e.cambios.length ? `<div style="font-size:11px;color:#8A6D00;margin-top:3px">Cambió: ${esc(e.cambios.join(', '))}</div>` : '';
+    const arreglos = o.notas ? `<div style="font-size:11px;color:var(--mid-gray);margin-top:4px;white-space:pre-wrap">${esc(o.notas)}</div>` : '';
+    return `<div style="display:flex;gap:10px;padding:10px 4px;border-top:1px solid #F0EDE8;${dis?'opacity:.55':''}">
+      <input type="checkbox" ${e._sel?'checked':''} ${dis?'disabled':''} onchange="evImportToggle(${i})" style="margin-top:3px;width:16px;height:16px;flex:0 0 auto">
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          ${BADGE[e.status]}
+          <strong style="font-size:13px">${esc(o.nombre)}</strong>
+          <span style="font-size:11.5px;color:var(--mid-gray)">${o.fecha?fmtDate(o.fecha):'sin fecha'}${o.hora?' · '+esc(o.hora):''}${o.salon?' · '+esc(o.salon):''}${o.pax?' · '+o.pax+' pax':''}</span>
+        </div>
+        ${cambios}${arreglos}
+      </div>
+    </div>`;
+  }).join('');
+  const selCount = evImportParsed.filter(e=>e._sel).length;
+  el.innerHTML = `
+    <div style="font-size:12px;color:var(--mid-gray);margin-bottom:6px">
+      ${n} nuevo${n!==1?'s':''} · ${m} modificado${m!==1?'s':''} · ${c} ya cargado${c!==1?'s':''}. Se importan solo los tildados; los modificados actualizan el evento sin tocar su estado ni las asignaciones.
+    </div>
+    <div style="max-height:52vh;overflow:auto">${rows}</div>
+    <div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end">
+      <button class="btn-secondary" onclick="closeModal('ev-import-modal')">Cancelar</button>
+      <button class="btn-add" ${selCount?'':'disabled'} onclick="evImportConfirm()">Importar ${selCount} evento${selCount!==1?'s':''}</button>
+    </div>`;
+}
+
+function evImportConfirm(){
+  const sel = evImportParsed.filter(e=>e._sel);
+  if(!sel.length){ showToast('No hay eventos tildados.','error'); return; }
+  let nuevos=0, actualizados=0;
+  sel.forEach(e=>{
+    if(e.status==='nuevo'){
+      const ev = e.nuevo; ev.id = genEventoId();
+      eventosData.push(ev); nuevos++;
+    } else if(e.status==='modificado' && e.existIdx>=0){
+      // Solo datos descriptivos; se preserva estado, asignaciones, fases, id, etc.
+      const prev = eventosData[e.existIdx]; const nu = e.nuevo;
+      ['nombre','fecha','hora','horaFin','salon','pax','precio','notas','organizador','ordenId'].forEach(k=>{ prev[k]=nu[k]; });
+      actualizados++;
+    }
+  });
+  fbSave('eventosData', eventosData);
+  if(typeof syncEventosToKanban==='function'){ syncEventosToKanban(); fbSave('kanbanData', kanbanData); }
+  closeModal('ev-import-modal');
+  evImportParsed = [];
+  let msg = [];
+  if(nuevos) msg.push(`${nuevos} evento${nuevos!==1?'s':''} nuevo${nuevos!==1?'s':''}`);
+  if(actualizados) msg.push(`${actualizados} actualizado${actualizados!==1?'s':''}`);
+  showToast('Daily importado: '+msg.join(' · '));
+  renderEventos(); renderHome();
+}
+
 function applyCompraFilter(type){
   const from = document.getElementById((type==='floreria'?'cf':'cj')+'-from').value;
   const to   = document.getElementById((type==='floreria'?'cf':'cj')+'-to').value;
@@ -18172,4 +18429,5 @@ Object.assign(window, {
   toggleCfSplit, cfSplitAddRow, cfSplitRemoveRow, cfSplitUpdRow,
   cfImportFile, cfImportCancel, cfImportParseSheet, cfImportConfirm,
   toggleAnularCompra, updHistCantCompra, updHistCostoCompra,
+  evImportFile, evImportToggle, evImportConfirm,
 });
