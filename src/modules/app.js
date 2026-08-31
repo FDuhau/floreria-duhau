@@ -3895,12 +3895,25 @@ function evImportFile(input){
       const pages = await _evExtractPages(new Uint8Array(ev.target.result));
       const parsed = _evParseEvents(pages);
       if(!parsed.length){ showToast('No encontré eventos en ese PDF. ¿Es el Daily Report (DDR - Florist)?','error'); return; }
-      // Deduplicar contra lo ya cargado por Nº Orden de Evento.
-      const byOrden = {};
-      eventosData.forEach((ev,i)=>{ if(ev.ordenId) byOrden[ev.ordenId]=i; });
+      // Deduplicar contra lo ya cargado. Clave primaria: Nº Orden de Evento.
+      // Clave secundaria (respaldo): nombre + fecha — porque algunos dailies
+      // reimprimen la misma orden con un Nº distinto, y el usuario piensa el
+      // evento por "el del 2 de septiembre", no por su número. Así, aunque
+      // cambie el Nº de Orden, un mismo evento (mismo nombre y fecha) no se
+      // vuelve a crear.
+      const byOrden = {}, byNombreFecha = {};
+      eventosData.forEach((ev,i)=>{
+        if(ev.ordenId) byOrden[ev.ordenId]=i;
+        const k = _evStripAcc(ev.nombre)+'|'+(ev.fecha||'');
+        if(byNombreFecha[k]==null) byNombreFecha[k]=i;
+      });
       evImportParsed = parsed.map(e=>{
         const nuevo = _evToEvento(e);
-        const existIdx = e.ordenId!=null && byOrden[e.ordenId]!=null ? byOrden[e.ordenId] : -1;
+        let existIdx = e.ordenId && byOrden[e.ordenId]!=null ? byOrden[e.ordenId] : -1;
+        if(existIdx<0){
+          const k = _evStripAcc(nuevo.nombre)+'|'+(nuevo.fecha||'');
+          if(nuevo.nombre && nuevo.fecha && byNombreFecha[k]!=null) existIdx = byNombreFecha[k];
+        }
         let status='nuevo', cambios=[];
         if(existIdx>=0){
           const prev = eventosData[existIdx];
