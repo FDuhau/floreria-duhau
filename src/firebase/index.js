@@ -61,6 +61,14 @@
       });
     }
 
+    // Igual que fbListen pero SÍ invoca el callback cuando el nodo está vacío
+    // (val === null). Se usa para nodos donde "vacío" es un estado válido que
+    // hay que reflejar en memoria — p. ej. marcar un store como "ya cargado"
+    // aunque todavía no tenga datos, para no bloquear la primera escritura.
+    function fbListenNullable(path, cb){
+      onValue(ref(db, path), snap => cb(snap.val()));
+    }
+
     // ════════════ ESTADO DE CONEXIÓN Y GUARDADO ════════════
     // Indicador visible arriba al centro: avisa cuando no hay conexión
     // y confirma cada guardado (Guardando… / Guardado / Error).
@@ -613,9 +621,12 @@
         if(document.getElementById('page-rentabilidad-eventos')?.classList.contains('active')) window.renderRentabilidadHotel?.();
       });
 
-      fbListen('arreglosComposicion', val => {
-        if(!val) return;
-        if(window._setArreglosComposicion) window._setArreglosComposicion(val);
+      // fbListenNullable (no fbListen): si el nodo está vacío (todavía no hay
+      // ninguna composición) igual hay que marcar el store como "cargado" — si
+      // no, el guardado queda bloqueado para siempre y no se puede crear la
+      // PRIMERA composición (el florista ve "todavía se están cargando").
+      fbListenNullable('arreglosComposicion', val => {
+        if(window._setArreglosComposicion) window._setArreglosComposicion(val || {});
         if(document.getElementById('page-rentabilidad-eventos')?.classList.contains('active')) window.renderRentabilidadHotel?.();
         if(document.getElementById('page-recetas-arreglos')?.classList.contains('active')) window.renderComposicionesHotel?.();
       });
