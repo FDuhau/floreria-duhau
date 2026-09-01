@@ -309,6 +309,10 @@ function navigate(pageId, navEl){
   updateBottomNav(pageId);
   // Redirigir home según rol
   if(pageId === 'home' && userRole === 'ventas') pageId = 'home-hyatt';
+  // Compras tiene acceso SOLO al Dashboard de Margen dentro de Reportes: si
+  // intenta abrir el hub de Reportes o cualquier otro reporte, se lo lleva al
+  // de margen (el único que se le habilitó).
+  if(userRole === 'compras' && ['reportes','reportes-equipo','cierre-dia','reportes-ventas','reportes-stock','auditoria','dashboard-gerencia'].includes(pageId)) pageId = 'reportes-margen';
   document.querySelectorAll('.content').forEach(p=>p.classList.remove('active'));
   const pg = document.getElementById('page-'+pageId);
   if(pg) pg.classList.add('active');
@@ -12362,6 +12366,16 @@ function applyRole(role){
         }
       }
     });
+    // Acceso puntual al Dashboard de Margen (dentro de Reportes) — pedido para
+    // Compras. Se revela SOLO ese sub-ítem del grupo Reportes, no el resto.
+    document.querySelectorAll('.nav-section-label').forEach(label => {
+      if(label.textContent.trim() === 'Reportes') label.style.display = '';
+    });
+    const repHdr = document.querySelector('[data-group-id="grp-rep"]');
+    if(repHdr) repHdr.style.display = '';
+    document.querySelectorAll('.nav-sub-item[data-group="grp-rep"]').forEach(el => {
+      if(el.textContent.trim() === 'Dashboard de Margen') el.style.display = '';
+    });
     // Quick links: solo los relacionados a compras y recepción
     document.querySelectorAll('.quick-link').forEach(ql => {
       const title = ql.querySelector('.quick-link-title')?.textContent || '';
@@ -12369,7 +12383,7 @@ function applyRole(role){
     });
     document.querySelector('[data-group-id="grp-compras"]').style.display = '';
     document.querySelector('[data-group-id="grp-ops"]').style.display = '';
-    setTimeout(()=>{ navigate('compras'); navExpandGroup('grp-compras'); }, 100);
+    setTimeout(()=>{ navigate('compras'); navExpandGroup('grp-compras'); navExpandGroup('grp-rep'); }, 100);
   }
 
   if(role === 'jardinero'){
