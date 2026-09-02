@@ -11526,58 +11526,65 @@ function renderHomeHyatt(){
   const estadoIcons = {pendiente:'⏳',preparando:'',listo:'',entregado:''};
   el.innerHTML = ultimos.map(p =>
     `<div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:8px;padding:10px 14px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
-      <div><strong>${arregloEmoji(p.tipo)} ${esc(p.tipo)}</strong>${p.variante?' · '+esc(p.variante):''} × ${p.qty} — Hab. ${esc(p.habitacion)} · ${esc(p.cliente)}</div>
+      <div><strong>${_phResumen(p)}</strong> — Hab. ${esc(p.habitacion)} · ${esc(p.cliente)}</div>
       <span style="font-size:13px">${estadoIcons[p.estado]||'⏳'} ${p.estado}</span>
     </div>`
   ).join('');
 }
 
-function populatePHSubSelector(){
-  const tipo = document.getElementById('ph-tipo')?.value;
-  const subWrap = document.getElementById('ph-variante-wrap');
-  const subSel = document.getElementById('ph-variante');
-  const customInput = document.getElementById('ph-tipo-custom');
-  if(!subWrap || !subSel) return;
+// ── Pedidos de habitación: arreglos MÚLTIPLES (uno o varios por pedido) ──
+// Mismo criterio que los arreglos de un evento: se cargan varias filas
+// {tipo, qty}. tipo viene como "comp:Nombre" (composición) o "ramo:Nombre".
+let phItemRows = [];
 
-  if(!tipo){ subWrap.style.display = 'none'; return; }
-
-  if(tipo === 'Otro'){
-    subWrap.style.display = '';
-    subSel.style.display = 'none';
-    customInput.style.display = '';
-    return;
-  }
-
-  subWrap.style.display = '';
-  subSel.style.display = '';
-  customInput.style.display = 'none';
-
-  let opts = '<option value="">— Seleccionar modelo —</option>';
-
-  // Composiciones
+function _phItemOptionsHTML(selected){
+  let opts = '<option value="">— Seleccionar arreglo —</option>';
   if(recetasData.length){
     opts += '<optgroup label="Composiciones">';
-    recetasData.forEach(r => {
-      const ings = r.ings.map(g=>g.qty+' '+g.prod).join(', ');
-      const costo = calcCostoComposicion(r);
-      const margen = cotizadorConfig?.margen ?? 30;
-      const precio = Math.round(costo*(1+margen/100));
-      opts += `<option value="comp:${esc(r.nombre)}">${arregloEmoji(r.nombre)} ${esc(r.nombre)} — $${precio.toLocaleString('es-AR')} (${ings})</option>`;
-    });
+    recetasData.forEach(r => { const v='comp:'+r.nombre; opts += `<option value="${esc(v)}" ${v===selected?'selected':''}>${esc(r.nombre)}</option>`; });
     opts += '</optgroup>';
   }
-
-  // Items de Lista de Precios
-  listaPreciosData.forEach(cat => {
-    if(!(cat.items||[]).length) return;
-    opts += `<optgroup label="${cat.emoji||''} ${esc(cat.cat)}">`;
-    cat.items.forEach(it => {
-      opts += `<option value="lp:${esc(it.nombre)}">${esc(it.nombre)} — ${esc(it.precio||'A consultar')}</option>`;
-    });
+  const ramos = [...new Set((ramosDispData||[]).map(r=>r.nombre).filter(Boolean))];
+  if(ramos.length){
+    opts += '<optgroup label="Ramos">';
+    ramos.forEach(n => { const v='ramo:'+n; opts += `<option value="${esc(v)}" ${v===selected?'selected':''}>${esc(n)}</option>`; });
     opts += '</optgroup>';
-  });
+  }
+  if(!recetasData.length && !ramos.length) opts += '<option value="" disabled>Cargá composiciones o ramos primero</option>';
+  return opts;
+}
 
-  subSel.innerHTML = opts;
+function renderPHItems(){
+  const list = document.getElementById('ph-items-list');
+  if(!list) return;
+  if(!phItemRows.length) phItemRows = [{tipo:'', qty:1}];
+  list.innerHTML = phItemRows.map((row,i)=>{
+    const precio = _precioVariantePH(row.tipo);
+    return `<div class="ph-item-row" style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+      <select onchange="phSetItemTipo(${i},this.value)" style="flex:2;min-width:150px;border:1px solid #E4E2DC;border-radius:6px;padding:8px;font-family:inherit;font-size:13px;outline:none">${_phItemOptionsHTML(row.tipo)}</select>
+      <span style="font-size:12px;color:var(--mid-gray)">×</span>
+      <input type="number" min="1" value="${row.qty||1}" onchange="phSetItemQty(${i},this.value)" style="width:62px;border:1px solid #E4E2DC;border-radius:6px;padding:8px 6px;font-size:13px;text-align:center;outline:none;font-family:inherit">
+      <span style="font-size:12px;color:var(--mid-gray);min-width:78px;text-align:right">${precio?esc(precio):'—'}</span>
+      <button type="button" class="btn-icon" style="color:var(--red-alert)" onclick="phRemoveItemRow(${i})" title="Quitar">✕</button>
+    </div>`;
+  }).join('');
+  const totalEl = document.getElementById('ph-items-total');
+  if(totalEl){
+    const total = phItemRows.reduce((s,r)=>{ const n=parseMoney(_precioVariantePH(r.tipo)); return s + (n>0 ? n*(+r.qty||0) : 0); }, 0);
+    totalEl.textContent = total>0 ? 'Total: $'+total.toLocaleString('es-AR') : '';
+  }
+}
+
+function phAddItemRow(){ phItemRows.push({tipo:'', qty:1}); renderPHItems(); }
+function phSetItemTipo(i,val){ if(phItemRows[i]){ phItemRows[i].tipo = val; renderPHItems(); } }
+function phSetItemQty(i,val){ if(phItemRows[i]){ phItemRows[i].qty = Math.max(1,+val||1); renderPHItems(); } }
+function phRemoveItemRow(i){ phItemRows.splice(i,1); if(!phItemRows.length) phItemRows=[{tipo:'',qty:1}]; renderPHItems(); }
+
+// Resumen de arreglos de un pedido, para mostrar. Soporta los pedidos viejos
+// de un solo ítem (tipo/qty) y los nuevos con items[].
+function _phResumen(p){
+  const items = Array.isArray(p.items) && p.items.length ? p.items : [{tipo:p.tipo, qty:p.qty}];
+  return items.map(it => `${it.qty}× ${esc(it.tipo||'')}`).join(' + ');
 }
 
 // Resuelve el precio del modelo elegido en el pedido de habitación.
@@ -11607,25 +11614,28 @@ function _precioVariantePH(val){
 }
 
 function enviarPedidoHab(){
-  const tipo = document.getElementById('ph-tipo')?.value;
-  if(!tipo){ showToast('Seleccioná el arreglo o ramo'); return; }
+  // Uno o varios arreglos: se toma cada fila cargada con arreglo y cantidad.
+  const items = phItemRows
+    .filter(r => r.tipo && (+r.qty) > 0)
+    .map(r => {
+      const precioUnit = _precioVariantePH(r.tipo);
+      return { tipo: r.tipo.replace(/^(comp|ramo):/,''), qty: +r.qty, precio: precioUnit, precioNum: parseMoney(precioUnit) };
+    });
+  if(!items.length){ showToast('Agregá al menos un arreglo'); return; }
   const cliente = document.getElementById('ph-cliente')?.value?.trim();
   if(!cliente){ showToast('Ingresá el nombre del huésped'); return; }
 
-  // El valor viene como "comp:Nombre" (composición) o "ramo:Nombre" (ramo)
-  const tipoFinal = tipo.replace(/^(comp|ramo):/,'');
-  const varianteLabel = '';
-  const qty = +document.getElementById('ph-qty')?.value || 1;
-
-  // Precio unitario del modelo elegido y total según cantidad
-  const precioUnit = _precioVariantePH(tipo);
-  const precioNum = parseMoney(precioUnit);
-  const precioTotal = precioNum > 0 ? '$' + (precioNum * qty).toLocaleString('es-AR') : precioUnit;
+  const totalNum = items.reduce((s,it)=> s + (it.precioNum>0 ? it.precioNum*it.qty : 0), 0);
+  const precioTotal = totalNum > 0 ? '$' + totalNum.toLocaleString('es-AR') : '';
+  const resumen = items.map(it => `${it.qty}× ${it.tipo}`).join(' + ');
 
   const pedido = {
-    tipo: tipoFinal,
-    variante: varianteLabel,
-    qty,
+    items: items.map(it => ({ tipo: it.tipo, qty: it.qty, precio: it.precio })),
+    resumen,
+    // Compatibilidad con lecturas viejas (primer ítem)
+    tipo: items[0].tipo,
+    variante: '',
+    qty: items[0].qty,
     cliente,
     habitacion: document.getElementById('ph-habitacion')?.value?.trim() || '—',
     tonalidad: document.getElementById('ph-tonalidad')?.value?.trim() || '',
@@ -11645,7 +11655,7 @@ function enviarPedidoHab(){
   // ── AUTO: Crear tarea en Kanban para que florería lo prepare ──
   ensureKanbanCols();
   const vidHab = genEventoId();
-  const cardTitle = `${arregloEmoji(tipoFinal)} ${tipoFinal}${varianteLabel?' · '+varianteLabel:''} × ${pedido.qty}`;
+  const cardTitle = resumen;
   const cardDesc = `Hab. ${pedido.habitacion} · ${cliente}${pedido.tonalidad?' · '+pedido.tonalidad:''}${pedido.cuando?' · Para: '+pedido.cuando.replace('T',' '):''}${pedido.obs?' · '+pedido.obs:''}`;
   kanbanData[0].cards.push({
     title: cardTitle,
@@ -11657,7 +11667,7 @@ function enviarPedidoHab(){
   });
   fbSave('kanbanData', kanbanData);
 
-  // ── AUTO: Registrar en Ventas Externas (con el precio del modelo elegido) ──
+  // ── AUTO: Registrar en Ventas Externas (con el precio total del pedido) ──
   ventasData.push({
     prod: cardTitle,
     desc: cardDesc,
@@ -11674,47 +11684,18 @@ function enviarPedidoHab(){
   fbSave('ventasData', ventasData);
 
   // Limpiar formulario
-  ['ph-tipo','ph-cliente','ph-habitacion','ph-tonalidad','ph-cuando','ph-cobro','ph-obs','ph-variante'].forEach(id=>{
+  phItemRows = [{tipo:'', qty:1}];
+  ['ph-cliente','ph-habitacion','ph-tonalidad','ph-cuando','ph-cobro','ph-obs','ph-solicitante'].forEach(id=>{
     const el = document.getElementById(id);
     if(el) el.value = '';
   });
-  document.getElementById('ph-qty').value = 1;
-  document.getElementById('ph-variante-wrap').style.display = 'none';
-  document.getElementById('ph-tipo-custom').style.display = 'none';
 
   renderPedidosHab();
   showToast('Pedido enviado · tarea creada en Kanban · registrado en Ventas');
 }
 
-// Llena el selector "Tipo de arreglo" del pedido de habitación SOLO con las
-// composiciones ya cargadas (con receta) y los ramos disponibles. Nada más.
-function populatePHTipos(){
-  const sel = document.getElementById('ph-tipo');
-  if(!sel) return;
-  const cur = sel.value;
-  let opts = '<option value="">— Seleccionar —</option>';
-  if(recetasData.length){
-    opts += '<optgroup label="Composiciones">';
-    recetasData.forEach(r => {
-      opts += `<option value="comp:${esc(r.nombre)}">${arregloEmoji(r.nombre)} ${esc(r.nombre)}</option>`;
-    });
-    opts += '</optgroup>';
-  }
-  const ramos = [...new Set((ramosDispData||[]).map(r=>r.nombre).filter(Boolean))];
-  if(ramos.length){
-    opts += '<optgroup label="Ramos">';
-    ramos.forEach(n => { opts += `<option value="ramo:${esc(n)}">${esc(n)}</option>`; });
-    opts += '</optgroup>';
-  }
-  if(!recetasData.length && !ramos.length){
-    opts += '<option value="" disabled>Cargá composiciones o ramos primero</option>';
-  }
-  sel.innerHTML = opts;
-  if(cur) sel.value = cur;
-}
-
 function renderPedidosHab(){
-  populatePHTipos();
+  renderPHItems();
   const list = document.getElementById('ph-lista');
   if(!list) return;
   if(!pedidosHabData.length){
@@ -11733,7 +11714,7 @@ function renderPedidosHab(){
     return `<div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:10px;padding:14px 16px;margin-bottom:10px">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
         <div>
-          <span style="font-size:15px;font-weight:600;color:#1A1A1A">${arregloEmoji(p.tipo)} ${esc(p.tipo)}${p.variante?' · <span style="font-weight:400">'+esc(p.variante)+'</span>':''} × ${p.qty}</span>
+          <span style="font-size:15px;font-weight:600;color:#1A1A1A">${_phResumen(p)}</span>
           <span style="background:${bg};padding:3px 10px;border-radius:10px;font-size:11px;font-weight:600;margin-left:8px">${icon} ${label}</span>
         </div>
         <div style="font-size:11px;color:var(--mid-gray)">${p.fecha ? fmtDate(p.fecha) : ''} ${p.hora||''}</div>
@@ -18384,7 +18365,8 @@ Object.assign(window, {
   openDiaHorario, openEditSaleModal, openEventModal, openEventoDetail, openGestionPasswords,
   openGaleriaModal, openLpCatModal, openLpModal, openRamoModal, openRamoPhoto,
   openRecetaModal, openSaleModal, openSidebar, openTaskModal, openVentaRamo, parseMoney,
-  populateFloreriaFormHelpers, populatePHSubSelector, populateProvSelects, populateSaleSelects,
+  populateFloreriaFormHelpers, populateProvSelects, populateSaleSelects,
+  phAddItemRow, phSetItemTipo, phSetItemQty, phRemoveItemRow,
   previewEventImg, previewRecetaImg, previewStockImpact, ramoOnCatChange,
   ramoOnProdChange, recalcTotalEvento, recepCheckAll, recepConfirmar, recepConfirmarTodo,
   recepToggle, recepUncheckAll, recepUpdPaq, recepUpdVaras, recepUpdateGlobal, recetaIngRowHTML,

@@ -1854,26 +1854,19 @@
     <!-- Formulario de pedido -->
     <div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;padding:20px;margin-bottom:20px">
       <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:14px;font-weight:500">Nuevo pedido</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-bottom:12px">
-        <div class="form-group"><label>Tipo de arreglo</label>
-          <select class="form-input" id="ph-tipo">
-            <option value="">— Seleccionar —</option>
-          </select>
-        </div>
-        <div class="form-group" id="ph-variante-wrap" style="display:none"><label>Variante / Modelo</label>
-          <select class="form-input" id="ph-variante">
-            <option value="">— Seleccionar variante —</option>
-          </select>
-          <input class="form-input" id="ph-tipo-custom" style="display:none;margin-top:6px" placeholder="Describí el arreglo...">
-        </div>
-        <div class="form-group"><label>Cantidad</label>
-          <input class="form-input" type="number" id="ph-qty" value="1" min="1">
-        </div>
-        <div class="form-group"><label>Cliente / Huésped</label>
-          <input class="form-input" id="ph-cliente" placeholder="Nombre del huésped">
+      <!-- Arreglos: uno o varios por pedido (ej. 1 Pecera Upgrade + 3 Bochitas Upgrade) -->
+      <div class="form-group" style="margin-bottom:14px"><label>Arreglos del pedido</label>
+        <div style="font-size:11.5px;color:var(--mid-gray);margin:-2px 0 8px">Agregá uno o más arreglos para la misma habitación. Ej.: 1 Pecera Upgrade + 3 Bochitas Upgrade.</div>
+        <div id="ph-items-list"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;flex-wrap:wrap;gap:8px">
+          <button type="button" class="btn-secondary" style="font-size:12px" onclick="phAddItemRow()">+ Agregar arreglo</button>
+          <div id="ph-items-total" style="font-size:13px;font-weight:600;color:#1A1A1A"></div>
         </div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-bottom:12px">
+        <div class="form-group"><label>Cliente / Huésped</label>
+          <input class="form-input" id="ph-cliente" placeholder="Nombre del huésped">
+        </div>
         <div class="form-group"><label>Nº Habitación</label>
           <input class="form-input" id="ph-habitacion" placeholder="ej. 501">
         </div>
