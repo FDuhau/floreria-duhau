@@ -631,6 +631,10 @@
         if(document.getElementById('page-recetas-arreglos')?.classList.contains('active')) window.renderComposicionesHotel?.();
       });
 
+      fbListen('comprasBaseDia', val => {
+        if(window._setComprasBaseDia) window._setComprasBaseDia(val);
+      });
+
       fbListen('eventLaborRate', val => {
         if(window._setEventLaborRate) window._setEventLaborRate(val);
         if(document.getElementById('page-rentabilidad-eventos')?.classList.contains('active')) window.renderRentabilidad?.();
