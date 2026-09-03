@@ -923,6 +923,10 @@
     .compras-table td.compra-row-acciones::before { display: none; }
     .compras-table td[colspan] { display: block !important; width: 100%; }
     .compras-table td[colspan]::before { display: none; }
+    /* Rango de meses del historial: a todo el ancho y sin desbordar */
+    .compras-daterange { margin-left: 0 !important; width: 100%; }
+    .compras-daterange input[type="month"] { flex: 1 1 120px; width: auto !important; min-width: 0; }
+    .compras-daterange .btn-add, .compras-daterange .btn-secondary { flex: 1 1 130px; min-width: 0; }
   }
 
   @media (max-width: 400px) {
