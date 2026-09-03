@@ -530,6 +530,7 @@
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
         <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);font-weight:500">Nueva orden de compra</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-add" onclick="abrirPedidoAuto()" style="font-size:12px" title="Arma el pedido de un tirón: la base fija del hotel (composiciones por área) + las flores de los eventos pendientes. Después le das los toques finales.">Generar pedido automático</button>
           <button class="btn-secondary" onclick="copiarUltimoPedido('floreria')" style="font-size:12px" title="Trae los datos del último pedido cargado para modificar cantidades, colores, etc.">Copiar último pedido</button>
           <button class="btn-secondary" onclick="document.getElementById('cf-import-file').click()" style="font-size:12px" title="Importar un pedido cargado en Excel/Sheets (.xlsx)">Importar desde Excel</button>
           <input type="file" id="cf-import-file" accept=".xlsx,.xls" style="display:none" onchange="cfImportFile(this)">
@@ -917,6 +918,16 @@
         <button class="btn-secondary" onclick="calNextMonth()">Siguiente ›</button>
       </div>
       <div id="cal-grid"></div>
+    </div>
+  </div>
+
+  <!-- ══════ GENERAR PEDIDO AUTOMÁTICO (Compras Florería) ══════ -->
+  <div class="modal-overlay" id="pedido-auto-modal">
+    <div class="modal" style="max-width:760px;width:96vw">
+      <button class="modal-close" onclick="closeModal('pedido-auto-modal')">✕</button>
+      <div class="modal-title">Generar pedido automático</div>
+      <div style="font-size:12px;color:var(--mid-gray);margin-bottom:14px">Base fija del hotel (composiciones por área) + flores de los eventos pendientes. Tildá qué incluir; después le ponés precios y proveedor.</div>
+      <div id="pa-body"></div>
     </div>
   </div>
 

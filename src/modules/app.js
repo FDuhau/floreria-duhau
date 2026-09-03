@@ -4571,6 +4571,166 @@ function getUltimoPrecioCompra(prod){
   return best===null ? null : { precio: best, fecha: bestFecha };
 }
 
+// ════════════════════════════════════════════════════════════════════════
+//  PEDIDO AUTOMÁTICO (Compras Florería)
+//  Arma el pedido semanal de un tirón, para darle después los toques finales:
+//   1) BASE FIJA del hotel = las composiciones por área (arreglosComposicion),
+//      con etiqueta de día por área (Miércoles / Viernes / Ambos) para que el
+//      pedido del miércoles y el del viernes puedan ser distintos.
+//   2) FLORES DE EVENTOS pendientes = calculadas de los arreglos de cada evento.
+//  Nunca escribe directo: muestra una vista previa donde se tilda qué incluir y
+//  recién al confirmar carga las filas en Compras como "pedido".
+// ════════════════════════════════════════════════════════════════════════
+let comprasBaseDia = {};   // { area: 'mie' | 'vie' | 'ambos' } — en qué pedido entra cada área
+window._setComprasBaseDia = v => { comprasBaseDia = (v && typeof v==='object' && !Array.isArray(v)) ? v : {}; };
+
+let _paDia = 'mie';        // día elegido en el modal
+let _paBaseSel = {};       // { area: bool } áreas tildadas
+let _paEvSel = {};         // { evIdx: bool } eventos tildados
+
+function _paAreasBase(){ return getAreaUsoZonas().filter(z => (arreglosComposicion[z]||[]).length); }
+function _paAreaDia(area){ return comprasBaseDia[area] || 'ambos'; }
+function _paEventosPend(){
+  return (eventosData||[]).map((ev,i)=>({ev,i}))
+    .filter(o => o.ev.arreglos?.length && o.ev.estado !== 'Pedidos Finalizados')
+    .sort((a,b)=>(a.ev.fecha||'').localeCompare(b.ev.fecha||''));
+}
+function _paResetBaseSel(){
+  _paBaseSel = {};
+  _paAreasBase().forEach(a => { const d = _paAreaDia(a); _paBaseSel[a] = (d==='ambos' || d===_paDia); });
+}
+
+// Construye las filas de compra que se van a generar (base + eventos).
+function _paBuildRows(){
+  const rows = [];
+  const suc = getSucursalId();
+  // Base fija por área (composiciones)
+  _paAreasBase().forEach(area => {
+    if(!_paBaseSel[area]) return;
+    (arreglosComposicion[area]||[]).forEach(ing => {
+      if(!ing.prod) return;
+      let qty;
+      if(ing.unidad==='paq'){ qty = +ing.qty||0; }
+      else { const vpp = getVarasPorPaq(ing.prod); qty = vpp ? Math.ceil((+ing.qty||0)/vpp) : (+ing.qty||0); }
+      if(qty<=0) qty = 1;
+      const up = getUltimoPrecioCompra(ing.prod);
+      rows.push({ fecha:TODAY_ISO, pedidopor:'—', prod:ing.prod, desc:'', qty, costo: up?String(up.precio):'', prov:'', sector:area, estado:'pedido', sucursal:suc });
+    });
+  });
+  // Flores de eventos pendientes
+  _paEventosPend().forEach(({ev,i}) => {
+    if(!_paEvSel[i]) return;
+    const impact = calcStockImpact(ev.arreglos||[]);
+    Object.entries(impact).forEach(([prod,varas]) => {
+      const vpp = getVarasPorPaq(prod);
+      let qty = vpp ? Math.ceil(varas/vpp) : Math.ceil(varas);
+      if(qty<=0) qty = 1;
+      const up = getUltimoPrecioCompra(prod);
+      rows.push({ fecha:TODAY_ISO, pedidopor:'—', prod, desc:'', qty, costo: up?String(up.precio):'', prov:'', sector:'', eventoId: ev.id||'', evento: ev.nombre||'', estado:'pedido', sucursal:suc });
+    });
+  });
+  return rows;
+}
+
+function abrirPedidoAuto(){
+  _paDia = (new Date().getDay() >= 4) ? 'vie' : 'mie';  // Jue/Vie/Sáb/Dom → viernes; resto → miércoles
+  _paResetBaseSel();
+  _paEvSel = {}; _paEventosPend().forEach(({i}) => { _paEvSel[i] = true; });
+  renderPedidoAuto();
+  document.getElementById('pedido-auto-modal').classList.add('open');
+}
+
+function paSetDia(dia){ _paDia = dia; _paResetBaseSel(); renderPedidoAuto(); }
+function paToggleArea(ai){ const a = _paAreasBase()[ai]; if(a){ _paBaseSel[a] = !_paBaseSel[a]; renderPedidoAuto(); } }
+function paSetAreaDia(ai, dia){
+  const a = _paAreasBase()[ai]; if(!a) return;
+  comprasBaseDia[a] = dia; fbSave('comprasBaseDia', comprasBaseDia);
+  _paBaseSel[a] = (dia==='ambos' || dia===_paDia);
+  renderPedidoAuto();
+}
+function paToggleEvento(i){ _paEvSel[i] = !_paEvSel[i]; renderPedidoAuto(); }
+
+function renderPedidoAuto(){
+  const body = document.getElementById('pa-body'); if(!body) return;
+  const areas = _paAreasBase();
+  const eventos = _paEventosPend();
+  const diaBtn = (d,lbl)=>`<button type="button" onclick="paSetDia('${d}')" class="${_paDia===d?'btn-add':'btn-secondary'}" style="font-size:12px;padding:6px 16px">${lbl}</button>`;
+
+  let baseHTML;
+  if(!areas.length){
+    baseHTML = `<div style="font-size:12.5px;color:var(--mid-gray);padding:10px;background:#FAF8F4;border-radius:8px">No hay composiciones por área cargadas todavía. Cargá las flores de cada área en <strong>Composiciones</strong> y van a aparecer acá como base del pedido.</div>`;
+  } else {
+    baseHTML = areas.map((area,ai)=>{
+      const ings = (arreglosComposicion[area]||[]);
+      const resumen = ings.map(g=>`${g.qty} ${esc(g.prod)}`).join(', ');
+      const dia = _paAreaDia(area);
+      const sel = !!_paBaseSel[area];
+      return `<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 4px;border-top:1px solid #F0EDE8">
+        <input type="checkbox" ${sel?'checked':''} onchange="paToggleArea(${ai})" style="margin-top:3px;width:16px;height:16px;flex:0 0 auto">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:13px">${esc(area)} <span style="font-weight:400;color:var(--mid-gray)">· ${ings.length} flor${ings.length!==1?'es':''}</span></div>
+          <div style="font-size:11.5px;color:var(--mid-gray);margin-top:2px">${resumen}</div>
+        </div>
+        <select onchange="paSetAreaDia(${ai},this.value)" style="font-size:11px;border:1px solid #E4E2DC;border-radius:6px;padding:4px 6px;flex:0 0 auto" title="En qué pedido entra esta área">
+          <option value="ambos" ${dia==='ambos'?'selected':''}>Mié y Vie</option>
+          <option value="mie" ${dia==='mie'?'selected':''}>Solo Mié</option>
+          <option value="vie" ${dia==='vie'?'selected':''}>Solo Vie</option>
+        </select>
+      </div>`;
+    }).join('');
+  }
+
+  let evHTML;
+  if(!eventos.length){
+    evHTML = `<div style="font-size:12.5px;color:var(--mid-gray);padding:10px;background:#FAF8F4;border-radius:8px">No hay eventos pendientes con arreglos cargados.</div>`;
+  } else {
+    evHTML = eventos.map(({ev,i})=>{
+      const impact = calcStockImpact(ev.arreglos||[]);
+      const resumen = Object.entries(impact).map(([p,v])=>`${Math.ceil(v)} ${esc(p)}`).join(', ') || 'sin flores';
+      const sel = !!_paEvSel[i];
+      return `<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 4px;border-top:1px solid #F0EDE8">
+        <input type="checkbox" ${sel?'checked':''} onchange="paToggleEvento(${i})" style="margin-top:3px;width:16px;height:16px;flex:0 0 auto">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:13px">${esc(ev.nombre||'(evento)')} <span style="font-weight:400;color:var(--mid-gray)">${ev.fecha?'· '+fmtDate(ev.fecha):''}</span></div>
+          <div style="font-size:11.5px;color:var(--mid-gray);margin-top:2px">${resumen}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  const rows = _paBuildRows();
+  body.innerHTML = `
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px">
+      <span style="font-size:12px;color:var(--mid-gray)">Pedido de:</span>
+      ${diaBtn('mie','Miércoles')} ${diaBtn('vie','Viernes')}
+    </div>
+    <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);font-weight:600;margin-bottom:2px">Base fija del hotel</div>
+    <div style="max-height:34vh;overflow:auto;margin-bottom:14px">${baseHTML}</div>
+    <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);font-weight:600;margin-bottom:2px">Flores de eventos pendientes</div>
+    <div style="max-height:24vh;overflow:auto;margin-bottom:14px">${evHTML}</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px solid #E5E3DC;padding-top:12px">
+      <div style="font-size:12.5px;color:var(--mid-gray)">Se van a cargar <strong style="color:#1A1A1A">${rows.length}</strong> ítem${rows.length!==1?'s':''} como "pedido", con el último precio conocido de cada flor.</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn-secondary" onclick="closeModal('pedido-auto-modal')">Cancelar</button>
+        <button class="btn-add" ${rows.length?'':'disabled'} onclick="generarPedidoAuto()">Generar pedido</button>
+      </div>
+    </div>`;
+}
+
+function generarPedidoAuto(){
+  const rows = _paBuildRows();
+  if(!rows.length){ showToast('No hay nada para generar. Cargá composiciones por área o tildá algún ítem.','error'); return; }
+  // unshift en bloque (reverse para conservar el orden original arriba de la lista)
+  rows.slice().reverse().forEach(r => comprasFlore.unshift(r));
+  window._comprasFloreLastSave = Date.now();
+  fbSave('comprasFlore', comprasFlore);
+  closeModal('pedido-auto-modal');
+  renderCompras('floreria');
+  if(document.getElementById('page-stock')?.classList.contains('active')) renderStock();
+  updateKpiCompras();
+  showToast(`Pedido generado: ${rows.length} ítem${rows.length!==1?'s':''} cargados como "pedido" — ajustá precios y proveedor.`);
+}
+
 function renderCompraEvento(){
   // Poblar selector de eventos pendientes que tengan arreglos cargados
   // (los finalizados no se listan: ya no se compra para ellos)
@@ -18439,4 +18599,5 @@ Object.assign(window, {
   cfImportFile, cfImportCancel, cfImportParseSheet, cfImportConfirm,
   toggleAnularCompra, updHistCantCompra, updHistCostoCompra,
   evImportFile, evImportToggle, evImportConfirm,
+  abrirPedidoAuto, paSetDia, paToggleArea, paSetAreaDia, paToggleEvento, generarPedidoAuto,
 });
