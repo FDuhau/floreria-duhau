@@ -4588,7 +4588,13 @@ let _paDia = 'mie';        // día elegido en el modal
 let _paBaseSel = {};       // { area: bool } áreas tildadas
 let _paEvSel = {};         // { evIdx: bool } eventos tildados
 
-function _paAreasBase(){ return getAreaUsoZonas().filter(z => (arreglosComposicion[z]||[]).length); }
+// Todas las áreas/zonas que YA tienen composición cargada — sea una zona del
+// checklist o un nombre propio (mismo criterio que la sección Composiciones).
+function _paAreasBase(){
+  return Object.keys(arreglosComposicion||{})
+    .filter(z => (arreglosComposicion[z]||[]).length)
+    .sort((a,b)=>a.localeCompare(b,'es'));
+}
 function _paAreaDia(area){ return comprasBaseDia[area] || 'ambos'; }
 function _paEventosPend(){
   return (eventosData||[]).map((ev,i)=>({ev,i}))
