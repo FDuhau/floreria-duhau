@@ -402,8 +402,10 @@
 
       fbListen('eventosData', val => {
         const arr = Array.isArray(val) ? val : Object.values(val||{});
-        if(JSON.stringify(arr) === JSON.stringify(window.eventosData)) return;
+        window._eventosLoaded = true; // ya llegaron los eventos: recién ahora es seguro guardar
+        if(JSON.stringify(arr) === JSON.stringify(window.eventosData)){ window._maybeSnapshotEventosSafe?.(); return; }
         window.eventosData = arr;
+        window._maybeSnapshotEventosSafe?.();
         if(document.getElementById('page-eventos-comercial')?.classList.contains('active')){
           const calView = document.getElementById('eventos-cal-view');
           if(calView && calView.style.display !== 'none') window.renderCalendario?.();
@@ -577,9 +579,10 @@
         if(document.getElementById('page-compras-jardineria')?.classList.contains('active') && !window.estaEditando('page-compras-jardineria')) window.renderCompras('jardineria');
       });
 
-      // Resguardo automático de compras (nunca se achica) — para recuperación.
+      // Resguardo automático de compras/eventos (nunca se achica) — para recuperación.
       fbListen('comprasFloreSafe', val => { window._setComprasFloreSafe?.(val); });
       fbListen('comprasJardSafe',  val => { window._setComprasJardSafe?.(val); });
+      fbListen('eventosSafe',      val => { window._setEventosSafe?.(val); });
 
       fbListen('recetasData', val => {
         if(!val) return;
