@@ -562,6 +562,7 @@
         // No pisar datos locales si se guardó hace menos de 2 segundos (evitar race condition)
         if(window._comprasFloreLastSave && Date.now() - window._comprasFloreLastSave < 2000) return;
         window.comprasFlore = arr;
+        window._comprasFloreLoaded = true; // ya llegaron las compras desde la nube: recién ahora es seguro guardar
         window._maybeSnapshotComprasSafe?.();
         if(document.getElementById('page-compras-floreria')?.classList.contains('active') && !window.estaEditando('page-compras-floreria')) window.renderCompras('floreria');
       });
@@ -571,6 +572,7 @@
         const arr = Array.isArray(val) ? val : Object.values(val||{});
         if(window._comprasJardLastSave && Date.now() - window._comprasJardLastSave < 2000) return;
         window.comprasJard = arr;
+        window._comprasJardLoaded = true;
         window._maybeSnapshotComprasSafe?.();
         if(document.getElementById('page-compras-jardineria')?.classList.contains('active') && !window.estaEditando('page-compras-jardineria')) window.renderCompras('jardineria');
       });

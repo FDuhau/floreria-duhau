@@ -3448,6 +3448,11 @@ function gastoComprasEvento(eventoId){
 }
 
 function addCompra(type){
+  // Guardia anti-borrado: no guardar compras antes de la primera sincronización
+  // (evita sobrescribir el historial si la lista todavía está vacía en memoria).
+  if(type==='floreria' ? !window._comprasFloreLoaded : !window._comprasJardLoaded){
+    showToast('Las compras todavía se están cargando — esperá unos segundos e intentá de nuevo.','error'); return;
+  }
   const p=type==='floreria'?'cf':'cj';
   const prod=document.getElementById(p+'-producto').value.trim();
   if(!prod){showToast('Ingresá el producto.','error');return;}
@@ -3698,6 +3703,7 @@ function renderCfImportPreview(colMap){
 
 async function cfImportConfirm(){
   if(!cfImportRows.length) return;
+  if(!window._comprasFloreLoaded){ showToast('Las compras todavía se están cargando — esperá unos segundos e intentá de nuevo.','error'); return; }
   if(!await confirmModal(`¿Importar ${cfImportRows.length} pedidos a Compras Florería? Quedarán en estado "Pedido", listos para controlar.`)) return;
   const sucursal = getSucursalId();
   let nuevosProv = 0;
@@ -4724,6 +4730,10 @@ function renderPedidoAuto(){
 }
 
 function generarPedidoAuto(){
+  // Guardia anti-borrado: no generar (ni guardar) antes de que las compras
+  // hayan cargado desde la nube — si comprasFlore aún está vacío en memoria,
+  // guardar acá sobrescribiría el historial. (Fue la causa de la pérdida.)
+  if(!window._comprasFloreLoaded){ showToast('Las compras todavía se están cargando — esperá unos segundos e intentá de nuevo.','error'); return; }
   const rows = _paBuildRows();
   if(!rows.length){ showToast('No hay nada para generar. Cargá composiciones por área o tildá algún ítem.','error'); return; }
   // unshift en bloque (reverse para conservar el orden original arriba de la lista)

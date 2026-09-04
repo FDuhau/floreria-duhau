@@ -41,3 +41,12 @@ function ensurePDFJS() {
   return _pdfjsPromise;
 }
 window.ensurePDFJS = ensurePDFJS;
+
+// Red de seguridad: si a los 12s todavía no llegaron las compras (nodo vacío o
+// sin conexión), se consideran "cargadas" igual para no bloquear el trabajo.
+// El objetivo del flag es solo evitar guardar ANTES de la primera sincronización
+// (que fue lo que borró el historial al generar un pedido sobre una lista vacía).
+setTimeout(() => {
+  if (!window._comprasFloreLoaded) window._comprasFloreLoaded = true;
+  if (!window._comprasJardLoaded) window._comprasJardLoaded = true;
+}, 12000);
