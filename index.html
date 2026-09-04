@@ -534,6 +534,8 @@
           <button class="btn-secondary" onclick="copiarUltimoPedido('floreria')" style="font-size:12px" title="Trae los datos del último pedido cargado para modificar cantidades, colores, etc.">Copiar último pedido</button>
           <button class="btn-secondary" onclick="document.getElementById('cf-import-file').click()" style="font-size:12px" title="Importar un pedido cargado en Excel/Sheets (.xlsx)">Importar desde Excel</button>
           <input type="file" id="cf-import-file" accept=".xlsx,.xls" style="display:none" onchange="cfImportFile(this)">
+          <button class="btn-secondary gerencia-only" onclick="abrirRestaurarCompras()" style="font-size:12px" title="Recuperar el historial de compras desde un backup (fusiona sin duplicar)">Restaurar desde backup</button>
+          <input type="file" id="restaurar-compras-file" accept=".json,application/json" style="display:none" onchange="restaurarComprasFile(this)">
         </div>
       </div>
       <div id="cf-import-sheet-picker" style="display:none;margin-bottom:12px;background:#FAF8F4;border:1px solid var(--light-gray);border-radius:8px;padding:10px 12px;display:flex;gap:10px;align-items:center">
@@ -918,6 +920,16 @@
         <button class="btn-secondary" onclick="calNextMonth()">Siguiente ›</button>
       </div>
       <div id="cal-grid"></div>
+    </div>
+  </div>
+
+  <!-- ══════ RESTAURAR COMPRAS DESDE BACKUP (gerencia) ══════ -->
+  <div class="modal-overlay" id="restaurar-compras-modal">
+    <div class="modal" style="max-width:560px;width:96vw">
+      <button class="modal-close" onclick="closeModal('restaurar-compras-modal')">✕</button>
+      <div class="modal-title">Restaurar historial de compras</div>
+      <div style="font-size:12px;color:var(--mid-gray);margin-bottom:14px">Recupera compras desde un backup y las fusiona con las actuales — solo agrega las que faltan, no pisa ni duplica nada.</div>
+      <div id="rc-body"></div>
     </div>
   </div>
 
