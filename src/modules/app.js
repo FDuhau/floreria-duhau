@@ -12180,7 +12180,17 @@ document.querySelectorAll('.nav-item, .nav-sub-item').forEach(el => {
 // Exporta todos los datos principales a un JSON descargable (solo gerencia).
 // Cada fuente está envuelta en función para tolerar variables que cambien de
 // nombre entre versiones sin romper el backup completo.
-function descargarBackup(){
+async function descargarBackup(){
+  // Guardia anti-backup incompleto: si nodos clave figuran vacíos es porque la
+  // app todavía no terminó de sincronizar. Descargar así genera un backup
+  // inservible (fue lo que pasó con un backup viejo). Avisar y confirmar.
+  const _len = v => (Array.isArray(v)?v:Object.values(v||{})).length;
+  const criticos = { 'compras florería':comprasFlore, 'ventas':ventasData, 'caja':cajaData, 'eventos':eventosData, 'stock':stockData };
+  const vacios = Object.entries(criticos).filter(([,v])=>!_len(v)).map(([k])=>k);
+  if(vacios.length >= 2){
+    const ok = await confirmModal(`⚠️ Parece que la app todavía no terminó de cargar todos los datos: ${vacios.join(', ')} figuran VACÍOS.\n\nSi descargás ahora, el backup puede salir INCOMPLETO y no servir para restaurar. Lo mejor es esperar unos segundos a que cargue todo y volver a intentar.\n\n¿Descargar igual?`);
+    if(!ok) return;
+  }
   const fuentes = {
     checklist: ()=>clStateByDay, checklistHistory: ()=>checklistHistory, clTiemposRef: ()=>clTiemposRef, ultimoNuevoZona: ()=>ultimoNuevoZona,
     checklistTareas: ()=>CL_TASKS.map(t=>({sec:t.sec,zona:t.zona,actividad:t.actividad,obs:t.obs||''})),
@@ -12223,6 +12233,107 @@ function recordarBackup(){
         : `Hace ${dias} días que no se descarga un backup — botón "Backup de datos" en el menú`, 'warn');
     }
   }catch(e){}
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  RESTAURAR / RESGUARDAR COMPRAS  (recuperación de historial)
+//  - Restaurar: fusiona las compras de un backup con las actuales; agrega solo
+//    las que faltan (no pisa ni duplica). Solo toca comprasFlore/comprasJard.
+//  - Resguardo automático: espeja las compras a un nodo comprasFloreSafe /
+//    comprasJardSafe que NUNCA se achica (solo se actualiza cuando cubre más
+//    fechas), así una sobrescritura accidental no destruye el historial.
+// ════════════════════════════════════════════════════════════════════════
+let _restoreCompras = null;
+let _safeMeta = { flore: 0, jard: 0 };  // cantidad de fechas distintas en el resguardo
+function _rcAsArr(v){ return Array.isArray(v) ? v : Object.values(v||{}); }
+function _rcSig(r){ return ['fecha','prod','desc','qty','sector','pedidopor','prov'].map(k=>String((r&&r[k])==null?'':r[k]).trim().toLowerCase()).join('|'); }
+function _rcDates(arr){ return new Set(_rcAsArr(arr).map(r=>r&&r.fecha).filter(Boolean)).size; }
+
+// Espejo de resguardo: solo escribe si el arreglo cubre MÁS fechas que el
+// resguardo actual (monótono: nunca lo achica). Se llama tras cargar/guardar.
+window._setComprasFloreSafe = v => { window.comprasFloreSafe = _rcAsArr(v); _safeMeta.flore = _rcDates(window.comprasFloreSafe); };
+window._setComprasJardSafe  = v => { window.comprasJardSafe  = _rcAsArr(v); _safeMeta.jard  = _rcDates(window.comprasJardSafe); };
+window._maybeSnapshotComprasSafe = () => {
+  try{
+    const df = _rcDates(comprasFlore);
+    if((comprasFlore||[]).length && df > _safeMeta.flore){ _safeMeta.flore = df; fbSave('comprasFloreSafe', comprasFlore); }
+    const dj = _rcDates(comprasJard);
+    if((comprasJard||[]).length && dj > _safeMeta.jard){ _safeMeta.jard = dj; fbSave('comprasJardSafe', comprasJard); }
+  }catch(e){}
+};
+
+function abrirRestaurarCompras(){
+  if(userRole!=='gerencia'){ showToast('Solo gerencia puede restaurar.','error'); return; }
+  document.getElementById('restaurar-compras-file').click();
+}
+
+function _rcMergePreview(oldF, oldJ, fuente){
+  oldF = _rcAsArr(oldF).filter(r=>r&&r.prod);
+  oldJ = _rcAsArr(oldJ).filter(r=>r&&r.prod);
+  const curF = new Set((comprasFlore||[]).map(_rcSig));
+  const curJ = new Set((comprasJard||[]).map(_rcSig));
+  const seenF=new Set(), seenJ=new Set();
+  const addF = oldF.filter(r=>{ const s=_rcSig(r); if(curF.has(s)||seenF.has(s)) return false; seenF.add(s); return true; });
+  const addJ = oldJ.filter(r=>{ const s=_rcSig(r); if(curJ.has(s)||seenJ.has(s)) return false; seenJ.add(s); return true; });
+  _restoreCompras = { addF, addJ, oldF:oldF.length, oldJ:oldJ.length, fuente };
+  renderRestaurarComprasPreview();
+  document.getElementById('restaurar-compras-modal').classList.add('open');
+}
+
+function restaurarComprasFile(input){
+  const file = input.files?.[0]; input.value='';
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    let data;
+    try{ data = JSON.parse(e.target.result); }
+    catch(err){ showToast('No pude leer el backup (JSON inválido).','error'); return; }
+    const oldF = _rcAsArr(data.comprasFlore).filter(r=>r&&r.prod);
+    const oldJ = _rcAsArr(data.comprasJard).filter(r=>r&&r.prod);
+    if(!oldF.length && !oldJ.length){ showToast('Ese backup no tiene compras (probablemente se descargó vacío).','error'); return; }
+    _rcMergePreview(oldF, oldJ, 'el backup del ' + (data._meta&&data._meta.fecha ? fmtDate(data._meta.fecha.slice(0,10)) : 'archivo'));
+  };
+  reader.readAsText(file);
+}
+
+function restaurarComprasDesdeSafe(){
+  if(userRole!=='gerencia'){ showToast('Solo gerencia.','error'); return; }
+  const sf = window.comprasFloreSafe||[], sj = window.comprasJardSafe||[];
+  if(!sf.length && !sj.length){ showToast('Todavía no hay resguardo automático guardado.'); return; }
+  _rcMergePreview(sf, sj, 'el resguardo automático');
+}
+
+function renderRestaurarComprasPreview(){
+  const body=document.getElementById('rc-body'); if(!body||!_restoreCompras) return;
+  const {addF,addJ,oldF,oldJ,fuente}=_restoreCompras;
+  const total=addF.length+addJ.length;
+  const porMes={}; addF.forEach(r=>{const m=(r.fecha||'').slice(0,7)||'sin fecha'; porMes[m]=(porMes[m]||0)+1;});
+  const meses=Object.keys(porMes).sort().map(m=>`${m}: ${porMes[m]}`).join(' · ');
+  body.innerHTML = `
+    <div style="font-size:12.5px;color:var(--mid-gray);margin-bottom:12px">Fuente: ${esc(fuente)} · ${oldF} compras de florería y ${oldJ} de jardinería.</div>
+    <div style="background:#F4F1EC;border-radius:8px;padding:12px 14px;margin-bottom:14px">
+      <div style="font-size:14px;font-weight:600;margin-bottom:4px">Se van a recuperar ${total} compra${total!==1?'s':''}</div>
+      <div style="font-size:12.5px;color:var(--mid-gray)">Florería: <strong>${addF.length}</strong> · Jardinería: <strong>${addJ.length}</strong> — solo las que faltan; no se pisa ni duplica nada de lo actual.</div>
+      ${meses?`<div style="font-size:11.5px;color:var(--mid-gray);margin-top:6px">Florería por mes → ${esc(meses)}</div>`:''}
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn-secondary" onclick="closeModal('restaurar-compras-modal')">Cancelar</button>
+      <button class="btn-add" ${total?'':'disabled'} onclick="confirmarRestaurarCompras()">Recuperar ${total} compra${total!==1?'s':''}</button>
+    </div>`;
+}
+
+function confirmarRestaurarCompras(){
+  if(!_restoreCompras) return;
+  const {addF,addJ}=_restoreCompras;
+  if(!addF.length && !addJ.length){ showToast('No hay compras nuevas para recuperar.'); return; }
+  if(addF.length){ addF.forEach(r=>comprasFlore.push(r)); window._comprasFloreLastSave=Date.now(); fbSave('comprasFlore', comprasFlore); }
+  if(addJ.length){ addJ.forEach(r=>comprasJard.push(r)); window._comprasJardLastSave=Date.now(); fbSave('comprasJard', comprasJard); }
+  const n = addF.length+addJ.length;
+  closeModal('restaurar-compras-modal'); _restoreCompras=null;
+  renderCompras('floreria');
+  if(document.getElementById('page-stock')?.classList.contains('active')) renderStock();
+  updateKpiCompras();
+  showToast(`Recuperadas ${n} compra${n!==1?'s':''} — revisá el historial de recibidos.`);
 }
 
 // ── LOGIN ────────────────────────────────────────────────────────────────────
@@ -18606,4 +18717,5 @@ Object.assign(window, {
   toggleAnularCompra, updHistCantCompra, updHistCostoCompra,
   evImportFile, evImportToggle, evImportConfirm,
   abrirPedidoAuto, paSetDia, paToggleArea, paSetAreaDia, paToggleEvento, generarPedidoAuto,
+  abrirRestaurarCompras, restaurarComprasFile, restaurarComprasDesdeSafe, confirmarRestaurarCompras,
 });
