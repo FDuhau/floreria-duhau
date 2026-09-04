@@ -3984,6 +3984,9 @@ function renderEvImportPreview(){
 }
 
 function evImportConfirm(){
+  // Guardia anti-borrado: no guardar eventos antes de que carguen desde la nube
+  // (si eventosData está vacío en memoria, importar sobrescribiría los existentes).
+  if(!window._eventosLoaded){ showToast('Los eventos todavía se están cargando — esperá unos segundos e intentá de nuevo.','error'); return; }
   const sel = evImportParsed.filter(e=>e._sel);
   if(!sel.length){ showToast('No hay eventos tildados.','error'); return; }
   let nuevos=0, actualizados=0;
@@ -12272,20 +12275,47 @@ window._maybeSnapshotComprasSafe = () => {
   }catch(e){}
 };
 
+// Resguardo de eventos (nunca se achica): se actualiza solo cuando hay MÁS
+// eventos que el resguardo, así una sobrescritura accidental no lo destruye.
+let _safeEventosCount = 0;
+window._setEventosSafe = v => { window.eventosSafe = _rcAsArr(v); _safeEventosCount = window.eventosSafe.length; };
+window._maybeSnapshotEventosSafe = () => {
+  try{ const n=(eventosData||[]).length; if(n && n > _safeEventosCount){ _safeEventosCount = n; fbSave('eventosSafe', eventosData); } }catch(e){}
+};
+
 function abrirRestaurarCompras(){
   if(userRole!=='gerencia'){ showToast('Solo gerencia puede restaurar.','error'); return; }
   document.getElementById('restaurar-compras-file').click();
 }
 
-function _rcMergePreview(oldF, oldJ, fuente){
+// Un evento se considera "el mismo" si coincide su id O su nombre+fecha (los
+// eventos recreados tras el borrado tienen id nuevo pero mismo nombre y fecha).
+function _evtIdK(e){ return e && e.id ? 'id:'+String(e.id) : null; }
+function _evtNFK(e){ return 'nf:'+String(e&&e.nombre||'').trim().toLowerCase()+'|'+String(e&&e.fecha||''); }
+
+function _rcMergePreview(oldF, oldJ, oldE, fuente){
   oldF = _rcAsArr(oldF).filter(r=>r&&r.prod);
   oldJ = _rcAsArr(oldJ).filter(r=>r&&r.prod);
+  oldE = _rcAsArr(oldE).filter(e=>e&&(e.nombre||e.id));
   const curF = new Set((comprasFlore||[]).map(_rcSig));
   const curJ = new Set((comprasJard||[]).map(_rcSig));
-  const seenF=new Set(), seenJ=new Set();
+  const curEIds = new Set(), curENF = new Set();
+  (eventosData||[]).forEach(e=>{ const ik=_evtIdK(e); if(ik) curEIds.add(ik); curENF.add(_evtNFK(e)); });
+  const seenF=new Set(), seenJ=new Set(), seenEIds=new Set();
   const addF = oldF.filter(r=>{ const s=_rcSig(r); if(curF.has(s)||seenF.has(s)) return false; seenF.add(s); return true; });
   const addJ = oldJ.filter(r=>{ const s=_rcSig(r); if(curJ.has(s)||seenJ.has(s)) return false; seenJ.add(s); return true; });
-  _restoreCompras = { addF, addJ, oldF:oldF.length, oldJ:oldJ.length, fuente };
+  const addE = oldE.filter(e=>{
+    const ik=_evtIdK(e), nk=_evtNFK(e);
+    // Ya existe en lo actual (por id, o recreado con id nuevo pero mismo nombre+fecha)
+    if(ik && curEIds.has(ik)) return false;
+    if(curENF.has(nk)) return false;
+    // Dentro del backup, solo colapsar el MISMO registro repetido (por id) — no
+    // fusionar eventos distintos que compartan nombre+fecha.
+    if(ik && seenEIds.has(ik)) return false;
+    if(ik) seenEIds.add(ik);
+    return true;
+  });
+  _restoreCompras = { addF, addJ, addE, oldF:oldF.length, oldJ:oldJ.length, oldE:oldE.length, fuente };
   renderRestaurarComprasPreview();
   document.getElementById('restaurar-compras-modal').classList.add('open');
 }
@@ -12300,50 +12330,57 @@ function restaurarComprasFile(input){
     catch(err){ showToast('No pude leer el backup (JSON inválido).','error'); return; }
     const oldF = _rcAsArr(data.comprasFlore).filter(r=>r&&r.prod);
     const oldJ = _rcAsArr(data.comprasJard).filter(r=>r&&r.prod);
-    if(!oldF.length && !oldJ.length){ showToast('Ese backup no tiene compras (probablemente se descargó vacío).','error'); return; }
-    _rcMergePreview(oldF, oldJ, 'el backup del ' + (data._meta&&data._meta.fecha ? fmtDate(data._meta.fecha.slice(0,10)) : 'archivo'));
+    const oldE = _rcAsArr(data.eventosData).filter(e=>e&&(e.nombre||e.id));
+    if(!oldF.length && !oldJ.length && !oldE.length){ showToast('Ese backup no tiene compras ni eventos (probablemente se descargó vacío).','error'); return; }
+    _rcMergePreview(oldF, oldJ, oldE, 'el backup del ' + (data._meta&&data._meta.fecha ? fmtDate(data._meta.fecha.slice(0,10)) : 'archivo'));
   };
   reader.readAsText(file);
 }
 
 function restaurarComprasDesdeSafe(){
   if(userRole!=='gerencia'){ showToast('Solo gerencia.','error'); return; }
-  const sf = window.comprasFloreSafe||[], sj = window.comprasJardSafe||[];
-  if(!sf.length && !sj.length){ showToast('Todavía no hay resguardo automático guardado.'); return; }
-  _rcMergePreview(sf, sj, 'el resguardo automático');
+  const sf = window.comprasFloreSafe||[], sj = window.comprasJardSafe||[], se = window.eventosSafe||[];
+  if(!sf.length && !sj.length && !se.length){ showToast('Todavía no hay resguardo automático guardado.'); return; }
+  _rcMergePreview(sf, sj, se, 'el resguardo automático');
 }
 
 function renderRestaurarComprasPreview(){
   const body=document.getElementById('rc-body'); if(!body||!_restoreCompras) return;
-  const {addF,addJ,oldF,oldJ,fuente}=_restoreCompras;
-  const total=addF.length+addJ.length;
+  const {addF,addJ,addE,oldF,oldJ,oldE,fuente}=_restoreCompras;
+  const total=addF.length+addJ.length+addE.length;
   const porMes={}; addF.forEach(r=>{const m=(r.fecha||'').slice(0,7)||'sin fecha'; porMes[m]=(porMes[m]||0)+1;});
   const meses=Object.keys(porMes).sort().map(m=>`${m}: ${porMes[m]}`).join(' · ');
   body.innerHTML = `
-    <div style="font-size:12.5px;color:var(--mid-gray);margin-bottom:12px">Fuente: ${esc(fuente)} · ${oldF} compras de florería y ${oldJ} de jardinería.</div>
+    <div style="font-size:12.5px;color:var(--mid-gray);margin-bottom:12px">Fuente: ${esc(fuente)} · ${oldF} compras florería, ${oldJ} jardinería y ${oldE} eventos en el archivo.</div>
     <div style="background:#F4F1EC;border-radius:8px;padding:12px 14px;margin-bottom:14px">
-      <div style="font-size:14px;font-weight:600;margin-bottom:4px">Se van a recuperar ${total} compra${total!==1?'s':''}</div>
-      <div style="font-size:12.5px;color:var(--mid-gray)">Florería: <strong>${addF.length}</strong> · Jardinería: <strong>${addJ.length}</strong> — solo las que faltan; no se pisa ni duplica nada de lo actual.</div>
-      ${meses?`<div style="font-size:11.5px;color:var(--mid-gray);margin-top:6px">Florería por mes → ${esc(meses)}</div>`:''}
+      <div style="font-size:14px;font-weight:600;margin-bottom:4px">Se van a recuperar ${total} registro${total!==1?'s':''}</div>
+      <div style="font-size:12.5px;color:var(--mid-gray)">Compras florería: <strong>${addF.length}</strong> · Jardinería: <strong>${addJ.length}</strong> · Eventos: <strong>${addE.length}</strong> — solo los que faltan; no se pisa ni duplica nada de lo actual.</div>
+      ${meses?`<div style="font-size:11.5px;color:var(--mid-gray);margin-top:6px">Compras florería por mes → ${esc(meses)}</div>`:''}
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
       <button class="btn-secondary" onclick="closeModal('restaurar-compras-modal')">Cancelar</button>
-      <button class="btn-add" ${total?'':'disabled'} onclick="confirmarRestaurarCompras()">Recuperar ${total} compra${total!==1?'s':''}</button>
+      <button class="btn-add" ${total?'':'disabled'} onclick="confirmarRestaurarCompras()">Recuperar ${total} registro${total!==1?'s':''}</button>
     </div>`;
 }
 
 function confirmarRestaurarCompras(){
   if(!_restoreCompras) return;
-  const {addF,addJ}=_restoreCompras;
-  if(!addF.length && !addJ.length){ showToast('No hay compras nuevas para recuperar.'); return; }
+  const {addF,addJ,addE}=_restoreCompras;
+  if(!addF.length && !addJ.length && !addE.length){ showToast('No hay registros nuevos para recuperar.'); return; }
   if(addF.length){ addF.forEach(r=>comprasFlore.push(r)); window._comprasFloreLastSave=Date.now(); fbSave('comprasFlore', comprasFlore); }
   if(addJ.length){ addJ.forEach(r=>comprasJard.push(r)); window._comprasJardLastSave=Date.now(); fbSave('comprasJard', comprasJard); }
-  const n = addF.length+addJ.length;
+  if(addE.length){
+    addE.forEach(e=>{ if(!e.id) e.id = genEventoId(); eventosData.push(e); });
+    fbSave('eventosData', eventosData);
+    if(typeof syncEventosToKanban==='function'){ syncEventosToKanban(); fbSave('kanbanData', kanbanData); }
+  }
+  const n = addF.length+addJ.length+addE.length;
   closeModal('restaurar-compras-modal'); _restoreCompras=null;
   renderCompras('floreria');
+  if(typeof renderEventos==='function') renderEventos();
   if(document.getElementById('page-stock')?.classList.contains('active')) renderStock();
   updateKpiCompras();
-  showToast(`Recuperadas ${n} compra${n!==1?'s':''} — revisá el historial de recibidos.`);
+  showToast(`Recuperados ${n} registro${n!==1?'s':''} (compras + eventos).`);
 }
 
 // ── LOGIN ────────────────────────────────────────────────────────────────────
@@ -14912,6 +14949,7 @@ function mostrarEventosDelDia(retry = 0){
 }
 
 function saveEvent(){
+  if(!window._eventosLoaded){ showToast('Los eventos todavía se están cargando — esperá unos segundos e intentá de nuevo.','error'); return; }
   const nombre=document.getElementById('ev-nombre').value.trim();
   if(!nombre) return;
   const ev={
