@@ -640,11 +640,32 @@ let clState = null;   // referencia al día activo (alias)
 
 // ── Tiempo promedio de referencia por tarea (lo define gerencia) ─────────────
 // Minutos por índice de CL_TASKS; 0 = sin referencia. Compartido vía Firebase.
+// Cada tarea guarda un tiempo estimado POR actividad: {nuevo, retoque, riego}.
+// Antes era un único número por tarea; los datos viejos se migran tomando ese
+// número como el tiempo de Retoque (y de Riego para las zonas de riego), y el
+// tiempo de "Nuevo" arranca vacío para que gerencia lo cargue.
 let clTiemposRef = [];
+function _normRef(v){
+  if(v && typeof v === 'object'){
+    return { nuevo:parseInt(v.nuevo)||0, retoque:parseInt(v.retoque)||0, riego:parseInt(v.riego)||0 };
+  }
+  const n = parseInt(v)||0; // dato viejo: tiempo único por tarea
+  return { nuevo:0, retoque:n, riego:n };
+}
+function _refKey(act){
+  const a = String(act||'').toLowerCase();
+  return a==='nuevo' ? 'nuevo' : (a==='riego' ? 'riego' : 'retoque');
+}
 window._setClTiemposRef = (val) => {
-  clTiemposRef = val ? CL_TASKS.map((_,i)=>parseInt(val[i])||0) : [];
+  clTiemposRef = val ? CL_TASKS.map((_,i)=>_normRef(val[i])) : [];
 };
-function getTiempoRef(i){ return parseInt(clTiemposRef[i])||0; }
+// Tiempo estimado de la tarea i para una actividad dada. Sin actividad explícita
+// usa la del día activo (o el default de la tarea).
+function getTiempoRef(i, act){
+  const o = _normRef(clTiemposRef[i]);
+  const a = act != null ? act : ((clState && clState.actividad && clState.actividad[i]) || CL_TASKS[i]?.actividad || 'Retoque');
+  return o[_refKey(a)] || 0;
+}
 
 // ── Zonas/secciones editables por gerencia (persistidas en Firebase) ──────────
 // CL_TASKS y SEC_HEADERS arrancan con los valores por defecto; si hay config
@@ -861,9 +882,14 @@ function openGestionZonas(){
   ov.classList.add('open');
 }
 
-function updTiempoRef(i, val){
-  while(clTiemposRef.length < CL_TASKS.length) clTiemposRef.push(0);
-  clTiemposRef[i] = parseInt(val)||0;
+// Actualiza el tiempo estimado de la tarea i para una actividad puntual
+// (nuevo/retoque/riego). Sin actividad explícita usa la del día activo.
+function updTiempoRef(i, val, act){
+  while(clTiemposRef.length < CL_TASKS.length) clTiemposRef.push({nuevo:0,retoque:0,riego:0});
+  const o = _normRef(clTiemposRef[i]);
+  const a = act != null ? act : ((clState && clState.actividad && clState.actividad[i]) || CL_TASKS[i]?.actividad || 'Retoque');
+  o[_refKey(a)] = parseInt(val)||0;
+  clTiemposRef[i] = o;
   fbSave('clTiemposRef', clTiemposRef);
 }
 
@@ -876,6 +902,8 @@ function openTiemposEstimados(){
   let ov = document.getElementById('cl-tiempos-modal');
   if(!ov){ ov=document.createElement('div'); ov.id='cl-tiempos-modal'; ov.className='modal-overlay'; document.body.appendChild(ov); }
   let lastSec = null;
+  const inpStyle = 'width:60px;padding:5px 6px;font-size:13px;text-align:center;border:1px solid var(--light-gray);border-radius:6px;background:var(--warm-white);color:var(--charcoal)';
+  const minLbl = '<span style="font-size:11px;color:var(--mid-gray)">min</span>';
   const filas = CL_TASKS.map((t,i)=>{
     let head = '';
     if(t.sec !== lastSec){
@@ -883,25 +911,28 @@ function openTiemposEstimados(){
       const sh = SEC_HEADERS[t.sec] || {};
       head = `<tr><td colspan="3" style="padding:12px 12px 4px;font-weight:700;color:var(--charcoal);font-size:13px;border-bottom:1px solid var(--light-gray)">${sh.icon||''} ${esc(sh.label||t.sec)}</td></tr>`;
     }
-    const ref = getTiempoRef(i);
+    const o = _normRef(clTiemposRef[i]);
+    const esRiego = String(t.actividad).toLowerCase()==='riego';
+    const inp = (act, val) => `<input type="number" min="0" value="${val||''}" placeholder="—" onchange="updTiempoRef(${i},this.value,'${act}')" style="${inpStyle}"> ${minLbl}`;
+    // Zonas de riego: un único tiempo (Riego). El resto: Nuevo + Retoque.
+    const celdas = esRiego
+      ? `<td colspan="2" style="padding:6px 12px;text-align:right;white-space:nowrap"><span class="badge badge-riego" style="font-size:9px;margin-right:8px">Riego</span>${inp('riego', o.riego)}</td>`
+      : `<td style="padding:6px 12px;text-align:right;white-space:nowrap">${inp('nuevo', o.nuevo)}</td>
+         <td style="padding:6px 12px;text-align:right;white-space:nowrap">${inp('retoque', o.retoque)}</td>`;
     return head + `<tr>
       <td style="padding:6px 12px;font-size:13px;font-weight:500">${esc(t.zona)}</td>
-      <td style="padding:6px 12px"><span class="badge ${getBadge(t.actividad)}" style="font-size:10px">${esc(t.actividad)}</span></td>
-      <td style="padding:6px 12px;text-align:right;white-space:nowrap">
-        <input type="number" min="0" value="${ref||''}" placeholder="—" onchange="updTiempoRef(${i},this.value)"
-          style="width:64px;padding:5px 6px;font-size:13px;text-align:center;border:1px solid var(--light-gray);border-radius:6px;background:var(--warm-white);color:var(--charcoal)"> <span style="font-size:11px;color:var(--mid-gray)">min</span>
-      </td>
+      ${celdas}
     </tr>`;
   }).join('');
   ov.innerHTML = `<div class="modal" style="max-width:520px;max-height:85vh;display:flex;flex-direction:column">
     <button class="modal-close" onclick="closeModal('cl-tiempos-modal'); if(window.renderChecklistTable) renderChecklistTable();">✕</button>
     <div class="modal-title">⏱ Tiempos estimados por área</div>
-    <div style="font-size:12px;color:var(--mid-gray);margin:-6px 0 12px">Cargá los minutos estimados de cada zona. Queda fijo y sirve para medir cuánto se demora cada sección (marca en rojo las tareas que se pasan del tiempo).</div>
+    <div style="font-size:12px;color:var(--mid-gray);margin:-6px 0 12px">Cargá los minutos estimados de cada arreglo, por separado para cuando se hace <b>Nuevo</b> y para el <b>Retoque</b>. Queda fijo y sirve para medir cuánto se demora cada sección (marca en rojo las tareas que se pasan del tiempo).</div>
     <div style="overflow-y:auto;flex:1"><table style="width:100%;border-collapse:collapse">
       <thead><tr>
         <th style="text-align:left;padding:6px 12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Zona</th>
-        <th style="text-align:left;padding:6px 12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Actividad</th>
-        <th style="text-align:right;padding:6px 12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Estimado</th>
+        <th style="text-align:right;padding:6px 12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Nuevo</th>
+        <th style="text-align:right;padding:6px 12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Retoque</th>
       </tr></thead>
       <tbody>${filas}</tbody>
     </table></div>
@@ -944,7 +975,7 @@ function openPromediosZona(){
       filas += `<tr><td colspan="5" style="padding:12px 12px 4px;font-weight:700;color:var(--charcoal);font-size:13px;border-bottom:1px solid var(--light-gray)">${sh.icon||''} ${esc(sh.label||t.sec)}</td></tr>`;
     }
     const prom = Math.round(a.sum / a.n);
-    const est  = getTiempoRef(i);
+    const est  = getTiempoRef(i, t.actividad);
     let desvHTML = '<span style="color:var(--mid-gray)">—</span>';
     if(est > 0){
       const dp = Math.round((prom - est) / est * 100);
@@ -1710,7 +1741,7 @@ function renderChecklistTable(){
     const curAct  = clState.actividad[i]   || t.actividad;
     const curObs  = (clState.obs[i] && clState.obs[i] !== 'Observaciones') ? clState.obs[i] : (t.obs||'');
     const sh      = SEC_HEADERS[t.sec];
-    const ref     = getTiempoRef(i);
+    const ref     = getTiempoRef(i, curAct);
 
     // Actividad: la determina gerencia (default Retoque); el resto la ve como badge
     const actLower = String(curAct).toLowerCase();
@@ -1723,7 +1754,7 @@ function renderChecklistTable(){
     const refCell = userRole==='gerencia'
       ? `<input type="number" min="0" value="${ref||''}" placeholder="min"
           style="width:52px;padding:4px 5px;font-size:12px;border:1px solid var(--light-gray);border-radius:4px;text-align:center;background:var(--warm-white);color:var(--charcoal)"
-          onchange="updTiempoRef(${i},this.value)">`
+          onchange="updTiempoRef(${i},this.value,'${actLower}')">`
       : (ref ? `<span style="font-size:11.5px;font-weight:600;color:var(--mid-gray);white-space:nowrap">⏱ ${ref}m</span>` : '<span style="font-size:11px;color:var(--mid-gray)">—</span>');
 
     const tr = document.createElement('tr');
@@ -1927,7 +1958,7 @@ function renderChecklistCards(el){
     const done = clState.checked[i];
     const curAct = clState.actividad[i]||t.actividad;
     const curObs = (clState.obs[i] && clState.obs[i]!=='Observaciones') ? clState.obs[i] : (t.obs||'');
-    const ref = getTiempoRef(i);
+    const ref = getTiempoRef(i, curAct);
     const sh = SEC_HEADERS[t.sec];
     const dur = clState.inicio?.[i] && clState.fin?.[i] ? durBadge(clState.inicio[i], clState.fin[i], ref) : '';
     return `<div class="cl-card${done?' cl-card-done':''}">
@@ -2071,7 +2102,7 @@ function registrarHora(i, campo){
     const resp = clState.responsable[i] || '—';
     const inicioFinal = clState.inicio[i] || '';
     const durFinal    = calcDuracion(inicioFinal, horaActual);
-    const ref         = getTiempoRef(i);
+    const ref         = getTiempoRef(i, clState.actividad[i]||t.actividad);
     const excedida    = !!(ref && durFinal && durFinal > ref);
     checklistHistory.push({
       date: TODAY_ISO, week: getWeekLabel(now),
@@ -2305,6 +2336,9 @@ function toggleTask(i, el){
     const t  = CL_TASKS[i];
     const now = new Date();
     const resp = clState.responsable[i] || '—';
+    const actReg = clState.actividad[i]||t.actividad;
+    const refReg = getTiempoRef(i, actReg);
+    const durReg = calcDuracion(clState.inicio?.[i]||'', clState.fin?.[i]||'');
     checklistHistory.push({
       date: TODAY_ISO,
       week: getWeekLabel(now),
@@ -2312,14 +2346,14 @@ function toggleTask(i, el){
       day:  currentDay,
       sec:  t.sec,
       zona: t.zona,
-      actividad: clState.actividad[i]||t.actividad,
+      actividad: actReg,
       obs:  clState.obs[i]||'',
       tiempo: clState.tiempo[i]||'',
       inicio: clState.inicio?.[i]||'',
       fin:    clState.fin?.[i]||'',
-      duracion: calcDuracion(clState.inicio?.[i]||'', clState.fin?.[i]||''),
-      ref: getTiempoRef(i),
-      excedida: !!(getTiempoRef(i) && calcDuracion(clState.inicio?.[i]||'', clState.fin?.[i]||'') > getTiempoRef(i)),
+      duracion: durReg,
+      ref: refReg,
+      excedida: !!(refReg && durReg && durReg > refReg),
       who:  resp,
       hora: now.toTimeString().slice(0,5)
     });
@@ -11340,7 +11374,7 @@ function renderReporteTiempos(mesISO, filtroEmp){
     if(!o.ref){
       // Registros viejos sin ref guardada: usar la referencia actual de la zona
       const idx = CL_TASKS.findIndex(t=>t.sec===o.sec && t.zona===o.zona);
-      if(idx>=0) o.ref = getTiempoRef(idx);
+      if(idx>=0) o.ref = getTiempoRef(idx, o.actividad);
     }
     o.prom = Math.round(o.total/o.n);
     o.desvio = o.ref ? Math.round((o.prom-o.ref)/o.ref*100) : null;
