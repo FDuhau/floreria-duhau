@@ -10109,13 +10109,16 @@ function markHabDone(i, quien){
     fecha: TODAY_ISO,
     hab: r.hab,
     quien: quien || '',
-    obs: r.notas || ''
+    obs: r.notas || '',
+    horaInicio: r.horaInicio || '',
+    horaFin: r.horaFin || ''
   });
   r.last = TODAY_ISO;
   r.liveVisits = (r.liveVisits||0)+1;
   if(!r.monthlyVisits) r.monthlyVisits={};
   r.monthlyVisits[CURR_MONTH] = (r.monthlyVisits[CURR_MONTH]||0)+1;
   r.quien = ''; r.notas = ''; r.comentarioHK = ''; r.canUndo = false;
+  r.horaInicio = ''; r.horaFin = '';  // reiniciar el cronómetro (ya quedó en el log)
   fbSave('habitacionesData', habitacionesData);
   fbSave('habitacionesLog', habitacionesLog);
   if(document.getElementById('page-hab-ops')?.classList.contains('active')) renderHabOps();
@@ -11246,6 +11249,182 @@ function openFichaEmpleado(nombre, mesISO){
     ${m.llamadosList.length?`<div style="margin-top:18px"><div class="card-label">Llamados de atención del mes</div>${m.llamadosList.map(l=>`<div style="display:flex;gap:8px;align-items:center;padding:7px 0;border-top:1px solid #F0EDE8;font-size:12px">${l.foto?`<img src="${l.foto}" onclick="verFotoLlamado(${l.id})" style="width:34px;height:34px;object-fit:cover;border-radius:5px;cursor:pointer">`:'<span style="color:var(--amber)"></span>'}<span style="flex:1">${esc(l.zona||'Arreglo')}${l.nota?' — '+esc(l.nota):''}</span><span style="color:var(--mid-gray);font-size:11px">${fmtDate(l.fecha)}</span></div>`).join('')}</div>`:''}
   </div>`;
   ov.classList.add('open');
+}
+
+// ── Análisis de desempeño por empleado y período (RRHH › Evaluaciones) ────────
+// Unifica el trabajo REAL de las tres áreas (Florería/checklist, Jardinería y
+// Habitaciones) en un rango de fechas para poder evaluar desempeño con datos
+// concretos: cuántas tareas hizo, promedio de tiempo por tarea y desglose.
+function _enRangoFecha(fecha, desde, hasta){
+  const f = String(fecha||'').slice(0,10);
+  if(!f) return false;
+  if(desde && f < desde) return false;
+  if(hasta && f > hasta) return false;
+  return true;
+}
+
+function _metricasEmpleadoPeriodo(nombre, desde, hasta){
+  const areas = {
+    'Florería':     { n:0, min:0, conTiempo:0, excedidas:0 },
+    'Jardinería':   { n:0, min:0, conTiempo:0, excedidas:0 },
+    'Habitaciones': { n:0, min:0, conTiempo:0, excedidas:0 },
+  };
+  const detalle = [];
+  const porTarea = new Map(); // area|desc → {area, desc, n, min, conTiempo}
+  const addTarea = (area, desc, dur) => {
+    const k = area+'|'+desc;
+    if(!porTarea.has(k)) porTarea.set(k, {area, desc, n:0, min:0, conTiempo:0});
+    const o = porTarea.get(k);
+    o.n++; if(dur){ o.min += dur; o.conTiempo++; }
+  };
+
+  (checklistHistory||[]).forEach(e=>{
+    if(e.who!==nombre || !_enRangoFecha(e.date, desde, hasta)) return;
+    const dur = (parseInt(e.duracion)||0) || calcDuracion(e.inicio||'', e.fin||'') || 0;
+    const a = areas['Florería']; a.n++; if(dur){ a.min+=dur; a.conTiempo++; } if(e.excedida) a.excedidas++;
+    const desc = (e.zona||'Arreglo') + (e.actividad?(' · '+e.actividad):'');
+    detalle.push({ fecha:e.date, area:'Florería', desc, dur, excedida:!!e.excedida });
+    addTarea('Florería', desc, dur);
+  });
+  (jardineriaLog||[]).forEach(e=>{
+    if(e.quien!==nombre || !_enRangoFecha(e.fecha, desde, hasta)) return;
+    const dur = calcDuracion(e.horaInicio||'', e.horaFin||'') || 0;
+    const a = areas['Jardinería']; a.n++; if(dur){ a.min+=dur; a.conTiempo++; }
+    const desc = (e.group?e.group+' · ':'') + (e.task||'Tarea');
+    detalle.push({ fecha:e.fecha, area:'Jardinería', desc, dur, excedida:false });
+    addTarea('Jardinería', desc, dur);
+  });
+  (habitacionesLog||[]).forEach(e=>{
+    if(e.quien!==nombre || !_enRangoFecha(e.fecha, desde, hasta)) return;
+    const dur = calcDuracion(e.horaInicio||'', e.horaFin||'') || 0;
+    const a = areas['Habitaciones']; a.n++; if(dur){ a.min+=dur; a.conTiempo++; }
+    const desc = 'Hab. ' + (e.hab||'');
+    detalle.push({ fecha:e.fecha, area:'Habitaciones', desc, dur, excedida:false });
+    addTarea('Habitaciones', desc, dur);
+  });
+
+  detalle.sort((a,b)=> (b.fecha||'').localeCompare(a.fecha||''));
+  const total = { n:0, min:0, conTiempo:0, excedidas:0 };
+  Object.values(areas).forEach(a=>{ total.n+=a.n; total.min+=a.min; total.conTiempo+=a.conTiempo; total.excedidas+=a.excedidas; });
+  const tareas = [...porTarea.values()].sort((a,b)=> b.n - a.n || b.min - a.min);
+  return { areas, total, detalle, tareas };
+}
+
+// Poblar selector de empleados + período por defecto (últimos 2 meses)
+function initPerfPanel(){
+  const sel = document.getElementById('perf-empleado');
+  if(!sel) return;
+  const actual = sel.value;
+  const empleados = getEmpleadosActivos();
+  sel.innerHTML = '<option value="">— Seleccionar empleado —</option>' + empleados.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  if(actual) sel.value = actual;
+  const dd = document.getElementById('perf-desde'), hh = document.getElementById('perf-hasta');
+  const iso = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  if(dd && !dd.value){
+    const hoy = new Date();
+    dd.value = iso(new Date(hoy.getFullYear(), hoy.getMonth()-2, 1));
+    if(hh && !hh.value) hh.value = iso(hoy);
+  }
+}
+
+function perfPreset(kind){
+  const hoy = new Date();
+  const iso = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  let desde;
+  const hasta = iso(hoy);
+  if(kind==='mes')       desde = iso(new Date(hoy.getFullYear(), hoy.getMonth(), 1));
+  else if(kind==='2m')   desde = iso(new Date(hoy.getFullYear(), hoy.getMonth()-2, 1));
+  else if(kind==='3m')   desde = iso(new Date(hoy.getFullYear(), hoy.getMonth()-3, 1));
+  else if(kind==='trim'){ const q = Math.floor(hoy.getMonth()/3); desde = iso(new Date(hoy.getFullYear(), q*3, 1)); }
+  else if(kind==='anio') desde = iso(new Date(hoy.getFullYear(), 0, 1));
+  else desde = iso(new Date(hoy.getFullYear(), hoy.getMonth()-2, 1));
+  const dd = document.getElementById('perf-desde'), hh = document.getElementById('perf-hasta');
+  if(dd) dd.value = desde;
+  if(hh) hh.value = hasta;
+  renderPerfEmpleado();
+}
+
+function renderPerfEmpleado(){
+  const body = document.getElementById('perf-body');
+  if(!body) return;
+  const nombre = document.getElementById('perf-empleado')?.value || '';
+  const desde  = document.getElementById('perf-desde')?.value || '';
+  const hasta  = document.getElementById('perf-hasta')?.value || '';
+  if(!nombre){
+    body.innerHTML = '<div style="padding:22px;text-align:center;color:var(--mid-gray);font-size:13px">Elegí un empleado para ver sus métricas objetivas del período.</div>';
+    return;
+  }
+  const m = _metricasEmpleadoPeriodo(nombre, desde, hasta);
+  const card = (label, value, sub, color) => `<div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:10px;padding:12px 14px">
+    <div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:6px">${label}</div>
+    <div style="font-size:23px;font-weight:700;color:${color||'var(--charcoal)'};line-height:1.1">${value}</div>
+    <div style="font-size:11px;color:var(--mid-gray);margin-top:4px">${sub||''}</div>
+  </div>`;
+  if(!m.total.n){
+    body.innerHTML = `<div style="padding:22px;text-align:center;color:var(--mid-gray);font-size:13px">Sin tareas registradas para ${esc(nombre)} en este período.</div>`;
+    return;
+  }
+  const promTotal = m.total.conTiempo ? Math.round(m.total.min/m.total.conTiempo) : null;
+  const cards = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:18px">
+    ${card('Tareas hechas', m.total.n, `${m.total.conTiempo} con tiempo registrado`, 'var(--charcoal)')}
+    ${card('Prom. por tarea', promTotal!=null?promTotal+' min':'—', promTotal!=null?'sobre las tareas cronometradas':'sin horarios cargados', 'var(--charcoal)')}
+    ${card('Tiempo total', fmtDur(m.total.min), 'en tareas con horario', 'var(--charcoal)')}
+    ${card('Pasadas de tiempo', m.total.excedidas, 'tareas de florería sobre el estimado', m.total.excedidas?'var(--red-alert)':'var(--green-ok)')}
+  </div>`;
+
+  // Desglose por área
+  const areaRows = Object.entries(m.areas).filter(([,a])=>a.n>0).map(([nombreArea,a])=>{
+    const prom = a.conTiempo ? Math.round(a.min/a.conTiempo)+' min' : '—';
+    return `<tr>
+      <td style="padding:6px 12px;font-size:13px;font-weight:500">${esc(nombreArea)}</td>
+      <td style="padding:6px 12px;text-align:center">${a.n}</td>
+      <td style="padding:6px 12px;text-align:right">${prom}</td>
+      <td style="padding:6px 12px;text-align:right;color:var(--mid-gray)">${fmtDur(a.min)}</td>
+    </tr>`;
+  }).join('');
+  const th = (txt,align)=>`<th style="text-align:${align||'left'};padding:6px 12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">${txt}</th>`;
+  const desgloseArea = `<div style="margin-bottom:20px">
+    <div style="font-size:13px;font-weight:600;color:var(--charcoal);margin-bottom:6px">Por área</div>
+    <div class="table-wrapper"><table style="width:100%;border-collapse:collapse">
+      <thead><tr>${th('Área')}${th('Tareas','center')}${th('Prom. tiempo','right')}${th('Tiempo total','right')}</tr></thead>
+      <tbody>${areaRows}</tbody>
+    </table></div>
+  </div>`;
+
+  // Desglose por tarea
+  const tareaRows = m.tareas.map(t=>{
+    const prom = t.conTiempo ? Math.round(t.min/t.conTiempo)+' min' : '—';
+    return `<tr>
+      <td style="padding:6px 12px;font-size:12.5px;font-weight:500">${esc(t.desc)}</td>
+      <td style="padding:6px 12px;font-size:11px;color:var(--mid-gray)">${esc(t.area)}</td>
+      <td style="padding:6px 12px;text-align:center">${t.n}</td>
+      <td style="padding:6px 12px;text-align:right">${prom}</td>
+    </tr>`;
+  }).join('');
+  const desgloseTarea = `<div style="margin-bottom:20px">
+    <div style="font-size:13px;font-weight:600;color:var(--charcoal);margin-bottom:6px">Por tarea</div>
+    <div class="table-wrapper" style="max-height:280px;overflow-y:auto"><table style="width:100%;border-collapse:collapse">
+      <thead><tr>${th('Tarea')}${th('Área')}${th('Veces','center')}${th('Prom. tiempo','right')}</tr></thead>
+      <tbody>${tareaRows}</tbody>
+    </table></div>
+  </div>`;
+
+  // Detalle tarea por tarea
+  const detRows = m.detalle.map(d=>`<tr>
+    <td style="padding:5px 12px;font-size:12px;white-space:nowrap">${fmtDate(d.fecha)}</td>
+    <td style="padding:5px 12px;font-size:11px;color:var(--mid-gray)">${esc(d.area)}</td>
+    <td style="padding:5px 12px;font-size:12px">${esc(d.desc)}</td>
+    <td style="padding:5px 12px;text-align:right;font-size:12px;${d.excedida?'color:var(--red-alert);font-weight:600':''}">${d.dur?fmtDur(d.dur):'—'}</td>
+  </tr>`).join('');
+  const detalle = `<div>
+    <div style="font-size:13px;font-weight:600;color:var(--charcoal);margin-bottom:6px">Detalle (${m.detalle.length} tarea${m.detalle.length!==1?'s':''})</div>
+    <div class="table-wrapper" style="max-height:340px;overflow-y:auto"><table style="width:100%;border-collapse:collapse">
+      <thead><tr>${th('Fecha')}${th('Área')}${th('Tarea')}${th('Tiempo','right')}</tr></thead>
+      <tbody>${detRows}</tbody>
+    </table></div>
+  </div>`;
+
+  body.innerHTML = cards + desgloseArea + desgloseTarea + detalle;
 }
 
 function renderReportesEquipo(){
@@ -16886,6 +17065,8 @@ window._setEvaluacionesData = arr => { evaluacionesData = arr; };
 
 function renderEvaluaciones(){
   renderLlamadosEval();
+  initPerfPanel();
+  renderPerfEmpleado();
   const tbody = document.getElementById('eval-tbody');
   if(!tbody) return;
   const search = (document.getElementById('ev-search')?.value||'').toLowerCase();
@@ -18781,6 +18962,7 @@ Object.assign(window, {
   renderLegajo, openLegajoModal, guardarLegajo, eliminarLegajo, verDetalleLegajo, legTipoOnChange,
   legSubirDoc, legVerDoc, legEliminarDoc,
   renderEvaluaciones, openEvaluacionModal, guardarEvaluacion, eliminarEvaluacion,
+  renderPerfEmpleado, perfPreset,
   renderLiquidacion, saveLiquidacionHoras, exportLiquidacion,
   generarOrdenCompra,
   renderPrecioComparacion, buscarComparacion,

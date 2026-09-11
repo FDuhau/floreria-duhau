@@ -2808,6 +2808,35 @@
       <div><div class="page-title">Evaluaciones de Desempeño</div><div class="page-subtitle">Evaluaciones trimestrales del equipo</div></div>
       <button class="btn-add" onclick="openEvaluacionModal(-1)">+ Nueva Evaluación</button>
     </div>
+    <!-- Análisis de desempeño objetivo por empleado y período -->
+    <div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;padding:16px 18px;margin-bottom:26px">
+      <div style="font-size:15px;font-weight:600;color:var(--charcoal);margin-bottom:2px">Análisis de desempeño · métricas objetivas</div>
+      <div style="font-size:12px;color:var(--mid-gray);margin-bottom:14px">Elegí un empleado y un período para ver cuánto trabajó realmente: tareas hechas, promedio de tiempo por tarea y desglose por área (Florería, Jardinería y Habitaciones).</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
+        <div style="flex:1;min-width:180px">
+          <label class="form-label">Empleado</label>
+          <select class="form-input" id="perf-empleado" onchange="renderPerfEmpleado()" style="width:100%;padding:8px 10px;font-size:13px"></select>
+        </div>
+        <div>
+          <label class="form-label">Desde</label>
+          <input class="form-input" type="date" id="perf-desde" onchange="renderPerfEmpleado()" style="padding:8px 10px;font-size:13px">
+        </div>
+        <div>
+          <label class="form-label">Hasta</label>
+          <input class="form-input" type="date" id="perf-hasta" onchange="renderPerfEmpleado()" style="padding:8px 10px;font-size:13px">
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px">
+        <button class="btn-secondary" style="font-size:11px;padding:5px 10px" onclick="perfPreset('mes')">Este mes</button>
+        <button class="btn-secondary" style="font-size:11px;padding:5px 10px" onclick="perfPreset('2m')">Últimos 2 meses</button>
+        <button class="btn-secondary" style="font-size:11px;padding:5px 10px" onclick="perfPreset('3m')">Últimos 3 meses</button>
+        <button class="btn-secondary" style="font-size:11px;padding:5px 10px" onclick="perfPreset('trim')">Trimestre actual</button>
+        <button class="btn-secondary" style="font-size:11px;padding:5px 10px" onclick="perfPreset('anio')">Este año</button>
+      </div>
+      <div id="perf-body"></div>
+    </div>
+
+    <div style="font-size:15px;font-weight:600;color:var(--charcoal);margin-bottom:12px">Evaluaciones trimestrales</div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;align-items:center">
       <input class="form-input" id="ev-search" placeholder="Buscar empleado..." oninput="renderEvaluaciones()" style="flex:1;min-width:160px;padding:8px 12px;font-size:13px">
       <select class="form-input" id="ev-filter-trim" onchange="renderEvaluaciones()" style="width:160px;padding:8px 10px;font-size:13px">
