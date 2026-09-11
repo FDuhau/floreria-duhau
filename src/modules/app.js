@@ -3862,10 +3862,14 @@ function _evParseEvents(pages){
   }
   return blocks.map(b=>{
     const L=b.lines;
-    const nombre = _evValRightOf(L,'Evento :') || _evValRightOf(L,'Evento:');
+    // Mapeo según el DDR: el NOMBRE del evento es la "Reserva" (ej. "AEXPI 2026"),
+    // el "tipo de evento" es el campo "Evento :" (ej. "Acreditacion, stands...") y
+    // el organizador es "Contacto en la Propiedad" (ej. "ULLA GUEDES").
+    const reserva= _evValRightOf(L,'Reserva:');
+    const tipoEvento = _evValRightOf(L,'Evento :') || _evValRightOf(L,'Evento:');
+    const nombre = reserva || tipoEvento;
     const salon  = _evValRightOf(L,'Ubicacion');
     const ordenId= _evValRightOf(L,'Numero Orden');
-    const reserva= _evValRightOf(L,'Reserva:');
     const sm     = _evValRightOf(L,'SM:');
     const contacto = _evValRightOf(L,'Contacto en');
     const catering = _evValRightOf(L,'Catering-');
@@ -3886,7 +3890,7 @@ function _evParseEvents(pages){
     const notaParts=[];
     for(const ln of L){ const c0=ln.cells[0]; if(c0 && c0.x>=190 && c0.x<=212 && !KNOWN.test(ln.text) && ln.text!==arregloRaw) notaParts.push(ln.text); }
     const notaLibre = notaParts.join(' ').trim();
-    return {date:b.date, nombre, salon, ordenId, reserva, sm, contacto, catering, pax, tono, armadoEvento, listos, horaIni, horaFin, precio, arreglos, notaLibre};
+    return {date:b.date, nombre, tipoEvento, salon, ordenId, reserva, sm, contacto, catering, pax, tono, armadoEvento, listos, horaIni, horaFin, precio, arreglos, notaLibre};
   }).filter(e=>e.ordenId || e.nombre);
 }
 
@@ -3899,18 +3903,20 @@ function _evComposeNotas(e){
   const arm=[]; if(e.armadoEvento) arm.push('Armado: '+e.armadoEvento); if(e.listos) arm.push('Listos: '+e.listos);
   if(arm.length) L.push(arm.join(' · '));
   if(e.horaIni||e.horaFin) L.push('Horario: '+(e.horaIni||'?')+(e.horaFin?'–'+e.horaFin:''));
-  const cont=[]; if(e.contacto) cont.push('Contacto: '+e.contacto); if(e.sm) cont.push('SM: '+e.sm); if(e.catering) cont.push('Catering: '+e.catering);
+  // El "Contacto en la Propiedad" ya va como Organizador del evento; en notas solo SM y Catering.
+  const cont=[]; if(e.sm) cont.push('SM: '+e.sm); if(e.catering) cont.push('Catering: '+e.catering);
   if(cont.length) L.push(cont.join(' · '));
   if(e.ordenId) L.push('Nº Orden: '+e.ordenId);
   return L.join('\n');
 }
 // Firma de los datos descriptivos, para detectar si un daily posterior cambió algo.
-function _evSig(o){ return [o.fecha,o.nombre,o.salon,o.hora,o.pax,String(o.precio||''),o.notas].join('¦'); }
+function _evSig(o){ return [o.fecha,o.nombre,o.tipoEvento||'',o.salon,o.hora,o.pax,String(o.precio||''),o.notas].join('¦'); }
 
 // Convierte un evento parseado al objeto de la app (sin pisar workflow existente).
 function _evToEvento(e){
   return {
     nombre: e.nombre || 'Evento sin nombre',
+    tipoEvento: e.tipoEvento || '',
     ordenId: e.ordenId || '',
     tipo: 'Evento',
     fecha: e.date || '',
@@ -3921,7 +3927,7 @@ function _evToEvento(e){
     pax: +e.pax || 0,
     precio: e.precio || 'A confirmar',
     notas: _evComposeNotas(e),
-    organizador: e.reserva || '',
+    organizador: e.contacto || '',
     estado: 'Pedidos Pendientes',
     arreglos: [],
     importadoDaily: true
@@ -3961,7 +3967,7 @@ function evImportFile(input){
         let status='nuevo', cambios=[];
         if(existIdx>=0){
           const prev = eventosData[existIdx];
-          const campos = [['fecha','Fecha'],['nombre','Nombre'],['salon','Salón'],['hora','Hora'],['pax','Pax'],['precio','Precio'],['notas','Detalle']];
+          const campos = [['fecha','Fecha'],['nombre','Nombre'],['tipoEvento','Tipo de evento'],['organizador','Organizador'],['salon','Salón'],['hora','Hora'],['pax','Pax'],['precio','Precio'],['notas','Detalle']];
           campos.forEach(([k,lbl])=>{ if(String(prev[k]??'')!==String(nuevo[k]??'')) cambios.push(lbl); });
           status = cambios.length ? 'modificado' : 'cargado';
         }
@@ -4001,6 +4007,7 @@ function renderEvImportPreview(){
           <strong style="font-size:13px">${esc(o.nombre)}</strong>
           <span style="font-size:11.5px;color:var(--mid-gray)">${o.fecha?fmtDate(o.fecha):'sin fecha'}${o.hora?' · '+esc(o.hora):''}${o.salon?' · '+esc(o.salon):''}${o.pax?' · '+o.pax+' pax':''}</span>
         </div>
+        ${o.tipoEvento?`<div style="font-size:11.5px;color:var(--charcoal);margin-top:2px">${esc(o.tipoEvento)}${o.organizador?' · '+esc(o.organizador):''}</div>`:''}
         ${cambios}${arreglos}
       </div>
     </div>`;
@@ -4031,7 +4038,7 @@ function evImportConfirm(){
     } else if(e.status==='modificado' && e.existIdx>=0){
       // Solo datos descriptivos; se preserva estado, asignaciones, fases, id, etc.
       const prev = eventosData[e.existIdx]; const nu = e.nuevo;
-      ['nombre','fecha','hora','horaFin','salon','pax','precio','notas','organizador','ordenId'].forEach(k=>{ prev[k]=nu[k]; });
+      ['nombre','tipoEvento','fecha','hora','horaFin','salon','pax','precio','notas','organizador','ordenId'].forEach(k=>{ prev[k]=nu[k]; });
       actualizados++;
     }
   });
@@ -15044,6 +15051,7 @@ function openEventoDetail(i){
   const _cobroEv = parseMoney(ev.precio);
   const fields = [
     ev.organizador ? ['Organizador', ev.organizador] : null,
+    ev.tipoEvento ? ['Tipo de evento', ev.tipoEvento] : null,
     ev.fecha ? ['Fecha', fmtDate(ev.fecha) + (ev.hora ? ' · ' + ev.hora : '') + (etiquetaDiaRelativa(ev.fecha) ? ' · ' + etiquetaDiaRelativa(ev.fecha) : '')] : null,
     evZonasLabel(ev) !== '—' ? ['Salón / Zona', evZonasLabel(ev)] : null,
     ev.pax   ? ['Pax', ev.pax + ' personas'] : null,
@@ -15169,6 +15177,7 @@ function saveEvent(){
     nombre,
     id: (eventosData[+document.getElementById('ev-idx').value]?.id) || genEventoId(),
     organizador:document.getElementById('ev-organizador')?.value.trim()||'',
+    tipoEvento:document.getElementById('ev-tipo-evento')?.value.trim()||'',
     tipo:document.getElementById('ev-tipo').value||'Social',
     fecha:document.getElementById('ev-fecha').value,
     hora:document.getElementById('ev-hora').value||'',
@@ -15250,6 +15259,8 @@ function openEventModal(i){
   document.getElementById('ev-nombre').value  = ev.nombre  || '';
   const orgInput = document.getElementById('ev-organizador');
   if(orgInput) orgInput.value = ev.organizador || '';
+  const tipoEvInput = document.getElementById('ev-tipo-evento');
+  if(tipoEvInput) tipoEvInput.value = ev.tipoEvento || '';
   document.getElementById('ev-tipo').value    = ev.tipo    || '';
   document.getElementById('ev-fecha').value   = ev.fecha   || '';
   document.getElementById('ev-hora').value    = ev.hora    || '';
@@ -17817,6 +17828,8 @@ function verPresupuesto(idx){
   win.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Presupuesto — ${esc(p.cliente||'')}</title>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
@@ -17841,9 +17854,14 @@ function verPresupuesto(idx){
     .footer{border-top:1px solid #E8E6E0;padding:22px 48px;font-size:11px;color:#9A8F7A;text-align:center;letter-spacing:.3px;line-height:1.9}
     .actions{max-width:760px;margin:22px auto 0;display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
     .actions a,.actions button{font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;padding:13px 26px;border-radius:10px;cursor:pointer;border:none;text-decoration:none;display:inline-flex;align-items:center;gap:8px}
-    .b-print{background:#1A1A1A;color:#fff}
+    .b-pdf{background:#1A1A1A;color:#fff}
+    .b-pdf:disabled{opacity:.6;cursor:default}
     .b-wa{background:#25D366;color:#fff}
-    @media print{ body{background:#fff;padding:0} .sheet{box-shadow:none;border-radius:0;max-width:100%} .actions{display:none} }
+    .b-print{background:#EDEAE4;color:#1A1A1A}
+    /* Forzar impresión de fondos (Chrome los descarta por defecto) y sin márgenes */
+    .sheet,.hero,.concepto-box,.total-row{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    @page{size:A4;margin:0}
+    @media print{ html,body{background:#fff;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact} .sheet{box-shadow:none;border-radius:0;max-width:100%} .actions{display:none} }
   </style></head><body>
     <div class="sheet">
       <div class="hero">
@@ -17862,9 +17880,53 @@ function verPresupuesto(idx){
       <div class="footer">Florería Duhau · Park Hyatt Buenos Aires · Av. Alvear 1661, CABA<br>Tel / WhatsApp: +54 9 11 7050-1615</div>
     </div>
     <div class="actions">
-      <button class="b-print" onclick="window.print()">Imprimir / Guardar PDF</button>
+      <button class="b-pdf" id="b-pdf" onclick="descargarPDF()">Descargar PDF</button>
       <a class="b-wa" href="${waURL}" target="_blank" rel="noopener">Enviar por WhatsApp</a>
+      <button class="b-print" onclick="window.print()">Imprimir</button>
     </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"><\/script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"><\/script>
+    <script>
+      var _pdfName = ${JSON.stringify('Presupuesto - ' + String(p.cliente||'Florería Duhau').replace(/[\\/:*?"<>|]+/g,' ').trim() + '.pdf')};
+      async function descargarPDF(){
+        var btn = document.getElementById('b-pdf');
+        var old = btn.textContent; btn.disabled = true; btn.textContent = 'Generando…';
+        try{
+          // Esperar a que carguen las librerías desde el CDN (hasta ~12s)
+          var t0 = Date.now();
+          while((!window.html2canvas || !(window.jspdf && window.jspdf.jsPDF)) && Date.now()-t0 < 12000){
+            await new Promise(function(r){ setTimeout(r, 200); });
+          }
+          if(!window.html2canvas || !(window.jspdf && window.jspdf.jsPDF)){
+            alert('No se pudieron cargar los componentes del PDF (revisá la conexión a internet). Como alternativa podés usar "Imprimir".');
+            return;
+          }
+          if(document.fonts && document.fonts.ready){ try{ await document.fonts.ready; }catch(e){} }
+          var sheet = document.querySelector('.sheet');
+          var canvas = await html2canvas(sheet, { scale:2, useCORS:true, backgroundColor:'#FDFCFB' });
+          var img = canvas.toDataURL('image/jpeg', 0.95);
+          var jsPDF = window.jspdf.jsPDF;
+          var pw = 595.28, ph = pw * canvas.height / canvas.width;
+          var pdf = new jsPDF({ unit:'pt', format:[pw, ph] });
+          pdf.addImage(img, 'JPEG', 0, 0, pw, ph);
+          // En celular, si se puede compartir un archivo, abrir el menú nativo (WhatsApp, mail, etc.)
+          var compartido = false;
+          try{
+            var blob = pdf.output('blob');
+            var file = new File([blob], _pdfName, { type:'application/pdf' });
+            if(navigator.canShare && navigator.canShare({ files:[file] })){
+              await navigator.share({ files:[file], title:_pdfName });
+              compartido = true;
+            }
+          }catch(e){ compartido = false; }
+          if(!compartido) pdf.save(_pdfName);
+        }catch(e){
+          alert('No se pudo generar el PDF: ' + (e && e.message ? e.message : e));
+        }finally{
+          btn.disabled = false; btn.textContent = old;
+        }
+      }
+    <\/script>
   </body></html>`);
   win.document.close();
 }
