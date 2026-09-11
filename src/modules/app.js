@@ -3862,10 +3862,14 @@ function _evParseEvents(pages){
   }
   return blocks.map(b=>{
     const L=b.lines;
-    const nombre = _evValRightOf(L,'Evento :') || _evValRightOf(L,'Evento:');
+    // Mapeo según el DDR: el NOMBRE del evento es la "Reserva" (ej. "AEXPI 2026"),
+    // el "tipo de evento" es el campo "Evento :" (ej. "Acreditacion, stands...") y
+    // el organizador es "Contacto en la Propiedad" (ej. "ULLA GUEDES").
+    const reserva= _evValRightOf(L,'Reserva:');
+    const tipoEvento = _evValRightOf(L,'Evento :') || _evValRightOf(L,'Evento:');
+    const nombre = reserva || tipoEvento;
     const salon  = _evValRightOf(L,'Ubicacion');
     const ordenId= _evValRightOf(L,'Numero Orden');
-    const reserva= _evValRightOf(L,'Reserva:');
     const sm     = _evValRightOf(L,'SM:');
     const contacto = _evValRightOf(L,'Contacto en');
     const catering = _evValRightOf(L,'Catering-');
@@ -3886,7 +3890,7 @@ function _evParseEvents(pages){
     const notaParts=[];
     for(const ln of L){ const c0=ln.cells[0]; if(c0 && c0.x>=190 && c0.x<=212 && !KNOWN.test(ln.text) && ln.text!==arregloRaw) notaParts.push(ln.text); }
     const notaLibre = notaParts.join(' ').trim();
-    return {date:b.date, nombre, salon, ordenId, reserva, sm, contacto, catering, pax, tono, armadoEvento, listos, horaIni, horaFin, precio, arreglos, notaLibre};
+    return {date:b.date, nombre, tipoEvento, salon, ordenId, reserva, sm, contacto, catering, pax, tono, armadoEvento, listos, horaIni, horaFin, precio, arreglos, notaLibre};
   }).filter(e=>e.ordenId || e.nombre);
 }
 
@@ -3899,18 +3903,20 @@ function _evComposeNotas(e){
   const arm=[]; if(e.armadoEvento) arm.push('Armado: '+e.armadoEvento); if(e.listos) arm.push('Listos: '+e.listos);
   if(arm.length) L.push(arm.join(' · '));
   if(e.horaIni||e.horaFin) L.push('Horario: '+(e.horaIni||'?')+(e.horaFin?'–'+e.horaFin:''));
-  const cont=[]; if(e.contacto) cont.push('Contacto: '+e.contacto); if(e.sm) cont.push('SM: '+e.sm); if(e.catering) cont.push('Catering: '+e.catering);
+  // El "Contacto en la Propiedad" ya va como Organizador del evento; en notas solo SM y Catering.
+  const cont=[]; if(e.sm) cont.push('SM: '+e.sm); if(e.catering) cont.push('Catering: '+e.catering);
   if(cont.length) L.push(cont.join(' · '));
   if(e.ordenId) L.push('Nº Orden: '+e.ordenId);
   return L.join('\n');
 }
 // Firma de los datos descriptivos, para detectar si un daily posterior cambió algo.
-function _evSig(o){ return [o.fecha,o.nombre,o.salon,o.hora,o.pax,String(o.precio||''),o.notas].join('¦'); }
+function _evSig(o){ return [o.fecha,o.nombre,o.tipoEvento||'',o.salon,o.hora,o.pax,String(o.precio||''),o.notas].join('¦'); }
 
 // Convierte un evento parseado al objeto de la app (sin pisar workflow existente).
 function _evToEvento(e){
   return {
     nombre: e.nombre || 'Evento sin nombre',
+    tipoEvento: e.tipoEvento || '',
     ordenId: e.ordenId || '',
     tipo: 'Evento',
     fecha: e.date || '',
@@ -3921,7 +3927,7 @@ function _evToEvento(e){
     pax: +e.pax || 0,
     precio: e.precio || 'A confirmar',
     notas: _evComposeNotas(e),
-    organizador: e.reserva || '',
+    organizador: e.contacto || '',
     estado: 'Pedidos Pendientes',
     arreglos: [],
     importadoDaily: true
@@ -3961,7 +3967,7 @@ function evImportFile(input){
         let status='nuevo', cambios=[];
         if(existIdx>=0){
           const prev = eventosData[existIdx];
-          const campos = [['fecha','Fecha'],['nombre','Nombre'],['salon','Salón'],['hora','Hora'],['pax','Pax'],['precio','Precio'],['notas','Detalle']];
+          const campos = [['fecha','Fecha'],['nombre','Nombre'],['tipoEvento','Tipo de evento'],['organizador','Organizador'],['salon','Salón'],['hora','Hora'],['pax','Pax'],['precio','Precio'],['notas','Detalle']];
           campos.forEach(([k,lbl])=>{ if(String(prev[k]??'')!==String(nuevo[k]??'')) cambios.push(lbl); });
           status = cambios.length ? 'modificado' : 'cargado';
         }
@@ -4001,6 +4007,7 @@ function renderEvImportPreview(){
           <strong style="font-size:13px">${esc(o.nombre)}</strong>
           <span style="font-size:11.5px;color:var(--mid-gray)">${o.fecha?fmtDate(o.fecha):'sin fecha'}${o.hora?' · '+esc(o.hora):''}${o.salon?' · '+esc(o.salon):''}${o.pax?' · '+o.pax+' pax':''}</span>
         </div>
+        ${o.tipoEvento?`<div style="font-size:11.5px;color:var(--charcoal);margin-top:2px">${esc(o.tipoEvento)}${o.organizador?' · '+esc(o.organizador):''}</div>`:''}
         ${cambios}${arreglos}
       </div>
     </div>`;
@@ -4031,7 +4038,7 @@ function evImportConfirm(){
     } else if(e.status==='modificado' && e.existIdx>=0){
       // Solo datos descriptivos; se preserva estado, asignaciones, fases, id, etc.
       const prev = eventosData[e.existIdx]; const nu = e.nuevo;
-      ['nombre','fecha','hora','horaFin','salon','pax','precio','notas','organizador','ordenId'].forEach(k=>{ prev[k]=nu[k]; });
+      ['nombre','tipoEvento','fecha','hora','horaFin','salon','pax','precio','notas','organizador','ordenId'].forEach(k=>{ prev[k]=nu[k]; });
       actualizados++;
     }
   });
@@ -15044,6 +15051,7 @@ function openEventoDetail(i){
   const _cobroEv = parseMoney(ev.precio);
   const fields = [
     ev.organizador ? ['Organizador', ev.organizador] : null,
+    ev.tipoEvento ? ['Tipo de evento', ev.tipoEvento] : null,
     ev.fecha ? ['Fecha', fmtDate(ev.fecha) + (ev.hora ? ' · ' + ev.hora : '') + (etiquetaDiaRelativa(ev.fecha) ? ' · ' + etiquetaDiaRelativa(ev.fecha) : '')] : null,
     evZonasLabel(ev) !== '—' ? ['Salón / Zona', evZonasLabel(ev)] : null,
     ev.pax   ? ['Pax', ev.pax + ' personas'] : null,
@@ -15169,6 +15177,7 @@ function saveEvent(){
     nombre,
     id: (eventosData[+document.getElementById('ev-idx').value]?.id) || genEventoId(),
     organizador:document.getElementById('ev-organizador')?.value.trim()||'',
+    tipoEvento:document.getElementById('ev-tipo-evento')?.value.trim()||'',
     tipo:document.getElementById('ev-tipo').value||'Social',
     fecha:document.getElementById('ev-fecha').value,
     hora:document.getElementById('ev-hora').value||'',
@@ -15250,6 +15259,8 @@ function openEventModal(i){
   document.getElementById('ev-nombre').value  = ev.nombre  || '';
   const orgInput = document.getElementById('ev-organizador');
   if(orgInput) orgInput.value = ev.organizador || '';
+  const tipoEvInput = document.getElementById('ev-tipo-evento');
+  if(tipoEvInput) tipoEvInput.value = ev.tipoEvento || '';
   document.getElementById('ev-tipo').value    = ev.tipo    || '';
   document.getElementById('ev-fecha').value   = ev.fecha   || '';
   document.getElementById('ev-hora').value    = ev.hora    || '';
