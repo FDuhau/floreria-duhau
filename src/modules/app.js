@@ -17817,6 +17817,8 @@ function verPresupuesto(idx){
   win.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Presupuesto — ${esc(p.cliente||'')}</title>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
@@ -17841,9 +17843,14 @@ function verPresupuesto(idx){
     .footer{border-top:1px solid #E8E6E0;padding:22px 48px;font-size:11px;color:#9A8F7A;text-align:center;letter-spacing:.3px;line-height:1.9}
     .actions{max-width:760px;margin:22px auto 0;display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
     .actions a,.actions button{font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;padding:13px 26px;border-radius:10px;cursor:pointer;border:none;text-decoration:none;display:inline-flex;align-items:center;gap:8px}
-    .b-print{background:#1A1A1A;color:#fff}
+    .b-pdf{background:#1A1A1A;color:#fff}
+    .b-pdf:disabled{opacity:.6;cursor:default}
     .b-wa{background:#25D366;color:#fff}
-    @media print{ body{background:#fff;padding:0} .sheet{box-shadow:none;border-radius:0;max-width:100%} .actions{display:none} }
+    .b-print{background:#EDEAE4;color:#1A1A1A}
+    /* Forzar impresión de fondos (Chrome los descarta por defecto) y sin márgenes */
+    .sheet,.hero,.concepto-box,.total-row{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    @page{size:A4;margin:0}
+    @media print{ html,body{background:#fff;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact} .sheet{box-shadow:none;border-radius:0;max-width:100%} .actions{display:none} }
   </style></head><body>
     <div class="sheet">
       <div class="hero">
@@ -17862,9 +17869,53 @@ function verPresupuesto(idx){
       <div class="footer">Florería Duhau · Park Hyatt Buenos Aires · Av. Alvear 1661, CABA<br>Tel / WhatsApp: +54 9 11 7050-1615</div>
     </div>
     <div class="actions">
-      <button class="b-print" onclick="window.print()">Imprimir / Guardar PDF</button>
+      <button class="b-pdf" id="b-pdf" onclick="descargarPDF()">Descargar PDF</button>
       <a class="b-wa" href="${waURL}" target="_blank" rel="noopener">Enviar por WhatsApp</a>
+      <button class="b-print" onclick="window.print()">Imprimir</button>
     </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"><\/script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"><\/script>
+    <script>
+      var _pdfName = ${JSON.stringify('Presupuesto - ' + String(p.cliente||'Florería Duhau').replace(/[\\/:*?"<>|]+/g,' ').trim() + '.pdf')};
+      async function descargarPDF(){
+        var btn = document.getElementById('b-pdf');
+        var old = btn.textContent; btn.disabled = true; btn.textContent = 'Generando…';
+        try{
+          // Esperar a que carguen las librerías desde el CDN (hasta ~12s)
+          var t0 = Date.now();
+          while((!window.html2canvas || !(window.jspdf && window.jspdf.jsPDF)) && Date.now()-t0 < 12000){
+            await new Promise(function(r){ setTimeout(r, 200); });
+          }
+          if(!window.html2canvas || !(window.jspdf && window.jspdf.jsPDF)){
+            alert('No se pudieron cargar los componentes del PDF (revisá la conexión a internet). Como alternativa podés usar "Imprimir".');
+            return;
+          }
+          if(document.fonts && document.fonts.ready){ try{ await document.fonts.ready; }catch(e){} }
+          var sheet = document.querySelector('.sheet');
+          var canvas = await html2canvas(sheet, { scale:2, useCORS:true, backgroundColor:'#FDFCFB' });
+          var img = canvas.toDataURL('image/jpeg', 0.95);
+          var jsPDF = window.jspdf.jsPDF;
+          var pw = 595.28, ph = pw * canvas.height / canvas.width;
+          var pdf = new jsPDF({ unit:'pt', format:[pw, ph] });
+          pdf.addImage(img, 'JPEG', 0, 0, pw, ph);
+          // En celular, si se puede compartir un archivo, abrir el menú nativo (WhatsApp, mail, etc.)
+          var compartido = false;
+          try{
+            var blob = pdf.output('blob');
+            var file = new File([blob], _pdfName, { type:'application/pdf' });
+            if(navigator.canShare && navigator.canShare({ files:[file] })){
+              await navigator.share({ files:[file], title:_pdfName });
+              compartido = true;
+            }
+          }catch(e){ compartido = false; }
+          if(!compartido) pdf.save(_pdfName);
+        }catch(e){
+          alert('No se pudo generar el PDF: ' + (e && e.message ? e.message : e));
+        }finally{
+          btn.disabled = false; btn.textContent = old;
+        }
+      }
+    <\/script>
   </body></html>`);
   win.document.close();
 }
