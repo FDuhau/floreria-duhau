@@ -540,7 +540,7 @@ function promptModal(message, opts){
     const input    = ov.querySelector('#prompt-modal-input');
     const okBtn    = ov.querySelector('#prompt-modal-ok');
     const cancelBtn= ov.querySelector('#prompt-modal-cancel');
-    input.type = isPw ? 'password' : 'text';
+    input.type = isPw ? 'password' : (opts.type || 'text');
     input.value = def;
     input.placeholder = opts.placeholder || '';
     okBtn.textContent = okText;
@@ -5947,6 +5947,7 @@ function renderEventos(){
           <select class="event-status-sel" style="${stStyle}" onchange="changeEventoEstado(${i},this.value)">${stOpts}</select>
           <button class="btn-icon" title="Ver detalle" onclick="openEventoDetail(${i})"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
           <button class="btn-icon" onclick="openEventModal(${i})" title="Editar"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/></svg></button>
+          <button class="btn-icon" onclick="replicarEvento(${i})" title="Replicar en otro día"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
           <button class="btn-icon" style="color:var(--red-alert)" onclick="deleteEvento(${i})">✕</button>
         </div>
       </div>
@@ -5979,6 +5980,43 @@ function changeEventoEstado(i,val){
 // saveEvent defined in recetas section
 
 async function deleteEvento(i){ if(!await confirmModal('¿Eliminar este evento?')) return; eventosData.splice(i,1); renderEventos(); renderHome(); }
+
+// Replica un evento en otro día: copia todo el seteo (arreglos, zonas, pax,
+// precio, tipo de evento, organizador, notas, imagen) y crea uno nuevo en la
+// fecha elegida. Arranca en "Pedidos Pendientes" y SIN asignaciones ni fichajes
+// del original (no descuenta stock ni re-notifica), con id nuevo y sin ordenId
+// (para no chocar con la deduplicación del daily).
+async function replicarEvento(i){
+  const src = eventosData[i];
+  if(!src) return;
+  if(!window._eventosLoaded){ showToast('Los eventos todavía se están cargando — esperá unos segundos e intentá de nuevo.','error'); return; }
+  const nueva = await promptModal('Elegí el día para la copia (mismo seteo, otra fecha):', {
+    title:'Replicar evento', okText:'Replicar', type:'date', default: src.fecha || TODAY_ISO
+  });
+  if(!nueva) return;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(nueva)){ showToast('Fecha inválida','error'); return; }
+  const copia = {
+    ...JSON.parse(JSON.stringify(src)),
+    id: genEventoId(),
+    fecha: nueva,
+    estado: 'Pedidos Pendientes',
+    ordenId: '',
+    importadoDaily: false,
+    // Limpiar asignaciones, fechas/horas de colocación-retiro y fichajes del original
+    asignado:'', colocacionAsignado:'', retiroAsignado:'',
+    colocacionFecha:'', colocacionHora:'', retiroFecha:'', retiroHora:'',
+    inicio:'', fin:'', colocacionInicio:'', colocacionFin:'', retiroInicio:'', retiroFin:'',
+    colocacionAvisada:'', retiroAvisada:''
+  };
+  eventosData.push(copia);
+  fbSave('eventosData', eventosData);
+  syncEventosToKanban();
+  fbSave('kanbanData', kanbanData);
+  renderEventos();
+  renderHome?.();
+  if(document.getElementById('page-eventos-maison')?.classList.contains('active')) renderKanban?.();
+  showToast(`Evento replicado al ${fmtDate(nueva)} — quedó en Pedidos Pendientes`);
+}
 
 // ── Productividad por operario ────────────────────────────────────────────────
 function fmtMin(min){
@@ -15114,6 +15152,14 @@ function openEventoDetail(i){
       openEventModal(i);
     };
   }
+  const repBtn = document.getElementById('evento-detail-replicar-btn');
+  if(repBtn){
+    repBtn.style.display = (userRole==='gerencia'||userRole==='comercial') ? '' : 'none';
+    repBtn.onclick = () => {
+      closeModal('evento-detail-modal');
+      replicarEvento(i);
+    };
+  }
 
   document.getElementById('evento-detail-modal').classList.add('open');
 }
@@ -18947,7 +18993,7 @@ Object.assign(window, {
   cotAgregarOpsStock, cotGuardarMargen, cotGuardarPrecio, cotRemove, cotRemoveOps, cotUpdateQty,
   cotUpdateQtyOps, ctrlHabFilter, ctrlJardFilter, daysSince, delC, delCaja,
   delPedidoHab, delProveedor, delRamo, delReceta, delReglaTipo, delStock, delTipoEvento,
-  delVenta, deleteEvento, descontarStockEvento, deselectAllInsumos, doLogin, durBadge,
+  delVenta, deleteEvento, replicarEvento, descontarStockEvento, deselectAllInsumos, doLogin, durBadge,
   ventasClearFilters, ventasCierreMes, ventasCierreCopiar,
   eliminarUsuario, ensureKanbanCols, enviarCotizacionEvento, enviarPedidoHab, esc,
   estaEditando, evAgregarComposicion, evAgregarFlor, evZonasLabel, exportCtrlCSV, exportHabCSV,
