@@ -1583,7 +1583,7 @@ function checkRecordatoriosFaseEvento(){
       cambio = true;
     });
   });
-  if(cambio) fbSave('eventosData', eventosData);
+  if(cambio) _saveEventos();
 }
 
 function renderChecklistTable(){
@@ -2935,7 +2935,7 @@ function moveKanbanCard(ci, i, dir){
   if(card.isEvento){
     const estadoMap = {0:'Pedidos Pendientes',1:'En Proceso',2:'Pendiente de Colocacion',3:'Pedidos Finalizados'};
     eventosData[card.eventoIdx].estado = estadoMap[nci]||'Pedidos Pendientes';
-    fbSave('eventosData', eventosData);
+    _saveEventos();
     renderEventos(); renderHome();
   }
   kanbanData[nci].cards.push(card);
@@ -2970,7 +2970,7 @@ function renderKanban(){
         // Update event estado based on col
         const estadoMap = {0:'Pedidos Pendientes',1:'En Proceso',2:'Pendiente de Colocacion',3:'Pedidos Finalizados'};
         eventosData[card.eventoIdx].estado = estadoMap[ci]||'Pedidos Pendientes';
-        fbSave('eventosData', eventosData);
+        _saveEventos();
         renderEventos(); renderHome();
       }
       kanbanData[ci].cards.push(card);
@@ -3088,7 +3088,7 @@ function saveKanbanTask(){
       estado: ['Pedidos Pendientes','En Proceso','Pendiente de Colocacion','Pedidos Finalizados'][ci]||'Pedidos Pendientes',
       fromKanban: true
     });
-    fbSave('eventosData', eventosData);
+    _saveEventos();
     showToast('Evento registrado en Área Comercial: ' + title);
     if(document.getElementById('page-eventos-comercial').classList.contains('active')) renderEventos();
     renderHome();
@@ -3287,7 +3287,7 @@ function genEventoId(){
 function ensureEventoIds(){
   let changed = false;
   (eventosData||[]).forEach(ev=>{ if(ev && !ev.id){ ev.id = genEventoId(); changed = true; } });
-  if(changed) fbSave('eventosData', eventosData);
+  if(changed) _saveEventos();
 }
 function eventosPendientes(){
   return (eventosData||[])
@@ -4042,7 +4042,7 @@ function evImportConfirm(){
       actualizados++;
     }
   });
-  fbSave('eventosData', eventosData);
+  _saveEventos();
   if(typeof syncEventosToKanban==='function'){ syncEventosToKanban(); fbSave('kanbanData', kanbanData); }
   closeModal('ev-import-modal');
   evImportParsed = [];
@@ -5068,6 +5068,14 @@ function updateKpiCompras(){
 // ════════════════════════════════════════
 let eventosData = [];
 
+// Persiste eventosData marcando el momento del guardado. El listener de Firebase
+// usa ese timestamp para NO pisar una edición recién hecha con una sincronización
+// que llega justo después (mismo patrón que compras y checklist).
+function _saveEventos(){
+  window._eventosDataLastSave = Date.now();
+  fbSave('eventosData', eventosData);
+}
+
 const ESTADO_COLORS={
   'Pedidos Pendientes':'background:#E8E4DC;color:#4A4A4A',
   'En Proceso':'background:#EBF0E8;color:#4A5C3E',
@@ -5958,7 +5966,7 @@ function renderEventos(){
 function changeEventoEstado(i,val){
   const prev = eventosData[i]?.estado;
   eventosData[i].estado=val;
-  fbSave('eventosData', eventosData);
+  _saveEventos();
   syncEventosToKanban();
   fbSave('kanbanData', kanbanData);
   renderEventos();
@@ -5979,7 +5987,7 @@ function changeEventoEstado(i,val){
 // openEventModal defined in recetas section
 // saveEvent defined in recetas section
 
-async function deleteEvento(i){ if(!await confirmModal('¿Eliminar este evento?')) return; eventosData.splice(i,1); renderEventos(); renderHome(); }
+async function deleteEvento(i){ if(!await confirmModal('¿Eliminar este evento?')) return; eventosData.splice(i,1); _saveEventos(); syncEventosToKanban(); fbSave('kanbanData', kanbanData); renderEventos(); renderHome(); }
 
 // Replica un evento en otro día: copia todo el seteo (arreglos, zonas, pax,
 // precio, tipo de evento, organizador, notas, imagen) y crea uno nuevo en la
@@ -6009,7 +6017,7 @@ async function replicarEvento(i){
     colocacionAvisada:'', retiroAvisada:''
   };
   eventosData.push(copia);
-  fbSave('eventosData', eventosData);
+  _saveEventos();
   syncEventosToKanban();
   fbSave('kanbanData', kanbanData);
   renderEventos();
@@ -12704,7 +12712,7 @@ function confirmarRestaurarCompras(){
   if(addJ.length){ addJ.forEach(r=>comprasJard.push(r)); window._comprasJardLastSave=Date.now(); fbSave('comprasJard', comprasJard); }
   if(addE.length){
     addE.forEach(e=>{ if(!e.id) e.id = genEventoId(); eventosData.push(e); });
-    fbSave('eventosData', eventosData);
+    _saveEventos();
     if(typeof syncEventosToKanban==='function'){ syncEventosToKanban(); fbSave('kanbanData', kanbanData); }
   }
   const n = addF.length+addJ.length+addE.length;
@@ -13766,7 +13774,7 @@ function registrarHoraEvento(evIdx, campo, fase){
     if(campo === 'fin'){
       // Retiro terminado → evento completo
       ev.estado = 'Pedidos Finalizados';
-      fbSave('eventosData', eventosData);
+      _saveEventos();
       renderChecklistTable();
       if(document.getElementById('page-eventos-comercial')?.classList.contains('active')) renderEventos();
       if(document.getElementById('page-eventos-maison')?.classList.contains('active')) renderKanban();
@@ -13774,7 +13782,7 @@ function registrarHoraEvento(evIdx, campo, fase){
       showToast(`Retiro finalizado: "${ev.nombre}". Evento completo.`);
       return;
     }
-    fbSave('eventosData', eventosData);
+    _saveEventos();
     renderChecklistTable();
     showToast(`▶ Inicio de retiro: "${ev.nombre}" · ${hhmm}`);
     return;
@@ -13787,7 +13795,7 @@ function registrarHoraEvento(evIdx, campo, fase){
       // si no, el evento se finaliza (comportamiento de siempre).
       if(ev.retiroAsignado){
         ev.estado = 'Pendiente de Retiro';
-        fbSave('eventosData', eventosData);
+        _saveEventos();
         renderChecklistTable();
         if(document.getElementById('page-eventos-comercial')?.classList.contains('active')) renderEventos();
         if(document.getElementById('page-eventos-maison')?.classList.contains('active')) renderKanban();
@@ -13797,7 +13805,7 @@ function registrarHoraEvento(evIdx, campo, fase){
         return;
       }
       ev.estado = 'Pedidos Finalizados';
-      fbSave('eventosData', eventosData);
+      _saveEventos();
       renderChecklistTable();
       if(document.getElementById('page-eventos-comercial')?.classList.contains('active')) renderEventos();
       if(document.getElementById('page-eventos-maison')?.classList.contains('active')) renderKanban();
@@ -13805,7 +13813,7 @@ function registrarHoraEvento(evIdx, campo, fase){
       showToast(`Colocación finalizada: "${ev.nombre}". Evento completo.`);
       return;
     }
-    fbSave('eventosData', eventosData);
+    _saveEventos();
     renderChecklistTable();
     showToast(`▶ Inicio de colocación: "${ev.nombre}" · ${hhmm}`);
     return;
@@ -13816,7 +13824,7 @@ function registrarHoraEvento(evIdx, campo, fase){
   if(campo === 'fin'){
     // Inicio+Fin = armado terminado → queda pendiente de colocación
     ev.estado = 'Pendiente de Colocacion';
-    fbSave('eventosData', eventosData);
+    _saveEventos();
     renderChecklistTable();
     if(document.getElementById('page-eventos-comercial')?.classList.contains('active')) renderEventos();
     if(document.getElementById('page-eventos-maison')?.classList.contains('active')) renderKanban();
@@ -13826,7 +13834,7 @@ function registrarHoraEvento(evIdx, campo, fase){
     showToast(`⏹ Armado finalizado: "${ev.nombre}". Avisamos a gerencia para la colocación.`);
     return;
   }
-  fbSave('eventosData', eventosData);
+  _saveEventos();
   renderChecklistTable();
   showToast(`▶ Inicio de armado: "${ev.nombre}" · ${hhmm}`);
 }
@@ -15353,7 +15361,7 @@ function saveEvent(){
   else eventosData[idx]=ev;
 
   closeModal('event-modal');
-  fbSave('eventosData', eventosData);
+  _saveEventos();
   if(ev.asignado && ev.asignado !== prevAsignadoEv){
     notificarAsignacion(ev.asignado, 'Nuevo evento asignado (armado)', `Se te asignó el armado de "${ev.nombre}"${ev.fecha ? ' · ' + fmtDate(ev.fecha) : ''}`);
   }
@@ -16804,7 +16812,7 @@ function saveEventLaborRate(val){
 function updEventoTraslado(idx, val){
   if(!eventosData[idx]) return;
   eventosData[idx].traslado = +val || 0;
-  fbSave('eventosData', eventosData);
+  _saveEventos();
   renderRentabilidad();
 }
 // Horas cronometradas del evento: armado + colocación + retiro
