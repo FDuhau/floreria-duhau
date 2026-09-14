@@ -2519,6 +2519,23 @@
       <button class="btn-print" onclick="exportPDF('Cierre del Día')">Imprimir / PDF</button>
     </div>
     <div id="cd-kpis" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:24px"></div>
+
+    <!-- Métricas por persona (día / semana / mes) -->
+    <div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;padding:16px 18px;margin-bottom:24px">
+      <div style="font-size:15px;font-weight:600;color:var(--charcoal);margin-bottom:2px">Métricas por persona</div>
+      <div style="font-size:12px;color:var(--mid-gray);margin-bottom:12px">Elegí una persona y un rango (según la fecha de arriba) para ver las tareas que hizo y sus métricas.</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
+        <select class="form-input" id="cd-persona" onchange="renderCdPersona()" style="min-width:180px;padding:8px 10px;font-size:13px"></select>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn-secondary" id="cd-rango-dia" style="font-size:11px;padding:5px 12px" onclick="cdPersonaRango('dia')">Día</button>
+          <button class="btn-secondary" id="cd-rango-semana" style="font-size:11px;padding:5px 12px" onclick="cdPersonaRango('semana')">Semana</button>
+          <button class="btn-secondary" id="cd-rango-mes" style="font-size:11px;padding:5px 12px" onclick="cdPersonaRango('mes')">Mes</button>
+        </div>
+      </div>
+      <div id="cd-persona-rango" style="font-size:11px;color:var(--mid-gray);margin-bottom:12px"></div>
+      <div id="cd-persona-body"></div>
+    </div>
+
     <div id="cd-detalle"></div>
   </div>
 
@@ -2830,6 +2847,7 @@
         </div>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px">
+        <button class="btn-secondary" style="font-size:11px;padding:5px 10px" onclick="perfPreset('semana')">Esta semana</button>
         <button class="btn-secondary" style="font-size:11px;padding:5px 10px" onclick="perfPreset('mes')">Este mes</button>
         <button class="btn-secondary" style="font-size:11px;padding:5px 10px" onclick="perfPreset('2m')">Últimos 2 meses</button>
         <button class="btn-secondary" style="font-size:11px;padding:5px 10px" onclick="perfPreset('3m')">Últimos 3 meses</button>

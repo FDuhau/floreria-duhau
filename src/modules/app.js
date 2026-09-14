@@ -6199,8 +6199,6 @@ function _hm2min(s){ if(!s||!s.includes(':')) return 0; const [h,m]=s.split(':')
 // Construye el detalle del día a partir de los datos en memoria (sincronizados).
 function generarResumenDiario(fecha){
   const nombres = (typeof getEmpleadosActivos==='function' ? getEmpleadosActivos() : []);
-  const dayState = (window.clStateByDay||{})[fecha] || (fecha===window.currentDay ? (window.clState||{}) : {});
-  const resp = dayState.responsable||[], checked = dayState.checked||[], actividad = dayState.actividad||[], obs = dayState.obs||[];
   const personas = [], ausentes = [];
 
   nombres.forEach(nombre => {
@@ -6223,22 +6221,20 @@ function generarResumenDiario(fecha){
       if(desde && hasta) horasMin = Math.max(0, _hm2min(hasta)-_hm2min(desde));
     }
 
-    // Checklist de florería (tareas asignadas a la persona)
-    const checklist = [];
-    let tareasTotal = 0, tareasHechas = 0;
-    resp.forEach((r,i)=>{
-      if(r===nombre){
-        tareasTotal++;
-        const done = !!checked[i];
-        if(done) tareasHechas++;
-        const t = (CL_TASKS[i]||{});
-        checklist.push({ zona: t.zona||'', sec: t.sec||'', actividad: actividad[i]||t.actividad||'', obs: obs[i]||'', done });
-      }
-    });
+    // Arreglos de florería HECHOS ese día — se leen del historial (checklistHistory),
+    // que guarda who + date + tiempo. Antes se leía clStateByDay[fecha], pero ese
+    // objeto está indexado por día de la semana (Lunes/Martes…), no por fecha, así
+    // que nunca traía nada. El historial funciona para hoy y para fechas pasadas.
+    const checklist = (checklistHistory||[])
+      .filter(e => _mismoNombre(e.who, nombre) && String(e.date||'').slice(0,10) === fecha)
+      .map(e => ({ zona: e.zona||'', sec: e.sec||'', actividad: e.actividad||'', obs: e.obs||'',
+                   dur: (parseInt(e.duracion)||0) || calcDuracion(e.inicio||'', e.fin||'') || 0, done: true }));
+    const tareasHechas = checklist.length;
+    const tareasTotal  = checklist.length;
 
     // Tareas de jardinería del día (log)
     const jardineria = esJard
-      ? (window.jardineriaLog||[]).filter(e=>e.fecha===fecha && e.quien===nombre)
+      ? (window.jardineriaLog||[]).filter(e=>e.fecha===fecha && _mismoNombre(e.quien, nombre))
           .map(e=>({ task: e.task||e.tarea||e.grupo||'', horaInicio:e.horaInicio||'', horaFin:e.horaFin||'', obs:e.obs||'', done: !!e.horaFin }))
       : [];
 
@@ -6300,6 +6296,7 @@ function initCierreDia(){
   const inp = document.getElementById('cd-fecha');
   if(inp && !inp.value) inp.value = TODAY_ISO;
   renderCierreDia();
+  cdPersonaRango(_cdPersonaRango || 'dia'); // resalta el botón de rango activo
 }
 
 function renderCierreDia(){
@@ -6352,7 +6349,7 @@ function renderCierreDia(){
 
     const checklistHtml = p.checklist.length
       ? `<div style="margin-top:10px"><div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:6px">Checklist · ${p.tareasHechas}/${p.tareasTotal}</div>
-          ${p.checklist.map(t=>`<div style="font-size:12.5px;padding:3px 0;color:${t.done?'var(--charcoal)':'#B4772A'}">${t.done?'✓':'○'} <strong>${esc(t.zona||t.sec)}</strong>${t.actividad?' · '+esc(t.actividad):''}${t.obs?` <span style="color:var(--mid-gray)">— ${esc(t.obs)}</span>`:''}</div>`).join('')}</div>`
+          ${p.checklist.map(t=>`<div style="font-size:12.5px;padding:3px 0;color:${t.done?'var(--charcoal)':'#B4772A'}">${t.done?'✓':'○'} <strong>${esc(t.zona||t.sec)}</strong>${t.actividad?' · '+esc(t.actividad):''}${t.dur?` <span style="color:var(--mid-gray)">· ${fmtDur(t.dur)}</span>`:''}${t.obs?` <span style="color:var(--mid-gray)">— ${esc(t.obs)}</span>`:''}</div>`).join('')}</div>`
       : '';
 
     const jardHtml = p.jardineria.length
@@ -6387,6 +6384,51 @@ function renderCierreDia(){
   }).join('') + (data.ausentes.length
     ? `<div style="margin-top:8px;font-size:12.5px;color:var(--mid-gray)"><strong>Sin registro hoy:</strong> ${data.ausentes.map(esc).join(', ')}</div>`
     : '');
+
+  // Panel de métricas por persona (día/semana/mes)
+  const selP = document.getElementById('cd-persona');
+  if(selP){
+    const prev = selP.value;
+    const empleados = (typeof getEmpleadosActivos==='function' ? getEmpleadosActivos() : []);
+    selP.innerHTML = '<option value="">— Seleccionar persona —</option>' + empleados.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+    if(prev) selP.value = prev;
+  }
+  renderCdPersona();
+}
+
+// Rango del panel por persona del Cierre del Día: 'dia' | 'semana' | 'mes'.
+let _cdPersonaRango = 'dia';
+function cdPersonaRango(kind){
+  _cdPersonaRango = kind;
+  ['dia','semana','mes'].forEach(k=>{
+    const b = document.getElementById('cd-rango-'+k);
+    if(b){ b.style.background = k===kind ? 'var(--charcoal)' : ''; b.style.color = k===kind ? '#fff' : ''; }
+  });
+  renderCdPersona();
+}
+
+function renderCdPersona(){
+  const body = document.getElementById('cd-persona-body');
+  if(!body) return;
+  const nombre = document.getElementById('cd-persona')?.value || '';
+  const fechaBase = document.getElementById('cd-fecha')?.value || TODAY_ISO;
+  const lblEl = document.getElementById('cd-persona-rango');
+  if(!nombre){
+    body.innerHTML = '<div style="padding:20px;text-align:center;color:var(--mid-gray);font-size:13px">Elegí una persona para ver sus métricas.</div>';
+    if(lblEl) lblEl.textContent = '';
+    return;
+  }
+  let desde, hasta;
+  if(_cdPersonaRango==='semana'){ const r = _rangoSemana(new Date(fechaBase)); desde = r.desde; hasta = r.hasta; }
+  else if(_cdPersonaRango==='mes'){ desde = fechaBase.slice(0,7)+'-01'; const [y,mo]=fechaBase.split('-').map(Number); hasta = `${y}-${String(mo).padStart(2,'0')}-${String(new Date(y,mo,0).getDate()).padStart(2,'0')}`; }
+  else { desde = fechaBase; hasta = fechaBase; }
+  if(lblEl) lblEl.textContent = `Período: ${fmtDate(desde)}${desde!==hasta?' – '+fmtDate(hasta):''}`;
+  const m = _metricasEmpleadoPeriodo(nombre, desde, hasta);
+  if(!m.total.n){
+    body.innerHTML = `<div style="padding:20px;text-align:center;color:var(--mid-gray);font-size:13px">Sin tareas registradas para ${esc(nombre)} en este rango.</div>`;
+    return;
+  }
+  body.innerHTML = _metricasHTML(m);
 }
 
 // ── Fila visual del home de gerencia: anillo, sparkline y semáforo ────────────
@@ -11300,6 +11342,16 @@ function openFichaEmpleado(nombre, mesISO){
 // Unifica el trabajo REAL de las tres áreas (Florería/checklist, Jardinería y
 // Habitaciones) en un rango de fechas para poder evaluar desempeño con datos
 // concretos: cuántas tareas hizo, promedio de tiempo por tarea y desglose.
+// Rango lunes–domingo de la semana que contiene a `d` (Date). Devuelve ISO.
+function _rangoSemana(d){
+  const iso = x => x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');
+  const base = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const dow = (base.getDay()+6)%7; // 0=lunes … 6=domingo
+  const lun = new Date(base); lun.setDate(base.getDate()-dow);
+  const dom = new Date(lun);  dom.setDate(lun.getDate()+6);
+  return { desde: iso(lun), hasta: iso(dom) };
+}
+
 function _enRangoFecha(fecha, desde, hasta){
   const f = String(fecha||'').slice(0,10);
   if(!f) return false;
@@ -11384,8 +11436,9 @@ function perfPreset(kind){
   const hoy = new Date();
   const iso = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   let desde;
-  const hasta = iso(hoy);
-  if(kind==='mes')       desde = iso(new Date(hoy.getFullYear(), hoy.getMonth(), 1));
+  let hasta = iso(hoy);
+  if(kind==='semana'){ const r = _rangoSemana(hoy); desde = r.desde; hasta = r.hasta; }
+  else if(kind==='mes')       desde = iso(new Date(hoy.getFullYear(), hoy.getMonth(), 1));
   else if(kind==='2m')   desde = iso(new Date(hoy.getFullYear(), hoy.getMonth()-2, 1));
   else if(kind==='3m')   desde = iso(new Date(hoy.getFullYear(), hoy.getMonth()-3, 1));
   else if(kind==='trim'){ const q = Math.floor(hoy.getMonth()/3); desde = iso(new Date(hoy.getFullYear(), q*3, 1)); }
@@ -11408,15 +11461,29 @@ function renderPerfEmpleado(){
     return;
   }
   const m = _metricasEmpleadoPeriodo(nombre, desde, hasta);
+  if(!m.total.n){
+    // Diagnóstico: qué nombres SÍ figuran en el checklist del período (revela
+    // desajustes de nombre entre el login y el "responsable" del checklist).
+    const nombresHist = [...new Set((checklistHistory||[])
+      .filter(e=>_enRangoFecha(e.date, desde, hasta))
+      .map(e=>String(e.who||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));
+    const hint = nombresHist.length
+      ? `<div style="font-size:11px;color:var(--mid-gray);margin-top:10px">En el checklist de este período figuran: ${nombresHist.map(esc).join(' · ')}</div>`
+      : '';
+    body.innerHTML = `<div style="padding:22px;text-align:center;color:var(--mid-gray);font-size:13px">Sin tareas registradas para ${esc(nombre)} en este período.${hint}</div>`;
+    return;
+  }
+  body.innerHTML = _metricasHTML(m);
+}
+
+// Arma el HTML de las métricas de un empleado (tarjetas + desglose por área +
+// por tarea + detalle). Reutilizado por Evaluaciones y por Cierre del Día.
+function _metricasHTML(m){
   const card = (label, value, sub, color) => `<div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:10px;padding:12px 14px">
     <div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:6px">${label}</div>
     <div style="font-size:23px;font-weight:700;color:${color||'var(--charcoal)'};line-height:1.1">${value}</div>
     <div style="font-size:11px;color:var(--mid-gray);margin-top:4px">${sub||''}</div>
   </div>`;
-  if(!m.total.n){
-    body.innerHTML = `<div style="padding:22px;text-align:center;color:var(--mid-gray);font-size:13px">Sin tareas registradas para ${esc(nombre)} en este período.</div>`;
-    return;
-  }
   const promTotal = m.total.conTiempo ? Math.round(m.total.min/m.total.conTiempo) : null;
   const cards = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:18px">
     ${card('Tareas hechas', m.total.n, `${m.total.conTiempo} con tiempo registrado`, 'var(--charcoal)')}
@@ -11477,7 +11544,7 @@ function renderPerfEmpleado(){
     </table></div>
   </div>`;
 
-  body.innerHTML = cards + desgloseArea + desgloseTarea + detalle;
+  return cards + desgloseArea + desgloseTarea + detalle;
 }
 
 function renderReportesEquipo(){
@@ -19044,7 +19111,7 @@ Object.assign(window, {
   renderPedidosHab, renderPeriodTabs, renderPlantilla, renderPreciosList, renderProductividad,
   renderProductividadHome, renderProductividadCL, renderProductividadHorarios, renderProvTags, renderRamosDisp, renderRecepcionPedidos,
   renderRecetas, seedComposicionesBase, seedComposicionesHotelBase, setCompTab, renderComposicionesHotel, compHotelAdd, delArregloComposicion, renderReportesEquipo, renderReportesVentas, renderReportesStock, openFichaEmpleado,
-  renderCierreDia, initCierreDia,
+  renderCierreDia, initCierreDia, renderCdPersona, cdPersonaRango,
   renderFloreros, openFloreroModal, guardarFlorero, delFlorero, florAjustar, florFotoPreview, cambiarFotoFlorero, openFlorFoto,
   renderVelas, openVelaModal, guardarVela, delVela, velaAjustar, velaFotoPreview, cambiarFotoVela, openVelaFoto,
   exportReporteEquipo, exportReporteVentas, exportReporteStock,
