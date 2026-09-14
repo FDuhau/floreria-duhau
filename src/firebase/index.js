@@ -403,6 +403,9 @@
       fbListen('eventosData', val => {
         const arr = Array.isArray(val) ? val : Object.values(val||{});
         window._eventosLoaded = true; // ya llegaron los eventos: recién ahora es seguro guardar
+        // No pisar una edición recién guardada localmente con una sincronización
+        // que llega justo después (evita perder modificaciones de eventos).
+        if(window._eventosDataLastSave && Date.now() - window._eventosDataLastSave < 4000){ window._maybeSnapshotEventosSafe?.(); return; }
         if(JSON.stringify(arr) === JSON.stringify(window.eventosData)){ window._maybeSnapshotEventosSafe?.(); return; }
         window.eventosData = arr;
         window._maybeSnapshotEventosSafe?.();
