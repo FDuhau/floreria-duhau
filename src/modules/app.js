@@ -11308,6 +11308,14 @@ function _enRangoFecha(fecha, desde, hasta){
   return true;
 }
 
+// Compara nombres de forma tolerante (ignora mayúsculas, acentos y espacios de
+// más). El selector de empleados usa el floristaNombre del login y el historial
+// guarda el "responsable", que pueden diferir en mayúsculas/acentos.
+function _mismoNombre(a, b){
+  const norm = s => _evStripAcc(String(s||'')).replace(/\s+/g,' ').trim();
+  return norm(a) === norm(b) && norm(a) !== '';
+}
+
 function _metricasEmpleadoPeriodo(nombre, desde, hasta){
   const areas = {
     'Florería':     { n:0, min:0, conTiempo:0, excedidas:0 },
@@ -11324,7 +11332,7 @@ function _metricasEmpleadoPeriodo(nombre, desde, hasta){
   };
 
   (checklistHistory||[]).forEach(e=>{
-    if(e.who!==nombre || !_enRangoFecha(e.date, desde, hasta)) return;
+    if(!_mismoNombre(e.who, nombre) || !_enRangoFecha(e.date, desde, hasta)) return;
     const dur = (parseInt(e.duracion)||0) || calcDuracion(e.inicio||'', e.fin||'') || 0;
     const a = areas['Florería']; a.n++; if(dur){ a.min+=dur; a.conTiempo++; } if(e.excedida) a.excedidas++;
     const desc = (e.zona||'Arreglo') + (e.actividad?(' · '+e.actividad):'');
@@ -11332,7 +11340,7 @@ function _metricasEmpleadoPeriodo(nombre, desde, hasta){
     addTarea('Florería', desc, dur);
   });
   (jardineriaLog||[]).forEach(e=>{
-    if(e.quien!==nombre || !_enRangoFecha(e.fecha, desde, hasta)) return;
+    if(!_mismoNombre(e.quien, nombre) || !_enRangoFecha(e.fecha, desde, hasta)) return;
     const dur = calcDuracion(e.horaInicio||'', e.horaFin||'') || 0;
     const a = areas['Jardinería']; a.n++; if(dur){ a.min+=dur; a.conTiempo++; }
     const desc = (e.group?e.group+' · ':'') + (e.task||'Tarea');
@@ -11340,7 +11348,7 @@ function _metricasEmpleadoPeriodo(nombre, desde, hasta){
     addTarea('Jardinería', desc, dur);
   });
   (habitacionesLog||[]).forEach(e=>{
-    if(e.quien!==nombre || !_enRangoFecha(e.fecha, desde, hasta)) return;
+    if(!_mismoNombre(e.quien, nombre) || !_enRangoFecha(e.fecha, desde, hasta)) return;
     const dur = calcDuracion(e.horaInicio||'', e.horaFin||'') || 0;
     const a = areas['Habitaciones']; a.n++; if(dur){ a.min+=dur; a.conTiempo++; }
     const desc = 'Hab. ' + (e.hab||'');
