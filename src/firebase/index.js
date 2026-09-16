@@ -653,6 +653,12 @@
         if(document.getElementById('guia-arreglo-modal')?.classList.contains('open')) window._renderGuiaArreglo?.();
       });
 
+      // Vínculo zona del checklist → composición cargada (cuando los nombres difieren).
+      fbListenNullable('arreglosCompLink', val => {
+        if(window._setArreglosCompLink) window._setArreglosCompLink(val || {});
+        if(document.getElementById('guia-arreglo-modal')?.classList.contains('open')) window._renderGuiaArreglo?.();
+      });
+
       fbListen('comprasBaseDia', val => {
         if(window._setComprasBaseDia) window._setComprasBaseDia(val);
       });

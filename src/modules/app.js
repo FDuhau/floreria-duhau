@@ -16500,6 +16500,69 @@ function _saveArreglosFotoRef(){
   fbSave('arreglosFotoRef', arr);
 }
 
+// Vínculo manual entre una zona del checklist y la clave de una composición ya
+// cargada, cuando los nombres no coinciden ni se pueden emparejar solos
+// (ej. checklist "Mesa Ratona Posadas" → composición "Recepción Posadas y mesita").
+// { zonaChecklist: claveComposicion }. Lo define gerencia una vez desde la Guía.
+let arreglosCompLink = {};
+function _normArreglosCompLink(v){
+  const obj = {};
+  if(!v) return obj;
+  const entries = Array.isArray(v) ? v : Object.values(v);
+  const esLista = entries.length && entries.every(x => x && typeof x==='object' && !Array.isArray(x) && ('zona' in x));
+  if(esLista){
+    entries.forEach(x => { if(x && x.zona && x.comp) obj[x.zona] = x.comp; });
+  } else if(typeof v === 'object' && !Array.isArray(v)){
+    Object.entries(v).forEach(([k,val]) => { if(val) obj[k] = typeof val==='string' ? val : (val.comp||''); });
+  }
+  return obj;
+}
+window._setArreglosCompLink = v => { arreglosCompLink = _normArreglosCompLink(v); };
+function _saveArreglosCompLink(){
+  const arr = Object.entries(arreglosCompLink).filter(([,comp])=>comp).map(([zona, comp]) => ({ zona, comp }));
+  fbSave('arreglosCompLink', arr);
+}
+
+// Normaliza un nombre de zona/arreglo para poder emparejar el nombre del checklist
+// con el de la composición cargada, aunque estén escritos distinto.
+function _normZonaName(s){
+  return String(s||'')
+    .toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g,'')      // saca acentos
+    .replace(/p\.?\s*nobile/g,'piano')                    // P. Nobile → Piano
+    .replace(/\([^)]*\)/g,' ')                            // saca "(c/u)", "(20)", etc.
+    .replace(/·/g,' ')
+    .replace(/[^a-z0-9\s]/g,' ')
+    .replace(/\b(de|del|la|el|los|las|y|con)\b/g,' ')     // palabras de relleno
+    .replace(/\s+/g,' ').trim();
+}
+function _zonaTokens(s){ return new Set(_normZonaName(s).split(' ').filter(Boolean)); }
+function _isSubset(a, b){ for(const x of a){ if(!b.has(x)) return false; } return a.size>0; }
+// Claves de composiciones que efectivamente tienen ingredientes cargados.
+function _composicionKeys(){
+  return Object.keys(arreglosComposicion||{}).filter(k => (arreglosComposicion[k]||[]).length);
+}
+// Resuelve qué composición corresponde a una zona del checklist:
+//   1) vínculo manual guardado por gerencia,
+//   2) coincidencia exacta de nombre,
+//   3) coincidencia normalizada (acentos, "de", Piano, "(c/u)", orden de palabras),
+//   4) contención de tokens SOLO si es inequívoca (un único candidato).
+// Devuelve { key, ings, source } o { key:null } si no hay match seguro.
+function _resolveComposicionZona(zona){
+  if(!zona) return { key:null, ings:[], source:'none' };
+  const link = arreglosCompLink[zona];
+  if(link && (arreglosComposicion[link]||[]).length) return { key:link, ings:arreglosComposicion[link], source:'link' };
+  if((arreglosComposicion[zona]||[]).length) return { key:zona, ings:arreglosComposicion[zona], source:'exact' };
+  const keys = _composicionKeys();
+  const zNorm = _normZonaName(zona);
+  const exactNorm = keys.filter(k => _normZonaName(k) === zNorm);
+  if(exactNorm.length === 1) return { key:exactNorm[0], ings:arreglosComposicion[exactNorm[0]], source:'auto' };
+  const zTok = _zonaTokens(zona);
+  const cand = keys.filter(k => { const kt=_zonaTokens(k); return _isSubset(zTok,kt) || _isSubset(kt,zTok); });
+  if(cand.length === 1) return { key:cand[0], ings:arreglosComposicion[cand[0]], source:'auto' };
+  return { key:null, ings:[], source: cand.length>1 ? 'ambiguo' : 'none' };
+}
+
 window._setArreglosHotelConfig = v => { arreglosHotelConfig = v || {}; };
 // Bandera: recién cuando Firebase entregó las composiciones al menos una vez se
 // permite guardarlas/borrarlas. Evita el borrado por carrera: si se edita una
@@ -16850,18 +16913,47 @@ function _renderGuiaArreglo(){
   if(!zona) return;
   let ov = document.getElementById('guia-arreglo-modal');
   if(!ov){ ov = document.createElement('div'); ov.id='guia-arreglo-modal'; ov.className='modal-overlay'; document.body.appendChild(ov); }
-  const ings = arreglosComposicion[zona] || [];
+  // La composición sale de las composiciones del hotel ya cargadas. Como el nombre
+  // de la zona del checklist no siempre coincide con el de la composición, se
+  // resuelve con vínculo manual / coincidencia por nombre.
+  const resol = _resolveComposicionZona(zona);
+  const ings = resol.ings || [];
+  const compKey = resol.key;
   const foto = arreglosFotoRef[zona] || '';
   const puedeEditar = userRole === 'gerencia';
   const zEsc = esc(zona).replace(/'/g,"\\'");
+  const compKeyEsc = compKey ? esc(compKey).replace(/'/g,"\\'") : '';
+
+  const origen = (compKey && compKey !== zona)
+    ? `<div style="font-size:11px;color:var(--mid-gray);margin-bottom:8px">Tomada de <strong>${esc(compKey)}</strong>${resol.source==='auto'?' · emparejada automáticamente':''}</div>`
+    : '';
   const listaHTML = ings.length
-    ? `<ul style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px">
+    ? origen + `<ul style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px">
         ${ings.map(g=>`<li style="display:flex;justify-content:space-between;gap:10px;font-size:13.5px;padding:8px 12px;background:var(--warm-white);border:1px solid var(--light-gray);border-radius:8px">
           <span style="color:var(--charcoal)">${esc(g.prod)}</span>
           <span style="color:var(--sage-dark);font-weight:600;white-space:nowrap">${_fmtIngUnidad(g)}</span>
         </li>`).join('')}
        </ul>`
-    : `<div style="font-size:12.5px;color:var(--mid-gray);padding:14px;background:#FAF8F4;border-radius:8px;text-align:center">Todavía no se cargó la composición de este arreglo.${puedeEditar?' Cargala con el botón de abajo.':''}</div>`;
+    : `<div style="font-size:12.5px;color:var(--mid-gray);padding:14px;background:#FAF8F4;border-radius:8px;text-align:center">No encontramos la composición de este arreglo.${puedeEditar?' Vinculala con una ya cargada abajo.':''}</div>`;
+
+  // Selector de vínculo con una composición existente (solo gerencia). No recarga
+  // ingredientes: solo apunta esta zona a una composición ya cargada.
+  let linkHTML = '';
+  if(puedeEditar){
+    const keys = _composicionKeys().sort((a,b)=>a.localeCompare(b,'es'));
+    const cur = (resol.source==='link'||resol.source==='auto'||resol.source==='exact') ? compKey : '';
+    linkHTML = `
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--light-gray)">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--mid-gray);font-weight:600;margin-bottom:6px">Composición del hotel vinculada</div>
+        <select onchange="guiaVincularComp('${zEsc}',this.value)" style="width:100%;border:1px solid var(--light-gray);border-radius:8px;padding:8px 10px;font-size:12.5px;background:var(--warm-white);color:var(--charcoal)">
+          <option value="">— Elegí la composición correcta —</option>
+          ${keys.map(k=>`<option value="${esc(k)}"${k===cur?' selected':''}>${esc(k)}</option>`).join('')}
+        </select>
+        ${resol.source==='auto'?'<div style="font-size:11px;color:var(--mid-gray);margin-top:6px">Se emparejó sola por el nombre. Si no es la correcta, elegí la correcta arriba.</div>':''}
+        ${resol.source==='ambiguo'?'<div style="font-size:11px;color:var(--amber);margin-top:6px">Hay varias composiciones parecidas: elegí cuál corresponde.</div>':''}
+      </div>`;
+  }
+
   const fotoHTML = foto
     ? `<img src="${foto}" onclick="verFotoArregloRef()" style="width:100%;max-height:340px;object-fit:cover;border-radius:10px;cursor:zoom-in;display:block" alt="Foto de ${esc(zona)}">`
     : `<div style="font-size:12.5px;color:var(--mid-gray);padding:28px 14px;background:#FAF8F4;border:1px dashed var(--light-gray);border-radius:10px;text-align:center">Sin foto de referencia todavía.${puedeEditar?' Agregá una para que la florista sepa cómo debe quedar.':''}</div>`;
@@ -16871,15 +16963,23 @@ function _renderGuiaArreglo(){
     <div style="margin-bottom:16px">${fotoHTML}</div>
     <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--mid-gray);font-weight:600;margin-bottom:8px">Composición</div>
     ${listaHTML}
+    ${linkHTML}
     ${puedeEditar ? `
       <input type="file" id="guia-foto-file" accept="image/*" style="display:none" onchange="guiaFotoInput(this)">
-      <div style="display:flex;gap:8px;margin-top:18px;flex-wrap:wrap">
+      <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
         <button class="btn-secondary" style="font-size:12px;flex:1;min-width:110px" onclick="document.getElementById('guia-foto-file').click()">${foto?'Cambiar foto':'Agregar foto'}</button>
         ${foto?`<button class="btn-secondary" style="font-size:12px;color:var(--red-alert)" onclick="guiaQuitarFoto()">Quitar foto</button>`:''}
-        <button class="btn-add" style="font-size:12px;flex:1;min-width:110px" onclick="closeModal('guia-arreglo-modal');openArregloComposicion('${zEsc}')">Editar composición</button>
+        <button class="btn-add" style="font-size:12px;flex:1;min-width:110px" onclick="closeModal('guia-arreglo-modal');openArregloComposicion('${compKeyEsc||zEsc}')">${compKey?'Editar composición':'Crear composición'}</button>
       </div>` : ''}
   </div>`;
   ov.classList.add('open');
+}
+function guiaVincularComp(zona, key){
+  if(key) arreglosCompLink[zona] = key;
+  else delete arreglosCompLink[zona];
+  _saveArreglosCompLink();
+  showToast(key ? 'Composición vinculada' : 'Vínculo quitado');
+  _renderGuiaArreglo();
 }
 function guiaFotoInput(input){
   const file = input.files[0]; if(!file) return;
@@ -19235,7 +19335,7 @@ Object.assign(window, {
   renderRentabilidad, renderRentabilidadHotel, rentSetTab, saveArregloHotelConfig, saveEventLaborRate, updEventoTraslado, alertasAutomaticas,
   openListaCompraHotel, listaCompraHotelCopiar, openTiemposEstimados, openPromediosZona, copiarDetalleFichajes,
   rentAddArreglo, openArregloComposicion, compUpdRow, compAddRow, compRemoveRow, guardarArregloComposicion,
-  openGuiaArreglo, _renderGuiaArreglo, guiaFotoInput, guiaQuitarFoto, verFotoArregloRef,
+  openGuiaArreglo, _renderGuiaArreglo, guiaFotoInput, guiaQuitarFoto, verFotoArregloRef, guiaVincularComp,
   renderStock, renderStockAdmin, renderVentaHoraCell, renderVentas, renderZonasPicker,
   resetHora, resetDayState, resetWeekState, resetearPassword, resetearTodasPasswords, saleAutoFillPrice,
   saveEvent, saveInsumosCustom, saveKanbanTask, saveLpItem, saveRamo, saveReceta, saveUrgenciaConfig,
