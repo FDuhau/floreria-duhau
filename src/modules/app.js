@@ -3149,12 +3149,17 @@ function getTbody(type){ return document.getElementById('tbody-'+type); }
 function getAreaUsoZonas(){
   return [...new Set(CL_TASKS.map(t=>t.zona))].sort((a,b)=>a.localeCompare(b,'es'));
 }
+// Opciones fijas del listado de Área / uso que no son zonas del checklist.
+// "Evento": marca una compra destinada a un evento; después se puede vincular al
+// evento puntual desde el historial (getAreaUsoOpts detecta el sector "evento").
+const AREA_USO_FIJAS = ['Evento'];
 function getAreaUsoOpts(current){
   const zonas = getAreaUsoZonas();
   const cur = (current||'').trim();
+  const fijasHTML = AREA_USO_FIJAS.map(f=>`<option value="${esc(f)}"${f===cur?' selected':''}>${esc(f)}</option>`).join('');
   // Preservar un valor viejo que no esté en la lista (ej. 'Florería')
-  const extra = cur && !zonas.includes(cur) ? `<option value="${esc(cur)}" selected>${esc(cur)}</option>` : '';
-  return `<option value="">— Área / uso —</option>` + extra +
+  const extra = cur && !zonas.includes(cur) && !AREA_USO_FIJAS.includes(cur) ? `<option value="${esc(cur)}" selected>${esc(cur)}</option>` : '';
+  return `<option value="">— Área / uso —</option>` + fijasHTML + extra +
     zonas.map(z=>`<option value="${esc(z)}"${z===cur?' selected':''}>${esc(z)}</option>`).join('');
 }
 
