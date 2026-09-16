@@ -643,6 +643,14 @@
         if(window._setArreglosComposicion) window._setArreglosComposicion(val || {});
         if(document.getElementById('page-rentabilidad-eventos')?.classList.contains('active')) window.renderRentabilidadHotel?.();
         if(document.getElementById('page-recetas-arreglos')?.classList.contains('active')) window.renderComposicionesHotel?.();
+        if(document.getElementById('guia-arreglo-modal')?.classList.contains('open')) window._renderGuiaArreglo?.();
+      });
+
+      // Foto de referencia por arreglo (Guía del arreglo en el checklist). Nullable:
+      // el nodo puede estar vacío hasta que se cargue la primera foto.
+      fbListenNullable('arreglosFotoRef', val => {
+        if(window._setArreglosFotoRef) window._setArreglosFotoRef(val || {});
+        if(document.getElementById('guia-arreglo-modal')?.classList.contains('open')) window._renderGuiaArreglo?.();
       });
 
       fbListen('comprasBaseDia', val => {
