@@ -1762,7 +1762,7 @@ function renderChecklistTable(){
 
     if(isFlorista){
       tr.innerHTML = `
-        <td style="font-weight:500;font-size:12.5px;min-width:140px">${esc(t.zona)}</td>
+        <td style="font-weight:500;font-size:12.5px;min-width:140px">${esc(t.zona)}${actLower!=='riego'?_btnGuiaArreglo(t.zona):''}</td>
         <td style="min-width:100px">${actividadCell}</td>
         <td style="width:60px;text-align:center">${refCell}</td>
         <td style="min-width:150px">
@@ -1775,7 +1775,7 @@ function renderChecklistTable(){
       const nuevoInfo = ultimoNuevoMap && actLower!=='riego' ? badgeUltimoNuevo(ultimoNuevoMap[_zonaKey(t.sec,t.zona)]) : '';
       tr.innerHTML = `
         <td style="width:32px"><input type="checkbox" class="task-check" ${done?'checked':''} onchange="toggleTask(${i},this)"></td>
-        <td style="font-weight:500;font-size:12.5px;min-width:140px">${esc(t.zona)}${nuevoInfo}</td>
+        <td style="font-weight:500;font-size:12.5px;min-width:140px">${esc(t.zona)}${actLower!=='riego'?_btnGuiaArreglo(t.zona):''}${nuevoInfo}</td>
         <td style="min-width:100px">${actividadCell}</td>
         <td style="width:60px;text-align:center">${refCell}</td>
         <td style="min-width:150px">
@@ -1964,7 +1964,7 @@ function renderChecklistCards(el){
     return `<div class="cl-card${done?' cl-card-done':''}">
       <div class="cl-card-top">
         <div>
-          <div class="cl-card-zona">${done?'':''}${esc(t.zona)}</div>
+          <div class="cl-card-zona">${done?'':''}${esc(t.zona)}${String(curAct).toLowerCase()!=='riego'?_btnGuiaArreglo(t.zona):''}</div>
           <div class="cl-card-sec">${sh.icon} ${sh.label}</div>
         </div>
         <div class="cl-card-badges">
@@ -16474,6 +16474,32 @@ let _rentTab = 'eventos';
 let arreglosHotelConfig = {}; // { nombreArreglo: { precioHyatt, cantMensual } }
 let arreglosComposicion = {}; // { zonaChecklist: [{prod, qty}] } — qué flores/varas lleva cada arreglo
 
+// Foto de referencia por arreglo/zona — { zona: dataURL(jpeg) }. Se muestra en la
+// "Guía del arreglo" (botón junto a la zona en el checklist) junto a la composición,
+// para que la florista vea cómo debe quedar cada arreglo Nuevo.
+let arreglosFotoRef = {};
+let _arreglosFotoRefLoaded = false;
+// Acepta el formato NUEVO (lista [{zona, img}], apto para Firebase — las claves con
+// "/", "." etc. rompen la escritura a RTDB) y el VIEJO ({ "zona": img }).
+function _normArreglosFotoRef(v){
+  const obj = {};
+  if(!v) return obj;
+  const entries = Array.isArray(v) ? v : Object.values(v);
+  const esLista = entries.length && entries.every(x => x && typeof x==='object' && !Array.isArray(x) && ('zona' in x));
+  if(esLista){
+    entries.forEach(x => { if(x && x.zona && x.img) obj[x.zona] = x.img; });
+  } else if(typeof v === 'object' && !Array.isArray(v)){
+    Object.entries(v).forEach(([k,val]) => { if(val) obj[k] = typeof val==='string' ? val : (val.img||''); });
+  }
+  return obj;
+}
+window._setArreglosFotoRef = v => { arreglosFotoRef = _normArreglosFotoRef(v); _arreglosFotoRefLoaded = true; };
+// Guarda como LISTA [{zona, img}] (mismo criterio que arreglosComposicion).
+function _saveArreglosFotoRef(){
+  const arr = Object.entries(arreglosFotoRef).filter(([,img])=>img).map(([zona, img]) => ({ zona, img }));
+  fbSave('arreglosFotoRef', arr);
+}
+
 window._setArreglosHotelConfig = v => { arreglosHotelConfig = v || {}; };
 // Bandera: recién cuando Firebase entregó las composiciones al menos una vez se
 // permite guardarlas/borrarlas. Evita el borrado por carrera: si se edita una
@@ -16799,6 +16825,86 @@ function guardarArregloComposicion(){
   renderRentabilidadHotel();       // refresca la vista de rentabilidad (si está activa)
   renderComposicionesHotel();      // refresca la solapa Hotel de Composiciones (si está activa)
   showToast('Composición guardada');
+}
+
+// ── Guía del arreglo: composición + foto de referencia ────────────────────────
+// La ve cualquier rol tocando el botón que aparece junto a la zona en el checklist
+// (tabla de gerencia/operario y tarjetas de florista). Muestra qué flores lleva el
+// arreglo y una foto de cómo debe quedar. Gerencia además puede cargar/cambiar la
+// foto y editar la composición desde acá.
+let _guiaFotoZona = null;
+// Botón que se inserta junto al nombre de la zona en el checklist.
+function _btnGuiaArreglo(zona){
+  const zEsc = esc(zona).replace(/'/g,"\\'");
+  return `<button class="cl-guia-btn" title="Ver composición y foto del arreglo"
+      onclick="event.stopPropagation();openGuiaArreglo('${zEsc}')" aria-label="Ver guía del arreglo">
+      <svg viewBox="0 0 24 24" width="13" height="13" style="stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-2px"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+    </button>`;
+}
+function openGuiaArreglo(zona){
+  _guiaFotoZona = zona;
+  _renderGuiaArreglo();
+}
+function _renderGuiaArreglo(){
+  const zona = _guiaFotoZona;
+  if(!zona) return;
+  let ov = document.getElementById('guia-arreglo-modal');
+  if(!ov){ ov = document.createElement('div'); ov.id='guia-arreglo-modal'; ov.className='modal-overlay'; document.body.appendChild(ov); }
+  const ings = arreglosComposicion[zona] || [];
+  const foto = arreglosFotoRef[zona] || '';
+  const puedeEditar = userRole === 'gerencia';
+  const zEsc = esc(zona).replace(/'/g,"\\'");
+  const listaHTML = ings.length
+    ? `<ul style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px">
+        ${ings.map(g=>`<li style="display:flex;justify-content:space-between;gap:10px;font-size:13.5px;padding:8px 12px;background:var(--warm-white);border:1px solid var(--light-gray);border-radius:8px">
+          <span style="color:var(--charcoal)">${esc(g.prod)}</span>
+          <span style="color:var(--sage-dark);font-weight:600;white-space:nowrap">${_fmtIngUnidad(g)}</span>
+        </li>`).join('')}
+       </ul>`
+    : `<div style="font-size:12.5px;color:var(--mid-gray);padding:14px;background:#FAF8F4;border-radius:8px;text-align:center">Todavía no se cargó la composición de este arreglo.${puedeEditar?' Cargala con el botón de abajo.':''}</div>`;
+  const fotoHTML = foto
+    ? `<img src="${foto}" onclick="verFotoArregloRef()" style="width:100%;max-height:340px;object-fit:cover;border-radius:10px;cursor:zoom-in;display:block" alt="Foto de ${esc(zona)}">`
+    : `<div style="font-size:12.5px;color:var(--mid-gray);padding:28px 14px;background:#FAF8F4;border:1px dashed var(--light-gray);border-radius:10px;text-align:center">Sin foto de referencia todavía.${puedeEditar?' Agregá una para que la florista sepa cómo debe quedar.':''}</div>`;
+  ov.innerHTML = `<div class="modal" style="max-width:460px;max-height:90vh;overflow-y:auto">
+    <button class="modal-close" onclick="closeModal('guia-arreglo-modal')">✕</button>
+    <div class="modal-title">Guía · ${esc(zona)}</div>
+    <div style="margin-bottom:16px">${fotoHTML}</div>
+    <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--mid-gray);font-weight:600;margin-bottom:8px">Composición</div>
+    ${listaHTML}
+    ${puedeEditar ? `
+      <input type="file" id="guia-foto-file" accept="image/*" style="display:none" onchange="guiaFotoInput(this)">
+      <div style="display:flex;gap:8px;margin-top:18px;flex-wrap:wrap">
+        <button class="btn-secondary" style="font-size:12px;flex:1;min-width:110px" onclick="document.getElementById('guia-foto-file').click()">${foto?'Cambiar foto':'Agregar foto'}</button>
+        ${foto?`<button class="btn-secondary" style="font-size:12px;color:var(--red-alert)" onclick="guiaQuitarFoto()">Quitar foto</button>`:''}
+        <button class="btn-add" style="font-size:12px;flex:1;min-width:110px" onclick="closeModal('guia-arreglo-modal');openArregloComposicion('${zEsc}')">Editar composición</button>
+      </div>` : ''}
+  </div>`;
+  ov.classList.add('open');
+}
+function guiaFotoInput(input){
+  const file = input.files[0]; if(!file) return;
+  if(!_arreglosFotoRefLoaded){ showToast('⏳ Esperá unos segundos a que sincronice y probá de nuevo.'); return; }
+  comprimirImagen(file, 1000, 0.7, data => {
+    arreglosFotoRef[_guiaFotoZona] = data;
+    _saveArreglosFotoRef();
+    _renderGuiaArreglo();
+    showToast('Foto de referencia guardada');
+  });
+}
+async function guiaQuitarFoto(){
+  if(!await confirmModal('¿Quitar la foto de referencia de este arreglo?')) return;
+  delete arreglosFotoRef[_guiaFotoZona];
+  _saveArreglosFotoRef();
+  _renderGuiaArreglo();
+  showToast('Foto quitada');
+}
+function verFotoArregloRef(){
+  const img = arreglosFotoRef[_guiaFotoZona]; if(!img) return;
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;cursor:zoom-out';
+  ov.innerHTML = `<img src="${img}" style="max-width:94vw;max-height:90vh;border-radius:12px">`;
+  ov.onclick = () => ov.remove();
+  document.body.appendChild(ov);
 }
 
 // Valor hora del equipo para el costo de mano de obra de eventos
@@ -19129,6 +19235,7 @@ Object.assign(window, {
   renderRentabilidad, renderRentabilidadHotel, rentSetTab, saveArregloHotelConfig, saveEventLaborRate, updEventoTraslado, alertasAutomaticas,
   openListaCompraHotel, listaCompraHotelCopiar, openTiemposEstimados, openPromediosZona, copiarDetalleFichajes,
   rentAddArreglo, openArregloComposicion, compUpdRow, compAddRow, compRemoveRow, guardarArregloComposicion,
+  openGuiaArreglo, _renderGuiaArreglo, guiaFotoInput, guiaQuitarFoto, verFotoArregloRef,
   renderStock, renderStockAdmin, renderVentaHoraCell, renderVentas, renderZonasPicker,
   resetHora, resetDayState, resetWeekState, resetearPassword, resetearTodasPasswords, saleAutoFillPrice,
   saveEvent, saveInsumosCustom, saveKanbanTask, saveLpItem, saveRamo, saveReceta, saveUrgenciaConfig,
