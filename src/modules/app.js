@@ -3299,6 +3299,22 @@ function eventosPendientes(){
     .filter(ev => ev && ev.estado !== 'Pedidos Finalizados')
     .sort((a,b)=>(a.fecha||'9999').localeCompare(b.fecha||'9999'));
 }
+// Eventos dentro de ±dias de una fecha de referencia (INCLUYE finalizados). Sirve
+// para vincular una orden de compra con fecha pasada al evento que ya pasó, que
+// eventosPendientes() no lista por estar finalizado.
+function eventosCercaDe(refFecha, dias){
+  if(!refFecha) return eventosPendientes();
+  const ref = new Date(refFecha).getTime();
+  if(isNaN(ref)) return eventosPendientes();
+  const rango = (dias||5) * 86400000;
+  return (eventosData||[])
+    .filter(ev => {
+      if(!ev || !ev.fecha) return false;
+      const t = new Date(ev.fecha).getTime();
+      return !isNaN(t) && Math.abs(t - ref) <= rango;
+    })
+    .sort((a,b)=>(a.fecha||'9999').localeCompare(b.fecha||'9999'));
+}
 function eventoLabel(ev){
   return (ev?.nombre||'(evento)') + (ev?.fecha ? ' · ' + fmtDate(ev.fecha) : '');
 }
@@ -3306,18 +3322,21 @@ function findEventoById(id){
   if(!id) return null;
   return (eventosData||[]).find(ev=>ev && ev.id===id) || null;
 }
-function getCompraEventoOpts(currentId){
+// refDate (opcional, ISO): fecha de la orden de compra. Si es anterior a hoy, se
+// listan los eventos dentro de ±5 días de esa fecha (incluye finalizados), para
+// poder vincular órdenes viejas; si no, los pendientes.
+function getCompraEventoOpts(currentId, refDate){
   ensureEventoIds();
-  const pend = eventosPendientes();
+  const lista = (refDate && refDate < TODAY_ISO) ? eventosCercaDe(refDate, 5) : eventosPendientes();
   const cur = currentId || '';
   // Preservar un evento ya vinculado aunque haya pasado a finalizado / no listado
   let extra = '';
-  if(cur && !pend.some(ev=>ev.id===cur)){
+  if(cur && !lista.some(ev=>ev.id===cur)){
     const ev = findEventoById(cur);
     if(ev) extra = `<option value="${esc(cur)}" selected>${esc(eventoLabel(ev))}</option>`;
   }
   return `<option value="">— Sin evento (stock general) —</option>` + extra +
-    pend.map(ev=>`<option value="${esc(ev.id)}"${ev.id===cur?' selected':''}>${esc(eventoLabel(ev))}</option>`).join('');
+    lista.map(ev=>`<option value="${esc(ev.id)}"${ev.id===cur?' selected':''}>${esc(eventoLabel(ev))}</option>`).join('');
 }
 function populateCompraEventoSelect(p){
   const sel = document.getElementById(p+'-evento-link');
@@ -3397,7 +3416,7 @@ function openCompraEventos(type, i){
   if(!r) return;
   const allocs = _compraEventosAlloc(r).map(a=>({ eventoId:a.eventoId||'', qty:(a.qty!=null?a.qty:'') }));
   if(!allocs.length) allocs.push({ eventoId:'', qty:'' });
-  _cevState = { type, idx:i, rows:allocs };
+  _cevState = { type, idx:i, rows:allocs, refDate:(r.fecha||'') };
   const sub = document.getElementById('cev-sub');
   if(sub) sub.innerHTML = `<strong>${esc(r.prod||'—')}</strong> · ${esc(_compraCant(r))} ${type==='floreria'?'paquete(s)':'unidad(es)'} · precio unit. $${parseMoney(r.costo).toLocaleString('es-AR')}<br>Repartí la compra entre los eventos indicando cuánta cantidad va a cada uno.`;
   _cevRender();
@@ -3408,9 +3427,13 @@ function _cevRender(){
   if(!_cevState) return;
   const cont = document.getElementById('cev-rows');
   if(!cont) return;
-  cont.innerHTML = _cevState.rows.map((row,ri)=>{
+  const refDate = _cevState.refDate || '';
+  const pastNote = (refDate && refDate < TODAY_ISO)
+    ? `<div style="font-size:11px;color:var(--mid-gray);background:#FBF6EC;border:1px solid #E9DCAE;border-radius:6px;padding:6px 9px;margin-bottom:8px">Esta orden es del ${fmtDate(refDate)} (ya pasó): se muestran los eventos dentro de ±5 días de esa fecha, incluidos los finalizados.</div>`
+    : '';
+  cont.innerHTML = pastNote + _cevState.rows.map((row,ri)=>{
     return `<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
-      <select class="form-input" onchange="cevSet(${ri},'eventoId',this.value)" style="flex:1;font-size:12px;min-width:0">${getCompraEventoOpts(row.eventoId)}</select>
+      <select class="form-input" onchange="cevSet(${ri},'eventoId',this.value)" style="flex:1;font-size:12px;min-width:0">${getCompraEventoOpts(row.eventoId, refDate)}</select>
       <input class="form-input" type="number" min="0" step="any" value="${esc(row.qty)}" placeholder="cant." onchange="cevSet(${ri},'qty',this.value)" style="width:70px;font-size:12px;text-align:center">
       <button type="button" onclick="cevRemove(${ri})" title="Quitar" style="border:none;background:none;color:var(--red-alert);cursor:pointer;font-size:14px;width:24px">✕</button>
     </div>`;
