@@ -659,6 +659,13 @@
         if(document.getElementById('guia-arreglo-modal')?.classList.contains('open')) window._renderGuiaArreglo?.();
       });
 
+      // Tablero de tareas pendientes de gerencia (tipo Trello). Nullable: al borrar
+      // la última tarea el nodo queda vacío y hay que reflejarlo.
+      fbListenNullable('tareasGerencia', val => {
+        if(Date.now() - (window._tareasGerenciaLastSave||0) < 2000) return; // evita pisar lo recién guardado
+        if(window._setTareasGerencia) window._setTareasGerencia(val);
+      });
+
       fbListen('comprasBaseDia', val => {
         if(window._setComprasBaseDia) window._setComprasBaseDia(val);
       });
