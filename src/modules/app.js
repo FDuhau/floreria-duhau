@@ -194,7 +194,8 @@ const PAGE_LABELS = {control:'Control','control-jardineria':'Control › Seguimi
   'cierre-mensual': 'Contable › Cierre Mensual',
   'dashboard-gerencia': 'Gerencia › Dashboard Unificado',
   'cierre-dia': 'Reportes › Cierre del Día',
-  'tv-dashboard': 'Pantalla TV / Dashboard'
+  'tv-dashboard': 'Pantalla TV / Dashboard',
+  'tareas-gerencia': 'Gerencia › Tareas Pendientes'
 };
 
 // ── NAVEGACIÓN INFERIOR MOBILE ──────────────────────────────────────────────
@@ -376,6 +377,7 @@ function navigate(pageId, navEl){
   if(pageId==='cierre-mensual'){ const sel=document.getElementById('cierre-mes-sel'); if(sel&&!sel.value) sel.value=CURR_MONTH; renderCierreMensual(); }
   if(pageId==='dashboard-gerencia') renderDashboardGerencia();
   if(pageId==='tv-dashboard') renderTVDashboard();
+  if(pageId==='tareas-gerencia') renderTareasGerencia();
 
   // En mobile, cerrar el sidebar automáticamente al navegar — salvo si el ítem
   // es un encabezado de grupo (acordeón): esos solo despliegan sus áreas y el
@@ -3122,6 +3124,186 @@ async function removeKanbanCard(ci,i){
   kanbanData[ci].cards.splice(i,1);
   fbSave('kanbanData', kanbanData);
   renderKanban();
+}
+
+// ════════════════════════════════════════
+// TAREAS PENDIENTES DE GERENCIA (tablero tipo Trello, solo gerencia)
+// Store propio, independiente del kanban de eventos. Cada tarea es una "cosa a
+// seguir" con estado (columna), prioridad, nota y fecha límite opcional.
+// ════════════════════════════════════════
+const TG_COLS = [
+  { key:'todo',  title:'Por hacer', color:'#F4F1EC' },
+  { key:'doing', title:'En curso',  color:'#EBF0E8' },
+  { key:'done',  title:'Hecho',     color:'#E8F0F8' },
+];
+const TG_PRIO = {
+  alta:  { label:'Alta',  bg:'#FCE9E4', fg:'#B23B1E' },
+  media: { label:'Media', bg:'#FBF1DE', fg:'#8A6D00' },
+  baja:  { label:'Baja',  bg:'#EAF0E8', fg:'#3A5230' },
+};
+let tareasGerencia = [];
+window._setTareasGerencia = v => {
+  tareasGerencia = !v ? [] : (Array.isArray(v) ? v : Object.values(v));
+  if(document.getElementById('page-tareas-gerencia')?.classList.contains('active') && !estaEditando('page-tareas-gerencia')) renderTareasGerencia();
+};
+function _saveTareasGerencia(){ window._tareasGerenciaLastSave = Date.now(); fbSave('tareasGerencia', tareasGerencia); }
+function _tgGenId(){ return 'tg-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,7); }
+function _tgFind(id){ return tareasGerencia.find(x=>x && x.id===id) || null; }
+
+let _tgDragId = null;
+function renderTareasGerencia(){
+  const board = document.getElementById('tg-board');
+  if(!board) return;
+  const sum = document.getElementById('tg-summary');
+  if(sum){
+    const pend = tareasGerencia.filter(t=>t && t.col!=='done').length;
+    const done = tareasGerencia.filter(t=>t && t.col==='done').length;
+    sum.innerHTML = tareasGerencia.length
+      ? `<div style="font-size:12.5px;color:var(--mid-gray)">${pend} pendiente${pend!==1?'s':''} · ${done} hecha${done!==1?'s':''}</div>`
+      : `<div style="font-size:12.5px;color:var(--mid-gray)">Todavía no hay tareas. Tocá «+ Nueva tarea» para empezar a cargar y seguir pendientes.</div>`;
+  }
+  board.innerHTML = '';
+  TG_COLS.forEach((col, colIdx)=>{
+    const cards = tareasGerencia
+      .filter(t => t && (t.col||'todo') === col.key)
+      .sort((a,b)=>{
+        if(col.key==='done') return (b.updated||b.created||0) - (a.updated||a.created||0);
+        const pw = {alta:0,media:1,baja:2};
+        const pa = pw[a.prio]??1, pb = pw[b.prio]??1;
+        if(pa!==pb) return pa-pb;
+        return (a.date||'9999').localeCompare(b.date||'9999');
+      });
+    const colEl = document.createElement('div');
+    colEl.className = 'kanban-col';
+    colEl.style.background = col.color;
+    colEl.addEventListener('dragover', e=>{ e.preventDefault(); colEl.classList.add('drag-over'); });
+    colEl.addEventListener('dragleave', ()=>colEl.classList.remove('drag-over'));
+    colEl.addEventListener('drop', e=>{ e.preventDefault(); colEl.classList.remove('drag-over'); if(_tgDragId){ tgMoveTo(_tgDragId, col.key); _tgDragId=null; } });
+    colEl.innerHTML = `<div class="kanban-col-header"><div class="kanban-col-title">${esc(col.title)}</div><span class="kanban-count">${cards.length}</span></div>`;
+    cards.forEach(t=>{
+      const cardEl = document.createElement('div');
+      cardEl.className = 'kanban-card' + (col.key==='done'?' evento-hecho':'');
+      cardEl.draggable = true;
+      cardEl.addEventListener('dragstart', ()=>{ _tgDragId=t.id; cardEl.classList.add('dragging'); });
+      cardEl.addEventListener('dragend', ()=>cardEl.classList.remove('dragging'));
+      const prio = TG_PRIO[t.prio];
+      const prioChip = prio ? `<span class="kanban-tag" style="background:${prio.bg};color:${prio.fg}">${esc(prio.label)}</span>` : '';
+      // Chip de vencida/hoy para tareas con fecha límite que aún no están hechas
+      let dueChip = '';
+      if(t.date && col.key!=='done'){
+        const dias = Math.round((new Date(t.date)-new Date(TODAY_ISO))/86400000);
+        if(dias<0)      dueChip = `<span class="kanban-tag" style="background:#FCE9E4;color:#B23B1E">Vencida</span>`;
+        else if(dias===0) dueChip = `<span class="kanban-tag" style="background:#FBF1DE;color:#8A6D00">Hoy</span>`;
+      }
+      const descLines = (t.desc||'').split('\n').filter(Boolean);
+      const tagsHTML = (prioChip||dueChip) ? `<div class="kanban-card-tags">${prioChip}${dueChip}</div>` : '';
+      cardEl.innerHTML = `
+        <div class="kanban-card-title">${esc(t.title)}</div>
+        ${descLines.length?`<div class="kanban-card-desc">${descLines.map(esc).join('<br>')}</div>`:''}
+        ${tagsHTML}
+        <div class="kanban-card-meta">
+          <span class="kanban-date">${t.date?esc(fmtDate(t.date)):''}</span>
+          <div class="kanban-actions">
+            <button class="btn-icon kanban-move" title="Columna anterior" ${colIdx===0?'disabled':''} onclick="tgMove('${t.id}',-1)">‹</button>
+            <button class="btn-icon kanban-move" title="Columna siguiente" ${colIdx===TG_COLS.length-1?'disabled':''} onclick="tgMove('${t.id}',1)">›</button>
+            <button class="btn-icon" title="Editar" onclick="openTareaGerencia('${t.id}')"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/></svg></button>
+            <button class="btn-icon" style="color:var(--red-alert)" title="Eliminar" onclick="tgDelete('${t.id}')">✕</button>
+          </div>
+        </div>`;
+      colEl.appendChild(cardEl);
+    });
+    const addBtn = document.createElement('button');
+    addBtn.className = 'add-card-btn';
+    addBtn.textContent = '+ Agregar';
+    addBtn.onclick = ()=>openTareaGerencia(null, col.key);
+    colEl.appendChild(addBtn);
+    board.appendChild(colEl);
+  });
+}
+
+function tgMove(id, dir){
+  const t = _tgFind(id); if(!t) return;
+  const idx = TG_COLS.findIndex(c=>c.key===(t.col||'todo'));
+  const ni = idx + dir;
+  if(ni<0 || ni>=TG_COLS.length) return;
+  t.col = TG_COLS[ni].key; t.updated = Date.now();
+  _saveTareasGerencia(); renderTareasGerencia();
+}
+function tgMoveTo(id, colKey){
+  const t = _tgFind(id); if(!t || !TG_COLS.some(c=>c.key===colKey) || t.col===colKey) return;
+  t.col = colKey; t.updated = Date.now();
+  _saveTareasGerencia(); renderTareasGerencia();
+}
+async function tgDelete(id){
+  const t = _tgFind(id); if(!t) return;
+  if(!await confirmModal('¿Eliminar esta tarea?\n"'+ (t.title||'') +'"')) return;
+  tareasGerencia = tareasGerencia.filter(x=>x && x.id!==id);
+  _saveTareasGerencia();
+  closeModal('tarea-gerencia-modal');
+  renderTareasGerencia();
+}
+
+let _tgEditId = null;
+function openTareaGerencia(id, defCol){
+  _tgEditId = id || null;
+  const t = id ? _tgFind(id) : null;
+  let ov = document.getElementById('tarea-gerencia-modal');
+  if(!ov){ ov = document.createElement('div'); ov.id='tarea-gerencia-modal'; ov.className='modal-overlay'; document.body.appendChild(ov); }
+  const cur = {
+    title: t?.title || '',
+    desc:  t?.desc  || '',
+    col:   t?.col   || defCol || 'todo',
+    prio:  t?.prio  || 'media',
+    date:  t?.date  || '',
+  };
+  ov.innerHTML = `<div class="modal" style="max-width:440px">
+    <button class="modal-close" onclick="closeModal('tarea-gerencia-modal')">✕</button>
+    <div class="modal-title">${id?'Editar tarea':'Nueva tarea'}</div>
+    <label class="form-label">Tarea</label>
+    <input id="tg-f-title" class="form-input" placeholder="¿Qué hay que hacer o seguir?" value="${esc(cur.title)}">
+    <label class="form-label" style="margin-top:10px">Detalle (opcional)</label>
+    <textarea id="tg-f-desc" class="form-input" rows="3" placeholder="Notas, contexto...">${esc(cur.desc)}</textarea>
+    <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap">
+      <div style="flex:1;min-width:110px">
+        <label class="form-label">Estado</label>
+        <select id="tg-f-col" class="form-input">${TG_COLS.map(c=>`<option value="${c.key}"${c.key===cur.col?' selected':''}>${esc(c.title)}</option>`).join('')}</select>
+      </div>
+      <div style="flex:1;min-width:110px">
+        <label class="form-label">Prioridad</label>
+        <select id="tg-f-prio" class="form-input">${Object.entries(TG_PRIO).map(([k,v])=>`<option value="${k}"${k===cur.prio?' selected':''}>${esc(v.label)}</option>`).join('')}</select>
+      </div>
+      <div style="flex:1;min-width:110px">
+        <label class="form-label">Fecha límite (opcional)</label>
+        <input id="tg-f-date" type="date" class="form-input" value="${esc(cur.date)}">
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px;align-items:center">
+      ${id?`<button class="btn-secondary" style="color:var(--red-alert);margin-right:auto" onclick="tgDelete('${id}')">Eliminar</button>`:''}
+      <button class="btn-secondary" onclick="closeModal('tarea-gerencia-modal')">Cancelar</button>
+      <button class="btn-add" onclick="guardarTareaGerencia()">${id?'Guardar':'Agregar'}</button>
+    </div>
+  </div>`;
+  ov.classList.add('open');
+  setTimeout(()=>{ try{ document.getElementById('tg-f-title').focus(); }catch(e){} }, 30);
+}
+function guardarTareaGerencia(){
+  const el = id=>document.getElementById(id);
+  const title = (el('tg-f-title')?.value||'').trim();
+  if(!title){ showToast('Escribí la tarea'); return; }
+  const desc = (el('tg-f-desc')?.value||'').trim();
+  const col  = el('tg-f-col')?.value || 'todo';
+  const prio = el('tg-f-prio')?.value || 'media';
+  const date = el('tg-f-date')?.value || '';
+  if(_tgEditId){
+    const t = _tgFind(_tgEditId);
+    if(t) Object.assign(t, { title, desc, col, prio, date, updated:Date.now() });
+  } else {
+    tareasGerencia.push({ id:_tgGenId(), title, desc, col, prio, date, created:Date.now(), updated:Date.now() });
+  }
+  _saveTareasGerencia();
+  closeModal('tarea-gerencia-modal');
+  renderTareasGerencia();
+  showToast('Tarea guardada');
 }
 
 // ════════════════════════════════════════
@@ -12591,6 +12773,7 @@ async function descargarBackup(){
     legajoData: ()=>legajoData, evaluacionesData: ()=>evaluacionesData, llamadosData: ()=>llamadosData, liquidacionConfig: ()=>liquidacionConfig,
     sucursalesConfig: ()=>sucursalesConfig, loginPasswords: ()=>loginPasswords, auditLogData: ()=>auditLogData,
     resumenesDiarios: ()=>resumenesDiarios,
+    tareasGerencia: ()=>tareasGerencia,
   };
   const data = { _meta: { app:'Florería Duhau', fecha:new Date().toISOString(), generadoPor: window.currentUserLabel||userRole||'' } };
   Object.entries(fuentes).forEach(([k,fn])=>{ try{ const v=fn(); if(v!==undefined) data[k]=v; }catch(e){} });
@@ -19364,6 +19547,7 @@ Object.assign(window, {
   openListaCompraHotel, listaCompraHotelCopiar, openTiemposEstimados, openPromediosZona, copiarDetalleFichajes,
   rentAddArreglo, openArregloComposicion, compUpdRow, compAddRow, compRemoveRow, guardarArregloComposicion,
   openGuiaArreglo, _renderGuiaArreglo, guiaFotoInput, guiaQuitarFoto, verFotoArregloRef, guiaVincularComp,
+  renderTareasGerencia, openTareaGerencia, guardarTareaGerencia, tgMove, tgMoveTo, tgDelete,
   renderStock, renderStockAdmin, renderVentaHoraCell, renderVentas, renderZonasPicker,
   resetHora, resetDayState, resetWeekState, resetearPassword, resetearTodasPasswords, saleAutoFillPrice,
   saveEvent, saveInsumosCustom, saveKanbanTask, saveLpItem, saveRamo, saveReceta, saveUrgenciaConfig,
