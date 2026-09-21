@@ -4443,6 +4443,11 @@ function renderCompras(type){
     const totalBloque = items.reduce((s,r) => s + _compraImporte(r), 0);
     const cantItems = items.length;
     const cantTotal = items.reduce((s,r) => s + (+r.qty||0), 0);
+    // Ítems de este pedido listos para recibir (controlados, que llegaron) → botón
+    // para ingresar TODO el pedido al stock de una vez, sin ir renglón por renglón.
+    const controladosBloque = type==='floreria'
+      ? items.filter(r => r.estado==='controlado' && !r.noLlego).length
+      : 0;
     html += `<tr class="compra-date-header">
       <td colspan="${NCOLS}" style="background:#F4F1EC;padding:10px 14px;border-bottom:2px solid #E5E3DC">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
@@ -4450,8 +4455,9 @@ function renderCompras(type){
             <strong style="font-size:14px;color:#1A1A1A">Pedido del ${fecha!=='sin-fecha' ? fmtDate(fecha) : 'sin fecha'}</strong>
             <span style="color:#7A7A72;font-size:12px;margin-left:10px">${cantItems} ítem${cantItems!==1?'s':''} · ${cantTotal} unidades</span>
           </div>
-          <div style="display:flex;align-items:center;gap:10px">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
             <span style="font-weight:600;color:#1A1A1A;font-size:13px">${totalBloque ? '$'+totalBloque.toLocaleString('es-AR') : ''}</span>
+            ${controladosBloque>0 ? `<button class="btn-primary" style="font-size:11px;padding:4px 12px" onclick="recibirPedidoCompleto('${fecha}')" title="Recibir todos los ítems controlados de este pedido y subirlos al stock de una vez">✓ Recibir todo (${controladosBloque})</button>` : ''}
             <button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="copiarBloquePedido('${type}','${fecha}')" title="Copiar este pedido con fecha de hoy para modificar">Copiar pedido</button>
           </div>
         </div>
@@ -8345,6 +8351,26 @@ function recibirRenglonCompra(i){
   fbSave('stockData', stockData);
   fbSave('cotizadorPrecios', cotizadorPrecios);
   showToast('✓ ' + (o.prod||'') + ' recibido');
+  renderCompras('floreria');
+  if(document.getElementById('page-stock')?.classList.contains('active')) renderStock();
+  if(document.getElementById('page-recepcion-pedidos')?.classList.contains('active')) renderRecepcionPedidos();
+}
+
+// Recibir TODO un pedido (bloque por fecha) de una vez: sube al stock todos los
+// ítems controlados de esa fecha, sin tener que tocar "Recibir" renglón por renglón.
+async function recibirPedidoCompleto(fecha){
+  const items = comprasFlore
+    .map((c,i)=>({c,i}))
+    .filter(x => (x.c.fecha||'sin-fecha')===fecha && x.c.estado==='controlado' && !x.c.noLlego);
+  if(!items.length){ showToast('No hay ítems controlados para recibir en este pedido.'); return; }
+  const label = fecha!=='sin-fecha' ? fmtDate(fecha) : 'sin fecha';
+  if(!await confirmModal(`¿Recibir los ${items.length} ítem${items.length>1?'s':''} controlado${items.length>1?'s':''} del pedido del ${label}?\n\nSe suben al stock y se actualizan los costos por vara.`)) return;
+  items.forEach(x => _subirCompraAlStock(x.i));
+  window._comprasFloreLastSave = Date.now();
+  fbSave('comprasFlore', comprasFlore);
+  fbSave('stockData', stockData);
+  fbSave('cotizadorPrecios', cotizadorPrecios);
+  showToast(`✓ ${items.length} ítem${items.length>1?'s recibidos':' recibido'} — precios actualizados`);
   renderCompras('floreria');
   if(document.getElementById('page-stock')?.classList.contains('active')) renderStock();
   if(document.getElementById('page-recepcion-pedidos')?.classList.contains('active')) renderRecepcionPedidos();
@@ -19519,7 +19545,7 @@ Object.assign(window, {
   ramoOnProdChange, recalcTotalEvento, recepCheckAll, recepConfirmar, recepConfirmarTodo,
   recepToggle, recepUncheckAll, recepUpdPaq, recepUpdVaras, recepUpdateGlobal, recetaIngRowHTML,
   recepUpdObs, recepToggleMal, recepFotoInput, recepQuitarFoto, verFotoRecep,
-  recepSubirStockTodo, recepVolverAControl, recibirRenglonCompra,
+  recepSubirStockTodo, recepVolverAControl, recibirRenglonCompra, recibirPedidoCompleto,
   registrarHora, registrarHoraEvento, registrarHoraVenta, registrarVentaDirecta, removeKanbanCard,
   renderCaja, renderCarrito, renderCarritoOps, renderChecklistTable,
   renderComposicionesCot, renderCompraAlert, renderCompraSummary, renderCompras, renderCotEventos,
