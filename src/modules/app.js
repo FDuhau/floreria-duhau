@@ -3679,7 +3679,7 @@ function guardarCompraEventos(){
 function gastoComprasEvento(eventoId){
   if(!eventoId) return 0;
   return [...(comprasFlore||[]), ...(comprasJard||[])].reduce((s,c)=>{
-    if(!c) return s;
+    if(!c || c.anulado) return s;   // lo anulado no cuenta en el gasto del evento
     if(Array.isArray(c.eventos) && c.eventos.length){
       const cant = c.eventos
         .filter(a=>a && a.eventoId===eventoId)
@@ -4413,10 +4413,12 @@ function renderCompras(type){
   const provSummaryEl = document.getElementById(p+'-prov-summary');
   if(provSummaryEl){
     if(fProv && filtered.length){
-      const totalProv = filtered.reduce((s,r)=>s+_compraImporte(r),0);
-      const fechasProv = new Set(filtered.map(r=>r.fecha).filter(Boolean)).size;
+      // Total del proveedor sin contar lo anulado (consistente con los KPI y el pedido).
+      const activasProv = filtered.filter(r=>!r.anulado);
+      const totalProv = activasProv.reduce((s,r)=>s+_compraImporte(r),0);
+      const fechasProv = new Set(activasProv.map(r=>r.fecha).filter(Boolean)).size;
       provSummaryEl.style.display='';
-      provSummaryEl.innerHTML = `<strong>${esc(fProv)}</strong> · ${filtered.length} ítem${filtered.length!==1?'s':''} en ${fechasProv} pedido${fechasProv!==1?'s':''} · total <strong>$${totalProv.toLocaleString('es-AR')}</strong>`;
+      provSummaryEl.innerHTML = `<strong>${esc(fProv)}</strong> · ${activasProv.length} ítem${activasProv.length!==1?'s':''} en ${fechasProv} pedido${fechasProv!==1?'s':''} · total <strong>$${totalProv.toLocaleString('es-AR')}</strong>`;
     } else { provSummaryEl.style.display='none'; provSummaryEl.innerHTML=''; }
   }
 
@@ -4440,20 +4442,24 @@ function renderCompras(type){
   let html = '';
   fechas.forEach(fecha => {
     const items = byDate[fecha];
-    const totalBloque = items.reduce((s,r) => s + _compraImporte(r), 0);
-    const cantItems = items.length;
-    const cantTotal = items.reduce((s,r) => s + (+r.qty||0), 0);
+    // El total y los conteos del pedido cuentan SOLO lo activo: lo anulado no suma
+    // (queda visible tachado, pero no entra en el total ni en ítems/unidades).
+    const activosBloque = items.filter(r => !r.anulado);
+    const anuladosBloque = items.length - activosBloque.length;
+    const totalBloque = activosBloque.reduce((s,r) => s + _compraImporte(r), 0);
+    const cantItems = activosBloque.length;
+    const cantTotal = activosBloque.reduce((s,r) => s + (+r.qty||0), 0);
     // Ítems de este pedido listos para recibir (controlados, que llegaron) → botón
     // para ingresar TODO el pedido al stock de una vez, sin ir renglón por renglón.
     const controladosBloque = type==='floreria'
-      ? items.filter(r => r.estado==='controlado' && !r.noLlego).length
+      ? activosBloque.filter(r => r.estado==='controlado' && !r.noLlego).length
       : 0;
     html += `<tr class="compra-date-header">
       <td colspan="${NCOLS}" style="background:#F4F1EC;padding:10px 14px;border-bottom:2px solid #E5E3DC">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
           <div>
             <strong style="font-size:14px;color:#1A1A1A">Pedido del ${fecha!=='sin-fecha' ? fmtDate(fecha) : 'sin fecha'}</strong>
-            <span style="color:#7A7A72;font-size:12px;margin-left:10px">${cantItems} ítem${cantItems!==1?'s':''} · ${cantTotal} unidades</span>
+            <span style="color:#7A7A72;font-size:12px;margin-left:10px">${cantItems} ítem${cantItems!==1?'s':''} · ${cantTotal} unidades${anuladosBloque>0?` · <span style="color:#B23B1E">${anuladosBloque} anulado${anuladosBloque!==1?'s':''}</span>`:''}</span>
           </div>
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
             <span style="font-weight:600;color:#1A1A1A;font-size:13px">${totalBloque ? '$'+totalBloque.toLocaleString('es-AR') : ''}</span>
@@ -4556,7 +4562,7 @@ function renderHistorialCompras(type='floreria'){
   const wrap = document.getElementById(ids.wrap);
   if(!wrap) return;
 
-  const todosRecibidos = arr.filter(r => r.estado === 'recibido');
+  const todosRecibidos = arr.filter(r => r.estado === 'recibido' && !r.anulado);
 
   // Poblar el filtro de proveedores del historial
   const provSel = document.getElementById(ids.prov);
