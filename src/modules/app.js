@@ -4605,6 +4605,11 @@ function renderHistorialCompras(type='floreria'){
   });
   const fechas = Object.keys(byDate).sort((a,b) => b.localeCompare(a));
 
+  // Si se filtra (proveedor o búsqueda), abrir todo para ver los resultados; si no,
+  // lista plegada: cada pedido muestra solo fecha, cantidad y monto, y se despliega
+  // el detalle al tocarlo.
+  const filtrando = !!fProv || !!q;
+
   let html = '';
   fechas.forEach(fecha => {
     const items = byDate[fecha];
@@ -4612,23 +4617,38 @@ function renderHistorialCompras(type='floreria'){
     const metaExtra = type==='floreria'
       ? ' · ' + items.reduce((s,r) => s + (+r.totalVaras||+r.qty||0), 0) + ' varas'
       : ' · ' + items.reduce((s,r) => s + _compraCant(r), 0) + ' unidades';
+    const key = type+'|'+fecha;
+    const abierto = filtrando || _histPedidosAbiertos.has(key);
 
-    html += `<div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:10px;margin-bottom:12px;overflow:hidden">
-      <div style="background:#F4F1EC;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-        <div>
-          <strong style="font-size:14px;color:#1A1A1A">Pedido del ${fecha!=='sin-fecha' ? fmtDate(fecha) : 'sin fecha'}</strong>
-          <span style="color:#7A7A72;font-size:12px;margin-left:10px">${items.length} ítem${items.length!==1?'s':''}${metaExtra}</span>
+    html += `<div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:10px;margin-bottom:10px;overflow:hidden">
+      <div style="background:#F4F1EC;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;cursor:pointer"
+        onclick="toggleHistPedido('${type}','${fecha}')" title="${abierto?'Ocultar':'Ver'} el detalle de este pedido">
+        <div style="display:flex;align-items:center;gap:9px;min-width:0">
+          <span id="histcar-${type}-${fecha}" style="color:#7A7A72;font-size:11px;width:12px;flex-shrink:0">${abierto?'▾':'▸'}</span>
+          <div style="min-width:0">
+            <strong style="font-size:14px;color:#1A1A1A">Pedido del ${fecha!=='sin-fecha' ? fmtDate(fecha) : 'sin fecha'}</strong>
+            <span style="color:#7A7A72;font-size:12px;margin-left:10px">${items.length} orden${items.length!==1?'es':''}${metaExtra}</span>
+          </div>
         </div>
         <div style="display:flex;align-items:center;gap:10px">
-          <span style="font-weight:600;color:#1A1A1A;font-size:13px">${totalBloque ? '$'+totalBloque.toLocaleString('es-AR') : ''}</span>
-          <button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="copiarBloquePedido('${type}','${fecha}')" title="Copiar este pedido con fecha de hoy">Copiar pedido</button>
+          <span style="font-weight:700;color:#1A1A1A;font-size:14px">${totalBloque ? '$'+totalBloque.toLocaleString('es-AR') : ''}</span>
+          <button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="event.stopPropagation();copiarBloquePedido('${type}','${fecha}')" title="Copiar este pedido con fecha de hoy">Copiar pedido</button>
         </div>
       </div>
-      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">${type==='floreria' ? _histTablaFloreria(items) : _histTablaJardineria(items)}</div>
+      ${abierto ? `<div id="histdet-${type}-${fecha}" style="overflow-x:auto;-webkit-overflow-scrolling:touch">${type==='floreria' ? _histTablaFloreria(items) : _histTablaJardineria(items)}</div>` : ''}
     </div>`;
   });
 
   wrap.innerHTML = html;
+}
+
+// Estado de qué pedidos del historial están desplegados (por tipo+fecha).
+const _histPedidosAbiertos = new Set();
+function toggleHistPedido(type, fecha){
+  const key = type+'|'+fecha;
+  if(_histPedidosAbiertos.has(key)) _histPedidosAbiertos.delete(key);
+  else _histPedidosAbiertos.add(key);
+  renderHistorialCompras(type);
 }
 
 // Selector de evento para un renglón del historial. Solo se muestra en los
@@ -19585,7 +19605,7 @@ Object.assign(window, {
   saveEvent, saveInsumosCustom, saveKanbanTask, saveLpItem, saveRamo, saveReceta, saveUrgenciaConfig,
   saveWeekState, setCotTab, setHabReporteMes, setHopsFilter, setJardReporteMes, setJopsFilter,
   setPlantilla, setStock, setStockMax, setStockMin, vaciarStock, openAddStockModal, guardarStockManual, setUrgenciaPreset, showAlertaHorario,
-  showToast, syncEventosToKanban, toggleCtrlSection, toggleEvZona, toggleHistorialCompras,
+  showToast, syncEventosToKanban, toggleCtrlSection, toggleEvZona, toggleHistorialCompras, toggleHistPedido,
   toggleHistory, toggleInsumosGrid, toggleJordProd, togglePlantilla, toggleProductividad,
   toggleDarkMode, initDarkMode, openGlobalSearch, closeGlobalSearch, handleSearchKey, runGlobalSearch, _gsearchGo, exportPDF,
   renderAuditoria, cerrarCajaDia, renderCierreCajaHistorial, toggleCierreDetalle, renderDashboardMargen,
