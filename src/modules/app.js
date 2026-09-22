@@ -14160,7 +14160,16 @@ window._setLoginPasswords = (v) => { if(v && typeof v === 'object') loginPasswor
 // (texto plano) como hasta ahora, y gerencia lo migra al entrar.
 let loginAuth = null;         // { [id]: { role, label, ..., salt, hash } }
 let currentAuthId = null;     // id del usuario logueado (para cambiar contraseña)
-window._setLoginAuth = (v) => { loginAuth = (v && typeof v === 'object' && Object.keys(v).length) ? v : null; };
+window._setLoginAuth = (v) => { loginAuth = (v && typeof v === 'object' && Object.keys(v).length) ? v : null; _syncJardinerosDesdeAuth(); };
+// Los jardineros agregados desde Gestión de Usuarios viven en loginAuth; sumamos
+// sus nombres a JARDINEROS_LIST para que aparezcan en los desplegables de jardinería
+// aunque no estén en la lista base hardcodeada.
+function _syncJardinerosDesdeAuth(){
+  Object.values(loginAuth||{}).forEach(e => {
+    const n = e && (e.jardineroNombre || (e.role==='jardinero' ? e.label : ''));
+    if(n && !JARDINEROS_LIST.includes(n)) JARDINEROS_LIST.push(n);
+  });
+}
 
 function _bufToB64(buf){ let s=''; new Uint8Array(buf).forEach(b=>s+=String.fromCharCode(b)); return btoa(s); }
 function _randSalt(){ return _bufToB64(crypto.getRandomValues(new Uint8Array(16))); }
@@ -14533,11 +14542,12 @@ async function openGestionPasswords(){
         </div>
         <div style="background:#F4F1EC;padding:4px 12px;border-radius:6px;font-size:12px;color:var(--mid-gray);min-width:70px;text-align:center">•••••</div>
         <button onclick="resetearPassword('${esc(id)}')" style="background:none;border:1px solid var(--light-gray);border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:inherit;color:var(--charcoal);white-space:nowrap">Cambiar</button>
-        ${(e.role==='florista'||e.role==='housekeeping') ? `<button onclick="eliminarUsuario('${esc(id)}')" style="background:none;border:1px solid #E8CECE;border-radius:6px;padding:5px 8px;font-size:11px;cursor:pointer;font-family:inherit;color:var(--red-alert);white-space:nowrap">✕</button>` : ''}
+        ${(e.role==='florista'||e.role==='housekeeping'||e.role==='jardinero') ? `<button onclick="eliminarUsuario('${esc(id)}')" style="background:none;border:1px solid #E8CECE;border-radius:6px;padding:5px 8px;font-size:11px;cursor:pointer;font-family:inherit;color:var(--red-alert);white-space:nowrap">✕</button>` : ''}
       </div>`).join('')}
     </div>
     <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn-add" onclick="agregarUsuarioFlorista()" style="font-size:12px;padding:8px 16px">+ Agregar florista</button>
+      <button class="btn-secondary" onclick="agregarUsuarioJardinero()" style="font-size:12px;padding:8px 16px">Agregar jardinero</button>
       <button class="btn-secondary" onclick="agregarUsuarioHousekeeping()" style="font-size:12px;padding:8px 16px">Agregar housekeeping</button>
     </div>
   </div>`;
@@ -14586,6 +14596,26 @@ async function agregarUsuarioFlorista(){
   openGestionPasswords();
 }
 
+async function agregarUsuarioJardinero(){
+  if(userRole !== 'gerencia') return;
+  if(!await _ensureLoginAuth()) return;
+  const nombre = await promptModal('Nombre del/la jardinero/a (ej. Sole):', { title: 'Nuevo usuario jardinero' });
+  if(!nombre || !nombre.trim()) return;
+  const nombreClean = nombre.trim();
+  const password = await promptModal('Contraseña para ' + nombreClean + ':', { title: 'Nuevo usuario jardinero', default: nombreClean.toLowerCase(), password: false });
+  if(!password || password.trim().length < 4){ showToast('Mínimo 4 caracteres'); return; }
+  if(await _passwordEnUso(password.trim())){ showToast('Esa contraseña ya está en uso'); return; }
+  const id = nombreClean.toLowerCase().replace(/[.#$/[\]\s]/g,'_');
+  if(loginAuth[id]){ showToast('Ya existe un usuario con ese nombre'); return; }
+  const salt = _randSalt();
+  const hash = await hashPassword(password.trim(), salt);
+  loginAuth[id] = { role:'jardinero', label:nombreClean, jardineroNombre:nombreClean, salt, hash };
+  if(window.fbSetPath) window.fbSetPath('loginAuth/'+id, loginAuth[id]); else _persistLoginAuth();
+  if(!JARDINEROS_LIST.includes(nombreClean)) JARDINEROS_LIST.push(nombreClean);
+  showToast('Jardinero/a ' + nombreClean + ' creado/a — contraseña: ' + password.trim());
+  openGestionPasswords();
+}
+
 async function resetearPassword(id){
   if(userRole !== 'gerencia') return;
   if(!await _ensureLoginAuth()) return;
@@ -14604,10 +14634,10 @@ async function eliminarUsuario(id){
   if(!await _ensureLoginAuth()) return;
   const entry = loginAuth[id];
   if(!entry) return;
-  if(entry.role !== 'florista' && entry.role !== 'housekeeping'){ showToast('Solo se pueden eliminar usuarios floristas o housekeeping'); return; }
+  if(!['florista','housekeeping','jardinero'].includes(entry.role)){ showToast('Solo se pueden eliminar usuarios floristas, jardineros o housekeeping'); return; }
   if(!await confirmModal('¿Eliminar al usuario ' + (entry.label||id) + '?\nYa no podrá ingresar al sistema.')) return;
-  const idx = CL_RESP_OPTS.indexOf(entry.floristaNombre);
-  if(idx > -1) CL_RESP_OPTS.splice(idx, 1);
+  if(entry.floristaNombre){ const idx = CL_RESP_OPTS.indexOf(entry.floristaNombre); if(idx > -1) CL_RESP_OPTS.splice(idx, 1); }
+  if(entry.jardineroNombre){ const ji = JARDINEROS_LIST.indexOf(entry.jardineroNombre); if(ji > -1) JARDINEROS_LIST.splice(ji, 1); }
   delete loginAuth[id];
   if(window.fbSetPath) window.fbSetPath('loginAuth/'+id, null); else _persistLoginAuth();
   showToast('Usuario ' + (entry.label||id) + ' eliminado');
@@ -19533,7 +19563,7 @@ Object.assign(window, {
   evSetArreglo, evSetArregloQty, evRemoveArregloRow,
   addInsumoToBase, addLpCat, addProveedor, addRecetaIngRow,
   addReglaTipo, addSale, addTipoEvento, adjustStock, agregarNuevoInsumo, agregarPedidoRapido,
-  agregarUsuarioFlorista, agregarUsuarioHousekeeping, setHabComentarioHK, aplicarPlantillaAlMes, aplicarPlantillaForce, applyCompraFilter,
+  agregarUsuarioFlorista, agregarUsuarioJardinero, agregarUsuarioHousekeeping, setHabComentarioHK, aplicarPlantillaAlMes, aplicarPlantillaForce, applyCompraFilter,
   horariosAddPersona, horariosRemovePersona, horariosAddPersonaFromSel,
   applyRole, arregloEmoji, calcCostoComposicion, calcDuracion, calcHorasDia, calcStockImpact,
   calcularArreglosEvento, cambiarContrasena, changeEventoEstado, clearCompraExtraFilters,
