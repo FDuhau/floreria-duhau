@@ -9091,7 +9091,7 @@ function renderRecordatoriosJard(){
   // Cartel de recordatorios nuevos agregados por gerencia (para operarios)
   const nuevosBanner = nuevosSet.size ? `<div class="jrec-aviso-banner" style="cursor:default">
       <span class="jrec-aviso-icon"></span>
-      <span><strong>${nuevosSet.size===1?'Gerencia agregó un recordatorio nuevo':'Gerencia agregó '+nuevosSet.size+' recordatorios nuevos'}:</strong> ${esc([...nuevosSet].map(r=>`${r.tipo} · ${r.task}`).join('  ·  '))}</span>
+      <span><strong>${nuevosSet.size===1?'Hay un recordatorio nuevo':'Se agregaron '+nuevosSet.size+' recordatorios nuevos'}:</strong> ${esc([...nuevosSet].map(r=>`${r.tipo} · ${r.task}`).join('  ·  '))}</span>
     </div>` : '';
 
   const alertas = [...vencidos,...proximos];
@@ -9121,12 +9121,15 @@ function renderRecordatoriosJard(){
   // Al abrir la sección, el operario queda al día: se limpian badge y carteles
   if(nuevosSet.size) marcarRecordatoriosVistos();
 
-  // Tabla de configuración (solo gerencia)
+  // Tabla de configuración: la ven gerencia y los jardineros (crear/editar).
+  // Eliminar queda reservado a gerencia.
   const cfg = document.getElementById('jrec-config');
   if(!cfg) return;
-  if(userRole !== 'gerencia'){
+  const puedeEditarRec = userRole==='gerencia' || userRole==='jardinero' || (userRole==='florista' && !!jardineroNombre);
+  if(!puedeEditarRec){
     cfg.innerHTML=''; return;
   }
+  const puedeBorrarRec = userRole==='gerencia';
   cfg.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
       <div class="section-title" style="margin:0">Todos los Recordatorios</div>
@@ -9151,7 +9154,7 @@ function renderRecordatoriosJard(){
               <td><span style="${color}">${proximo}</span></td>
               <td style="white-space:nowrap">
                 <button class="btn-icon" onclick="openRecordatorioModal(${i})" title="Editar"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/></svg></button>
-                <button class="btn-icon" style="color:var(--red-alert)" onclick="deleteRecordatorio(${i})" title="Eliminar">✕</button>
+                ${puedeBorrarRec ? `<button class="btn-icon" style="color:var(--red-alert)" onclick="deleteRecordatorio(${i})" title="Eliminar">✕</button>` : ''}
               </td>
             </tr>`;
           }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--mid-gray);padding:24px">Sin recordatorios configurados</td></tr>'}
@@ -9212,6 +9215,7 @@ function saveRecordatorio(){
 }
 
 async function deleteRecordatorio(idx){
+  if(userRole !== 'gerencia'){ showToast('Solo gerencia puede eliminar recordatorios'); return; }
   if(!await confirmModal('¿Eliminar este recordatorio?')) return;
   jardRecordatorios.splice(idx,1);
   fbSave('jardRecordatorios', jardRecordatorios);
