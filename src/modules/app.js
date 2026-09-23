@@ -11774,6 +11774,8 @@ function _prodDatos(nombre, desde, hasta, detalle){
   const hsContratoMes = +leg?.horasContrato || 0;
   const tareasPorDia = {};
   detalle.forEach(d=>{ (tareasPorDia[d.fecha] ||= []).push(d); });
+  const faltasPorDia = {};
+  _faltasDe(nombre).forEach(f=>{ (faltasPorDia[f.fecha] ||= []).push(f); });
 
   const fin = hasta && hasta < TODAY_ISO ? hasta : TODAY_ISO;
   const ini = desde || Object.keys(tareasPorDia).sort()[0] || fin;
@@ -11785,7 +11787,7 @@ function _prodDatos(nombre, desde, hasta, detalle){
     const mesKey = iso.slice(0,7);
     if(!meses.has(mesKey)){
       const [a,m] = mesKey.split('-').map(Number);
-      meses.set(mesKey, { key:mesKey, diasMes:new Date(a,m,0).getDate(), diasEnRango:0, dias:0, tareas:0, minTareas:0, hsTrab:0, hsProg:0 });
+      meses.set(mesKey, { key:mesKey, diasMes:new Date(a,m,0).getDate(), diasEnRango:0, dias:0, tareas:0, minTareas:0, hsTrab:0, hsProg:0, faltas:0, faltasInj:0 });
     }
     const M = meses.get(mesKey);
     M.diasEnRango++;
@@ -11793,10 +11795,15 @@ function _prodDatos(nombre, desde, hasta, detalle){
     const real = jornadaRealDia(nombre, iso);
     const h = (window.horariosData||{})[nombre]?.[iso];
     M.hsProg += (h?.desde && h?.hasta) ? calcHorasDia(h.desde, h.hasta) : 0;
-    if(!tareas.length && !real) continue;
+    const faltas = faltasPorDia[iso] || [];
+    M.faltas += faltas.length; M.faltasInj += faltas.filter(f=>!f.justificada).length;
+    if(!tareas.length && !real){
+      if(faltas.length) dias.push({ iso, tareas, minTareas:0, real:null, faltas });
+      continue;
+    }
     const minTareas = tareas.reduce((s,t)=>s+(t.dur||0),0);
     M.dias++; M.tareas += tareas.length; M.minTareas += minTareas; M.hsTrab += real?.horas || 0;
-    dias.push({ iso, tareas, minTareas, real });
+    dias.push({ iso, tareas, minTareas, real, faltas });
   }
   dias.reverse();
 
@@ -11810,9 +11817,9 @@ function _prodDatos(nombre, desde, hasta, detalle){
     const [a,m] = M.key.split('-').map(Number);
     const q = Math.floor((m-1)/3)+1;
     const k = a+'-T'+q;
-    if(!trims.has(k)) trims.set(k, { key:k, label:`${q}º trimestre ${a}`, dias:0, tareas:0, minTareas:0, hsTrab:0, hsRef:0 });
+    if(!trims.has(k)) trims.set(k, { key:k, label:`${q}º trimestre ${a}`, dias:0, tareas:0, minTareas:0, hsTrab:0, hsRef:0, faltas:0, faltasInj:0 });
     const T = trims.get(k);
-    T.dias+=M.dias; T.tareas+=M.tareas; T.minTareas+=M.minTareas; T.hsTrab+=M.hsTrab; T.hsRef+=M.hsRef;
+    T.dias+=M.dias; T.tareas+=M.tareas; T.minTareas+=M.minTareas; T.hsTrab+=M.hsTrab; T.hsRef+=M.hsRef; T.faltas+=M.faltas; T.faltasInj+=M.faltasInj;
   });
   return { leg, hsContratoMes, dias, meses:mesesArr.reverse(), trims:[...trims.values()].reverse() };
 }
@@ -11842,8 +11849,9 @@ function _prodResumenHTML(nombre, desde, hasta, m){
     ${td(R.hsRef?hs(R.hsRef):'—','right','color:var(--mid-gray)')}
     ${pctCell(_prodPct(R.hsTrab, R.hsRef))}
     ${pctCell(_prodPct(R.minTareas/60, R.hsRef))}
+    ${td(R.faltas ? `${R.faltas}${R.faltasInj?` <span style="color:var(--red-alert);font-size:11px">(${R.faltasInj} sin just.)</span>`:' <span style="color:var(--green-ok);font-size:11px">(just.)</span>'}` : '0','center')}
   </tr>`).join('');
-  const resumenHead = `<thead><tr>${th('Período')}${th('Días trab.','center')}${th('Tareas','center')}${th('Tareas/día','center')}${th('Tiempo en tareas','right')}${th('Hs trabajadas','right')}${th('Hs contrato','right')}${th('Cumplimiento','right')}${th('Productividad','right')}</tr></thead>`;
+  const resumenHead = `<thead><tr>${th('Período')}${th('Días trab.','center')}${th('Tareas','center')}${th('Tareas/día','center')}${th('Tiempo en tareas','right')}${th('Hs trabajadas','right')}${th('Hs contrato','right')}${th('Cumplimiento','right')}${th('Productividad','right')}${th('Faltas','center')}</tr></thead>`;
   const tabla = (titulo, rows) => `<div style="margin-bottom:20px">
     <div style="font-size:13px;font-weight:600;color:var(--charcoal);margin-bottom:6px">${titulo}</div>
     <div class="table-wrapper"><table style="width:100%;border-collapse:collapse">${resumenHead}<tbody>${resumenRows(rows)}</tbody></table></div>
@@ -11864,9 +11872,10 @@ function _prodResumenHTML(nombre, desde, hasta, m){
         <span style="min-width:70px">${D.tareas.length} tarea${D.tareas.length!==1?'s':''}</span>
         <span style="min-width:90px;color:var(--mid-gray)">${D.minTareas?fmtDur(D.minTareas)+' en tareas':'sin tiempos'}</span>
         <span style="min-width:120px;color:var(--mid-gray)">${D.real?`jornada ${esc(D.real.inicio)}–${esc(D.real.fin)} (${hs(D.real.horas)})`:'sin fichar'}</span>
+        ${D.faltas.map(f=>`<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;${f.justificada?'background:#EBF5E8;color:var(--green-ok)':'background:#FDECEC;color:var(--red-alert)'}">Falta ${f.justificada?'justificada':'sin justificar'} · ${esc(f.motivo||'')}</span>`).join('')}
         <span style="margin-left:auto;font-weight:600;color:${_prodPctColor(ocup)}" title="Tiempo en tareas sobre la jornada fichada">${ocup==null?'':ocup+'% ocupado'}</span>
       </summary>
-      <div style="padding:2px 8px 10px">${tareasTxt || '<div style="font-size:11.5px;color:var(--mid-gray)">Fichó la jornada pero no registró tareas.</div>'}</div>
+      <div style="padding:2px 8px 10px">${tareasTxt || `<div style="font-size:11.5px;color:var(--mid-gray)">${D.real?'Fichó la jornada pero no registró tareas.':D.faltas.map(f=>esc(f.obs||'Sin observación')).join(' · ')}</div>`}</div>
     </details>`;
   }).join('');
 
@@ -17707,6 +17716,16 @@ async function eliminarLegajo(idx){
 
 let _legDetIdx = -1;
 
+// Resumen de faltas del año en curso para el detalle del legajo.
+function _legFaltasHTML(e){
+  const anio = TODAY_ISO.slice(0,4);
+  const fs = faltasData.filter(f=>(f.fecha||'').startsWith(anio)
+    && (_mismoNombre(f.empleado, e.nombre+' '+e.apellido) || _mismoNombre(f.empleado, e.nombre)));
+  const inj = fs.filter(f=>!f.justificada).length;
+  return `<div style="margin-bottom:12px"><div class="card-label">Faltas ${anio}</div>
+    <div>${fs.length ? `${fs.length} falta${fs.length!==1?'s':''} · <span style="color:var(--green-ok)">${fs.length-inj} justificada${fs.length-inj!==1?'s':''}</span> · <span style="color:${inj?'var(--red-alert)':'var(--mid-gray)'};font-weight:${inj?600:400}">${inj} sin justificar</span>` : 'Sin faltas registradas'}</div></div>`;
+}
+
 function verDetalleLegajo(idx){
   const e = legajoData[idx];
   if(!e) return;
@@ -17723,6 +17742,7 @@ function verDetalleLegajo(idx){
       <div><div class="card-label">Horas por contrato</div><div>${(+e.horasContrato||0)}h/mes</div></div>
       <div><div class="card-label">Vacaciones Restantes</div><div>${vac} días (${e.vacacionesAnuales||14} anuales / ${e.vacacionesTomadas||0} tomadas)</div></div>
     </div>
+    ${_legFaltasHTML(e)}
     <button class="btn-secondary" style="font-size:12px;margin-bottom:14px" onclick="legVerProductividad()">Ver historial y productividad</button>
     ${e.notas ? `<div class="card-label">Notas</div><div style="white-space:pre-wrap;font-size:13px;margin-bottom:8px">${esc(e.notas)}</div>` : ''}
     ${_legDocsHTML(e, idx)}
@@ -17849,8 +17869,90 @@ async function legEliminarDoc(idx, docId){
 let evaluacionesData = [];
 window._setEvaluacionesData = arr => { evaluacionesData = arr; };
 
+// ── Faltas / inasistencias (RRHH › Evaluaciones) ─────────────────────────────
+// Registro manual de gerencia: {id, empleado, fecha, motivo, obs, justificada}.
+let faltasData = [];
+window._setFaltasData = arr => { faltasData = arr; };
+
+function _faltasDe(nombre){ return faltasData.filter(f=>_mismoNombre(f.empleado, nombre)); }
+
+function renderFaltas(){
+  const tbody = document.getElementById('faltas-tbody');
+  if(!tbody) return;
+  const empleados = getEmpleadosActivos();
+  const opts = empleados.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  const selEmp = document.getElementById('falta-empleado');
+  const selFil = document.getElementById('falta-filtro-emp');
+  const vEmp = selEmp.value, vFil = selFil.value;
+  selEmp.innerHTML = '<option value="">— Seleccionar —</option>' + opts;
+  selFil.innerHTML = '<option value="">Todos los empleados</option>' + opts;
+  selEmp.value = vEmp; selFil.value = vFil;
+  const fecha = document.getElementById('falta-fecha');
+  if(!fecha.value) fecha.value = TODAY_ISO;
+  const fMes = document.getElementById('falta-filtro-mes');
+  if(!fMes.dataset.init){ fMes.value = TODAY_ISO.slice(0,7); fMes.dataset.init = '1'; }
+
+  const mes = fMes.value, just = document.getElementById('falta-filtro-just').value;
+  const lista = faltasData
+    .filter(f=>(!vFil || _mismoNombre(f.empleado, vFil)) && (!mes || (f.fecha||'').startsWith(mes)))
+    .sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+
+  // Resumen por persona (según empleado/mes filtrados, sin el filtro de justificación)
+  const porEmp = {};
+  lista.forEach(f=>{ const o = porEmp[f.empleado] ||= {total:0, inj:0}; o.total++; if(!f.justificada) o.inj++; });
+  document.getElementById('faltas-resumen').innerHTML = Object.entries(porEmp)
+    .sort((a,b)=>b[1].total-a[1].total)
+    .map(([n,o])=>`<span style="font-size:12px;padding:4px 10px;border-radius:14px;background:#F7F5F0;border:1px solid var(--light-gray)">
+      <strong>${esc(n)}</strong>: ${o.total} falta${o.total!==1?'s':''}${o.inj?` · <span style="color:var(--red-alert);font-weight:600">${o.inj} sin justificar</span>`:' · <span style="color:var(--green-ok)">todas justificadas</span>'}</span>`).join('');
+
+  const filas = lista.filter(f=> just==='si' ? f.justificada : just==='no' ? !f.justificada : true);
+  tbody.innerHTML = filas.length ? filas.map(f=>`<tr>
+    <td style="white-space:nowrap">${fmtDate(f.fecha)}</td>
+    <td><strong>${esc(f.empleado)}</strong></td>
+    <td>${esc(f.motivo||'—')}</td>
+    <td style="font-size:12px;color:var(--mid-gray)">${esc(f.obs||'')}</td>
+    <td style="text-align:center"><label style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:${f.justificada?'var(--green-ok)':'var(--red-alert)'}">
+      <input type="checkbox" ${f.justificada?'checked':''} onchange="toggleFaltaJustificada(${f.id},this.checked)" style="width:17px;height:17px">${f.justificada?'Sí':'No'}</label></td>
+    <td><button class="btn-icon" style="color:var(--red-alert)" title="Eliminar" onclick="eliminarFalta(${f.id})">✕</button></td>
+  </tr>`).join('') : '<tr><td colspan="6" style="padding:18px;text-align:center;color:var(--mid-gray)">Sin faltas registradas para este filtro.</td></tr>';
+}
+
+async function agregarFalta(){
+  const empleado = document.getElementById('falta-empleado').value;
+  const fecha = document.getElementById('falta-fecha').value;
+  if(!empleado || !fecha){ showToast('Elegí el empleado y la fecha.','error'); return; }
+  if(faltasData.some(f=>_mismoNombre(f.empleado, empleado) && f.fecha===fecha)
+     && !await confirmModal(`${empleado} ya tiene una falta cargada el ${fmtDate(fecha)}. ¿Agregar otra igual?`)) return;
+  faltasData.push({
+    id: Date.now(), empleado, fecha,
+    motivo: document.getElementById('falta-motivo').value,
+    obs: document.getElementById('falta-obs').value.trim(),
+    justificada: document.getElementById('falta-justificada').checked,
+  });
+  fbSave('faltasData', faltasData);
+  document.getElementById('falta-obs').value = '';
+  document.getElementById('falta-justificada').checked = false;
+  renderFaltas(); renderPerfEmpleado();
+  showToast('Falta registrada');
+}
+
+function toggleFaltaJustificada(id, val){
+  const f = faltasData.find(x=>x.id===id); if(!f) return;
+  f.justificada = !!val;
+  fbSave('faltasData', faltasData);
+  renderFaltas(); renderPerfEmpleado();
+}
+
+async function eliminarFalta(id){
+  if(!await confirmModal('¿Eliminar esta falta?')) return;
+  faltasData = faltasData.filter(x=>x.id!==id);
+  fbSave('faltasData', faltasData);
+  renderFaltas(); renderPerfEmpleado();
+}
+
 function renderEvaluaciones(){
   renderLlamadosEval();
+  renderFaltas();
   initPerfPanel();
   renderPerfEmpleado();
   const tbody = document.getElementById('eval-tbody');
@@ -19802,6 +19904,7 @@ Object.assign(window, {
   legSubirDoc, legVerDoc, legEliminarDoc,
   renderEvaluaciones, openEvaluacionModal, guardarEvaluacion, eliminarEvaluacion,
   renderPerfEmpleado, perfPreset, legVerProductividad,
+  renderFaltas, agregarFalta, toggleFaltaJustificada, eliminarFalta,
   renderLiquidacion, saveLiquidacionHoras, exportLiquidacion,
   generarOrdenCompra,
   renderPrecioComparacion, buscarComparacion,
