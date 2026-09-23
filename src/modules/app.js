@@ -10315,7 +10315,7 @@ function renderHabOps(){
       <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
         <select id="hops-quien-${i}" class="cl-select" style="font-size:12px;padding:5px 8px;flex:1">
           <option value="">— Jardinero —</option>
-          <option>Sole</option><option>Berni</option><option>Ivan</option>
+          ${JARDINEROS_LIST.map(n=>`<option ${n===(jardineroNombre||jardCurrentJardinero)?'selected':''}>${esc(n)}</option>`).join('')}
         </select>
         <button class="mark-done-btn" style="flex:1" onclick="hopsVisita(${i})">✓ Visité hoy</button>
       </div>`;
@@ -10437,7 +10437,7 @@ function renderCtrlHab(){
           : `<div style="display:flex;gap:6px;align-items:center">
           <select id="hab-quien-${i}" class="cl-select" style="font-size:12px;padding:5px 8px;flex:1">
             <option value="">— Jardinero —</option>
-            <option>Sole</option><option>Berni</option><option>Ivan</option>
+            ${JARDINEROS_LIST.map(n=>`<option ${n===(jardineroNombre||jardCurrentJardinero)?'selected':''}>${esc(n)}</option>`).join('')}
           </select>
           <button class="mark-done-btn" onclick="markHabDone(${i},document.getElementById('hab-quien-${i}').value)">✓ Ingresé</button>
         </div>`}
@@ -10469,7 +10469,7 @@ function markHabDone(i, quien){
   habitacionesLog.push({
     fecha: TODAY_ISO,
     hab: r.hab,
-    quien: quien || '',
+    quien: quien || jardCurrentJardinero || '',
     obs: r.notas || '',
     horaInicio: r.horaInicio || '',
     horaFin: r.horaFin || ''
