@@ -11694,8 +11694,7 @@ function initPerfPanel(){
   const sel = document.getElementById('perf-empleado');
   if(!sel) return;
   const actual = sel.value;
-  const empleados = getEmpleadosActivos();
-  sel.innerHTML = '<option value="">— Seleccionar empleado —</option>' + empleados.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  sel.innerHTML = '<option value="">'+(legajoData.length?'— Seleccionar empleado —':'— Sin legajos: cargalos en RRHH › Legajo —')+'</option>' + _empleadosLegajoOpts();
   if(actual) sel.value = actual;
   const dd = document.getElementById('perf-desde'), hh = document.getElementById('perf-hasta');
   const iso = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
@@ -11754,9 +11753,37 @@ function renderPerfEmpleado(){
 // Busca el legajo de un empleado (el login usa solo el nombre; el legajo tiene
 // nombre y apellido) para tomar las horas de contrato mensuales.
 function _legajoDeEmpleado(nombre){
-  return (legajoData||[]).find(l=>_mismoNombre((l.nombre||'')+' '+(l.apellido||''), nombre))
-      || (legajoData||[]).find(l=>_mismoNombre(l.nombre, nombre))
-      || null;
+  return (legajoData||[]).find(l=>_mismoNombre(_nombreAppLegajo(l), nombre)) || null;
+}
+
+// Nombre con el que la persona del legajo registra tareas/fichajes en la app:
+// el usuario vinculado en el legajo; si no tiene, el usuario de la app que
+// coincide con su nombre (o nombre + apellido); y si no, su nombre tal cual.
+function _nombreAppLegajo(l){
+  if(!l) return '';
+  return liqNombreCalendario(l) || (l.nombre||'').trim();
+}
+
+// Empleados de RRHH = los que tienen legajo. Devuelve [{value, label}] donde
+// value es el nombre en la app (para cruzar con tareas) y label el nombre completo.
+function _empleadosLegajo(){
+  const vistos = new Set();
+  return (legajoData||[]).map(l=>({ value:_nombreAppLegajo(l), label:((l.nombre||'')+' '+(l.apellido||'')).trim() }))
+    .filter(o=>o.value && !vistos.has(o.value) && vistos.add(o.value))
+    .sort((a,b)=>a.label.localeCompare(b.label,'es'));
+}
+function _empleadosLegajoOpts(){
+  return _empleadosLegajo().map(o=>`<option value="${esc(o.value)}">${esc(o.label)}${_mismoNombre(o.label.split(' ')[0],o.value)?'':' ('+esc(o.value)+')'}</option>`).join('');
+}
+
+// Al crear un usuario florista/jardinero se le abre su legajo (si no tiene).
+function _crearLegajoParaUsuario(nombre, cargo){
+  if(_legajoDeEmpleado(nombre)) return false;
+  legajoData.push({ id: Date.now(), nombre, apellido:'', usuario:nombre, dni:'', fechaIngreso:TODAY_ISO, cargo,
+    sucursal:'', tipo:'nomina', horasContrato:0, vacacionesAnuales:14, vacacionesTomadas:0, notas:'', documentos:[] });
+  fbSave('legajoData', legajoData);
+  if(document.getElementById('page-legajo')?.classList.contains('active')) renderLegajo();
+  return true;
 }
 
 const _PROD_MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -11895,9 +11922,7 @@ function legVerProductividad(){
   closeModal('legajo-detalle-modal');
   navigate('evaluaciones');
   const sel = document.getElementById('perf-empleado'); if(!sel) return;
-  const opt = [...sel.options].find(o=>o.value && (_mismoNombre(o.value, e.nombre+' '+e.apellido) || _mismoNombre(o.value, e.nombre)));
-  if(!opt){ showToast(`${e.nombre} no figura entre los empleados activos`,'error'); return; }
-  sel.value = opt.value;
+  sel.value = _nombreAppLegajo(e);
   perfPreset('3m');
 }
 
@@ -14747,7 +14772,8 @@ async function agregarUsuarioFlorista(){
     CL_RESP_OPTS.push(nombreClean);
     CL_RESP_OPTS.sort((a,b) => a.localeCompare(b,'es'));
   }
-  showToast('Florista ' + nombreClean + ' creado/a — contraseña: ' + password.trim());
+  const legNuevo = _crearLegajoParaUsuario(nombreClean, 'florista');
+  showToast('Florista ' + nombreClean + ' creado/a — contraseña: ' + password.trim() + (legNuevo?' · legajo creado':''));
   openGestionPasswords();
 }
 
@@ -14767,7 +14793,8 @@ async function agregarUsuarioJardinero(){
   loginAuth[id] = { role:'jardinero', label:nombreClean, jardineroNombre:nombreClean, salt, hash };
   if(window.fbSetPath) window.fbSetPath('loginAuth/'+id, loginAuth[id]); else _persistLoginAuth();
   if(!JARDINEROS_LIST.includes(nombreClean)) JARDINEROS_LIST.push(nombreClean);
-  showToast('Jardinero/a ' + nombreClean + ' creado/a — contraseña: ' + password.trim());
+  const legNuevo = _crearLegajoParaUsuario(nombreClean, 'jardinero');
+  showToast('Jardinero/a ' + nombreClean + ' creado/a — contraseña: ' + password.trim() + (legNuevo?' · legajo creado':''));
   openGestionPasswords();
 }
 
@@ -17640,7 +17667,8 @@ function renderLegajo(){
       : `<span style="background:#E8EEF4;color:#2C5A80;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600">Nómina · mensual</span>`;
     return `<div class="card">
       <div style="font-size:16px;font-weight:600;margin-bottom:4px">${esc(e.nombre)} ${esc(e.apellido)}</div>
-      <div style="font-size:12px;color:var(--mid-gray);margin-bottom:6px;text-transform:capitalize">${esc(e.cargo||'')} · ${esc(e.sucursal||'')}</div>
+      <div style="font-size:12px;color:var(--mid-gray);margin-bottom:6px;text-transform:capitalize">${esc(e.cargo||'')}${e.sucursal?' · '+esc(e.sucursal):''}</div>
+      <div style="font-size:11.5px;color:var(--mid-gray);margin-bottom:6px">Usuario en la app: <strong>${esc(_nombreAppLegajo(e))}</strong></div>
       <div style="margin-bottom:8px">${tipoBadge}</div>
       <div style="font-size:12px;margin-bottom:4px">Ingreso: <strong>${e.fechaIngreso ? fmtDate(e.fechaIngreso) : '—'}</strong></div>
       <div style="font-size:12px;margin-bottom:4px">⏱ ${esMono?'Horas ref.':'Horas contrato'}: <strong>${(+e.horasContrato||0)}h/mes</strong></div>
@@ -17662,6 +17690,12 @@ function openLegajoModal(idx){
   document.getElementById('leg-apellido').value = e.apellido||'';
   document.getElementById('leg-dni').value = e.dni||'';
   document.getElementById('leg-fechaIngreso').value = e.fechaIngreso||'';
+  const usuarios = getEmpleadosActivos();
+  const actualUsr = idx >= 0 ? _nombreAppLegajo(e) : '';
+  if(actualUsr && !usuarios.includes(actualUsr)) usuarios.push(actualUsr);
+  document.getElementById('leg-usuario').innerHTML = '<option value="">— Sin usuario (usa el nombre) —</option>' +
+    usuarios.sort((a,b)=>a.localeCompare(b,'es')).map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  document.getElementById('leg-usuario').value = actualUsr;
   document.getElementById('leg-cargo').value = e.cargo||'florista';
   document.getElementById('leg-sucursal').value = e.sucursal||'';
   document.getElementById('leg-tipo').value = e.tipo || 'nomina';
@@ -17685,10 +17719,11 @@ function guardarLegajo(){
   const idx = +document.getElementById('leg-idx').value;
   const nombre = document.getElementById('leg-nombre').value.trim();
   const apellido = document.getElementById('leg-apellido').value.trim();
-  if(!nombre || !apellido){ showToast('Nombre y apellido son requeridos.','error'); return; }
+  if(!nombre){ showToast('El nombre es requerido.','error'); return; }
   const obj = {
     id: idx >= 0 ? legajoData[idx].id : Date.now(),
     nombre, apellido,
+    usuario: document.getElementById('leg-usuario').value || '',
     dni: document.getElementById('leg-dni').value.trim(),
     fechaIngreso: document.getElementById('leg-fechaIngreso').value,
     cargo: document.getElementById('leg-cargo').value,
@@ -17720,7 +17755,7 @@ let _legDetIdx = -1;
 function _legFaltasHTML(e){
   const anio = TODAY_ISO.slice(0,4);
   const fs = faltasData.filter(f=>(f.fecha||'').startsWith(anio)
-    && (_mismoNombre(f.empleado, e.nombre+' '+e.apellido) || _mismoNombre(f.empleado, e.nombre)));
+    && _mismoNombre(f.empleado, _nombreAppLegajo(e)));
   const inj = fs.filter(f=>!f.justificada).length;
   return `<div style="margin-bottom:12px"><div class="card-label">Faltas ${anio}</div>
     <div>${fs.length ? `${fs.length} falta${fs.length!==1?'s':''} · <span style="color:var(--green-ok)">${fs.length-inj} justificada${fs.length-inj!==1?'s':''}</span> · <span style="color:${inj?'var(--red-alert)':'var(--mid-gray)'};font-weight:${inj?600:400}">${inj} sin justificar</span>` : 'Sin faltas registradas'}</div></div>`;
@@ -17879,8 +17914,7 @@ function _faltasDe(nombre){ return faltasData.filter(f=>_mismoNombre(f.empleado,
 function renderFaltas(){
   const tbody = document.getElementById('faltas-tbody');
   if(!tbody) return;
-  const empleados = getEmpleadosActivos();
-  const opts = empleados.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  const opts = _empleadosLegajoOpts();
   const selEmp = document.getElementById('falta-empleado');
   const selFil = document.getElementById('falta-filtro-emp');
   const vEmp = selEmp.value, vFil = selFil.value;
@@ -18004,7 +18038,7 @@ function openEvaluacionModal(idx){
   document.getElementById('eval-idx').value = idx;
   const empSel = document.getElementById('eval-empleado');
   empSel.innerHTML = '<option value="">— Seleccionar empleado —</option>' +
-    legajoData.map(l=>`<option value="${l.id}" data-nombre="${esc(l.nombre+' '+l.apellido)}">${esc(l.nombre+' '+l.apellido)}</option>`).join('');
+    legajoData.map(l=>{ const n=((l.nombre||'')+' '+(l.apellido||'')).trim(); return `<option value="${l.id}" data-nombre="${esc(n)}">${esc(n)}</option>`; }).join('');
   if(e.empleadoId) empSel.value = e.empleadoId;
   document.getElementById('eval-trimestre').value = e.trimestre||'';
   document.getElementById('eval-puntualidad').value = e.puntualidad||3;
@@ -18073,6 +18107,7 @@ function liqTrabajadasMes(name, mes){
 }
 // Empareja un empleado del legajo con su nombre en el calendario (match flexible)
 function liqNombreCalendario(e){
+  if(e.usuario) return e.usuario;
   const cands = getEmpleadosActivos();
   const nom = (e.nombre||'').trim().toLowerCase();
   const full = ((e.nombre||'')+' '+(e.apellido||'')).trim().toLowerCase();
