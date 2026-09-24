@@ -10315,7 +10315,7 @@ function renderHabOps(){
       <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
         <select id="hops-quien-${i}" class="cl-select" style="font-size:12px;padding:5px 8px;flex:1">
           <option value="">— Jardinero —</option>
-          <option>Sole</option><option>Berni</option><option>Ivan</option>
+          ${JARDINEROS_LIST.map(n=>`<option ${n===(jardineroNombre||jardCurrentJardinero)?'selected':''}>${esc(n)}</option>`).join('')}
         </select>
         <button class="mark-done-btn" style="flex:1" onclick="hopsVisita(${i})">✓ Visité hoy</button>
       </div>`;
@@ -10437,7 +10437,7 @@ function renderCtrlHab(){
           : `<div style="display:flex;gap:6px;align-items:center">
           <select id="hab-quien-${i}" class="cl-select" style="font-size:12px;padding:5px 8px;flex:1">
             <option value="">— Jardinero —</option>
-            <option>Sole</option><option>Berni</option><option>Ivan</option>
+            ${JARDINEROS_LIST.map(n=>`<option ${n===(jardineroNombre||jardCurrentJardinero)?'selected':''}>${esc(n)}</option>`).join('')}
           </select>
           <button class="mark-done-btn" onclick="markHabDone(${i},document.getElementById('hab-quien-${i}').value)">✓ Ingresé</button>
         </div>`}
@@ -10469,7 +10469,7 @@ function markHabDone(i, quien){
   habitacionesLog.push({
     fecha: TODAY_ISO,
     hab: r.hab,
-    quien: quien || '',
+    quien: quien || jardCurrentJardinero || '',
     obs: r.notas || '',
     horaInicio: r.horaInicio || '',
     horaFin: r.horaFin || ''
@@ -11662,7 +11662,7 @@ function _metricasEmpleadoPeriodo(nombre, desde, hasta){
     const dur = (parseInt(e.duracion)||0) || calcDuracion(e.inicio||'', e.fin||'') || 0;
     const a = areas['Florería']; a.n++; if(dur){ a.min+=dur; a.conTiempo++; } if(e.excedida) a.excedidas++;
     const desc = (e.zona||'Arreglo') + (e.actividad?(' · '+e.actividad):'');
-    detalle.push({ fecha:e.date, area:'Florería', desc, dur, excedida:!!e.excedida });
+    detalle.push({ fecha:e.date, area:'Florería', desc, dur, excedida:!!e.excedida, inicio:e.inicio||'', fin:e.fin||'' });
     addTarea('Florería', desc, dur);
   });
   (jardineriaLog||[]).forEach(e=>{
@@ -11670,7 +11670,7 @@ function _metricasEmpleadoPeriodo(nombre, desde, hasta){
     const dur = calcDuracion(e.horaInicio||'', e.horaFin||'') || 0;
     const a = areas['Jardinería']; a.n++; if(dur){ a.min+=dur; a.conTiempo++; }
     const desc = (e.group?e.group+' · ':'') + (e.task||'Tarea');
-    detalle.push({ fecha:e.fecha, area:'Jardinería', desc, dur, excedida:false });
+    detalle.push({ fecha:e.fecha, area:'Jardinería', desc, dur, excedida:false, inicio:e.horaInicio||'', fin:e.horaFin||'' });
     addTarea('Jardinería', desc, dur);
   });
   (habitacionesLog||[]).forEach(e=>{
@@ -11678,7 +11678,7 @@ function _metricasEmpleadoPeriodo(nombre, desde, hasta){
     const dur = calcDuracion(e.horaInicio||'', e.horaFin||'') || 0;
     const a = areas['Habitaciones']; a.n++; if(dur){ a.min+=dur; a.conTiempo++; }
     const desc = 'Hab. ' + (e.hab||'');
-    detalle.push({ fecha:e.fecha, area:'Habitaciones', desc, dur, excedida:false });
+    detalle.push({ fecha:e.fecha, area:'Habitaciones', desc, dur, excedida:false, inicio:e.horaInicio||'', fin:e.horaFin||'' });
     addTarea('Habitaciones', desc, dur);
   });
 
@@ -11744,10 +11744,161 @@ function renderPerfEmpleado(){
     const hint = nombresHist.length
       ? `<div style="font-size:11px;color:var(--mid-gray);margin-top:10px">En el checklist de este período figuran: ${nombresHist.map(esc).join(' · ')}</div>`
       : '';
-    body.innerHTML = `<div style="padding:22px;text-align:center;color:var(--mid-gray);font-size:13px">Sin tareas registradas para ${esc(nombre)} en este período.${hint}</div>`;
+    body.innerHTML = `<div style="padding:22px;text-align:center;color:var(--mid-gray);font-size:13px">Sin tareas registradas para ${esc(nombre)} en este período.${hint}</div>` + _prodResumenHTML(nombre, desde, hasta, m);
     return;
   }
-  body.innerHTML = _metricasHTML(m);
+  body.innerHTML = _prodResumenHTML(nombre, desde, hasta, m) + _metricasHTML(m);
+}
+
+// ── Productividad vs. horas de contrato (RRHH › Evaluaciones) ────────────────
+// Busca el legajo de un empleado (el login usa solo el nombre; el legajo tiene
+// nombre y apellido) para tomar las horas de contrato mensuales.
+function _legajoDeEmpleado(nombre){
+  return (legajoData||[]).find(l=>_mismoNombre((l.nombre||'')+' '+(l.apellido||''), nombre))
+      || (legajoData||[]).find(l=>_mismoNombre(l.nombre, nombre))
+      || null;
+}
+
+const _PROD_MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+function _isoDia(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+
+// Historial día por día + resumen mensual y trimestral de un empleado.
+// - Tiempo en tareas: suma de las tareas con inicio/fin registrados.
+// - Hs trabajadas: jornada fichada (misma fuente que Liquidación).
+// - Hs contrato: horas/mes del legajo, prorrateadas por los días del mes que
+//   caen en el período (y hasta hoy). Si no hay legajo, se usan las horas
+//   programadas en Horarios.
+// - Productividad: tiempo en tareas / hs contrato.
+function _prodDatos(nombre, desde, hasta, detalle){
+  const leg = _legajoDeEmpleado(nombre);
+  const hsContratoMes = +leg?.horasContrato || 0;
+  const tareasPorDia = {};
+  detalle.forEach(d=>{ (tareasPorDia[d.fecha] ||= []).push(d); });
+  const faltasPorDia = {};
+  _faltasDe(nombre).forEach(f=>{ (faltasPorDia[f.fecha] ||= []).push(f); });
+
+  const fin = hasta && hasta < TODAY_ISO ? hasta : TODAY_ISO;
+  const ini = desde || Object.keys(tareasPorDia).sort()[0] || fin;
+  const dias = [];
+  const meses = new Map();
+  const [ya,ma,da] = ini.split('-').map(Number);
+  for(let d=new Date(ya,ma-1,da); _isoDia(d)<=fin; d.setDate(d.getDate()+1)){
+    const iso = _isoDia(d);
+    const mesKey = iso.slice(0,7);
+    if(!meses.has(mesKey)){
+      const [a,m] = mesKey.split('-').map(Number);
+      meses.set(mesKey, { key:mesKey, diasMes:new Date(a,m,0).getDate(), diasEnRango:0, dias:0, tareas:0, minTareas:0, hsTrab:0, hsProg:0, faltas:0, faltasInj:0 });
+    }
+    const M = meses.get(mesKey);
+    M.diasEnRango++;
+    const tareas = tareasPorDia[iso] || [];
+    const real = jornadaRealDia(nombre, iso);
+    const h = (window.horariosData||{})[nombre]?.[iso];
+    M.hsProg += (h?.desde && h?.hasta) ? calcHorasDia(h.desde, h.hasta) : 0;
+    const faltas = faltasPorDia[iso] || [];
+    M.faltas += faltas.length; M.faltasInj += faltas.filter(f=>!f.justificada).length;
+    if(!tareas.length && !real){
+      if(faltas.length) dias.push({ iso, tareas, minTareas:0, real:null, faltas });
+      continue;
+    }
+    const minTareas = tareas.reduce((s,t)=>s+(t.dur||0),0);
+    M.dias++; M.tareas += tareas.length; M.minTareas += minTareas; M.hsTrab += real?.horas || 0;
+    dias.push({ iso, tareas, minTareas, real, faltas });
+  }
+  dias.reverse();
+
+  const mesesArr = [...meses.values()].map(M=>{
+    const [a,m] = M.key.split('-').map(Number);
+    const hsRef = hsContratoMes ? hsContratoMes * M.diasEnRango / M.diasMes : M.hsProg;
+    return { ...M, hsRef, label: _PROD_MESES[m-1]+' '+a };
+  });
+  const trims = new Map();
+  mesesArr.forEach(M=>{
+    const [a,m] = M.key.split('-').map(Number);
+    const q = Math.floor((m-1)/3)+1;
+    const k = a+'-T'+q;
+    if(!trims.has(k)) trims.set(k, { key:k, label:`${q}º trimestre ${a}`, dias:0, tareas:0, minTareas:0, hsTrab:0, hsRef:0, faltas:0, faltasInj:0 });
+    const T = trims.get(k);
+    T.dias+=M.dias; T.tareas+=M.tareas; T.minTareas+=M.minTareas; T.hsTrab+=M.hsTrab; T.hsRef+=M.hsRef; T.faltas+=M.faltas; T.faltasInj+=M.faltasInj;
+  });
+  return { leg, hsContratoMes, dias, meses:mesesArr.reverse(), trims:[...trims.values()].reverse() };
+}
+
+function _prodPctColor(p){ return p==null ? 'var(--mid-gray)' : p>=80 ? 'var(--green-ok)' : p>=50 ? '#D4A820' : 'var(--red-alert)'; }
+function _prodPct(num, den){ return den>0 ? Math.round(num/den*100) : null; }
+
+function _prodResumenHTML(nombre, desde, hasta, m){
+  const P = _prodDatos(nombre, desde, hasta, m.detalle);
+  const th = (txt,align)=>`<th style="text-align:${align||'left'};padding:6px 10px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);white-space:nowrap">${txt}</th>`;
+  const td = (txt,align,extra)=>`<td style="padding:6px 10px;font-size:12.5px;text-align:${align||'left'};white-space:nowrap;${extra||''}">${txt}</td>`;
+  const pctCell = p => td(p==null?'—':p+'%','right',`font-weight:600;color:${_prodPctColor(p)}`);
+  const hs = h => (Math.round(h*10)/10)+'h';
+
+  const fuente = P.hsContratoMes
+    ? `Horas de contrato según legajo: <strong>${P.hsContratoMes}h/mes</strong> (prorrateadas por los días del período).`
+    : (P.leg ? 'El legajo no tiene horas de contrato cargadas: se usan las horas programadas en Horarios.'
+             : `No se encontró a ${esc(nombre)} en el Legajo: se usan las horas programadas en Horarios. Cargá sus horas de contrato en RRHH › Legajo.`);
+
+  const resumenRows = rows => rows.map(R=>`<tr>
+    ${td(`<strong>${esc(R.label)}</strong>`)}
+    ${td(R.dias,'center')}
+    ${td(R.tareas,'center')}
+    ${td(R.dias?(Math.round(R.tareas/R.dias*10)/10):'—','center')}
+    ${td(fmtDur(R.minTareas),'right')}
+    ${td(hs(R.hsTrab),'right')}
+    ${td(R.hsRef?hs(R.hsRef):'—','right','color:var(--mid-gray)')}
+    ${pctCell(_prodPct(R.hsTrab, R.hsRef))}
+    ${pctCell(_prodPct(R.minTareas/60, R.hsRef))}
+    ${td(R.faltas ? `${R.faltas}${R.faltasInj?` <span style="color:var(--red-alert);font-size:11px">(${R.faltasInj} sin just.)</span>`:' <span style="color:var(--green-ok);font-size:11px">(just.)</span>'}` : '0','center')}
+  </tr>`).join('');
+  const resumenHead = `<thead><tr>${th('Período')}${th('Días trab.','center')}${th('Tareas','center')}${th('Tareas/día','center')}${th('Tiempo en tareas','right')}${th('Hs trabajadas','right')}${th('Hs contrato','right')}${th('Cumplimiento','right')}${th('Productividad','right')}${th('Faltas','center')}</tr></thead>`;
+  const tabla = (titulo, rows) => `<div style="margin-bottom:20px">
+    <div style="font-size:13px;font-weight:600;color:var(--charcoal);margin-bottom:6px">${titulo}</div>
+    <div class="table-wrapper"><table style="width:100%;border-collapse:collapse">${resumenHead}<tbody>${resumenRows(rows)}</tbody></table></div>
+  </div>`;
+
+  const diaRows = P.dias.map(D=>{
+    const ocup = D.real ? _prodPct(D.minTareas/60, D.real.horas) : null;
+    const tareasTxt = D.tareas.map(t=>`<div style="display:flex;gap:8px;padding:3px 0;border-top:1px solid #F0EDE8;font-size:11.5px">
+        <span style="color:var(--mid-gray);min-width:84px">${t.inicio&&t.fin?esc(t.inicio)+'–'+esc(t.fin):'sin horario'}</span>
+        <span style="color:var(--mid-gray);min-width:78px">${esc(t.area)}</span>
+        <span style="flex:1">${esc(t.desc)}</span>
+        <span style="${t.excedida?'color:var(--red-alert);font-weight:600':''}">${t.dur?fmtDur(t.dur):'—'}</span>
+      </div>`).join('');
+    const fecha = new Date(D.iso+'T12:00:00').toLocaleDateString('es-AR',{weekday:'short',day:'2-digit',month:'2-digit'});
+    return `<details style="border-bottom:1px solid var(--light-gray)">
+      <summary style="cursor:pointer;display:flex;gap:10px;align-items:center;padding:8px 6px;font-size:12.5px;flex-wrap:wrap">
+        <strong style="min-width:92px;text-transform:capitalize">${esc(fecha)}</strong>
+        <span style="min-width:70px">${D.tareas.length} tarea${D.tareas.length!==1?'s':''}</span>
+        <span style="min-width:90px;color:var(--mid-gray)">${D.minTareas?fmtDur(D.minTareas)+' en tareas':'sin tiempos'}</span>
+        <span style="min-width:120px;color:var(--mid-gray)">${D.real?`jornada ${esc(D.real.inicio)}–${esc(D.real.fin)} (${hs(D.real.horas)})`:'sin fichar'}</span>
+        ${D.faltas.map(f=>`<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;${f.justificada?'background:#EBF5E8;color:var(--green-ok)':'background:#FDECEC;color:var(--red-alert)'}">Falta ${f.justificada?'justificada':'sin justificar'} · ${esc(f.motivo||'')}</span>`).join('')}
+        <span style="margin-left:auto;font-weight:600;color:${_prodPctColor(ocup)}" title="Tiempo en tareas sobre la jornada fichada">${ocup==null?'':ocup+'% ocupado'}</span>
+      </summary>
+      <div style="padding:2px 8px 10px">${tareasTxt || `<div style="font-size:11.5px;color:var(--mid-gray)">${D.real?'Fichó la jornada pero no registró tareas.':D.faltas.map(f=>esc(f.obs||'Sin observación')).join(' · ')}</div>`}</div>
+    </details>`;
+  }).join('');
+
+  return `<div style="font-size:11.5px;color:var(--mid-gray);margin-bottom:12px;padding:8px 12px;background:#F7F5F0;border-radius:8px">${fuente}
+      <br><strong>Cumplimiento</strong> = hs trabajadas (fichadas) / hs contrato · <strong>Productividad</strong> = tiempo en tareas / hs contrato.</div>
+    ${tabla('Resumen mensual', P.meses)}
+    ${tabla('Resumen trimestral', P.trims)}
+    <div style="margin-bottom:20px">
+      <div style="font-size:13px;font-weight:600;color:var(--charcoal);margin-bottom:6px">Historial por día (${P.dias.length} día${P.dias.length!==1?'s':''}) <span style="font-weight:400;font-size:11px;color:var(--mid-gray)">— tocá un día para ver sus tareas</span></div>
+      <div style="max-height:420px;overflow-y:auto;border:1px solid var(--light-gray);border-radius:8px;background:var(--warm-white)">${diaRows || '<div style="padding:14px;font-size:12px;color:var(--mid-gray)">Sin actividad en el período.</div>'}</div>
+    </div>`;
+}
+
+// Desde el detalle del Legajo: abre Evaluaciones con el empleado ya elegido.
+function legVerProductividad(){
+  const e = legajoData[_legDetIdx]; if(!e) return;
+  closeModal('legajo-detalle-modal');
+  navigate('evaluaciones');
+  const sel = document.getElementById('perf-empleado'); if(!sel) return;
+  const opt = [...sel.options].find(o=>o.value && (_mismoNombre(o.value, e.nombre+' '+e.apellido) || _mismoNombre(o.value, e.nombre)));
+  if(!opt){ showToast(`${e.nombre} no figura entre los empleados activos`,'error'); return; }
+  sel.value = opt.value;
+  perfPreset('3m');
 }
 
 // Arma el HTML de las métricas de un empleado (tarjetas + desglose por área +
@@ -17565,6 +17716,16 @@ async function eliminarLegajo(idx){
 
 let _legDetIdx = -1;
 
+// Resumen de faltas del año en curso para el detalle del legajo.
+function _legFaltasHTML(e){
+  const anio = TODAY_ISO.slice(0,4);
+  const fs = faltasData.filter(f=>(f.fecha||'').startsWith(anio)
+    && (_mismoNombre(f.empleado, e.nombre+' '+e.apellido) || _mismoNombre(f.empleado, e.nombre)));
+  const inj = fs.filter(f=>!f.justificada).length;
+  return `<div style="margin-bottom:12px"><div class="card-label">Faltas ${anio}</div>
+    <div>${fs.length ? `${fs.length} falta${fs.length!==1?'s':''} · <span style="color:var(--green-ok)">${fs.length-inj} justificada${fs.length-inj!==1?'s':''}</span> · <span style="color:${inj?'var(--red-alert)':'var(--mid-gray)'};font-weight:${inj?600:400}">${inj} sin justificar</span>` : 'Sin faltas registradas'}</div></div>`;
+}
+
 function verDetalleLegajo(idx){
   const e = legajoData[idx];
   if(!e) return;
@@ -17581,6 +17742,8 @@ function verDetalleLegajo(idx){
       <div><div class="card-label">Horas por contrato</div><div>${(+e.horasContrato||0)}h/mes</div></div>
       <div><div class="card-label">Vacaciones Restantes</div><div>${vac} días (${e.vacacionesAnuales||14} anuales / ${e.vacacionesTomadas||0} tomadas)</div></div>
     </div>
+    ${_legFaltasHTML(e)}
+    <button class="btn-secondary" style="font-size:12px;margin-bottom:14px" onclick="legVerProductividad()">Ver historial y productividad</button>
     ${e.notas ? `<div class="card-label">Notas</div><div style="white-space:pre-wrap;font-size:13px;margin-bottom:8px">${esc(e.notas)}</div>` : ''}
     ${_legDocsHTML(e, idx)}
   `;
@@ -17706,8 +17869,90 @@ async function legEliminarDoc(idx, docId){
 let evaluacionesData = [];
 window._setEvaluacionesData = arr => { evaluacionesData = arr; };
 
+// ── Faltas / inasistencias (RRHH › Evaluaciones) ─────────────────────────────
+// Registro manual de gerencia: {id, empleado, fecha, motivo, obs, justificada}.
+let faltasData = [];
+window._setFaltasData = arr => { faltasData = arr; };
+
+function _faltasDe(nombre){ return faltasData.filter(f=>_mismoNombre(f.empleado, nombre)); }
+
+function renderFaltas(){
+  const tbody = document.getElementById('faltas-tbody');
+  if(!tbody) return;
+  const empleados = getEmpleadosActivos();
+  const opts = empleados.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  const selEmp = document.getElementById('falta-empleado');
+  const selFil = document.getElementById('falta-filtro-emp');
+  const vEmp = selEmp.value, vFil = selFil.value;
+  selEmp.innerHTML = '<option value="">— Seleccionar —</option>' + opts;
+  selFil.innerHTML = '<option value="">Todos los empleados</option>' + opts;
+  selEmp.value = vEmp; selFil.value = vFil;
+  const fecha = document.getElementById('falta-fecha');
+  if(!fecha.value) fecha.value = TODAY_ISO;
+  const fMes = document.getElementById('falta-filtro-mes');
+  if(!fMes.dataset.init){ fMes.value = TODAY_ISO.slice(0,7); fMes.dataset.init = '1'; }
+
+  const mes = fMes.value, just = document.getElementById('falta-filtro-just').value;
+  const lista = faltasData
+    .filter(f=>(!vFil || _mismoNombre(f.empleado, vFil)) && (!mes || (f.fecha||'').startsWith(mes)))
+    .sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+
+  // Resumen por persona (según empleado/mes filtrados, sin el filtro de justificación)
+  const porEmp = {};
+  lista.forEach(f=>{ const o = porEmp[f.empleado] ||= {total:0, inj:0}; o.total++; if(!f.justificada) o.inj++; });
+  document.getElementById('faltas-resumen').innerHTML = Object.entries(porEmp)
+    .sort((a,b)=>b[1].total-a[1].total)
+    .map(([n,o])=>`<span style="font-size:12px;padding:4px 10px;border-radius:14px;background:#F7F5F0;border:1px solid var(--light-gray)">
+      <strong>${esc(n)}</strong>: ${o.total} falta${o.total!==1?'s':''}${o.inj?` · <span style="color:var(--red-alert);font-weight:600">${o.inj} sin justificar</span>`:' · <span style="color:var(--green-ok)">todas justificadas</span>'}</span>`).join('');
+
+  const filas = lista.filter(f=> just==='si' ? f.justificada : just==='no' ? !f.justificada : true);
+  tbody.innerHTML = filas.length ? filas.map(f=>`<tr>
+    <td style="white-space:nowrap">${fmtDate(f.fecha)}</td>
+    <td><strong>${esc(f.empleado)}</strong></td>
+    <td>${esc(f.motivo||'—')}</td>
+    <td style="font-size:12px;color:var(--mid-gray)">${esc(f.obs||'')}</td>
+    <td style="text-align:center"><label style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:${f.justificada?'var(--green-ok)':'var(--red-alert)'}">
+      <input type="checkbox" ${f.justificada?'checked':''} onchange="toggleFaltaJustificada(${f.id},this.checked)" style="width:17px;height:17px">${f.justificada?'Sí':'No'}</label></td>
+    <td><button class="btn-icon" style="color:var(--red-alert)" title="Eliminar" onclick="eliminarFalta(${f.id})">✕</button></td>
+  </tr>`).join('') : '<tr><td colspan="6" style="padding:18px;text-align:center;color:var(--mid-gray)">Sin faltas registradas para este filtro.</td></tr>';
+}
+
+async function agregarFalta(){
+  const empleado = document.getElementById('falta-empleado').value;
+  const fecha = document.getElementById('falta-fecha').value;
+  if(!empleado || !fecha){ showToast('Elegí el empleado y la fecha.','error'); return; }
+  if(faltasData.some(f=>_mismoNombre(f.empleado, empleado) && f.fecha===fecha)
+     && !await confirmModal(`${empleado} ya tiene una falta cargada el ${fmtDate(fecha)}. ¿Agregar otra igual?`)) return;
+  faltasData.push({
+    id: Date.now(), empleado, fecha,
+    motivo: document.getElementById('falta-motivo').value,
+    obs: document.getElementById('falta-obs').value.trim(),
+    justificada: document.getElementById('falta-justificada').checked,
+  });
+  fbSave('faltasData', faltasData);
+  document.getElementById('falta-obs').value = '';
+  document.getElementById('falta-justificada').checked = false;
+  renderFaltas(); renderPerfEmpleado();
+  showToast('Falta registrada');
+}
+
+function toggleFaltaJustificada(id, val){
+  const f = faltasData.find(x=>x.id===id); if(!f) return;
+  f.justificada = !!val;
+  fbSave('faltasData', faltasData);
+  renderFaltas(); renderPerfEmpleado();
+}
+
+async function eliminarFalta(id){
+  if(!await confirmModal('¿Eliminar esta falta?')) return;
+  faltasData = faltasData.filter(x=>x.id!==id);
+  fbSave('faltasData', faltasData);
+  renderFaltas(); renderPerfEmpleado();
+}
+
 function renderEvaluaciones(){
   renderLlamadosEval();
+  renderFaltas();
   initPerfPanel();
   renderPerfEmpleado();
   const tbody = document.getElementById('eval-tbody');
@@ -19658,7 +19903,8 @@ Object.assign(window, {
   renderLegajo, openLegajoModal, guardarLegajo, eliminarLegajo, verDetalleLegajo, legTipoOnChange,
   legSubirDoc, legVerDoc, legEliminarDoc,
   renderEvaluaciones, openEvaluacionModal, guardarEvaluacion, eliminarEvaluacion,
-  renderPerfEmpleado, perfPreset,
+  renderPerfEmpleado, perfPreset, legVerProductividad,
+  renderFaltas, agregarFalta, toggleFaltaJustificada, eliminarFalta,
   renderLiquidacion, saveLiquidacionHoras, exportLiquidacion,
   generarOrdenCompra,
   renderPrecioComparacion, buscarComparacion,

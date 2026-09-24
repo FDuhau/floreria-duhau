@@ -758,6 +758,12 @@
         if(document.getElementById('page-legajo')?.classList.contains('active')) window.renderLegajo?.();
       });
 
+      fbListen('faltasData', val => {
+        const arr = !val ? [] : (Array.isArray(val) ? val : Object.values(val||{}));
+        if(window._setFaltasData) window._setFaltasData(arr);
+        if(document.getElementById('page-evaluaciones')?.classList.contains('active') && !window.estaEditando('page-evaluaciones')) window.renderEvaluaciones?.();
+      });
+
       fbListen('evaluacionesData', val => {
         const arr = !val ? [] : (Array.isArray(val) ? val : Object.values(val||{}));
         if(window._setEvaluacionesData) window._setEvaluacionesData(arr);
