@@ -660,6 +660,8 @@
       // Los resguardos (~8 MB) ya no se descargan al abrir: solo su resumen
       // (safeMeta) para saber cuándo actualizarlos. Se leen completos solo al restaurar.
       fbListenNullable('safeMeta', val => { window._setSafeMeta?.(val); });
+      // Fotos fuera de los datos: si ya se migró, las fotos nuevas se guardan aparte
+      fbListenNullable('fotosConfig', val => { window._setFotosConfig?.(val); });
 
       fbListen('recetasData', val => {
         if(!val) return;
