@@ -1,7 +1,7 @@
     // ════════════ FIREBASE SETUP ════════════
     import { initializeApp } from "firebase/app";
     import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
-    import { getDatabase, ref, set, update, onValue, get } from "firebase/database";
+    import { getDatabase, ref, set, update, onValue, get, query, orderByKey, startAt } from "firebase/database";
     import { getAuth, signInAnonymously } from "firebase/auth";
 
     const firebaseConfig = {
@@ -57,8 +57,60 @@
     function fbListen(path, cb){
       onValue(ref(db, path), snap => {
         const val = snap.val();
+        _fbRemember(path, val);
         if(val !== null) cb(val);
       });
+    }
+
+    // ── Guardado por diferencias ──────────────────────────────────
+    // La app guarda arrays/objetos COMPLETOS (fbSave). Con set() el nodo entero
+    // viaja a todos los dispositivos conectados en cada guardado (con fotos,
+    // varios MB por cambio). Acá recordamos el último valor del servidor por
+    // hijo y mandamos solo los hijos que cambiaron con update(): el resto de
+    // los dispositivos recibe únicamente eso. Si no hay valor previo conocido
+    // o cambió más de la mitad del nodo, se hace set() como siempre.
+    const _fbLast = {};  // path -> Map(clave hijo -> JSON normalizado)
+    // Firebase devuelve los objetos con claves ordenadas, sin null ni
+    // objetos/arrays vacíos, y los arrays con huecos como objetos. Normalizamos
+    // igual lo local y lo del servidor para comparar "lo mismo" como igual.
+    function _fbNorm(v){
+      if(v === null || v === undefined) return undefined;
+      if(typeof v !== 'object') return (typeof v === 'number' && !isFinite(v)) ? undefined : v;
+      const out = {};
+      const keys = Array.isArray(v) ? v.map((_, i) => String(i)) : Object.keys(v).sort();
+      let n = 0;
+      for(const k of keys){ const x = _fbNorm(v[k]); if(x !== undefined){ out[k] = x; n++; } }
+      return n ? out : undefined;
+    }
+    const _fbKey = v => { const x = _fbNorm(v); return x === undefined ? '' : JSON.stringify(x); };
+    function _fbRemember(path, val){
+      if(val && typeof val === 'object'){
+        const m = new Map();
+        for(const [k, v] of Object.entries(val)){ const j = _fbKey(v); if(j) m.set(k, j); }
+        _fbLast[path] = m;
+      } else {
+        _fbLast[path] = null;
+      }
+    }
+    function fbSaveSmart(path, data){
+      const last = _fbLast[path];
+      if(!last || !data || typeof data !== 'object'){
+        _fbRemember(path, data);
+        return fbSet(path, data);
+      }
+      const updates = {};
+      const vistos = new Set();
+      let n = 0;
+      for(const [k, v] of Object.entries(data)){
+        vistos.add(k);
+        const j = _fbKey(v);
+        if((last.get(k) || '') !== j){ updates[k] = j ? v : null; n++; }
+      }
+      for(const k of last.keys()){ if(!vistos.has(k)){ updates[k] = null; n++; } }
+      if(!n) return Promise.resolve();
+      _fbRemember(path, data);
+      if(n > Math.max(20, vistos.size / 2)) return fbSet(path, data);
+      return fbUpdate(path, updates);
     }
 
     // Igual que fbListen pero SÍ invoca el callback cuando el nodo está vacío
@@ -66,7 +118,22 @@
     // hay que reflejar en memoria — p. ej. marcar un store como "ya cargado"
     // aunque todavía no tenga datos, para no bloquear la primera escritura.
     function fbListenNullable(path, cb){
-      onValue(ref(db, path), snap => cb(snap.val()));
+      onValue(ref(db, path), snap => { const val = snap.val(); _fbRemember(path, val); cb(val); });
+    }
+
+    // Nodos que solo se descargan al entrar a la pantalla que los usa (y
+    // quedan escuchando desde ahí). Antes se bajaban en cada apertura.
+    const _fbLazyDefs = {
+      auditLog: val => {
+        if(window._setAuditLog) window._setAuditLog(val||{});
+        if(document.getElementById('page-auditoria')?.classList.contains('active')) window.renderAuditoria?.();
+      },
+    };
+    const _fbLazyOn = {};
+    function fbEnsure(path){
+      if(_fbLazyOn[path] || !_fbLazyDefs[path]) return;
+      _fbLazyOn[path] = true;
+      fbListen(path, _fbLazyDefs[path]);
     }
 
     // ════════════ ESTADO DE CONEXIÓN Y GUARDADO ════════════
@@ -163,6 +230,8 @@
     window.fbGetOnce = path => get(ref(db, path)).then(s => s.val());
     window.fbUpdate  = fbUpdate;
     window.fbListen  = fbListen;
+    window.fbSaveSmart = fbSaveSmart;
+    window.fbEnsure  = fbEnsure;
     window.fbReady   = true;
 
     // ── Push Notifications (Web Push real vía Worker) ─────────────
@@ -255,7 +324,10 @@
 
     // Listen for broadcasts — show notification on all connected devices
     let _pushSessionStart = Date.now();
-    fbListen('pushBroadcast', val => {
+    // Solo los avisos nuevos (claves = timestamp): antes se bajaba el historial
+    // completo de avisos en cada apertura. Margen de 1 min por relojes desfasados.
+    onValue(query(ref(db, 'pushBroadcast'), orderByKey(), startAt(String(_pushSessionStart - 60000))), snap => {
+      const val = snap.val();
       if(!val) return;
       const me = (window.currentUserLabel || '').toLowerCase();
       const myRole = (window.userRole || '').toLowerCase();
@@ -585,9 +657,11 @@
       });
 
       // Resguardo automático de compras/eventos (nunca se achica) — para recuperación.
-      fbListen('comprasFloreSafe', val => { window._setComprasFloreSafe?.(val); });
-      fbListen('comprasJardSafe',  val => { window._setComprasJardSafe?.(val); });
-      fbListen('eventosSafe',      val => { window._setEventosSafe?.(val); });
+      // Los resguardos (~8 MB) ya no se descargan al abrir: solo su resumen
+      // (safeMeta) para saber cuándo actualizarlos. Se leen completos solo al restaurar.
+      fbListenNullable('safeMeta', val => { window._setSafeMeta?.(val); });
+      // Fotos fuera de los datos: si ya se migró, las fotos nuevas se guardan aparte
+      fbListenNullable('fotosConfig', val => { window._setFotosConfig?.(val); });
 
       fbListen('recetasData', val => {
         if(!val) return;
@@ -744,10 +818,7 @@
         if(document.getElementById('page-crm-clientes')?.classList.contains('active')) window.renderClientes?.();
       });
 
-      fbListen('auditLog', val => {
-        if(window._setAuditLog) window._setAuditLog(val||{});
-        if(document.getElementById('page-auditoria')?.classList.contains('active')) window.renderAuditoria?.();
-      });
+      // auditLog (~3 MB) se descarga solo al entrar a Auditoría: ver fbEnsure().
 
       fbListen('cierresCaja', val => {
         const arr = !val ? [] : (Array.isArray(val) ? val : Object.values(val||{}));

@@ -40,11 +40,213 @@ try {
 } catch(e){}
 
 // ════════════════════════════════════════
+// FOTOS FUERA DE LOS DATOS (bajar la descarga de Firebase)
+// ════════════════════════════════════════
+// Las fotos (base64) eran ~90% de la base y viajaban en cada apertura de la
+// app. Ahora cada foto vive en `fotos/<id>` y en el registro queda la
+// referencia "fbimg:<id>". La foto se descarga solo cuando una <img> la
+// muestra en pantalla, y queda guardada en el dispositivo (IndexedDB): cada
+// foto se baja una sola vez por celular/PC.
+// La conversión de fotos nuevas se activa recién cuando gerencia corre la
+// migración (fotosConfig/activo = true). Hasta entonces todo queda como antes.
+const FOTO_REF = 'fbimg:';
+const FOTO_MIN = 1500; // data: más cortos que esto no vale la pena separarlos
+let _fotosActivo = false;
+window._setFotosConfig = v => { _fotosActivo = !!(v && v.activo); };
+const _fotosSubidas = new Set();
+const _fotoMem = new Map(); // id -> dataURL | Promise<dataURL>
+
+// Id estable por contenido (misma foto → mismo id, no se duplica)
+function _fotoId(s){
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for(let i=0; i<s.length; i++){ const c = s.charCodeAt(i); h1 = Math.imul(h1 ^ c, 2654435761); h2 = Math.imul(h2 ^ c, 1597334677); }
+  h1 = Math.imul(h1 ^ (h1>>>16), 2246822507) ^ Math.imul(h2 ^ (h2>>>13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2>>>16), 2246822507) ^ Math.imul(h1 ^ (h1>>>13), 3266489909);
+  return (h2>>>0).toString(36) + (h1>>>0).toString(36) + s.length.toString(36);
+}
+const _esFotoInline = v => typeof v === 'string' && v.length > FOTO_MIN && v.startsWith('data:');
+const esFotoRef = v => typeof v === 'string' && v.startsWith(FOTO_REF);
+
+// Recorre un valor y reemplaza cada foto inline por su referencia.
+// onFoto(id, dataURL) se llama por cada foto encontrada.
+function _separarFotos(v, onFoto){
+  if(_esFotoInline(v)){ const id = _fotoId(v); onFoto(id, v); return FOTO_REF + id; }
+  if(Array.isArray(v)) return v.map(x => _separarFotos(x, onFoto));
+  if(v && typeof v === 'object'){ const o = {}; for(const k in v) o[k] = _separarFotos(v[k], onFoto); return o; }
+  return v;
+}
+// Para fbSave: sube las fotos nuevas (antes que el registro: Firebase aplica
+// las escrituras en orden) y devuelve el dato con referencias.
+function _fotosParaGuardar(key, plain){
+  if(!_fotosActivo || key === 'fotos') return plain;
+  return _separarFotos(plain, (id, data) => {
+    _fotoMem.set(id, data); _fotoIdbPut(id, data);
+    if(!_fotosSubidas.has(id)){ _fotosSubidas.add(id); window.fbSetPath?.('fotos/'+id, data); }
+  });
+}
+
+// ── Caché local (IndexedDB) ──
+let _fotoIdb = null;
+function _fotoIdbOpen(){
+  if(_fotoIdb) return _fotoIdb;
+  _fotoIdb = new Promise(res => {
+    try{
+      const rq = indexedDB.open('fd-fotos', 1);
+      rq.onupgradeneeded = () => rq.result.createObjectStore('f');
+      rq.onsuccess = () => res(rq.result);
+      rq.onerror = () => res(null);
+    }catch(e){ res(null); }
+  });
+  return _fotoIdb;
+}
+async function _fotoIdbGet(id){
+  const db = await _fotoIdbOpen(); if(!db) return null;
+  return new Promise(res => { try{ const rq = db.transaction('f').objectStore('f').get(id); rq.onsuccess = () => res(rq.result || null); rq.onerror = () => res(null); }catch(e){ res(null); } });
+}
+async function _fotoIdbPut(id, data){
+  const db = await _fotoIdbOpen(); if(!db) return;
+  try{ db.transaction('f','readwrite').objectStore('f').put(data, id); }catch(e){}
+}
+
+// Devuelve el dataURL de una referencia (o el valor tal cual si no lo es)
+function resolverFoto(v){
+  if(!esFotoRef(v)) return Promise.resolve(v);
+  const id = v.slice(FOTO_REF.length);
+  if(_fotoMem.has(id)) return Promise.resolve(_fotoMem.get(id));
+  const p = (async () => {
+    let data = await _fotoIdbGet(id);
+    if(!data && window.fbGetOnce){
+      data = await window.fbGetOnce('fotos/'+id).catch(()=>null);
+      if(data) _fotoIdbPut(id, data);
+    }
+    if(data) _fotoMem.set(id, data); else _fotoMem.delete(id);
+    return data || '';
+  })();
+  _fotoMem.set(id, p);
+  return p;
+}
+window.resolverFoto = resolverFoto;
+
+// ── <img src="fbimg:..."> se resuelven solas al acercarse a la pantalla ──
+const _FOTO_VACIA = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
+const _fotoIO = ('IntersectionObserver' in window) ? new IntersectionObserver(entries => {
+  entries.forEach(en => { if(en.isIntersecting){ _fotoIO.unobserve(en.target); _cargarImg(en.target); } });
+}, { rootMargin: '300px' }) : null;
+function _cargarImg(img){
+  const ref = img.dataset.fbimg; if(!ref) return;
+  resolverFoto(ref).then(data => { if(img.dataset.fbimg === ref && data) img.src = data; });
+}
+function _prepararImg(img){
+  const src = img.getAttribute('src');
+  if(!esFotoRef(src)) return;
+  img.dataset.fbimg = src;
+  img.setAttribute('src', _FOTO_VACIA);
+  if(_fotoIO) _fotoIO.observe(img); else _cargarImg(img);
+}
+function _revisarFotos(nodo){
+  if(nodo.nodeType !== 1) return;
+  if(nodo.tagName === 'IMG') _prepararImg(nodo);
+  nodo.querySelectorAll?.('img[src^="'+FOTO_REF+'"]').forEach(_prepararImg);
+}
+new MutationObserver(muts => {
+  for(const m of muts){
+    if(m.type === 'attributes') _prepararImg(m.target);
+    else m.addedNodes.forEach(_revisarFotos);
+  }
+}).observe(document.documentElement, { subtree:true, childList:true, attributes:true, attributeFilter:['src'] });
+
+// ── Migración de fotos existentes (gerencia, una vez) ────────────────────────
+// 1) Descarga un respaldo completo de la base (JSON).
+// 2) Copia cada foto a fotos/<id> y la VERIFICA leyéndola de vuelta.
+// 3) Con confirmación, reemplaza en cada registro la foto por su referencia
+//    (solo si ese dato no cambió mientras tanto). No se borra ninguna foto.
+// 4) Activa fotosConfig/activo: desde ahí las fotos nuevas se guardan aparte.
+function _migrarFotosUI(html){
+  let ov = document.getElementById('migrar-fotos-ov');
+  if(!ov){ ov = document.createElement('div'); ov.id = 'migrar-fotos-ov'; ov.className = 'modal-overlay open'; document.body.appendChild(ov); }
+  ov.innerHTML = `<div class="modal" style="max-width:460px"><div class="modal-title">Mover fotos fuera de los datos</div><div style="font-size:13px;line-height:1.5">${html}</div></div>`;
+  return ov;
+}
+async function migrarFotos(){
+  if(userRole !== 'gerencia'){ showToast('Solo gerencia.','error'); return; }
+  if(!window.fbGetOnce){ showToast('Firebase todavía no está listo.','error'); return; }
+  if(!await confirmModal('Mover las fotos fuera de los datos\n\n1) Se descarga un respaldo completo de la base (archivo JSON de ~45 MB).\n2) Cada foto se copia a su propio lugar y se verifica.\n3) Te pido confirmación y recién entonces, en cada registro, la foto se reemplaza por una referencia.\n\nNo se borra ninguna foto. Conviene hacerlo cuando nadie esté usando la app (tarda unos minutos) y con todos los dispositivos ya actualizados.\n\n¿Empezar?')) return;
+  const SKIP = new Set(['fotos','fotosConfig','safeMeta','loginAuth','loginPasswords','pushSubs','pushBroadcast','auditLog']);
+  let root;
+  try{
+    _migrarFotosUI('Descargando la base para el respaldo…');
+    root = await window.fbGetOnce('/');
+  }catch(e){ _migrarFotosUI('No se pudo leer la base (¿sin conexión?). No se cambió nada.<br><br><button class="btn-secondary" onclick="closeModal(\'migrar-fotos-ov\')">Cerrar</button>'); return; }
+
+  // 1) Respaldo completo
+  try{
+    const blob = new Blob([JSON.stringify(root)], { type:'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = `respaldo-completo-antes-de-fotos-${TODAY_ISO}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+  }catch(e){}
+
+  // 2) Encontrar fotos inline
+  const hojas = []; // { path, data, id }
+  const unicas = new Map();
+  const recorrer = (v, path) => {
+    if(_esFotoInline(v)){ const id = _fotoId(v); hojas.push({ path, data:v, id }); unicas.set(id, v); return; }
+    if(v && typeof v === 'object') for(const k of Object.keys(v)) recorrer(v[k], path+'/'+k);
+  };
+  Object.keys(root||{}).forEach(k => { if(!SKIP.has(k)) recorrer(root[k], k); });
+  if(!hojas.length){
+    window.fbSetPath('fotosConfig', { activo:true, fecha:new Date().toISOString(), fotos:0 });
+    _migrarFotosUI('No hay fotos para mover. Listo: las fotos nuevas ya se guardan aparte.<br><br><button class="btn-add" onclick="closeModal(\'migrar-fotos-ov\')">Cerrar</button>');
+    return;
+  }
+  const mb = [...unicas.values()].reduce((a,x)=>a+x.length,0)/1e6;
+
+  // 3) Copiar y verificar cada foto
+  let i = 0, fallas = 0;
+  for(const [id, data] of unicas){
+    i++;
+    if(i % 5 === 1) _migrarFotosUI(`Copiando y verificando fotos… ${i} de ${unicas.size}`);
+    try{
+      await window.fbSetPath('fotos/'+id, data);
+      const leida = await window.fbGetOnce('fotos/'+id);
+      if(leida !== data) fallas++;
+    }catch(e){ fallas++; }
+  }
+  if(fallas){
+    _migrarFotosUI(`⚠️ ${fallas} foto${fallas!==1?'s':''} no se pudieron verificar. <strong>No se reemplazó nada</strong> en los registros. Probá de nuevo con buena conexión.<br><br><button class="btn-secondary" onclick="closeModal('migrar-fotos-ov')">Cerrar</button>`);
+    return;
+  }
+  document.getElementById('migrar-fotos-ov')?.remove();
+  if(!await confirmModal(`Se copiaron y verificaron ${unicas.size} fotos (${mb.toFixed(1)} MB), usadas en ${hojas.length} registros.\n\nÚltimo paso: en cada registro la foto se reemplaza por una referencia a su copia. Las fotos se siguen viendo igual.\n\n¿Reemplazar ahora?`)){
+    showToast('Migración pausada: las copias quedaron guardadas, los registros no se tocaron.');
+    return;
+  }
+
+  // 4) Reemplazar, solo donde el dato sigue igual que en el respaldo
+  let hechas = 0, saltadas = 0, lote = {};
+  const enviar = async () => { if(Object.keys(lote).length){ await window.fbUpdate('', lote); lote = {}; } };
+  for(const h of hojas){
+    if((hechas + saltadas) % 5 === 0) _migrarFotosUI(`Reemplazando fotos por referencias… ${hechas + saltadas} de ${hojas.length}`);
+    let actual;
+    try{ actual = await window.fbGetOnce(h.path); }catch(e){ saltadas++; continue; }
+    if(actual !== h.data){ saltadas++; continue; }
+    lote[h.path] = FOTO_REF + h.id; hechas++;
+    if(Object.keys(lote).length >= 25) await enviar();
+  }
+  await enviar();
+  window.fbSetPath('fotosConfig', { activo:true, fecha:new Date().toISOString(), fotos:unicas.size });
+  _migrarFotosUI(`✅ Listo. ${hechas} foto${hechas!==1?'s':''} movida${hechas!==1?'s':''}${saltadas?` · ${saltadas} se saltearon porque cambiaron durante la migración (se pueden mover corriéndola de nuevo)`:''}.<br><br>Desde ahora las fotos nuevas se guardan aparte y cada dispositivo descarga cada foto una sola vez.<br><br><button class="btn-add" onclick="closeModal('migrar-fotos-ov')">Cerrar</button>`);
+}
+
+// ════════════════════════════════════════
 // FIREBASE SYNC HELPERS (called after fbReady)
 // ════════════════════════════════════════
 function fbSave(key, data){
   if(window.fbSet){
-    window.fbSet(key, JSON.parse(JSON.stringify(data)));
+    const plain = _fotosParaGuardar(key, JSON.parse(JSON.stringify(data)));
+    // Solo viaja lo que cambió (ver fbSaveSmart en firebase/index.js)
+    if(window.fbSaveSmart) window.fbSaveSmart(key, plain); else window.fbSet(key, plain);
     // Auditoría automática (excluir los propios logs y datos de sesión)
     const AUDIT_SKIP = ['auditLog','pushTokens','pushBroadcast','loginPasswords','loginAuth','pushSubs'];
     if(!AUDIT_SKIP.includes(key) && window.currentUserLabel){
@@ -361,7 +563,7 @@ function navigate(pageId, navEl){
   if(pageId==='reportes-ventas') renderReportesVentas();
   if(pageId==='reportes-stock') renderReportesStock();
   if(pageId==='reportes-margen') renderDashboardMargen();
-  if(pageId==='auditoria') renderAuditoria();
+  if(pageId==='auditoria'){ window.fbEnsure?.('auditLog'); renderAuditoria(); }
   if(pageId==='crm-clientes') renderClientes();
   if(pageId==='sucursales') renderSucursales();
   if(pageId==='dashboard-consolidado') renderDashboardConsolidado();
@@ -2153,6 +2355,14 @@ function registrarHora(i, campo){
 // queda en el registro del historial y gerencia la ve desde el panel.
 let _fotoHistIdx = -1;
 let _fotoDataTmp = '';
+
+// Foto para galería / lista de precios / recetas / eventos: antes se guardaba
+// el original (3–5 MB por foto de celular). Ahora se achica a 1400px JPEG; si
+// no es una imagen comprimible (GIF, SVG u otro), se guarda tal cual.
+function leerFotoComprimida(file, cb){
+  if(/^image\/(jpeg|png|webp|heic|heif)/i.test(file.type||'')) comprimirImagen(file, 1400, 0.75, cb);
+  else { const r = new FileReader(); r.onload = e => cb(e.target.result); r.readAsDataURL(file); }
+}
 
 function comprimirImagen(file, maxDim, calidad, cb){
   const reader = new FileReader();
@@ -7767,11 +7977,12 @@ function openFichaGaleria(idx){
   ov.classList.add('open');
 }
 
-function imprimirFicha(idx){
+async function imprimirFicha(idx){
   const g = galeriaData[idx];
   if(!g) return;
-  const foto = (g.fotos&&g.fotos[0]) || g.foto || '';
   const win = window.open('','_blank');
+  // La ventana nueva no resuelve referencias fbimg: → traer la foto antes
+  const foto = await resolverFoto((g.fotos&&g.fotos[0]) || g.foto || '');
   win.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>${esc(g.titulo||'Ficha de arreglo')}</title><style>
     body{font-family:Arial,sans-serif;margin:36px;color:#1a1a1a}
     h1{font-size:22px;margin:0 0 18px}
@@ -7960,16 +8171,14 @@ function galeriaAddFotos(idx, input){
   const fotosData = JSON.parse(document.getElementById('gal-fotos-data')?.value||'[]');
   let loaded=0;
   files.forEach(file=>{
-    const reader=new FileReader();
-    reader.onload=e=>{
-      fotosData.push(e.target.result);
+    leerFotoComprimida(file, data=>{
+      fotosData.push(data);
       loaded++;
       if(loaded===files.length){
         document.getElementById('gal-fotos-data').value = JSON.stringify(fotosData);
         _refreshGalModalFotos(fotosData, idx);
       }
-    };
-    reader.readAsDataURL(file);
+    });
   });
 }
 
@@ -12892,13 +13101,11 @@ function lpAddPhotos(ci,ii,input){
   if(!listaPreciosData[ci].items[ii].photos) listaPreciosData[ci].items[ii].photos=[];
   let loaded=0;
   files.forEach(file=>{
-    const reader=new FileReader();
-    reader.onload=e=>{
-      listaPreciosData[ci].items[ii].photos.push(e.target.result);
+    leerFotoComprimida(file, data=>{
+      listaPreciosData[ci].items[ii].photos.push(data);
       loaded++;
       if(loaded===files.length){ fbSave('listaPreciosData',listaPreciosData); renderListaPrecios(); }
-    };
-    reader.readAsDataURL(file);
+    });
   });
 }
 
@@ -13007,7 +13214,16 @@ async function descargarBackup(){
     resumenesDiarios: ()=>resumenesDiarios,
     tareasGerencia: ()=>tareasGerencia,
   };
+  // auditLog ya no se descarga al abrir la app: traerlo para el backup
+  if(!Object.keys(auditLogData||{}).length && window.fbGetOnce){
+    try{ window._setAuditLog(await window.fbGetOnce('auditLog')); }catch(e){}
+  }
   const data = { _meta: { app:'Florería Duhau', fecha:new Date().toISOString(), generadoPor: window.currentUserLabel||userRole||'' } };
+  // Las fotos viven aparte (fotos/<id>): incluirlas para que el backup sea completo
+  if(_fotosActivo && window.fbGetOnce){
+    try{ data.fotos = await window.fbGetOnce('fotos'); }
+    catch(e){ if(!await confirmModal('No se pudieron descargar las fotos (¿sin conexión?).\n\n¿Descargar el backup sin las fotos?')) return; }
+  }
   Object.entries(fuentes).forEach(([k,fn])=>{ try{ const v=fn(); if(v!==undefined) data[k]=v; }catch(e){} });
   const blob = new Blob([JSON.stringify(data)], {type:'application/json'});
   const a = document.createElement('a');
@@ -13042,29 +13258,52 @@ function recordarBackup(){
 // ════════════════════════════════════════════════════════════════════════
 let _restoreCompras = null;
 let _safeMeta = { flore: 0, jard: 0 };  // cantidad de fechas distintas en el resguardo
+// El resguardo ya no se descarga al abrir la app (pesa varios MB con fotos):
+// se escucha solo su resumen `safeMeta`. Mientras no se conozca, NO se escribe
+// el resguardo (escribirlo sin saber cuánto tiene podría achicarlo).
+let _safeMetaReady = false, _safeMetaBootstrap = false;
+let _safeEventosCount = 0;
+window._setSafeMeta = v => {
+  if(v && typeof v === 'object'){
+    _safeMeta.flore = Math.max(_safeMeta.flore, +v.flore||0);
+    _safeMeta.jard  = Math.max(_safeMeta.jard,  +v.jard||0);
+    _safeEventosCount = Math.max(_safeEventosCount, +v.eventos||0);
+    _safeMetaReady = true;
+    window._maybeSnapshotComprasSafe?.(); window._maybeSnapshotEventosSafe?.();
+    return;
+  }
+  // Todavía no existe safeMeta: calcularlo UNA vez leyendo los resguardos actuales.
+  if(_safeMetaBootstrap || !window.fbGetOnce) return;
+  _safeMetaBootstrap = true;
+  Promise.all(['comprasFloreSafe','comprasJardSafe','eventosSafe'].map(k=>window.fbGetOnce(k)))
+    .then(([f,j,e])=>{
+      const meta = { flore:_rcDates(f), jard:_rcDates(j), eventos:_rcAsArr(e).length };
+      window.fbSetPath?.('safeMeta', meta);
+      window._setSafeMeta(meta);
+    })
+    .catch(()=>{ _safeMetaBootstrap = false; }); // sin conexión: se reintenta con el próximo aviso
+};
 function _rcAsArr(v){ return Array.isArray(v) ? v : Object.values(v||{}); }
 function _rcSig(r){ return ['fecha','prod','desc','qty','sector','pedidopor','prov'].map(k=>String((r&&r[k])==null?'':r[k]).trim().toLowerCase()).join('|'); }
 function _rcDates(arr){ return new Set(_rcAsArr(arr).map(r=>r&&r.fecha).filter(Boolean)).size; }
 
 // Espejo de resguardo: solo escribe si el arreglo cubre MÁS fechas que el
 // resguardo actual (monótono: nunca lo achica). Se llama tras cargar/guardar.
-window._setComprasFloreSafe = v => { window.comprasFloreSafe = _rcAsArr(v); _safeMeta.flore = _rcDates(window.comprasFloreSafe); };
-window._setComprasJardSafe  = v => { window.comprasJardSafe  = _rcAsArr(v); _safeMeta.jard  = _rcDates(window.comprasJardSafe); };
 window._maybeSnapshotComprasSafe = () => {
+  if(!_safeMetaReady) return;
   try{
     const df = _rcDates(comprasFlore);
-    if((comprasFlore||[]).length && df > _safeMeta.flore){ _safeMeta.flore = df; fbSave('comprasFloreSafe', comprasFlore); }
+    if((comprasFlore||[]).length && df > _safeMeta.flore){ _safeMeta.flore = df; fbSave('comprasFloreSafe', comprasFlore); window.fbUpdate?.('safeMeta', { flore: df }); }
     const dj = _rcDates(comprasJard);
-    if((comprasJard||[]).length && dj > _safeMeta.jard){ _safeMeta.jard = dj; fbSave('comprasJardSafe', comprasJard); }
+    if((comprasJard||[]).length && dj > _safeMeta.jard){ _safeMeta.jard = dj; fbSave('comprasJardSafe', comprasJard); window.fbUpdate?.('safeMeta', { jard: dj }); }
   }catch(e){}
 };
 
 // Resguardo de eventos (nunca se achica): se actualiza solo cuando hay MÁS
 // eventos que el resguardo, así una sobrescritura accidental no lo destruye.
-let _safeEventosCount = 0;
-window._setEventosSafe = v => { window.eventosSafe = _rcAsArr(v); _safeEventosCount = window.eventosSafe.length; };
 window._maybeSnapshotEventosSafe = () => {
-  try{ const n=(eventosData||[]).length; if(n && n > _safeEventosCount){ _safeEventosCount = n; fbSave('eventosSafe', eventosData); } }catch(e){}
+  if(!_safeMetaReady) return;
+  try{ const n=(eventosData||[]).length; if(n && n > _safeEventosCount){ _safeEventosCount = n; fbSave('eventosSafe', eventosData); window.fbUpdate?.('safeMeta', { eventos: n }); } }catch(e){}
 };
 
 function abrirRestaurarCompras(){
@@ -13121,9 +13360,14 @@ function restaurarComprasFile(input){
   reader.readAsText(file);
 }
 
-function restaurarComprasDesdeSafe(){
+async function restaurarComprasDesdeSafe(){
   if(userRole!=='gerencia'){ showToast('Solo gerencia.','error'); return; }
-  const sf = window.comprasFloreSafe||[], sj = window.comprasJardSafe||[], se = window.eventosSafe||[];
+  // El resguardo se lee recién ahora (ya no se descarga al abrir la app)
+  let sf, sj, se;
+  try{
+    showToast('Leyendo el resguardo automático…');
+    [sf, sj, se] = (await Promise.all(['comprasFloreSafe','comprasJardSafe','eventosSafe'].map(k=>window.fbGetOnce(k)))).map(_rcAsArr);
+  }catch(e){ showToast('Sin conexión: no se pudo leer el resguardo.','error'); return; }
   if(!sf.length && !sj.length && !se.length){ showToast('Todavía no hay resguardo automático guardado.'); return; }
   _rcMergePreview(sf, sj, se, 'el resguardo automático');
 }
@@ -15410,15 +15654,12 @@ async function delArregloComposicion(zona){
 function previewRecetaImg(input){
   const file = input.files[0];
   if(!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const data = e.target.result;
+  leerFotoComprimida(file, data => {
     document.getElementById('rec-img-data').value = data;
     const preview = document.getElementById('rec-img-preview');
     preview.src = data; preview.style.display = 'block';
     document.getElementById('rec-img-clear').style.display = 'inline-block';
-  };
-  reader.readAsDataURL(file);
+  });
 }
 
 function clearRecetaImg(){
@@ -15628,15 +15869,12 @@ function descontarStockEvento(arrRows){
 // ── Event image helpers ───────────────────────────────────────────────────────
 function previewEventImg(input){
   const file = input.files[0]; if(!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const data = e.target.result;
+  leerFotoComprimida(file, data => {
     document.getElementById('ev-img-data').value = data;
     const preview = document.getElementById('ev-img-preview');
     preview.src = data; preview.style.display = 'block';
     document.getElementById('ev-img-clear').style.display = 'inline-block';
-  };
-  reader.readAsDataURL(file);
+  });
 }
 
 function clearEventImg(){
@@ -17908,11 +18146,13 @@ function legSubirDoc(tipo, input){
   }
 }
 
-function legVerDoc(idx, docId){
+async function legVerDoc(idx, docId){
   const e = legajoData[idx]; if(!e) return;
   const doc = (e.documentos||[]).find(d=>d.id===docId); if(!doc || !doc.url) return;
+  const docUrl = await resolverFoto(doc.url);
+  if(!docUrl){ showToast('No se pudo cargar el documento (¿sin conexión?)','error'); return; }
   try{
-    const [meta, b64] = doc.url.split(',');
+    const [meta, b64] = docUrl.split(',');
     const mime = (meta.match(/data:([^;]+)/)||[])[1] || doc.mime || 'application/octet-stream';
     const bin = atob(b64);
     const arr = new Uint8Array(bin.length);
@@ -17922,7 +18162,7 @@ function legVerDoc(idx, docId){
     window.open(url, '_blank');
     setTimeout(()=>URL.revokeObjectURL(url), 60000);
   }catch(err){
-    window.open(doc.url, '_blank');
+    window.open(docUrl, '_blank');
   }
 }
 
@@ -19976,6 +20216,7 @@ Object.assign(window, {
   renderEvaluaciones, openEvaluacionModal, guardarEvaluacion, eliminarEvaluacion,
   renderPerfEmpleado, perfPreset, legVerProductividad,
   renderFaltas, agregarFalta, toggleFaltaJustificada, eliminarFalta,
+  migrarFotos,
   renderLiquidacion, saveLiquidacionHoras, exportLiquidacion,
   generarOrdenCompra,
   renderPrecioComparacion, buscarComparacion,
