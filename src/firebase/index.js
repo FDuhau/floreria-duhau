@@ -1,7 +1,7 @@
     // ════════════ FIREBASE SETUP ════════════
     import { initializeApp } from "firebase/app";
     import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
-    import { getDatabase, ref, set, update, onValue } from "firebase/database";
+    import { getDatabase, ref, set, update, onValue, get } from "firebase/database";
     import { getAuth, signInAnonymously } from "firebase/auth";
 
     const firebaseConfig = {
@@ -159,6 +159,8 @@
     // ── Expose to global scope so non-module script can call them ─
     window.fbSet     = fbSet;
     window.fbSetPath = fbSetPath;
+    // Lectura puntual contra el servidor. Sin conexión, rechaza (no inventa null).
+    window.fbGetOnce = path => get(ref(db, path)).then(s => s.val());
     window.fbUpdate  = fbUpdate;
     window.fbListen  = fbListen;
     window.fbReady   = true;

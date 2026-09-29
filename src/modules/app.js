@@ -14407,6 +14407,31 @@ async function _construirLoginAuth(src){
   return auth;
 }
 
+// Pregunta al SERVIDOR si ya existe loginAuth. Devuelve el objeto si existe,
+// null si el servidor confirma que no hay, o undefined si no se pudo confirmar
+// (sin conexión, Firebase sin iniciar o demora). Que el listener todavía no
+// haya traído los usuarios NO significa que no existan: sin esta confirmación
+// la app reconstruía loginAuth desde los usuarios de fábrica y borraba a los
+// agregados después (ej. jardineros nuevos) al entrar gerencia con mala señal.
+async function _loginAuthEnServidor(){
+  if(!window.fbGetOnce) return undefined;
+  try{
+    const val = await Promise.race([
+      window.fbGetOnce('loginAuth'),
+      new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')), 8000)),
+    ]);
+    if(val && typeof val === 'object' && Object.keys(val).length){
+      window._loginAuthReady = true;
+      window._setLoginAuth(val);
+      return val;
+    }
+    return null;
+  }catch(e){
+    console.warn('No se pudo confirmar loginAuth en el servidor:', e?.message||e);
+    return undefined;
+  }
+}
+
 function _persistLoginAuth(){
   if(window.fbSetPath) window.fbSetPath('loginAuth', loginAuth);
   else fbSave('loginAuth', loginAuth);
@@ -14418,6 +14443,8 @@ async function migrarSeguridadLogin(pwGerenciaActual){
   // Si Firebase ya tiene loginAuth (aunque el listener no lo haya cargado aún),
   // NO migrar: reconstruir desde defaults pisaría los usuarios reales.
   if(loginAuth || window._loginAuthReady || !Object.keys(loginPasswords||{}).length) return;
+  // Solo migrar si el servidor CONFIRMA que no existe loginAuth.
+  if(await _loginAuthEnServidor() !== null) return;
   const auth = await _construirLoginAuth(loginPasswords);
   let ok = false;
   for(const e of Object.values(auth)){
@@ -14447,7 +14474,12 @@ async function _ensureLoginAuth(){
     showToast('Esperá unos segundos, cargando usuarios…');
     return false;
   }
-  // Genuinamente no hay loginAuth en Firebase → migrar desde loginPasswords (reales)
+  // Confirmar contra el servidor antes de reconstruir: si no hay conexión o ya
+  // existen usuarios, NUNCA pisar loginAuth con los usuarios de fábrica.
+  const srv = await _loginAuthEnServidor();
+  if(srv) return true;
+  if(srv === undefined){ showToast('Sin conexión con la base: no se pueden gestionar usuarios ahora','error'); return false; }
+  // El servidor confirma que no hay loginAuth → migrar desde loginPasswords
   loginAuth = await _construirLoginAuth(loginPasswords);
   _persistLoginAuth();
   if(window.fbSetPath) window.fbSetPath('loginPasswords', null);
@@ -14828,8 +14860,12 @@ async function eliminarUsuario(id){
 
 async function resetearTodasPasswords(){
   if(userRole !== 'gerencia') return;
-  if(!await confirmModal('¿Resetear TODAS las contraseñas a los valores originales?\n\nAlvear, Duhau, Caro, etc. volverán a ser las contraseñas.')) return;
-  loginAuth = await _construirLoginAuth(LOGIN_DEFAULTS);
+  if(!await _ensureLoginAuth()) return;
+  if(!await confirmModal('¿Resetear las contraseñas de los usuarios originales?\n\nAlvear, Duhau, Caro, etc. volverán a ser las contraseñas. Los usuarios agregados después se mantienen con su contraseña actual.')) return;
+  // Conservar los usuarios agregados desde Gestión (no están en LOGIN_DEFAULTS)
+  const base = await _construirLoginAuth(LOGIN_DEFAULTS);
+  const agregados = Object.fromEntries(Object.entries(loginAuth||{}).filter(([id]) => !base[id]));
+  loginAuth = { ...agregados, ...base };
   _persistLoginAuth();
   if(window.fbSetPath) window.fbSetPath('loginPasswords', null);
   showToast('Todas las contraseñas reseteadas a valores originales');
