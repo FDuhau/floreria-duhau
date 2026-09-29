@@ -44,7 +44,9 @@ try {
 // ════════════════════════════════════════
 function fbSave(key, data){
   if(window.fbSet){
-    window.fbSet(key, JSON.parse(JSON.stringify(data)));
+    const plain = JSON.parse(JSON.stringify(data));
+    // Solo viaja lo que cambió (ver fbSaveSmart en firebase/index.js)
+    if(window.fbSaveSmart) window.fbSaveSmart(key, plain); else window.fbSet(key, plain);
     // Auditoría automática (excluir los propios logs y datos de sesión)
     const AUDIT_SKIP = ['auditLog','pushTokens','pushBroadcast','loginPasswords','loginAuth','pushSubs'];
     if(!AUDIT_SKIP.includes(key) && window.currentUserLabel){
@@ -361,7 +363,7 @@ function navigate(pageId, navEl){
   if(pageId==='reportes-ventas') renderReportesVentas();
   if(pageId==='reportes-stock') renderReportesStock();
   if(pageId==='reportes-margen') renderDashboardMargen();
-  if(pageId==='auditoria') renderAuditoria();
+  if(pageId==='auditoria'){ window.fbEnsure?.('auditLog'); renderAuditoria(); }
   if(pageId==='crm-clientes') renderClientes();
   if(pageId==='sucursales') renderSucursales();
   if(pageId==='dashboard-consolidado') renderDashboardConsolidado();
@@ -2153,6 +2155,14 @@ function registrarHora(i, campo){
 // queda en el registro del historial y gerencia la ve desde el panel.
 let _fotoHistIdx = -1;
 let _fotoDataTmp = '';
+
+// Foto para galería / lista de precios / recetas / eventos: antes se guardaba
+// el original (3–5 MB por foto de celular). Ahora se achica a 1400px JPEG; si
+// no es una imagen comprimible (GIF, SVG u otro), se guarda tal cual.
+function leerFotoComprimida(file, cb){
+  if(/^image\/(jpeg|png|webp|heic|heif)/i.test(file.type||'')) comprimirImagen(file, 1400, 0.75, cb);
+  else { const r = new FileReader(); r.onload = e => cb(e.target.result); r.readAsDataURL(file); }
+}
 
 function comprimirImagen(file, maxDim, calidad, cb){
   const reader = new FileReader();
@@ -7960,16 +7970,14 @@ function galeriaAddFotos(idx, input){
   const fotosData = JSON.parse(document.getElementById('gal-fotos-data')?.value||'[]');
   let loaded=0;
   files.forEach(file=>{
-    const reader=new FileReader();
-    reader.onload=e=>{
-      fotosData.push(e.target.result);
+    leerFotoComprimida(file, data=>{
+      fotosData.push(data);
       loaded++;
       if(loaded===files.length){
         document.getElementById('gal-fotos-data').value = JSON.stringify(fotosData);
         _refreshGalModalFotos(fotosData, idx);
       }
-    };
-    reader.readAsDataURL(file);
+    });
   });
 }
 
@@ -12892,13 +12900,11 @@ function lpAddPhotos(ci,ii,input){
   if(!listaPreciosData[ci].items[ii].photos) listaPreciosData[ci].items[ii].photos=[];
   let loaded=0;
   files.forEach(file=>{
-    const reader=new FileReader();
-    reader.onload=e=>{
-      listaPreciosData[ci].items[ii].photos.push(e.target.result);
+    leerFotoComprimida(file, data=>{
+      listaPreciosData[ci].items[ii].photos.push(data);
       loaded++;
       if(loaded===files.length){ fbSave('listaPreciosData',listaPreciosData); renderListaPrecios(); }
-    };
-    reader.readAsDataURL(file);
+    });
   });
 }
 
@@ -13007,6 +13013,10 @@ async function descargarBackup(){
     resumenesDiarios: ()=>resumenesDiarios,
     tareasGerencia: ()=>tareasGerencia,
   };
+  // auditLog ya no se descarga al abrir la app: traerlo para el backup
+  if(!Object.keys(auditLogData||{}).length && window.fbGetOnce){
+    try{ window._setAuditLog(await window.fbGetOnce('auditLog')); }catch(e){}
+  }
   const data = { _meta: { app:'Florería Duhau', fecha:new Date().toISOString(), generadoPor: window.currentUserLabel||userRole||'' } };
   Object.entries(fuentes).forEach(([k,fn])=>{ try{ const v=fn(); if(v!==undefined) data[k]=v; }catch(e){} });
   const blob = new Blob([JSON.stringify(data)], {type:'application/json'});
@@ -13042,29 +13052,52 @@ function recordarBackup(){
 // ════════════════════════════════════════════════════════════════════════
 let _restoreCompras = null;
 let _safeMeta = { flore: 0, jard: 0 };  // cantidad de fechas distintas en el resguardo
+// El resguardo ya no se descarga al abrir la app (pesa varios MB con fotos):
+// se escucha solo su resumen `safeMeta`. Mientras no se conozca, NO se escribe
+// el resguardo (escribirlo sin saber cuánto tiene podría achicarlo).
+let _safeMetaReady = false, _safeMetaBootstrap = false;
+let _safeEventosCount = 0;
+window._setSafeMeta = v => {
+  if(v && typeof v === 'object'){
+    _safeMeta.flore = Math.max(_safeMeta.flore, +v.flore||0);
+    _safeMeta.jard  = Math.max(_safeMeta.jard,  +v.jard||0);
+    _safeEventosCount = Math.max(_safeEventosCount, +v.eventos||0);
+    _safeMetaReady = true;
+    window._maybeSnapshotComprasSafe?.(); window._maybeSnapshotEventosSafe?.();
+    return;
+  }
+  // Todavía no existe safeMeta: calcularlo UNA vez leyendo los resguardos actuales.
+  if(_safeMetaBootstrap || !window.fbGetOnce) return;
+  _safeMetaBootstrap = true;
+  Promise.all(['comprasFloreSafe','comprasJardSafe','eventosSafe'].map(k=>window.fbGetOnce(k)))
+    .then(([f,j,e])=>{
+      const meta = { flore:_rcDates(f), jard:_rcDates(j), eventos:_rcAsArr(e).length };
+      window.fbSetPath?.('safeMeta', meta);
+      window._setSafeMeta(meta);
+    })
+    .catch(()=>{ _safeMetaBootstrap = false; }); // sin conexión: se reintenta con el próximo aviso
+};
 function _rcAsArr(v){ return Array.isArray(v) ? v : Object.values(v||{}); }
 function _rcSig(r){ return ['fecha','prod','desc','qty','sector','pedidopor','prov'].map(k=>String((r&&r[k])==null?'':r[k]).trim().toLowerCase()).join('|'); }
 function _rcDates(arr){ return new Set(_rcAsArr(arr).map(r=>r&&r.fecha).filter(Boolean)).size; }
 
 // Espejo de resguardo: solo escribe si el arreglo cubre MÁS fechas que el
 // resguardo actual (monótono: nunca lo achica). Se llama tras cargar/guardar.
-window._setComprasFloreSafe = v => { window.comprasFloreSafe = _rcAsArr(v); _safeMeta.flore = _rcDates(window.comprasFloreSafe); };
-window._setComprasJardSafe  = v => { window.comprasJardSafe  = _rcAsArr(v); _safeMeta.jard  = _rcDates(window.comprasJardSafe); };
 window._maybeSnapshotComprasSafe = () => {
+  if(!_safeMetaReady) return;
   try{
     const df = _rcDates(comprasFlore);
-    if((comprasFlore||[]).length && df > _safeMeta.flore){ _safeMeta.flore = df; fbSave('comprasFloreSafe', comprasFlore); }
+    if((comprasFlore||[]).length && df > _safeMeta.flore){ _safeMeta.flore = df; fbSave('comprasFloreSafe', comprasFlore); window.fbUpdate?.('safeMeta', { flore: df }); }
     const dj = _rcDates(comprasJard);
-    if((comprasJard||[]).length && dj > _safeMeta.jard){ _safeMeta.jard = dj; fbSave('comprasJardSafe', comprasJard); }
+    if((comprasJard||[]).length && dj > _safeMeta.jard){ _safeMeta.jard = dj; fbSave('comprasJardSafe', comprasJard); window.fbUpdate?.('safeMeta', { jard: dj }); }
   }catch(e){}
 };
 
 // Resguardo de eventos (nunca se achica): se actualiza solo cuando hay MÁS
 // eventos que el resguardo, así una sobrescritura accidental no lo destruye.
-let _safeEventosCount = 0;
-window._setEventosSafe = v => { window.eventosSafe = _rcAsArr(v); _safeEventosCount = window.eventosSafe.length; };
 window._maybeSnapshotEventosSafe = () => {
-  try{ const n=(eventosData||[]).length; if(n && n > _safeEventosCount){ _safeEventosCount = n; fbSave('eventosSafe', eventosData); } }catch(e){}
+  if(!_safeMetaReady) return;
+  try{ const n=(eventosData||[]).length; if(n && n > _safeEventosCount){ _safeEventosCount = n; fbSave('eventosSafe', eventosData); window.fbUpdate?.('safeMeta', { eventos: n }); } }catch(e){}
 };
 
 function abrirRestaurarCompras(){
@@ -13121,9 +13154,14 @@ function restaurarComprasFile(input){
   reader.readAsText(file);
 }
 
-function restaurarComprasDesdeSafe(){
+async function restaurarComprasDesdeSafe(){
   if(userRole!=='gerencia'){ showToast('Solo gerencia.','error'); return; }
-  const sf = window.comprasFloreSafe||[], sj = window.comprasJardSafe||[], se = window.eventosSafe||[];
+  // El resguardo se lee recién ahora (ya no se descarga al abrir la app)
+  let sf, sj, se;
+  try{
+    showToast('Leyendo el resguardo automático…');
+    [sf, sj, se] = (await Promise.all(['comprasFloreSafe','comprasJardSafe','eventosSafe'].map(k=>window.fbGetOnce(k)))).map(_rcAsArr);
+  }catch(e){ showToast('Sin conexión: no se pudo leer el resguardo.','error'); return; }
   if(!sf.length && !sj.length && !se.length){ showToast('Todavía no hay resguardo automático guardado.'); return; }
   _rcMergePreview(sf, sj, se, 'el resguardo automático');
 }
@@ -15410,15 +15448,12 @@ async function delArregloComposicion(zona){
 function previewRecetaImg(input){
   const file = input.files[0];
   if(!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const data = e.target.result;
+  leerFotoComprimida(file, data => {
     document.getElementById('rec-img-data').value = data;
     const preview = document.getElementById('rec-img-preview');
     preview.src = data; preview.style.display = 'block';
     document.getElementById('rec-img-clear').style.display = 'inline-block';
-  };
-  reader.readAsDataURL(file);
+  });
 }
 
 function clearRecetaImg(){
@@ -15628,15 +15663,12 @@ function descontarStockEvento(arrRows){
 // ── Event image helpers ───────────────────────────────────────────────────────
 function previewEventImg(input){
   const file = input.files[0]; if(!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const data = e.target.result;
+  leerFotoComprimida(file, data => {
     document.getElementById('ev-img-data').value = data;
     const preview = document.getElementById('ev-img-preview');
     preview.src = data; preview.style.display = 'block';
     document.getElementById('ev-img-clear').style.display = 'inline-block';
-  };
-  reader.readAsDataURL(file);
+  });
 }
 
 function clearEventImg(){
