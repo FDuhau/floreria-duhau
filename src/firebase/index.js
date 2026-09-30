@@ -231,6 +231,13 @@
     window.fbUpdate  = fbUpdate;
     window.fbListen  = fbListen;
     window.fbSaveSmart = fbSaveSmart;
+    // Nombres de las secciones de la raíz SIN descargar su contenido (REST shallow).
+    window.fbTopKeys = async () => {
+      const t = await auth.currentUser?.getIdToken?.().catch(() => null);
+      const r = await fetch(`${firebaseConfig.databaseURL}/.json?shallow=true${t ? '&auth=' + encodeURIComponent(t) : ''}`);
+      if(!r.ok) throw new Error('shallow ' + r.status);
+      return Object.keys((await r.json()) || {});
+    };
     window.fbEnsure  = fbEnsure;
     window.fbReady   = true;
 
