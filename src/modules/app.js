@@ -171,11 +171,25 @@ async function migrarFotos(){
   if(userRole !== 'gerencia'){ showToast('Solo gerencia.','error'); return; }
   if(!window.fbGetOnce){ showToast('Firebase todavía no está listo.','error'); return; }
   if(!await confirmModal('Mover las fotos fuera de los datos\n\n1) Se descarga un respaldo completo de la base (archivo JSON de ~45 MB).\n2) Cada foto se copia a su propio lugar y se verifica.\n3) Te pido confirmación y recién entonces, en cada registro, la foto se reemplaza por una referencia.\n\nNo se borra ninguna foto. Conviene hacerlo cuando nadie esté usando la app (tarda unos minutos) y con todos los dispositivos ya actualizados.\n\n¿Empezar?')) return;
-  const SKIP = new Set(['fotos','fotosConfig','safeMeta','loginAuth','loginPasswords','pushSubs','pushBroadcast','auditLog']);
+  const SKIP = new Set(['fotos','fotosIndex','fotosConfig','safeMeta','loginAuth','loginPasswords','pushSubs','pushBroadcast','auditLog']);
   let root;
   try{
     _migrarFotosUI('Descargando la base para el respaldo…');
-    root = await window.fbGetOnce('/');
+    // Sección por sección, sin bajar fotos/ (si la migración se repite, las
+    // fotos ya copiadas no se vuelven a descargar). Si no se pueden listar
+    // las secciones, se baja la base entera como antes.
+    let claves = null;
+    try{ claves = window.fbTopKeys ? await window.fbTopKeys() : null; }catch(e){ claves = null; }
+    if(claves){
+      root = {};
+      const aBajar = claves.filter(k => !SKIP.has(k));
+      for(let n=0; n<aBajar.length; n++){
+        _migrarFotosUI(`Descargando la base para el respaldo… sección ${n+1} de ${aBajar.length}`);
+        root[aBajar[n]] = await window.fbGetOnce(aBajar[n]);
+      }
+    } else {
+      root = await window.fbGetOnce('/');
+    }
   }catch(e){ _migrarFotosUI('No se pudo leer la base (¿sin conexión?). No se cambió nada.<br><br><button class="btn-secondary" onclick="closeModal(\'migrar-fotos-ov\')">Cerrar</button>'); return; }
 
   // 1) Respaldo completo
@@ -202,19 +216,25 @@ async function migrarFotos(){
   }
   const mb = [...unicas.values()].reduce((a,x)=>a+x.length,0)/1e6;
 
-  // 3) Copiar y verificar cada foto
-  let i = 0, fallas = 0;
+  // 3) Copiar y verificar cada foto. fotosIndex/<id> marca las ya copiadas y
+  //    verificadas: si la migración se corta y se repite, no se copian de nuevo.
+  const conTiempo = (p, ms) => Promise.race([p, new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')), ms))]);
+  let yaCopiadas = {};
+  try{ yaCopiadas = (await conTiempo(window.fbGetOnce('fotosIndex'), 30000)) || {}; }catch(e){}
+  let i = 0, fallas = 0, mbHechos = 0;
   for(const [id, data] of unicas){
-    i++;
-    if(i % 5 === 1) _migrarFotosUI(`Copiando y verificando fotos… ${i} de ${unicas.size}`);
+    i++; mbHechos += data.length/1e6;
+    if(yaCopiadas[id]) continue;
+    _migrarFotosUI(`Copiando y verificando fotos… ${i} de ${unicas.size}<br><span style="color:var(--mid-gray);font-size:12px">${mbHechos.toFixed(1)} de ${mb.toFixed(1)} MB</span>`);
     try{
-      await window.fbSetPath('fotos/'+id, data);
-      const leida = await window.fbGetOnce('fotos/'+id);
-      if(leida !== data) fallas++;
+      await conTiempo(window.fbSetPath('fotos/'+id, data), 120000);
+      const leida = await conTiempo(window.fbGetOnce('fotos/'+id), 120000);
+      if(leida !== data){ fallas++; continue; }
+      window.fbSetPath('fotosIndex/'+id, true);
     }catch(e){ fallas++; }
   }
   if(fallas){
-    _migrarFotosUI(`⚠️ ${fallas} foto${fallas!==1?'s':''} no se pudieron verificar. <strong>No se reemplazó nada</strong> en los registros. Probá de nuevo con buena conexión.<br><br><button class="btn-secondary" onclick="closeModal('migrar-fotos-ov')">Cerrar</button>`);
+    _migrarFotosUI(`⚠️ ${fallas} foto${fallas!==1?'s':''} no se pudieron verificar. <strong>No se reemplazó nada</strong> en los registros. Probá de nuevo con buena conexión (las ya copiadas no se vuelven a copiar).<br><br><button class="btn-secondary" onclick="closeModal('migrar-fotos-ov')">Cerrar</button>`);
     return;
   }
   document.getElementById('migrar-fotos-ov')?.remove();
@@ -223,20 +243,28 @@ async function migrarFotos(){
     return;
   }
 
-  // 4) Reemplazar, solo donde el dato sigue igual que en el respaldo
-  let hechas = 0, saltadas = 0, lote = {};
-  const enviar = async () => { if(Object.keys(lote).length){ await window.fbUpdate('', lote); lote = {}; } };
-  for(const h of hojas){
-    if((hechas + saltadas) % 5 === 0) _migrarFotosUI(`Reemplazando fotos por referencias… ${hechas + saltadas} de ${hojas.length}`);
+  // 4) Reemplazar sección por sección: se relee cada sección justo antes y solo
+  //    se reemplaza la foto si ese dato sigue igual que en el respaldo.
+  let hechas = 0, saltadas = 0;
+  const porNodo = new Map();
+  hojas.forEach(h => { const n = h.path.split('/')[0]; if(!porNodo.has(n)) porNodo.set(n, []); porNodo.get(n).push(h); });
+  const leerRuta = (obj, path) => path.split('/').slice(1).reduce((o,k)=> (o==null ? o : o[k]), obj);
+  let nNodo = 0;
+  for(const [nodo, hs] of porNodo){
+    nNodo++;
+    _migrarFotosUI(`Reemplazando fotos por referencias… sección ${nNodo} de ${porNodo.size} (${esc(nodo)})<br><span style="color:var(--mid-gray);font-size:12px">${hechas} de ${hojas.length} fotos listas</span>`);
     let actual;
-    try{ actual = await window.fbGetOnce(h.path); }catch(e){ saltadas++; continue; }
-    if(actual !== h.data){ saltadas++; continue; }
-    lote[h.path] = FOTO_REF + h.id; hechas++;
-    if(Object.keys(lote).length >= 25) await enviar();
+    try{ actual = await conTiempo(window.fbGetOnce(nodo), 180000); }
+    catch(e){ saltadas += hs.length; continue; }
+    const lote = {};
+    hs.forEach(h => { if(leerRuta(actual, h.path) === h.data){ lote[h.path] = FOTO_REF + h.id; hechas++; } else saltadas++; });
+    if(Object.keys(lote).length){
+      try{ await conTiempo(window.fbUpdate('', lote), 60000); }
+      catch(e){ /* la escritura queda en cola y se aplica sola al reconectar */ }
+    }
   }
-  await enviar();
   window.fbSetPath('fotosConfig', { activo:true, fecha:new Date().toISOString(), fotos:unicas.size });
-  _migrarFotosUI(`✅ Listo. ${hechas} foto${hechas!==1?'s':''} movida${hechas!==1?'s':''}${saltadas?` · ${saltadas} se saltearon porque cambiaron durante la migración (se pueden mover corriéndola de nuevo)`:''}.<br><br>Desde ahora las fotos nuevas se guardan aparte y cada dispositivo descarga cada foto una sola vez.<br><br><button class="btn-add" onclick="closeModal('migrar-fotos-ov')">Cerrar</button>`);
+  _migrarFotosUI(`✅ Listo. ${hechas} foto${hechas!==1?'s':''} movida${hechas!==1?'s':''}${saltadas?` · ${saltadas} no se pudieron mover ahora (cambiaron durante la migración o se cortó la conexión): volvé a tocar el botón para completarlas`:''}.<br><br>Desde ahora las fotos nuevas se guardan aparte y cada dispositivo descarga cada foto una sola vez.<br><br><button class="btn-add" onclick="closeModal('migrar-fotos-ov')">Cerrar</button>`);
 }
 
 // ════════════════════════════════════════
