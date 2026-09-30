@@ -13260,18 +13260,18 @@ async function descargarBackup(){
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
   try{ localStorage.setItem('ultimoBackupISO', TODAY_ISO); }catch(e){}
-  showToast('Backup descargado — guardalo en un lugar seguro');
+  showToast('Backup descargado — subilo a tu Google Drive para no perderlo');
 }
 
-// Recordatorio mensual: avisar a gerencia si hace más de 30 días del último backup
+// Recordatorio semanal: avisar a gerencia si hace más de 7 días del último backup
 function recordarBackup(){
   try{
     const ult = localStorage.getItem('ultimoBackupISO');
     const dias = ult ? Math.floor((new Date(TODAY_ISO)-new Date(ult))/86400000) : null;
-    if(dias===null || dias>30){
+    if(dias===null || dias>7){
       showToast(dias===null
-        ? 'Nunca se descargó un backup desde este dispositivo — botón "Backup de datos" en el menú'
-        : `Hace ${dias} días que no se descarga un backup — botón "Backup de datos" en el menú`, 'warn');
+        ? 'Nunca se descargó un backup desde este dispositivo — botón "Backup de datos" en el menú, y subirlo a Drive'
+        : `Hace ${dias} días que no se descarga un backup — botón "Backup de datos" en el menú, y subirlo a Drive`, 'warn');
     }
   }catch(e){}
 }
