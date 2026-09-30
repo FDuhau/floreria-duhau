@@ -1,4 +1,5 @@
 import { esc, parseMoney, fmtDate, fmtDateTime } from './utils.js';
+import { compraCant, compraImporte, resumenCompras, cajaSigned, saldosCaja, horasExtra, margenDeVenta, ingVaras } from './dinero.js';
 
 // ════════════════════════════════════════
 // CONTROL DE VERSIÓN — auto-limpieza de datos locales viejos
@@ -4540,25 +4541,18 @@ function renderPeriodTabs(type){
 
 // Cantidad de paquetes de una compra (recibidos si ya llegó, si no lo pedido).
 // Fallback a 1 para filas viejas sin cantidad cargada, así no se anula su importe.
-function _compraCant(r){
-  if(!r) return 0;
-  const q = parseFloat(r.qty);
-  return (!isNaN(q) && q>0) ? q : 1;
-}
+function _compraCant(r){ return compraCant(r); }
 // Importe total de una línea de compra = precio (por paquete) × cantidad pedida.
 // Se usa la cantidad del pedido (qty), no los paquetes recibidos, para que el
 // importe siempre sea "precio × cantidad" tal como se ve en el renglón, y el
 // total del pedido cierre con la suma de los renglones.
-function _compraImporte(r){ return parseMoney(r && r.costo) * _compraCant(r); }
+function _compraImporte(r){ return compraImporte(r); }
 
 function renderCompraSummary(type, filtered){
   const summaryEl = document.getElementById('compras-'+(type==='floreria'?'flore':'jard')+'-summary');
-  const activas = filtered.filter(r=>!r.anulado);
-  const total = activas.reduce((s,r)=>s+_compraImporte(r),0);
-  const recibidos = activas.filter(r=>r.estado==='recibido').reduce((s,r)=>s+_compraImporte(r),0);
-  const enPedido = activas.filter(r=>r.estado!=='recibido').length;
+  const { total, recibido: recibidos, enPedido, ordenes } = resumenCompras(filtered);
   summaryEl.innerHTML = `
-    <div class="card"><div class="card-label">Total período</div><div class="card-value" style="font-size:26px">$${total.toLocaleString('es-AR')}</div><div class="card-sub">${activas.length} órdenes</div></div>
+    <div class="card"><div class="card-label">Total período</div><div class="card-value" style="font-size:26px">$${total.toLocaleString('es-AR')}</div><div class="card-sub">${ordenes} órdenes</div></div>
     <div class="card"><div class="card-label">Recibido</div><div class="card-value green" style="font-size:26px">$${recibidos.toLocaleString('es-AR')}</div></div>
     <div class="card"><div class="card-label">En pedido</div><div class="card-value amber" style="font-size:26px">${enPedido}</div><div class="card-sub">esperando recepción</div></div>`;
 }
@@ -6166,11 +6160,7 @@ function _varasPorPaqResuelto(prodLabel){
 // Cantidad de un ingrediente EXPRESADA EN VARAS. Si la unidad es "paq", se
 // multiplica por las varas por paquete (de Compras); si no, ya está en varas.
 function _ingVaras(ing){
-  const q = +ing.qty || 0;
-  if(ing && ing.unidad === 'paq'){
-    return q * _varasPorPaqResuelto(ing.prod);
-  }
-  return q;
+  return ingVaras(ing, ing && ing.unidad === 'paq' ? _varasPorPaqResuelto(ing.prod) : 0);
 }
 
 function calcCostoComposicion(r){
@@ -7164,7 +7154,7 @@ function costoVenta(v){
 function margenVenta(v){
   const c = costoVenta(v);
   if(c==null) return null;
-  return parseMoney(v.precio) - c - parseMoney(v.envioCosto);
+  return margenDeVenta(v, c);
 }
 // Celda <td> de margen para la tabla de ventas. Muestra "—" cuando no hay costo.
 function margenCell(v){
@@ -7646,15 +7636,8 @@ function renderCaja(){
   const curMonth = TODAY_ISO.slice(0,7);
   const mesDe = r => (r.fecha||curMonth).slice(0,7); // sin fecha → se cuenta en el mes actual
 
-  // Ordenar por fecha ascendente para que el saldo acumulado sea correcto.
-  // Se conserva el índice real (para editar/borrar) y el orden de carga como desempate.
-  const orden = cajaData.map((r,i)=>({r,i}))
-    .sort((a,b)=> (a.r.fecha||'9999-12-31').localeCompare(b.r.fecha||'9999-12-31') || (a.i-b.i));
-
-  // Saldo acumulado global por movimiento (se usa igual en mes actual e historial)
-  let running=0; const runByIdx={};
-  orden.forEach(({r,i})=>{ running += (r.tipo==='ingreso'?r.monto:-r.monto); runByIdx[i]=running; });
-
+  // Orden cronológico + saldo acumulado global por movimiento (igual en mes actual e historial)
+  const { orden, runByIdx } = saldosCaja(cajaData);
   const delMes  = orden.filter(({r})=> mesDe(r)===curMonth);
   const older   = orden.filter(({r})=> mesDe(r)!==curMonth);
 
@@ -7668,7 +7651,7 @@ function renderCaja(){
   const tit = document.getElementById('caja-mes-titulo');
   if(tit) tit.textContent = `Movimientos de ${_cajaMesLabel(curMonth)}`;
 
-  const arrastre  = older.reduce((s,{r})=> s+(r.tipo==='ingreso'?r.monto:-r.monto), 0);
+  const arrastre  = older.reduce((s,{r})=> s+cajaSigned(r), 0);
   const saldoFinal = arrastre + inMes - egMes;
 
   // ── Resumen (enfocado en el mes) ──
@@ -18436,8 +18419,7 @@ function liqFilaDatos(e, mes){
   const prog = progEdit ? +ov.programadas : autoProg;
   const trab = trabEdit ? +ov.trabajadas : autoTrab;
   const valHora = +(ov.valorHora||0);
-  const hExtra = Math.max(0, Math.round((trab - prog)*10)/10);
-  const adicional = +(hExtra * valHora * 1.5).toFixed(2);
+  const { hExtra, adicional } = horasExtra(prog, trab, valHora);
   return { calName, autoProg, autoTrab, progEdit, trabEdit, prog, trab, valHora, hExtra, adicional };
 }
 

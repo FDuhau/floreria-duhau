@@ -28,6 +28,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Tests unitarios (lógica de dinero)
+        run: npm test
+
       - name: Install Chromium (Playwright)
         run: npx playwright install --with-deps chromium
 
