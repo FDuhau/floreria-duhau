@@ -3,6 +3,7 @@
 // suscripciones (el cliente las lee de Firebase, ya filtradas por destinatario)
 // y les envía la notificación cifrada vía Web Push.
 import { sendWebPush } from './webpush.js';
+import { runScheduledBackup } from './backup.js';
 
 export default {
   async fetch(request, env){
@@ -10,7 +11,20 @@ export default {
     if(url.pathname === '/api/push' && request.method === 'POST'){
       return handlePush(request, env);
     }
+    // Disparo manual del backup (mismo que el cron). Requiere BACKUP_TOKEN.
+    if(url.pathname === '/api/backup' && request.method === 'POST'){
+      const auth = request.headers.get('Authorization') || '';
+      if(!env.BACKUP_TOKEN || auth !== 'Bearer ' + env.BACKUP_TOKEN){
+        return json({ error: 'No autorizado' }, 401);
+      }
+      try { return json(await runScheduledBackup(env)); }
+      catch(e){ return json({ ok: false, error: String(e && e.message || e) }, 500); }
+    }
     return env.ASSETS.fetch(request);
+  },
+  // Cron Trigger diario (ver wrangler.jsonc → triggers.crons)
+  async scheduled(_event, env, ctx){
+    ctx.waitUntil(runScheduledBackup(env));
   },
 };
 
