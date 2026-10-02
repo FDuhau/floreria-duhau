@@ -542,8 +542,9 @@ function navigate(pageId, navEl){
   updateBottomNav(pageId);
   // Redirigir home según rol
   if(pageId === 'home' && userRole === 'ventas') pageId = 'home-hyatt';
-  // Compras no tiene acceso a Reportes: si intenta abrir alguno, vuelve a Compras.
-  if(userRole === 'compras' && ['reportes','reportes-equipo','cierre-dia','reportes-ventas','reportes-hotel'].includes(pageId)) pageId = 'compras';
+  // Compras tiene acceso SOLO a Costo del Hotel dentro de Reportes: si intenta
+  // abrir el hub de Reportes o cualquier otro reporte, se lo lleva a ese.
+  if(userRole === 'compras' && ['reportes','reportes-equipo','cierre-dia','reportes-ventas'].includes(pageId)) pageId = 'reportes-hotel';
   document.querySelectorAll('.content').forEach(p=>p.classList.remove('active'));
   const pg = document.getElementById('page-'+pageId);
   if(pg) pg.classList.add('active');
@@ -13509,6 +13510,16 @@ function applyRole(role){
         }
       }
     });
+    // Acceso puntual a Costo del Hotel (dentro de Reportes). Se revela SOLO ese
+    // sub-ítem del grupo Reportes, no el resto.
+    document.querySelectorAll('.nav-section-label').forEach(label => {
+      if(label.textContent.trim() === 'Reportes') label.style.display = '';
+    });
+    const repHdr = document.querySelector('[data-group-id="grp-rep"]');
+    if(repHdr) repHdr.style.display = '';
+    document.querySelectorAll('.nav-sub-item[data-group="grp-rep"]').forEach(el => {
+      if(el.textContent.trim() === 'Costo del Hotel') el.style.display = '';
+    });
     // Quick links: solo los relacionados a compras y recepción
     document.querySelectorAll('.quick-link').forEach(ql => {
       const title = ql.querySelector('.quick-link-title')?.textContent || '';
@@ -13516,7 +13527,7 @@ function applyRole(role){
     });
     document.querySelector('[data-group-id="grp-compras"]').style.display = '';
     document.querySelector('[data-group-id="grp-ops"]').style.display = '';
-    setTimeout(()=>{ navigate('compras'); navExpandGroup('grp-compras'); }, 100);
+    setTimeout(()=>{ navigate('compras'); navExpandGroup('grp-compras'); navExpandGroup('grp-rep'); }, 100);
   }
 
   if(role === 'jardinero'){
