@@ -23,7 +23,7 @@ const PAGES = [
   'eventos-sin-floreria', 'recetas-arreglos', 'ventas-externas',
   'ramos-disponibles', 'lista-precios', 'pedidos-habitacion', 'galeria',
   'cotizador', 'presupuestos', 'crm-clientes', 'caja', 'rentabilidad-eventos',
-  'cierre-mensual', 'reportes', 'reportes-ventas', 'reportes-stock',
+  'cierre-mensual', 'reportes', 'reportes-ventas',
   'reportes-equipo', 'operaciones', 'checklist', 'inventario', 'eventos-maison',
   'jardineria-ops', 'hab-ops', 'recepcion-pedidos', 'stock',
 ];

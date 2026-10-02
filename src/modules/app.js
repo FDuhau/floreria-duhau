@@ -412,9 +412,7 @@ const PAGE_LABELS = {control:'Control','control-jardineria':'Control › Seguimi
   'control-horarios':'Recursos Humanos › Horarios y Productividad',
   'recetas-arreglos':'Comercial › Composiciones',
   reportes:'Reportes', 'reportes-equipo':'Reportes › Equipo & Horarios',
-  'reportes-ventas':'Reportes › Ventas & Comercial', 'reportes-stock':'Reportes › Stock & Compras', 'reportes-hotel':'Reportes › Costo del Hotel',
-  'reportes-margen':'Reportes › Dashboard de Margen',
-  auditoria:'Auditoría de Cambios',
+  'reportes-ventas':'Reportes › Ventas & Comercial', 'reportes-hotel':'Reportes › Costo del Hotel',
   'crm-clientes':'CRM · Clientes',
   sucursales:'Administración de Sucursales',
   'dashboard-consolidado':'Dashboard Consolidado',
@@ -428,9 +426,7 @@ const PAGE_LABELS = {control:'Control','control-jardineria':'Control › Seguimi
   'presupuestos': 'Comercial › Presupuestos Enviados',
   'cotizar-presupuesto': 'Comercial › Armar cotización',
   'cierre-mensual': 'Contable › Cierre Mensual',
-  'dashboard-gerencia': 'Gerencia › Dashboard Unificado',
   'cierre-dia': 'Reportes › Cierre del Día',
-  'tv-dashboard': 'Pantalla TV / Dashboard',
   'tareas-gerencia': 'Gerencia › Tareas Pendientes'
 };
 
@@ -546,10 +542,8 @@ function navigate(pageId, navEl){
   updateBottomNav(pageId);
   // Redirigir home según rol
   if(pageId === 'home' && userRole === 'ventas') pageId = 'home-hyatt';
-  // Compras tiene acceso SOLO al Dashboard de Margen dentro de Reportes: si
-  // intenta abrir el hub de Reportes o cualquier otro reporte, se lo lleva al
-  // de margen (el único que se le habilitó).
-  if(userRole === 'compras' && ['reportes','reportes-equipo','cierre-dia','reportes-ventas','reportes-stock','reportes-hotel','auditoria','dashboard-gerencia'].includes(pageId)) pageId = 'reportes-margen';
+  // Compras no tiene acceso a Reportes: si intenta abrir alguno, vuelve a Compras.
+  if(userRole === 'compras' && ['reportes','reportes-equipo','cierre-dia','reportes-ventas','reportes-hotel'].includes(pageId)) pageId = 'compras';
   document.querySelectorAll('.content').forEach(p=>p.classList.remove('active'));
   const pg = document.getElementById('page-'+pageId);
   if(pg) pg.classList.add('active');
@@ -595,10 +589,7 @@ function navigate(pageId, navEl){
   if(pageId==='reportes-equipo') renderReportesEquipo();
   if(pageId==='cierre-dia') initCierreDia();
   if(pageId==='reportes-ventas') renderReportesVentas();
-  if(pageId==='reportes-stock') renderReportesStock();
   if(pageId==='reportes-hotel') renderCostoHotel();
-  if(pageId==='reportes-margen') renderDashboardMargen();
-  if(pageId==='auditoria'){ window.fbEnsure?.('auditLog'); renderAuditoria(); }
   if(pageId==='crm-clientes') renderClientes();
   if(pageId==='sucursales') renderSucursales();
   if(pageId==='dashboard-consolidado') renderDashboardConsolidado();
@@ -612,8 +603,6 @@ function navigate(pageId, navEl){
   if(pageId==='presupuestos') renderPresupuestos();
   if(pageId==='cotizar-presupuesto') renderCotizarPresupuesto();
   if(pageId==='cierre-mensual'){ const sel=document.getElementById('cierre-mes-sel'); if(sel&&!sel.value) sel.value=CURR_MONTH; renderCierreMensual(); }
-  if(pageId==='dashboard-gerencia') renderDashboardGerencia();
-  if(pageId==='tv-dashboard') renderTVDashboard();
   if(pageId==='tareas-gerencia') renderTareasGerencia();
 
   // En mobile, cerrar el sidebar automáticamente al navegar — salvo si el ítem
@@ -11605,59 +11594,6 @@ function _kpiCard(label, value, sub='', color='var(--sage-dark)'){
 // ── AUDITORÍA DE CAMBIOS ──────────────────────────────────────────────────────
 let auditLogData = {};
 window._setAuditLog = (val) => { auditLogData = val && typeof val === 'object' ? val : {}; };
-// Paginación incremental de la auditoría (antes se cortaba fijo en 100)
-const AUDIT_PAGE=100;
-let auditShown=AUDIT_PAGE, _auditLastKey='';
-function auditShowMore(){ auditShown+=AUDIT_PAGE; renderAuditoria(); }
-
-const AUDIT_LABELS = {
-  cajaData:'Caja', ventasData:'Ventas', stockData:'Stock', eventosData:'Eventos',
-  galeriaData:'Galería de Trabajos', comprasFlore:'Compras Florería', comprasJard:'Compras Jardinería',
-  horariosPlantilla:'Plantilla Horarios', checklist:'Checklist', recetasData:'Composiciones',
-  jardineriaData:'Jardinería', habitacionesData:'Habitaciones', listaPreciosData:'Lista de Precios',
-  ramosDispData:'Ramos Disponibles', cierresCaja:'Cierre de Caja'
-};
-
-function renderAuditoria(){
-  const el = document.getElementById('auditoria-body');
-  if(!el) return;
-
-  const filtroUser = document.getElementById('audit-filtro-user')?.value || '';
-  const filtroKey = document.getElementById('audit-filtro-seccion')?.value || '';
-  const filtroFecha = document.getElementById('audit-filtro-fecha')?.value || '';
-
-  let entries = Object.values(auditLogData);
-  if(filtroUser) entries = entries.filter(e => (e.user||'').toLowerCase().includes(filtroUser.toLowerCase()));
-  if(filtroKey) entries = entries.filter(e => e.key === filtroKey);
-  if(filtroFecha) entries = entries.filter(e => (e.iso||'').startsWith(filtroFecha));
-
-  entries.sort((a,b) => (b.ts||0) - (a.ts||0));
-
-  // Reset a la primera página al cambiar cualquier filtro
-  const _akey = `${filtroUser}|${filtroKey}|${filtroFecha}`;
-  if(_akey !== _auditLastKey){ auditShown = AUDIT_PAGE; _auditLastKey = _akey; }
-  const shown = entries.slice(0, auditShown);
-
-  if(!shown.length){ el.innerHTML='<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--mid-gray);font-size:13px">Sin registros</td></tr>'; return; }
-  el.innerHTML = shown.map(e => {
-    const d = new Date(e.ts||0);
-    const hora = d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
-    const fecha = d.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
-    return `<tr style="border-top:1px solid var(--light-gray)">
-      <td style="padding:8px 12px;font-size:12px;color:var(--mid-gray)">${fecha} ${hora}</td>
-      <td style="padding:8px 12px;font-size:13px;font-weight:500">${esc(e.user||'—')}</td>
-      <td style="padding:8px 12px;font-size:13px">${AUDIT_LABELS[e.key]||esc(e.key||'—')}</td>
-      <td style="padding:8px 12px"><span style="font-size:10px;background:var(--light-gray);padding:2px 8px;border-radius:10px;letter-spacing:.5px">${esc(e.key||'')}</span></td>
-    </tr>`;
-  }).join('');
-  if(entries.length > auditShown){
-    const faltan = entries.length - auditShown;
-    el.innerHTML += `<tr><td colspan="4" style="text-align:center;padding:14px">
-      <button class="btn-secondary" onclick="auditShowMore()">Mostrar ${Math.min(AUDIT_PAGE,faltan)} más · quedan ${faltan} de ${entries.length}</button>
-    </td></tr>`;
-  }
-}
-
 // Horas del mes de un empleado: PROGRAMADAS (horario que carga gerencia) y
 // TRABAJADAS (jornada real fichada — misma fuente `jornadaRealDia` que usan
 // Productividad y la Liquidación, para que todos los reportes coincidan).
@@ -12419,61 +12355,6 @@ function exportReporteVentas(){
   _downloadCSV(rows,`reporte-ventas-${mesISO}.csv`);
 }
 
-// ── Reportes Stock ────────────────────────────────────────────────────────────
-function renderReportesStock(){
-  _repMeses('rep-st-mes');
-  const mesISO=document.getElementById('rep-st-mes')?.value||TODAY_ISO.slice(0,7);
-
-  const stock=window.stockData||[];
-  const criticos=stock.filter(s=>s.minimo>0 && s.cantidad<s.minimo);
-  const sinStock=stock.filter(s=>s.cantidad<=0);
-  const totalItems=stock.length;
-
-  // Compras del mes
-  const comprasMes=[...(window.comprasFlore||[]),...(window.comprasJard||[])].filter(c=>(c.fecha||'').startsWith(mesISO));
-  const gastoMes=comprasMes.reduce((s,c)=>s+parseMoney(c.total||c.precio||0),0);
-
-  // Gasto últimos 6 meses
-  const now=new Date();
-  const mesesLbls=[],mesesGasto=[];
-  for(let i=5;i>=0;i--){
-    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
-    const iso=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-    mesesLbls.push(['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][d.getMonth()]);
-    const g=[...(window.comprasFlore||[]),...(window.comprasJard||[])].filter(c=>(c.fecha||'').startsWith(iso)).reduce((s,c)=>s+parseMoney(c.total||c.precio||0),0);
-    mesesGasto.push(g);
-  }
-
-  document.getElementById('rep-st-kpis').innerHTML=
-    _kpiCard('Total ítems stock',totalItems,'productos en inventario')+
-    _kpiCard('Stock crítico',criticos.length,'bajo el mínimo','var(--red-alert)')+
-    _kpiCard('Sin stock',sinStock.length,'sin unidades disponibles','#D4A820')+
-    _kpiCard('Gasto compras','$'+gastoMes.toLocaleString('es-AR'),mesISO);
-
-  _destroyChart('rep-st-gasto');
-  const ctx1=document.getElementById('rep-st-chart-gasto')?.getContext('2d');
-  if(ctx1){ _chartInstances['rep-st-gasto']=new Chart(ctx1,{ type:'bar', data:{ labels:mesesLbls, datasets:[{ label:'Gasto ($)', data:mesesGasto, backgroundColor:'rgba(180,150,100,0.7)', borderColor:'#B49664', borderWidth:2, borderRadius:4 }] }, options:{ responsive:true, plugins:{legend:{display:false}}, scales:{ y:{beginAtZero:true,ticks:{font:{size:11},callback:v=>'$'+v.toLocaleString('es-AR')}}, x:{ticks:{font:{size:11}}} } } }); }
-
-  // Stock crítico bar chart
-  const topCrit=criticos.slice(0,10);
-  _destroyChart('rep-st-critico');
-  const ctx2=document.getElementById('rep-st-chart-critico')?.getContext('2d');
-  if(ctx2&&topCrit.length){ _chartInstances['rep-st-critico']=new Chart(ctx2,{ type:'bar', indexAxis:'y', data:{ labels:topCrit.map(s=>s.nombre||s.producto||''), datasets:[{ label:'Disponible', data:topCrit.map(s=>s.cantidad||0), backgroundColor:'rgba(192,57,43,0.6)', borderColor:'#c0392b', borderWidth:2, borderRadius:3 }, { label:'Mínimo', data:topCrit.map(s=>s.minimo||0), backgroundColor:'rgba(101,130,90,0.3)', borderColor:'#65825A', borderWidth:2, borderRadius:3 }] }, options:{ responsive:true, plugins:{legend:{labels:{font:{size:11}}}}, scales:{ x:{beginAtZero:true,ticks:{font:{size:11}}}, y:{ticks:{font:{size:10}}} } } }); }
-  else if(ctx2){ ctx2.canvas.parentElement.innerHTML+='<div style="text-align:center;color:var(--green-ok);padding:20px;font-size:12px">Sin ítems críticos</div>'; }
-
-  document.getElementById('rep-st-tabla').innerHTML=criticos.length?`<div class="table-wrapper"><table class="stock-table">
-    <thead><tr><th>Producto</th><th>Disponible</th><th>Mínimo</th><th>Diferencia</th></tr></thead>
-    <tbody>${criticos.map(s=>`<tr><td><strong>${esc(s.nombre||s.producto||'')}</strong></td><td style="color:var(--red-alert)">${s.cantidad}</td><td>${s.minimo}</td><td style="color:var(--red-alert)">−${s.minimo-s.cantidad}</td></tr>`).join('')}</tbody>
-  </table></div>`:'';
-}
-
-function exportReporteStock(){
-  const rows=[['Producto','Categoría','Cantidad','Mínimo','Estado']];
-  (window.stockData||[]).forEach(s=>rows.push([s.nombre||s.producto||'',s.categoria||'',s.cantidad||0,s.minimo||0,s.cantidad<=(s.minimo||0)?'CRÍTICO':'OK']));
-  _downloadCSV(rows,'reporte-stock.csv');
-}
-
-
 // ── COSTO DEL HOTEL POR MES ───────────────────────────────────────────────────
 // Compras de florería de las áreas del hotel (sin eventos), por arreglo y total.
 function _costoHotelActual(){
@@ -12519,80 +12400,6 @@ function exportCostoHotel(){
   });
   rows.push(['TOTAL HOTEL','','','','','',total]);
   _downloadCSV(rows,`costo-hotel-${mes}.csv`);
-}
-
-// ── DASHBOARD DE MARGEN ───────────────────────────────────────────────────────
-function renderDashboardMargen(){
-  const mesISO = document.getElementById('margen-mes')?.value || TODAY_ISO.slice(0,7);
-  _repMeses('margen-mes');
-
-  const ventas = (window.ventasData||[]).filter(v => (v.fecha||'').slice(0,7) === mesISO);
-  const compras = [
-    ...(window.comprasFlore||[]),
-    ...(window.comprasJard||[])
-  ].filter(c => (c.fecha||'').slice(0,7) === mesISO && !c.anulado);
-
-  const parseMon = parseMoney;
-
-  const totalVentas = ventas.reduce((s,v) => s + parseMon(v.monto||v.total), 0);
-  const totalCompras = compras.reduce((s,c) => s + _compraImporte(c), 0);
-  const margenBruto = totalVentas - totalCompras;
-  const pct = totalVentas > 0 ? ((margenBruto / totalVentas) * 100).toFixed(1) : 0;
-
-  // KPIs
-  const kpiEl = document.getElementById('margen-kpis');
-  if(kpiEl) kpiEl.innerHTML = [
-    _kpiCard('Ventas del mes', '$'+totalVentas.toLocaleString('es-AR'), ventas.length+' transacciones', 'var(--green-ok)'),
-    _kpiCard('Compras / Costos', '$'+totalCompras.toLocaleString('es-AR'), compras.length+' registros', 'var(--red-alert)'),
-    _kpiCard('Margen Bruto', '$'+margenBruto.toLocaleString('es-AR'), pct+'% del total vendido', margenBruto>=0?'var(--green-ok)':'var(--red-alert)'),
-    _kpiCard('% Margen', pct+'%', margenBruto>=0?'Rentable ✓':'Déficit ', margenBruto>=0?'var(--green-ok)':'var(--amber)'),
-  ].join('');
-
-  // Desglose ventas por tipo
-  const porTipo = {};
-  ventas.forEach(v => {
-    const t = v.tipo||v.categoria||'Otros';
-    if(!porTipo[t]) porTipo[t] = 0;
-    porTipo[t] += parseMon(v.monto||v.total);
-  });
-
-  // Desglose compras por sector
-  const porSector = {};
-  compras.forEach(c => {
-    const s = c.sector||c.tipo||'General';
-    if(!porSector[s]) porSector[s] = 0;
-    porSector[s] += _compraImporte(c);
-  });
-
-  const tablaEl = document.getElementById('margen-tabla');
-  if(tablaEl) tablaEl.innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px">
-      <div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;padding:16px">
-        <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:12px;font-weight:500">Ventas por tipo</div>
-        ${Object.keys(porTipo).length ? Object.entries(porTipo).sort((a,b)=>b[1]-a[1]).map(([t,v])=>`
-          <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--light-gray);font-size:13px">
-            <span>${esc(t)}</span><span style="font-weight:600;color:var(--green-ok)">$${v.toLocaleString('es-AR')}</span>
-          </div>`).join('') : '<div style="color:var(--mid-gray);font-size:13px">Sin ventas registradas</div>'}
-      </div>
-      <div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;padding:16px">
-        <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:12px;font-weight:500">Compras por sector</div>
-        ${Object.keys(porSector).length ? Object.entries(porSector).sort((a,b)=>b[1]-a[1]).map(([s,v])=>`
-          <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--light-gray);font-size:13px">
-            <span>${esc(s)}</span><span style="font-weight:600;color:var(--red-alert)">$${v.toLocaleString('es-AR')}</span>
-          </div>`).join('') : '<div style="color:var(--mid-gray);font-size:13px">Sin compras registradas</div>'}
-      </div>
-    </div>
-    <div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;padding:16px;margin-top:16px">
-      <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:12px;font-weight:500">Barra de margen</div>
-      <div style="background:var(--light-gray);border-radius:8px;height:24px;overflow:hidden;position:relative">
-        <div style="background:var(--green-ok);height:100%;width:${Math.min(100,Math.max(0,+pct))}%;transition:width .5s ease;border-radius:8px;display:flex;align-items:center;justify-content:flex-end;padding-right:8px">
-          <span style="font-size:11px;font-weight:700;color:white">${pct}%</span>
-        </div>
-      </div>
-      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--mid-gray);margin-top:6px">
-        <span>0%</span><span style="color:var(--amber)">Punto de equilibrio</span><span>100%</span>
-      </div>
-    </div>`;
 }
 
 // ── Push Notifications UI ─────────────────────────────────────────────────────
@@ -13678,16 +13485,6 @@ function applyRole(role){
         }
       }
     });
-    // Acceso puntual al Dashboard de Margen (dentro de Reportes) — pedido para
-    // Compras. Se revela SOLO ese sub-ítem del grupo Reportes, no el resto.
-    document.querySelectorAll('.nav-section-label').forEach(label => {
-      if(label.textContent.trim() === 'Reportes') label.style.display = '';
-    });
-    const repHdr = document.querySelector('[data-group-id="grp-rep"]');
-    if(repHdr) repHdr.style.display = '';
-    document.querySelectorAll('.nav-sub-item[data-group="grp-rep"]').forEach(el => {
-      if(el.textContent.trim() === 'Dashboard de Margen') el.style.display = '';
-    });
     // Quick links: solo los relacionados a compras y recepción
     document.querySelectorAll('.quick-link').forEach(ql => {
       const title = ql.querySelector('.quick-link-title')?.textContent || '';
@@ -13695,7 +13492,7 @@ function applyRole(role){
     });
     document.querySelector('[data-group-id="grp-compras"]').style.display = '';
     document.querySelector('[data-group-id="grp-ops"]').style.display = '';
-    setTimeout(()=>{ navigate('compras'); navExpandGroup('grp-compras'); navExpandGroup('grp-rep'); }, 100);
+    setTimeout(()=>{ navigate('compras'); navExpandGroup('grp-compras'); }, 100);
   }
 
   if(role === 'jardinero'){
@@ -16757,7 +16554,7 @@ function generarPresupuestoPDF(){
 const ONBOARDING_STEPS = {
   gerencia: [
     { title:'Bienvenido al Panel de Gerencia', body:'Desde acá tenés visibilidad completa de operaciones, equipo, ventas, reportes y más. Usá el menú lateral para navegar entre secciones.', icon:'' },
-    { title:'Reportes & Auditoría', body:'En Reportes encontrás análisis de equipo, ventas, márgenes y auditoría de cambios. Todo se actualiza en tiempo real desde Firebase.', icon:'' },
+    { title:'Reportes & Auditoría', body:'En Reportes encontrás análisis de equipo, cierre del día, ventas y costo del hotel. Todo se actualiza en tiempo real desde Firebase.', icon:'' },
     { title:'Cierre de Caja', body:'Desde Control de Caja podés cerrar el día y archivar el resumen. El historial queda registrado con quién hizo el cierre.', icon:'' },
     { title:'Búsqueda global', body:'Usá Ctrl+K para buscar rápidamente en stock, ventas, eventos, glosario y páginas desde cualquier lugar de la app.', icon:'' },
   ],
@@ -18809,64 +18606,6 @@ if(!_isInStandalone){
 }
 
 // ════════════════════════════════════════
-// FEATURE 2: PANTALLA TV / MODO DASHBOARD
-// ════════════════════════════════════════
-let _tvInterval = null;
-function toggleTVMode(){
-  const el = document.getElementById('tv-overlay');
-  if(!el) return;
-  const isOn = el.classList.contains('tv-active');
-  if(isOn){
-    el.classList.remove('tv-active');
-    clearInterval(_tvInterval); _tvInterval = null;
-    showToast('Modo TV desactivado');
-  } else {
-    el.classList.add('tv-active');
-    renderTVDashboard();
-    _tvInterval = setInterval(renderTVDashboard, 60000);
-    showToast('Modo TV activado — actualizando cada minuto');
-    if(el.requestFullscreen) el.requestFullscreen().catch(()=>{});
-  }
-}
-
-function renderTVDashboard(){
-  const el = document.getElementById('tv-content');
-  if(!el) return;
-  const today = TODAY_ISO;
-  const evHoy = (eventosData||[]).filter(e=>e.fecha===today).length;
-  const evMes = (eventosData||[]).filter(e=>e.fecha&&e.fecha.startsWith(CURR_MONTH)).length;
-  const ventasMes = (ventasData||[]).filter(v=>v.fecha&&v.fecha.startsWith(CURR_MONTH)).reduce((s,v)=>s+parseMoney(v.monto||v.total||0),0);
-  const stockBajos = (stockData||[]).filter(s=>(s.cantidad||0)<=(s.min||0)).length;
-  const pedidos = (pedidosHabData||[]).filter(p=>p.estado==='pendiente').length;
-  const now = new Date();
-  el.innerHTML = `
-    <div class="tv-header">
-      <div class="tv-logo">Florería Duhau · Park Hyatt Buenos Aires</div>
-      <div class="tv-clock">${now.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})} · ${now.toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'})}</div>
-    </div>
-    <div class="tv-kpis">
-      <div class="tv-kpi"><div class="tv-kpi-val">${evHoy}</div><div class="tv-kpi-lbl">Eventos hoy</div></div>
-      <div class="tv-kpi"><div class="tv-kpi-val">${evMes}</div><div class="tv-kpi-lbl">Eventos este mes</div></div>
-      <div class="tv-kpi"><div class="tv-kpi-val">$${ventasMes.toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:0})}</div><div class="tv-kpi-lbl">Ventas del mes</div></div>
-      <div class="tv-kpi ${stockBajos>0?'tv-kpi-alert':''}"><div class="tv-kpi-val">${stockBajos}</div><div class="tv-kpi-lbl">Stock bajo mínimo</div></div>
-      <div class="tv-kpi ${pedidos>0?'tv-kpi-alert':''}"><div class="tv-kpi-val">${pedidos}</div><div class="tv-kpi-lbl">Pedidos habitación pendientes</div></div>
-    </div>
-    <div class="tv-eventos">
-      <div class="tv-section-title">Próximos eventos</div>
-      <div class="tv-ev-grid">${(eventosData||[]).filter(e=>e.fecha>=today).sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')).slice(0,6).map(e=>`
-        <div class="tv-ev-card">
-          <div class="tv-ev-date">${fmtDate(e.fecha)}</div>
-          <div class="tv-ev-title">${esc(e.titulo||e.nombre||'Evento')}</div>
-          <div class="tv-ev-zona">${esc(e.zona||e.lugarEvento||'')}</div>
-        </div>`).join('')||'<div style="color:#888;padding:20px">Sin eventos próximos</div>'}
-      </div>
-    </div>
-    <div class="tv-footer">
-      <button onclick="toggleTVMode()" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:8px 20px;border-radius:8px;cursor:pointer;font-size:14px">✕ Salir modo TV</button>
-    </div>`;
-}
-
-// ════════════════════════════════════════
 // FEATURE 4: SEGUIMIENTO DE PRESUPUESTOS
 // ════════════════════════════════════════
 let presupuestosData = [];
@@ -19840,64 +19579,6 @@ function verCierreMensual(idx){
 function exportCierrePDF(idx){ verCierreMensual(idx); }
 
 // ════════════════════════════════════════
-// FEATURE 6: DASHBOARD UNIFICADO DE GERENCIA
-// ════════════════════════════════════════
-let _dashGerTimer = null;
-function renderDashboardGerencia(){
-  const el = document.getElementById('dash-ger-body');
-  if(!el) return;
-  const mes = CURR_MONTH;
-  const ventas = (ventasData||[]).filter(v=>v.fecha&&v.fecha.startsWith(mes));
-  const tvMes = ventas.reduce((s,v)=>s+parseMoney(v.monto||v.total||0),0);
-  const compras = [...(comprasFlore||[]),...(comprasJard||[])].filter(c=>c.fecha&&c.fecha.startsWith(mes)&&!c.anulado);
-  const tcMes = compras.reduce((s,c)=>s+_compraImporte(c),0);
-  const evMes = (eventosData||[]).filter(e=>e.fecha&&e.fecha.startsWith(mes));
-  const evHoy = (eventosData||[]).filter(e=>e.fecha===TODAY_ISO);
-  const stockBajos = (stockData||[]).filter(s=>(s.cantidad||0)<=(s.min||0));
-  const pedPend = (pedidosHabData||[]).filter(p=>p.estado==='pendiente');
-  const clientes = (clientesData||[]).length;
-  const presupuestos = (presupuestosData||[]).filter(p=>p.fecha&&p.fecha.startsWith(mes));
-  const presAceptados = presupuestos.filter(p=>p.estado==='aceptado');
-  const conversion = presupuestos.length ? Math.round(presAceptados.length/presupuestos.length*100) : 0;
-  const margen = tvMes > 0 ? Math.round((tvMes-tcMes)/tvMes*100) : 0;
-  el.innerHTML = `
-    <div class="dash-ger-update">Última actualización: ${new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})} · <button class="btn-secondary" style="font-size:11px" onclick="renderDashboardGerencia()">Actualizar</button></div>
-    <div class="dash-ger-grid">
-      <div class="dash-ger-section">
-        <div class="dash-ger-title">Finanzas del mes</div>
-        <div class="kpi-grid-mini">
-          <div class="kpi-card"><div class="kpi-val green">$${tvMes.toLocaleString('es-AR',{minimumFractionDigits:0})}</div><div class="kpi-lbl">Ventas del mes</div></div>
-          <div class="kpi-card"><div class="kpi-val">$${tcMes.toLocaleString('es-AR',{minimumFractionDigits:0})}</div><div class="kpi-lbl">Compras del mes</div></div>
-          <div class="kpi-card"><div class="kpi-val ${margen>=30?'green':margen>=15?'amber':'red'}">%${margen}</div><div class="kpi-lbl">Margen bruto</div></div>
-          <div class="kpi-card"><div class="kpi-val">$${(tvMes-tcMes).toLocaleString('es-AR',{minimumFractionDigits:0})}</div><div class="kpi-lbl">Resultado</div></div>
-        </div>
-      </div>
-      <div class="dash-ger-section">
-        <div class="dash-ger-title">Operaciones</div>
-        <div class="kpi-grid-mini">
-          <div class="kpi-card"><div class="kpi-val">${evHoy.length}</div><div class="kpi-lbl">Eventos hoy</div></div>
-          <div class="kpi-card"><div class="kpi-val">${evMes.length}</div><div class="kpi-lbl">Eventos del mes</div></div>
-          <div class="kpi-card ${pedPend.length>0?'kpi-alert':''}"><div class="kpi-val">${pedPend.length}</div><div class="kpi-lbl">Pedidos hab. pendientes</div></div>
-          <div class="kpi-card ${stockBajos.length>0?'kpi-alert':''}"><div class="kpi-val">${stockBajos.length}</div><div class="kpi-lbl">Stock bajo mínimo</div></div>
-        </div>
-      </div>
-      <div class="dash-ger-section">
-        <div class="dash-ger-title">Comercial</div>
-        <div class="kpi-grid-mini">
-          <div class="kpi-card"><div class="kpi-val">${ventas.length}</div><div class="kpi-lbl">Ventas del mes</div></div>
-          <div class="kpi-card"><div class="kpi-val">${presupuestos.length}</div><div class="kpi-lbl">Presupuestos enviados</div></div>
-          <div class="kpi-card"><div class="kpi-val">${conversion}%</div><div class="kpi-lbl">Tasa conversión</div></div>
-          <div class="kpi-card"><div class="kpi-val">${clientes}</div><div class="kpi-lbl">Clientes en CRM</div></div>
-        </div>
-      </div>
-    </div>
-    ${stockBajos.length>0?`<div class="dash-ger-alert"><strong>Stock bajo mínimo:</strong> ${stockBajos.slice(0,5).map(s=>`${esc(s.prod)} (${s.cantidad}/${s.min})`).join(', ')}${stockBajos.length>5?` y ${stockBajos.length-5} más...`:''}</div>`:''}
-    ${pedPend.length>0?`<div class="dash-ger-alert"><strong>Pedidos pendientes:</strong> ${pedPend.length} pedido(s) de habitación esperando atención.</div>`:''}`;
-  if(_dashGerTimer) clearInterval(_dashGerTimer);
-  _dashGerTimer = setInterval(renderDashboardGerencia, 300000);
-}
-
-// ════════════════════════════════════════
 // FEATURE 7: EXPORTACIÓN A EXCEL (.xlsx)
 // ════════════════════════════════════════
 function _xlsxDownload(wb, filename){
@@ -19950,37 +19631,6 @@ function exportVentasXLSX(){
   X.utils.book_append_sheet(wb, ws, 'Ventas');
   _xlsxDownload(wb, `ventas-${fMes}.xlsx`);
   showToast('Exportado: ventas-'+fMes+'.xlsx ('+rows.length+' ventas)');
-}
-
-function exportComprasXLSX(){
-  const X = window.XLSX;
-  if(!X){ showToast('Error: XLSX no disponible'); return; }
-  const mes = CURR_MONTH;
-  const rows = [...(comprasFlore||[]),...(comprasJard||[])].filter(c=>c.fecha&&c.fecha.startsWith(mes)).map(c=>({
-    Fecha: c.fecha||'', Proveedor: c.prov||'', Producto: c.prod||'', Cantidad: c.qty||1,
-    'Precio unit.': parseMoney(c.costo||0), Importe: _compraImporte(c), Estado: c.anulado ? 'anulado' : (c.estado||''), Sector: c.sector||'', Evento: c.evento||'', Notas: c.notas||c.desc||''
-  }));
-  if(!rows.length){ showToast('Sin compras para exportar este mes'); return; }
-  const ws = X.utils.json_to_sheet(rows);
-  const wb = X.utils.book_new();
-  X.utils.book_append_sheet(wb, ws, 'Compras');
-  _xlsxDownload(wb, `compras-${mes}.xlsx`);
-  showToast('Exportado: compras-'+mes+'.xlsx');
-}
-
-function exportStockXLSX(){
-  const X = window.XLSX;
-  if(!X){ showToast('Error: XLSX no disponible'); return; }
-  const rows = (stockData||[]).map(s=>({
-    Producto: s.prod||'', Categoría: s.cat||s.categoria||'', Cantidad: s.cantidad||0,
-    Mínimo: s.min||0, Máximo: s.max||0, Unidad: s.unidad||'', Proveedor: s.prov||''
-  }));
-  if(!rows.length){ showToast('Sin datos de stock para exportar'); return; }
-  const ws = X.utils.json_to_sheet(rows);
-  const wb = X.utils.book_new();
-  X.utils.book_append_sheet(wb, ws, 'Stock');
-  _xlsxDownload(wb, `stock-${TODAY_ISO}.xlsx`);
-  showToast('Exportado: stock-'+TODAY_ISO+'.xlsx');
 }
 
 function exportLegajoXLSX(){
@@ -20155,11 +19805,11 @@ Object.assign(window, {
   renderLPenCotizador, renderListaPrecios,
   renderPedidosHab, renderPeriodTabs, renderPlantilla, renderPreciosList, renderProductividad,
   renderProductividadHome, renderProductividadCL, renderProductividadHorarios, renderProvTags, renderRamosDisp, renderRecepcionPedidos,
-  renderRecetas, seedComposicionesBase, seedComposicionesHotelBase, setCompTab, renderComposicionesHotel, compHotelAdd, delArregloComposicion, renderReportesEquipo, renderReportesVentas, renderReportesStock, renderCostoHotel, exportCostoHotel, openFichaEmpleado,
+  renderRecetas, seedComposicionesBase, seedComposicionesHotelBase, setCompTab, renderComposicionesHotel, compHotelAdd, delArregloComposicion, renderReportesEquipo, renderReportesVentas, renderCostoHotel, exportCostoHotel, openFichaEmpleado,
   renderCierreDia, initCierreDia, renderCdPersona, cdPersonaRango,
   renderFloreros, openFloreroModal, guardarFlorero, delFlorero, florAjustar, florFotoPreview, cambiarFotoFlorero, openFlorFoto,
   renderVelas, openVelaModal, guardarVela, delVela, velaAjustar, velaFotoPreview, cambiarFotoVela, openVelaFoto,
-  exportReporteEquipo, exportReporteVentas, exportReporteStock,
+  exportReporteEquipo, exportReporteVentas,
   openPushNotifModal, enviarPushNotif, initPushForUser,
   renderCalendario, calPrevMonth, calNextMonth,
   renderProveedores, openProveedorModal, guardarProveedor, eliminarProveedor,
@@ -20176,7 +19826,7 @@ Object.assign(window, {
   showToast, syncEventosToKanban, toggleCtrlSection, toggleEvZona, toggleHistorialCompras, toggleHistPedido,
   toggleHistory, toggleInsumosGrid, toggleJordProd, togglePlantilla, toggleProductividad,
   toggleDarkMode, initDarkMode, openGlobalSearch, closeGlobalSearch, handleSearchKey, runGlobalSearch, _gsearchGo, exportPDF,
-  renderAuditoria, cerrarCajaDia, renderCierreCajaHistorial, toggleCierreDetalle, renderDashboardMargen,
+  cerrarCajaDia, renderCierreCajaHistorial, toggleCierreDetalle,
   renderSucursales, openNuevaSucursalModal, openEditSucursal, guardarSucursal, toggleSucursalActiva, eliminarSucursal,
   renderDashboardConsolidado, renderSucursalSelector, renderSucursalIndicador, getSucursalId, getSucursalNombre, filterBySucursal,
   renderClientes, abrirFichaCliente, openNuevoClienteModal, editarCliente, guardarCliente, eliminarCliente,
@@ -20200,14 +19850,13 @@ Object.assign(window, {
   renderPrecioComparacion, buscarComparacion,
   calcStockMinInteligente, renderStockSugerencias, aplicarSugerenciaStock,
   renderCompraFiltersPanel, toggleCompraFilters, applyCompraFiltersExt, clearCompraFiltersExt,
-  installPWA, toggleTVMode, renderTVDashboard,
+  installPWA,
   renderPresupuestos, openPresupuestoModal, guardarPresupuesto, cambiarEstadoPres, eliminarPresupuesto,
   verPresupuesto, enviarPresupuestoWhatsApp,
   renderCotizarPresupuesto, cpAddArr, cpRemoveArr, cpSetArr, cpAddFree, cpRemoveFree, cpSetFree, cpReset, cpGuardar,
   renderEventosSinFloreria, openEsfModal, guardarEsf, eliminarEsf, exportEsfReclamo,
   renderCierreMensual, generarCierreMensual, verCierreMensual, exportCierrePDF,
-  renderDashboardGerencia,
-  exportVentasXLSX, exportComprasXLSX, exportStockXLSX, exportLegajoXLSX, ventasShowMore, auditShowMore,
+  exportVentasXLSX, exportLegajoXLSX, ventasShowMore,
   toggleCfSplit, cfSplitAddRow, cfSplitRemoveRow, cfSplitUpdRow,
   cfImportFile, cfImportCancel, cfImportParseSheet, cfImportConfirm,
   toggleAnularCompra, updHistCantCompra, updHistCostoCompra,
