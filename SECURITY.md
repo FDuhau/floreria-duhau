@@ -93,3 +93,19 @@ alcance porque cambia cómo ingresa el personal):
 2. Guardar el rol en `/users/{uid}` y reescribir las reglas por rol, por ejemplo:
    - `caja`, `liquidacion`, `legajo`, `evaluaciones` → solo `gerencia`.
    - El resto, lectura/escritura según corresponda al rol.
+
+## Ingreso por el Worker (etapa 2 del plan de autenticación)
+
+El código del personal se valida en el Worker de Cloudflare (`POST /api/login`,
+`worker/login.js`), que devuelve un token de Firebase con el rol firmado
+(`auth.token.role`). Las reglas de la base todavía NO lo exigen: conviven el
+ingreso nuevo y el viejo (si el Worker no está listo, la app entra como antes).
+
+Para activarlo (una sola vez):
+
+1. Firebase → Configuración del proyecto → Cuentas de servicio → "Generar nueva
+   clave privada" (baja un archivo JSON).
+2. Cloudflare → Workers & Pages → floreria-duhau → Settings → Variables and
+   Secrets → Add → tipo **Secret**, nombre `FIREBASE_SERVICE_ACCOUNT`, valor =
+   todo el contenido del JSON. No subirlo nunca al repo.
+3. Probar que gerencia y el resto entran normalmente.

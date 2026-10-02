@@ -14542,12 +14542,29 @@ function mostrarResumenSemanal(retry=0, force=false){
     'resumen-semanal', 'roles:gerencia');
 }
 
+// Ingreso por el servicio de Cloudflare: valida el código y devuelve un token
+// de Firebase con el rol. Si el servicio no está listo (503, sin red) o no
+// reconoce el código, devuelve null y el ingreso sigue como antes.
+async function loginEnServidor(code){
+  try{
+    const r = await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ code }) });
+    if(!r.ok) return null;
+    const d = await r.json();
+    if(!d?.token || !d?.entry || !window.fbSignInWithToken) return null;
+    await window.fbSignInWithToken(d.token);
+    return { entry: { ...d.entry }, id: d.id };
+  }catch(e){
+    console.warn('Ingreso por servidor no disponible:', e?.message || e);
+    return null;
+  }
+}
+
 async function doLogin(){
   const inp = document.getElementById('login-input');
   const err = document.getElementById('login-error');
   const val = inp.value.trim();
   if(!val) return;
-  const found = await verificarLogin(val);
+  const found = (await loginEnServidor(val)) || await verificarLogin(val);
   if(found){
     const entry = found.entry;
     if(!loginAuth) currentLoginKey = val.trim().toLowerCase(); // modo viejo: cambio de contraseña propia
