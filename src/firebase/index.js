@@ -235,6 +235,15 @@
     window.addEventListener('offline', () => { clearTimeout(_offlineTimer); _isConnected = false; _renderStatus(); });
     // Al volver online dejamos que .info/connected confirme la sincronización real.
 
+    // Las escrituras en cola viven solo en memoria: si se cierra o recarga la
+    // página antes de que vuelva la señal, se pierden. Avisamos antes de salir.
+    window.addEventListener('beforeunload', e => {
+      if(_pendingWrites > 0 && !_isConnected){
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    });
+
     // ── Expose to global scope so non-module script can call them ─
     window.fbSet     = fbSet;
     window.fbSetPath = fbSetPath;
