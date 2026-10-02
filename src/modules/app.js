@@ -1,5 +1,6 @@
 import { esc, parseMoney, fmtDate, fmtDateTime } from './utils.js';
 import { _evStripAcc, _evParseEvents, _evToEvento } from './daily-import.js';
+import { crearSync, aLista, aplicarOps, mismaLista } from './eventos-sync.js';
 import { compraCant, compraImporte, resumenCompras, cajaSigned, saldosCaja, horasExtra, margenDeVenta, ingVaras } from './dinero.js';
 
 // ════════════════════════════════════════
@@ -277,17 +278,20 @@ function fbSave(key, data){
     const plain = _fotosParaGuardar(key, JSON.parse(JSON.stringify(data)));
     // Solo viaja lo que cambió (ver fbSaveSmart en firebase/index.js)
     if(window.fbSaveSmart) window.fbSaveSmart(key, plain); else window.fbSet(key, plain);
-    // Auditoría automática (excluir los propios logs y datos de sesión)
-    const AUDIT_SKIP = ['auditLog','pushTokens','pushBroadcast','loginPasswords','loginAuth','pushSubs'];
-    if(!AUDIT_SKIP.includes(key) && window.currentUserLabel){
-      const entry = {
-        ts: Date.now(),
-        iso: new Date().toISOString(),
-        user: window.currentUserLabel,
-        key
-      };
-      window.fbSet('auditLog/' + entry.ts, entry);
-    }
+    _auditarGuardado(key);
+  }
+}
+// Auditoría automática (excluir los propios logs y datos de sesión)
+function _auditarGuardado(key){
+  const AUDIT_SKIP = ['auditLog','pushTokens','pushBroadcast','loginPasswords','loginAuth','pushSubs'];
+  if(!AUDIT_SKIP.includes(key) && window.currentUserLabel && window.fbSet){
+    const entry = {
+      ts: Date.now(),
+      iso: new Date().toISOString(),
+      user: window.currentUserLabel,
+      key
+    };
+    window.fbSet('auditLog/' + entry.ts, entry);
   }
 }
 
@@ -5421,10 +5425,50 @@ let eventosData = [];
 // Persiste eventosData marcando el momento del guardado. El listener de Firebase
 // usa ese timestamp para NO pisar una edición recién hecha con una sincronización
 // que llega justo después (mismo patrón que compras y checklist).
+//
+// Guardado por CAMBIOS (src/modules/eventos-sync.js): en vez de escribir la lista
+// completa (y pisar lo que otro dispositivo guardó a la vez), se calcula qué
+// eventos se agregaron/borraron/modificaron y se aplican sobre la versión más
+// nueva del servidor con una transacción. Si todavía no se sabe qué hay en el
+// servidor, o hay eventos sin id, se guarda a la antigua.
+const _evSync = crearSync();
+let _evCola = Promise.resolve();   // los lotes se envían de a uno, en orden
+let _evAvisoError = false;
 function _saveEventos(){
   window._eventosDataLastSave = Date.now();
-  fbSave('eventosData', eventosData);
+  const lote = (window.fbTransact && window._eventosLoaded) ? _evSync.guardar(eventosData) : null;
+  if(lote === null){ fbSave('eventosData', eventosData); return; }
+  if(!lote.ops.length) return;
+  _evCola = _evCola.then(() => _evEnviarLote(lote));
 }
+async function _evEnviarLote(lote){
+  // Las fotos nuevas viajan aparte (igual que en fbSave)
+  const ops = _fotosParaGuardar('eventosData', JSON.parse(JSON.stringify(lote.ops)));
+  for(let intento = 0; ; intento++){
+    try{
+      await window.fbTransact('eventosData', cur => {
+        const nueva = aplicarOps(aLista(cur), ops);
+        return mismaLista(nueva, cur) ? undefined : nueva;  // nada que escribir
+      });
+      _evSync.confirmar(lote);
+      _evAvisoError = false;
+      _auditarGuardado('eventosData');
+      return;
+    }catch(e){
+      console.warn('No se pudo guardar eventos, reintento', e);
+      if(!_evAvisoError){ _evAvisoError = true; showToast('No se pudo guardar el cambio en eventos. Sigo intentando — no cierres la app.','error'); }
+      await new Promise(r => setTimeout(r, Math.min(60000, 3000 * 2 ** intento)));
+    }
+  }
+}
+// Llega la lista del servidor: se le suman los cambios locales aún sin confirmar.
+// Devuelve true si cambió lo que hay en pantalla.
+window._eventosFromServer = (arr) => {
+  const local = _evSync.desdeServidor(arr);
+  if(mismaLista(local, eventosData)) return false;
+  eventosData = local;
+  return true;
+};
 
 const ESTADO_COLORS={
   'Pedidos Pendientes':'background:#E8E4DC;color:#4A4A4A',
