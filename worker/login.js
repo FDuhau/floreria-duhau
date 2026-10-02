@@ -19,12 +19,12 @@ function bytesToB64(buf) {
   return btoa(s);
 }
 
-// Igual que hashPassword de la app: sin espacios, sin mayúsculas, PBKDF2 150k.
-export async function hashCode(code, saltB64) {
+// Igual que hashPassword de la app: sin espacios, sin mayúsculas, PBKDF2 (150k vueltas si el hash no trae `iter`; el Worker admite hasta 100k).
+export async function hashCode(code, saltB64, iter = 150000) {
   const norm = String(code).trim().toLowerCase();
   const keyMat = await crypto.subtle.importKey('raw', new TextEncoder().encode(norm), 'PBKDF2', false, ['deriveBits']);
   const bits = await crypto.subtle.deriveBits(
-    { name: 'PBKDF2', salt: b64ToBytes(saltB64), iterations: 150000, hash: 'SHA-256' },
+    { name: 'PBKDF2', salt: b64ToBytes(saltB64), iterations: iter, hash: 'SHA-256' },
     keyMat,
     256,
   );
@@ -35,7 +35,9 @@ export async function hashCode(code, saltB64) {
 export async function buscarUsuario(code, loginAuth) {
   for (const [id, e] of Object.entries(loginAuth || {})) {
     if (!e || !e.salt || !e.hash) continue;
-    if ((await hashCode(code, e.salt)) === e.hash) return { id, entry: e };
+    const iter = e.iter || 150000;
+    if (iter > 100000) continue; // el Worker no puede calcularlo: la app lo actualiza al entrar
+    if ((await hashCode(code, e.salt, iter)) === e.hash) return { id, entry: e };
   }
   return null;
 }
