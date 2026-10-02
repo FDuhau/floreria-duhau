@@ -115,6 +115,7 @@
     <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('cierre-dia',this)">Cierre del Día</div>
     <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('reportes-ventas',this)">Ventas & Comercial</div>
     <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('reportes-stock',this)">Stock & Compras</div>
+    <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('reportes-hotel',this)">Costo del Hotel</div>
     <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('reportes-margen',this)">Dashboard de Margen</div>
     <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('auditoria',this)">Auditoría de Cambios</div>
     <div class="nav-sub-item nav-gerencia-only" data-group="grp-rep" style="display:none" onclick="navigate('dashboard-gerencia',this)">Dashboard Gerencia</div>
@@ -2602,6 +2603,21 @@
       </div>
     </div>
     <div id="rep-st-tabla"></div>
+  </div>
+
+  <!-- ══════ REPORTES — COSTO DEL HOTEL ══════ -->
+  <div id="page-reportes-hotel" class="content">
+    <div class="page-header">
+      <div class="page-title">Reportes · Costo del Hotel</div>
+      <div class="page-subtitle">Compras de cada arreglo del hotel en el mes, sin eventos</div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;align-items:center">
+      <select class="form-input" id="hotel-mes" onchange="renderCostoHotel()" style="width:160px;padding:6px 10px;font-size:13px"></select>
+      <button class="btn-secondary" onclick="exportCostoHotel()" style="font-size:12px;padding:6px 14px">⬇ Exportar CSV</button>
+      <button class="btn-print" onclick="exportPDF('Costo del Hotel')">Imprimir / PDF</button>
+    </div>
+    <div id="hotel-kpis" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:24px"></div>
+    <div id="hotel-tabla"></div>
   </div>
 
   <!-- ══════ DASHBOARD DE MARGEN ══════ -->

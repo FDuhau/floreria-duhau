@@ -1,7 +1,7 @@
 import { esc, parseMoney, fmtDate, fmtDateTime } from './utils.js';
 import { _evStripAcc, _evParseEvents, _evToEvento } from './daily-import.js';
 import { crearSync, aLista, aplicarOps, mismaLista } from './eventos-sync.js';
-import { compraCant, compraImporte, resumenCompras, cajaSigned, saldosCaja, horasExtra, margenDeVenta, ingVaras } from './dinero.js';
+import { compraCant, compraImporte, resumenCompras, cajaSigned, saldosCaja, horasExtra, margenDeVenta, ingVaras, costoHotelMes } from './dinero.js';
 
 // ════════════════════════════════════════
 // CONTROL DE VERSIÓN — auto-limpieza de datos locales viejos
@@ -412,7 +412,7 @@ const PAGE_LABELS = {control:'Control','control-jardineria':'Control › Seguimi
   'control-horarios':'Recursos Humanos › Horarios y Productividad',
   'recetas-arreglos':'Comercial › Composiciones',
   reportes:'Reportes', 'reportes-equipo':'Reportes › Equipo & Horarios',
-  'reportes-ventas':'Reportes › Ventas & Comercial', 'reportes-stock':'Reportes › Stock & Compras',
+  'reportes-ventas':'Reportes › Ventas & Comercial', 'reportes-stock':'Reportes › Stock & Compras', 'reportes-hotel':'Reportes › Costo del Hotel',
   'reportes-margen':'Reportes › Dashboard de Margen',
   auditoria:'Auditoría de Cambios',
   'crm-clientes':'CRM · Clientes',
@@ -549,7 +549,7 @@ function navigate(pageId, navEl){
   // Compras tiene acceso SOLO al Dashboard de Margen dentro de Reportes: si
   // intenta abrir el hub de Reportes o cualquier otro reporte, se lo lleva al
   // de margen (el único que se le habilitó).
-  if(userRole === 'compras' && ['reportes','reportes-equipo','cierre-dia','reportes-ventas','reportes-stock','auditoria','dashboard-gerencia'].includes(pageId)) pageId = 'reportes-margen';
+  if(userRole === 'compras' && ['reportes','reportes-equipo','cierre-dia','reportes-ventas','reportes-stock','reportes-hotel','auditoria','dashboard-gerencia'].includes(pageId)) pageId = 'reportes-margen';
   document.querySelectorAll('.content').forEach(p=>p.classList.remove('active'));
   const pg = document.getElementById('page-'+pageId);
   if(pg) pg.classList.add('active');
@@ -596,6 +596,7 @@ function navigate(pageId, navEl){
   if(pageId==='cierre-dia') initCierreDia();
   if(pageId==='reportes-ventas') renderReportesVentas();
   if(pageId==='reportes-stock') renderReportesStock();
+  if(pageId==='reportes-hotel') renderCostoHotel();
   if(pageId==='reportes-margen') renderDashboardMargen();
   if(pageId==='auditoria'){ window.fbEnsure?.('auditLog'); renderAuditoria(); }
   if(pageId==='crm-clientes') renderClientes();
@@ -12473,6 +12474,53 @@ function exportReporteStock(){
 }
 
 
+// ── COSTO DEL HOTEL POR MES ───────────────────────────────────────────────────
+// Compras de florería de las áreas del hotel (sin eventos), por arreglo y total.
+function _costoHotelActual(){
+  const mes = document.getElementById('hotel-mes')?.value || TODAY_ISO.slice(0,7);
+  return { mes, ...costoHotelMes(window.comprasFlore||comprasFlore||[], mes) };
+}
+function renderCostoHotel(){
+  _repMeses('hotel-mes');
+  const { areas, total, sinArea } = _costoHotelActual();
+  const fmt = n => '$' + Math.round(n).toLocaleString('es-AR');
+  const kpis = document.getElementById('hotel-kpis');
+  if(kpis) kpis.innerHTML =
+    _kpiCard('Total hotel', fmt(total), 'compras del mes, sin eventos') +
+    _kpiCard('Arreglos / áreas', areas.length, 'con compras en el mes');
+  const cont = document.getElementById('hotel-tabla');
+  if(!cont) return;
+  const aviso = sinArea.length
+    ? `<div style="background:#FFF6E0;border:1px solid #E8D28A;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12.5px">${sinArea.length} compra(s) del mes no tienen área cargada, por eso no se suman al hotel (${fmt(sinArea.reduce((s,r)=>s+_compraImporte(r),0))}). Asignales un área en Compras Florería si son del hotel.</div>`
+    : '';
+  if(!areas.length){
+    cont.innerHTML = aviso + '<div style="text-align:center;padding:40px;color:var(--mid-gray)">No hay compras del hotel en este mes.</div>';
+    return;
+  }
+  cont.innerHTML = aviso + areas.map(a=>`
+    <div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;padding:14px 16px;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;font-weight:700;margin-bottom:8px"><span>${esc(a.area)}</span><span>${fmt(a.total)}</span></div>
+      <table style="width:100%;font-size:12.5px;border-collapse:collapse">
+        ${a.lineas.slice().sort((x,y)=>(x.fecha||'').localeCompare(y.fecha||'')).map(r=>`<tr style="border-top:1px solid var(--light-gray)">
+          <td style="padding:4px 6px;white-space:nowrap">${esc(r.fecha||'')}</td>
+          <td style="padding:4px 6px">${esc(r.prod||'')}${r.prov?` <span style="color:var(--mid-gray)">· ${esc(r.prov)}</span>`:''}</td>
+          <td style="padding:4px 6px;text-align:right">${esc(String(r.qty||1))} × ${fmt(parseMoney(r.costo))}</td>
+          <td style="padding:4px 6px;text-align:right;font-weight:600">${fmt(_compraImporte(r))}</td></tr>`).join('')}
+      </table>
+    </div>`).join('') +
+    `<div style="text-align:right;font-size:16px;font-weight:700;padding:6px 4px">Total hotel: ${fmt(total)}</div>`;
+}
+function exportCostoHotel(){
+  const { mes, areas, total } = _costoHotelActual();
+  const rows=[['Área / arreglo','Fecha','Producto','Proveedor','Cantidad','Precio por paquete','Importe']];
+  areas.forEach(a=>{
+    a.lineas.forEach(r=>rows.push([a.area,r.fecha||'',r.prod||'',r.prov||'',r.qty||1,parseMoney(r.costo),_compraImporte(r)]));
+    rows.push([a.area+' — subtotal','','','','','',a.total]);
+  });
+  rows.push(['TOTAL HOTEL','','','','','',total]);
+  _downloadCSV(rows,`costo-hotel-${mes}.csv`);
+}
+
 // ── DASHBOARD DE MARGEN ───────────────────────────────────────────────────────
 function renderDashboardMargen(){
   const mesISO = document.getElementById('margen-mes')?.value || TODAY_ISO.slice(0,7);
@@ -20107,7 +20155,7 @@ Object.assign(window, {
   renderLPenCotizador, renderListaPrecios,
   renderPedidosHab, renderPeriodTabs, renderPlantilla, renderPreciosList, renderProductividad,
   renderProductividadHome, renderProductividadCL, renderProductividadHorarios, renderProvTags, renderRamosDisp, renderRecepcionPedidos,
-  renderRecetas, seedComposicionesBase, seedComposicionesHotelBase, setCompTab, renderComposicionesHotel, compHotelAdd, delArregloComposicion, renderReportesEquipo, renderReportesVentas, renderReportesStock, openFichaEmpleado,
+  renderRecetas, seedComposicionesBase, seedComposicionesHotelBase, setCompTab, renderComposicionesHotel, compHotelAdd, delArregloComposicion, renderReportesEquipo, renderReportesVentas, renderReportesStock, renderCostoHotel, exportCostoHotel, openFichaEmpleado,
   renderCierreDia, initCierreDia, renderCdPersona, cdPersonaRango,
   renderFloreros, openFloreroModal, guardarFlorero, delFlorero, florAjustar, florFotoPreview, cambiarFotoFlorero, openFlorFoto,
   renderVelas, openVelaModal, guardarVela, delVela, velaAjustar, velaFotoPreview, cambiarFotoVela, openVelaFoto,
