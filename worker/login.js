@@ -5,7 +5,7 @@
 // `userRoles/{uid}` (solo el Worker escribe ahí): ese rol es el que las reglas
 // de la base podrán chequear. Sin los secrets (FIREBASE_DB_SECRET y
 // AUTH_PEPPER) responde 503 y la app sigue con el ingreso de antes.
-import { readDb, writeDb, credencialesDe, asegurarCuenta } from './firebase-admin.js';
+import { readDb, writeDb, credencialesDe, asegurarCuenta, idt } from './firebase-admin.js';
 
 const DB_URL = 'https://floreria-duhau-84de5-default-rtdb.firebaseio.com';
 
@@ -77,4 +77,26 @@ export async function handleLogin(request, env) {
 
 function json(obj, status = 200) {
   return new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json' } });
+}
+
+// GET /api/login-estado: chequeo de que todo está configurado. Solo muestra
+// sí/no y códigos de error, nunca valores secretos.
+export async function handleEstado(env) {
+  const out = {
+    secrets: { FIREBASE_DB_SECRET: !!env.FIREBASE_DB_SECRET, AUTH_PEPPER: !!env.AUTH_PEPPER, FIREBASE_API_KEY: !!env.FIREBASE_API_KEY },
+  };
+  try {
+    const la = await readDb(DB_URL, 'loginAuth', env.FIREBASE_DB_SECRET || 'x');
+    out.lecturaLoginAuth = la && Object.keys(la).length ? 'ok' : 'vacio';
+  } catch (e) {
+    out.lecturaLoginAuth = String(e.message || e).slice(0, 60);
+  }
+  try {
+    // Un correo que no existe: si la clave y el proveedor están bien, responde EMAIL_NOT_FOUND.
+    const r = await idt('signInWithPassword', env.FIREBASE_API_KEY || 'x', { email: 'chequeo@login.floreria-duhau.app', password: 'chequeo-no-existe' });
+    out.autenticacion = r.ok ? 'ok' : String(r.data?.error?.message || 'error').slice(0, 80);
+  } catch (e) {
+    out.autenticacion = String(e.message || e).slice(0, 60);
+  }
+  return json(out);
 }
