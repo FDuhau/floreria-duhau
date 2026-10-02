@@ -76,7 +76,7 @@ test('el chequeo de estado informa sin mostrar valores secretos', async () => {
   globalThis.fetch = async (url) => {
     const u = String(url);
     if (u.includes('loginAuth.json')) return new Response('{"a":{}}');
-    if (u.includes('loginDiag.json')) return new Response('{}');
+    if (u.includes('loginDiag')) return new Response('null');
     if (u.includes('accounts:signUp')) return new Response(JSON.stringify({ localId: 'u1' }));
     return new Response(JSON.stringify({ error: { message: 'EMAIL_NOT_FOUND' } }), { status: 400 });
   };
@@ -90,6 +90,7 @@ test('el chequeo de estado informa sin mostrar valores secretos', async () => {
     assert.equal(d.autenticacion, 'EMAIL_NOT_FOUND');
     assert.equal(d.cuentaDePrueba, 'ok');
     assert.equal(d.escrituraBase, 'ok');
+    assert.equal(typeof d.hashTresMs, 'number');
     assert.deepEqual(d.secrets, { FIREBASE_DB_SECRET: true, AUTH_PEPPER: true, FIREBASE_API_KEY: true });
   } finally {
     globalThis.fetch = realFetch;

@@ -57,21 +57,33 @@ export async function handleLogin(request, env) {
   }
   if (!code || code.length > 100) return json({ error: 'código inválido' }, 400);
 
+  // Anota el resultado del último intento (solo fecha y paso, nunca códigos) para poder diagnosticar.
+  const anotar = (d) =>
+    writeDb(DB_URL, 'loginDiag/ultimoIntento', env.FIREBASE_DB_SECRET, { fecha: new Date().toISOString(), ...d }).catch(() => {});
+  let paso = 'lectura';
   try {
     const loginAuth = await readDb(DB_URL, 'loginAuth', env.FIREBASE_DB_SECRET);
+    paso = 'verificar_codigo';
     const found = await buscarUsuario(code, loginAuth);
-    if (!found) return json({ error: 'incorrecto' }, 401);
+    if (!found) {
+      await anotar({ resultado: 'incorrecto' });
+      return json({ error: 'incorrecto' }, 401);
+    }
     const e = found.entry;
+    paso = 'cuenta';
     const cred = await credencialesDe(env.AUTH_PEPPER, found.id);
     const uid = await asegurarCuenta(env.FIREBASE_API_KEY, cred);
+    paso = 'rol';
     await writeDb(DB_URL, 'userRoles/' + uid, env.FIREBASE_DB_SECRET, {
       role: e.role,
       id: found.id,
       jardinero: !!(e.jardineroNombre || e.role === 'jardinero'),
     });
+    await anotar({ resultado: 'ok' });
     return json({ email: cred.email, password: cred.password, id: found.id, entry: entryPublica(e) });
   } catch (err) {
-    return json({ error: 'no_disponible' }, 503);
+    await anotar({ resultado: 'error', paso, detalle: String(err?.message || err).slice(0, 80) });
+    return json({ error: 'no_disponible', paso }, 503);
   }
 }
 
@@ -97,6 +109,20 @@ export async function handleEstado(env) {
     out.autenticacion = r.ok ? 'ok' : String(r.data?.error?.message || 'error').slice(0, 80);
   } catch (e) {
     out.autenticacion = String(e.message || e).slice(0, 60);
+  }
+  // Cuánto tarda el cálculo del código (se hace una vez por cada persona hasta dar con la correcta).
+  try {
+    const salt = btoa('0123456789abcdef');
+    const t0 = Date.now();
+    for (let i = 0; i < 3; i++) await hashCode('prueba', salt);
+    out.hashTresMs = Date.now() - t0;
+  } catch (e) {
+    out.hashTresMs = String(e.message || e).slice(0, 60);
+  }
+  try {
+    out.ultimoIntento = (await readDb(DB_URL, 'loginDiag/ultimoIntento', env.FIREBASE_DB_SECRET || 'x')) || 'ninguno';
+  } catch (e) {
+    out.ultimoIntento = String(e.message || e).slice(0, 60);
   }
   // Recorrido completo con una cuenta de prueba: crear/entrar y escribir en la base.
   try {
