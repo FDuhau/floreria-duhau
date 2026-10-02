@@ -98,3 +98,23 @@ test('ingVaras: "paq" se multiplica por varas/paquete; varas quedan igual', () =
   assert.equal(ingVaras({ qty: 'x', unidad: 'paq' }, 25), 0);
   assert.equal(ingVaras({ qty: 2, unidad: 'paq' }, 0), 0);   // sin dato de varas/paquete
 });
+
+import { costoHotelMes } from '../src/modules/dinero.js';
+
+test('costoHotelMes: solo hotel del mes, sin eventos ni anuladas', () => {
+  const c = [
+    { fecha: '2026-09-03', prod: 'Rosa', qty: 2, costo: '1000', sector: 'Lobby' },
+    { fecha: '2026-09-10', prod: 'Lisianthus', qty: 1, costo: '500', sector: 'Lobby' },
+    { fecha: '2026-09-11', prod: 'Hortensia', qty: 1, costo: '300', sector: 'Biblioteca' },
+    { fecha: '2026-09-12', prod: 'X', qty: 1, costo: '999', sector: 'Evento' },
+    { fecha: '2026-09-12', prod: 'Y', qty: 1, costo: '999', sector: 'Lobby', eventoId: 'ev-1' },
+    { fecha: '2026-09-12', prod: 'Z', qty: 1, costo: '999', sector: 'Lobby', anulado: true },
+    { fecha: '2026-09-12', prod: 'W', qty: 1, costo: '999', sector: 'Lobby', noLlego: true },
+    { fecha: '2026-08-30', prod: 'Otro mes', qty: 1, costo: '999', sector: 'Lobby' },
+    { fecha: '2026-09-15', prod: 'Sin area', qty: 1, costo: '200' },
+  ];
+  const r = costoHotelMes(c, '2026-09');
+  assert.equal(r.total, 2800);
+  assert.deepEqual(r.areas.map((a) => [a.area, a.total]), [['Lobby', 2500], ['Biblioteca', 300]]);
+  assert.equal(r.sinArea.length, 1);
+});

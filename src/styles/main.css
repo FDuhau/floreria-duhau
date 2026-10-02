@@ -1237,7 +1237,7 @@
   .card-value, .price-tag, .saldo-pos, .saldo-neg, .qty-val, .potencial-val,
   .home-ventas-stat-val, .home-venta-precio, .event-price, .hab-num,
   .home-cl-pct, .prod-bar-pct, .days-badge, .kanban-date, .date-badge,
-  .tv-kpi-val, .tv-clock, .kpi-card, .ctrl-summary-card,
+  .kpi-card, .ctrl-summary-card,
   .checklist-table td, .stock-table td, .ventas-table td, .caja-table td,
   .compras-table td, .ctrl-table td, .history-table td, .recep-qty-input,
   input[type="number"] {

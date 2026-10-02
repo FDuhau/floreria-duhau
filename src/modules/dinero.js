@@ -66,3 +66,29 @@ export function ingVaras(ing, varasPorPaq) {
   const q = +ing.qty || 0;
   return ing && ing.unidad === 'paq' ? q * varasPorPaq : q;
 }
+
+// Costo del hotel en un mes (YYYY-MM): compras de florería con área del hotel,
+// sin evento asociado y sin anular ni "no llegó". Agrupa por área (arreglo).
+// Las que no tienen área cargada no entran al total: se devuelven aparte
+// ("sinArea") para que se puedan revisar. Devuelve { areas:[{area,total,lineas}], total, sinArea }.
+export function costoHotelMes(compras, mes) {
+  const areas = new Map();
+  const sinArea = [];
+  let total = 0;
+  for (const r of compras || []) {
+    if (!r || r.anulado || r.noLlego) continue;
+    if (String(r.fecha || '').slice(0, 7) !== mes) continue;
+    if (r.eventoId || (Array.isArray(r.eventos) && r.eventos.length)) continue;
+    const area = String(r.sector || '').trim();
+    if (area.toLowerCase() === 'evento') continue;
+    if (!area) { sinArea.push(r); continue; }
+    const importe = compraImporte(r);
+    if (!areas.has(area)) areas.set(area, { area, total: 0, lineas: [] });
+    const a = areas.get(area);
+    a.total += importe;
+    a.lineas.push(r);
+    total += importe;
+  }
+  const lista = [...areas.values()].sort((x, y) => y.total - x.total);
+  return { areas: lista, total, sinArea };
+}
