@@ -2,7 +2,7 @@
     import { initializeApp } from "firebase/app";
     import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
     import { getDatabase, ref, set, update, onValue, get, query, orderByKey, startAt, runTransaction } from "firebase/database";
-    import { getAuth, signInAnonymously, signInWithCustomToken } from "firebase/auth";
+    import { getAuth, signInAnonymously, signInWithEmailAndPassword } from "firebase/auth";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDU9kLCnXeO7qnINEy121Nktj1K96gJ9Lw",
@@ -245,8 +245,9 @@
     });
 
     // ── Expose to global scope so non-module script can call them ─
-    // Cambia la sesión anónima por la de la persona (token firmado con su rol).
-    window.fbSignInWithToken = token => signInWithCustomToken(auth, token);
+    // Cambia la sesión anónima por la cuenta de la persona (el Worker le entrega
+    // las credenciales y anota su rol en userRoles).
+    window.fbSignInWithCredentials = (email, password) => signInWithEmailAndPassword(auth, email, password);
     window.fbSet     = fbSet;
     window.fbSetPath = fbSetPath;
     // Lectura puntual contra el servidor. Sin conexión, rechaza (no inventa null).
