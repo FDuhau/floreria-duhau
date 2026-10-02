@@ -8,6 +8,7 @@
 // Todo con WebCrypto y fetch, que Workers y Node 20 traen de fábrica.
 
 const enc = new TextEncoder();
+const ORIGEN = 'https://floreria-duhau.operaciones-b40.workers.dev';
 const IDT = 'https://identitytoolkit.googleapis.com/v1/accounts';
 
 function toB64url(buf) {
@@ -27,10 +28,11 @@ export async function credencialesDe(pepper, id) {
   return { email: `${e}@login.floreria-duhau.app`, password: await hmac(pepper, 'pw:' + id) };
 }
 
-async function idt(path, apiKey, body) {
+export async function idt(path, apiKey, body) {
   const r = await fetch(`${IDT}:${path}?key=${apiKey}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    // La clave web de Firebase puede estar limitada por sitio: avisamos desde cuál llamamos.
+    headers: { 'Content-Type': 'application/json', Referer: ORIGEN, Origin: ORIGEN },
     body: JSON.stringify({ ...body, returnSecureToken: true }),
   });
   const d = await r.json().catch(() => ({}));

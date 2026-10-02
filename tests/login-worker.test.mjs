@@ -70,3 +70,24 @@ test('sin los secrets responde 503 para que la app use el ingreso anterior', asy
   const res = await handleLogin(new Request('http://x/api/login', { method: 'POST', body: '{"code":"a"}' }), {});
   assert.equal(res.status, 503);
 });
+
+test('el chequeo de estado informa sin mostrar valores secretos', async () => {
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const u = String(url);
+    if (u.includes('loginAuth.json')) return new Response('{"a":{}}');
+    return new Response(JSON.stringify({ error: { message: 'EMAIL_NOT_FOUND' } }), { status: 400 });
+  };
+  try {
+    const { handleEstado } = await import('../worker/login.js');
+    const res = await handleEstado({ FIREBASE_DB_SECRET: 'supersecreto', AUTH_PEPPER: 'pimienta', FIREBASE_API_KEY: 'k' });
+    const txt = await res.text();
+    assert.ok(!txt.includes('supersecreto') && !txt.includes('pimienta'));
+    const d = JSON.parse(txt);
+    assert.equal(d.lecturaLoginAuth, 'ok');
+    assert.equal(d.autenticacion, 'EMAIL_NOT_FOUND');
+    assert.deepEqual(d.secrets, { FIREBASE_DB_SECRET: true, AUTH_PEPPER: true, FIREBASE_API_KEY: true });
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});

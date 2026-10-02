@@ -3,7 +3,7 @@
 // suscripciones (el cliente las lee de Firebase, ya filtradas por destinatario)
 // y les envía la notificación cifrada vía Web Push.
 import { sendWebPush } from './webpush.js';
-import { handleLogin } from './login.js';
+import { handleLogin, handleEstado } from './login.js';
 
 export default {
   async fetch(request, env){
@@ -13,6 +13,9 @@ export default {
     }
     if(url.pathname === '/api/login' && request.method === 'POST'){
       return handleLogin(request, env);
+    }
+    if(url.pathname === '/api/login-estado' && request.method === 'GET'){
+      return handleEstado(env);
     }
     return env.ASSETS.fetch(request);
   },
