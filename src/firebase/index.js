@@ -1,7 +1,7 @@
     // ════════════ FIREBASE SETUP ════════════
     import { initializeApp } from "firebase/app";
     import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
-    import { getDatabase, ref, set, update, onValue, get, query, orderByKey, startAt } from "firebase/database";
+    import { getDatabase, ref, set, update, onValue, get, query, orderByKey, startAt, runTransaction } from "firebase/database";
     import { getAuth, signInAnonymously } from "firebase/auth";
 
     const firebaseConfig = {
@@ -52,6 +52,18 @@
 
     function fbUpdate(path, updates){
       return _trackWrite(update(ref(db, path), updates), 'FB update error:');
+    }
+
+    // Transacción: fn recibe el valor MÁS NUEVO del servidor y devuelve el valor a
+    // guardar (undefined = no escribir nada). Si otro dispositivo cambió el nodo
+    // mientras tanto, Firebase vuelve a llamar a fn con el valor actualizado, así
+    // que nunca se pisa lo que hizo otro. Rechaza si falla (permisos, red) para que
+    // quien llama pueda reintentar. applyLocally:false → los listeners solo ven
+    // valores confirmados por el servidor.
+    function fbTransact(path, fn){
+      const p = runTransaction(ref(db, path), cur => fn(cur), { applyLocally: false });
+      _trackWrite(p, 'FB transaction error:'); // solo para el indicador de guardado
+      return p;
     }
 
     function fbListen(path, cb){
@@ -231,6 +243,7 @@
     window.fbUpdate  = fbUpdate;
     window.fbListen  = fbListen;
     window.fbSaveSmart = fbSaveSmart;
+    window.fbTransact = fbTransact;
     // Nombres de las secciones de la raíz SIN descargar su contenido (REST shallow).
     window.fbTopKeys = async () => {
       const t = await auth.currentUser?.getIdToken?.().catch(() => null);
@@ -484,12 +497,20 @@
       fbListen('eventosData', val => {
         const arr = Array.isArray(val) ? val : Object.values(val||{});
         window._eventosLoaded = true; // ya llegaron los eventos: recién ahora es seguro guardar
-        // No pisar una edición recién guardada localmente con una sincronización
-        // que llega justo después (evita perder modificaciones de eventos).
-        if(window._eventosDataLastSave && Date.now() - window._eventosDataLastSave < 4000){ window._maybeSnapshotEventosSafe?.(); return; }
-        if(JSON.stringify(arr) === JSON.stringify(window.eventosData)){ window._maybeSnapshotEventosSafe?.(); return; }
-        window.eventosData = arr;
-        window._maybeSnapshotEventosSafe?.();
+        if(window._eventosFromServer){
+          // Sincronización por cambios (src/modules/eventos-sync.js): combina lo del
+          // servidor con los cambios locales aún sin confirmar. Devuelve si hay algo nuevo.
+          const hayCambio = window._eventosFromServer(arr);
+          window._maybeSnapshotEventosSafe?.();
+          if(!hayCambio) return;
+        } else {
+          // No pisar una edición recién guardada localmente con una sincronización
+          // que llega justo después (evita perder modificaciones de eventos).
+          if(window._eventosDataLastSave && Date.now() - window._eventosDataLastSave < 4000){ window._maybeSnapshotEventosSafe?.(); return; }
+          if(JSON.stringify(arr) === JSON.stringify(window.eventosData)){ window._maybeSnapshotEventosSafe?.(); return; }
+          window.eventosData = arr;
+          window._maybeSnapshotEventosSafe?.();
+        }
         if(document.getElementById('page-eventos-comercial')?.classList.contains('active')){
           const calView = document.getElementById('eventos-cal-view');
           if(calView && calView.style.display !== 'none') window.renderCalendario?.();
