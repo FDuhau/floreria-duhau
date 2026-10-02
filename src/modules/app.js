@@ -14231,12 +14231,14 @@ function _syncJardinerosDesdeAuth(){
 function _bufToB64(buf){ let s=''; new Uint8Array(buf).forEach(b=>s+=String.fromCharCode(b)); return btoa(s); }
 function _randSalt(){ return _bufToB64(crypto.getRandomValues(new Uint8Array(16))); }
 
-async function hashPassword(pw, saltB64){
+// 100000 es el máximo que admite el Worker; los hashes viejos (sin `iter`) usan 150000.
+const ITER_HASH = 100000;
+async function hashPassword(pw, saltB64, iter = 150000){
   // Normaliza como el login histórico (case-insensitive, sin espacios)
   const norm = String(pw).trim().toLowerCase();
   const salt = Uint8Array.from(atob(saltB64), c=>c.charCodeAt(0));
   const keyMat = await crypto.subtle.importKey('raw', new TextEncoder().encode(norm), 'PBKDF2', false, ['deriveBits']);
-  const bits = await crypto.subtle.deriveBits({ name:'PBKDF2', salt, iterations:150000, hash:'SHA-256' }, keyMat, 256);
+  const bits = await crypto.subtle.deriveBits({ name:'PBKDF2', salt, iterations:iter, hash:'SHA-256' }, keyMat, 256);
   return _bufToB64(bits);
 }
 
@@ -14253,13 +14255,29 @@ function _aplicarEntry(entry, id){
   currentSucursal = entry.sucursal || 'duhau';
 }
 
+// Pasa un hash viejo (150000 vueltas) al formato nuevo que puede verificar el Worker.
+// Se hace al entrar con éxito, que es el único momento en que se conoce el código.
+async function _actualizarHash(id, e, code){
+  if((e.iter || 150000) === ITER_HASH || !window.fbSetPath) return;
+  try{
+    const salt = _randSalt();
+    const hash = await hashPassword(code, salt, ITER_HASH);
+    const nuevo = { ...e, salt, hash, iter: ITER_HASH };
+    if(loginAuth) loginAuth[id] = nuevo;
+    window.fbSetPath('loginAuth/'+id, nuevo);
+  }catch(err){ console.warn('No se pudo actualizar el hash', err?.message||err); }
+}
+
 // Verifica una contraseña. Devuelve {entry, id} o null.
 async function verificarLogin(val){
   if(loginAuth){
     for(const [id, e] of Object.entries(loginAuth)){
       if(!e?.salt || !e?.hash) continue;
-      const h = await hashPassword(val, e.salt);
-      if(h === e.hash) return { entry: {...e}, id };
+      const h = await hashPassword(val, e.salt, e.iter || 150000);
+      if(h === e.hash){
+        _actualizarHash(id, e, val);
+        return { entry: {...e}, id };
+      }
     }
     return null;
   }
@@ -14325,7 +14343,7 @@ async function migrarSeguridadLogin(pwGerenciaActual){
   const auth = await _construirLoginAuth(loginPasswords);
   let ok = false;
   for(const e of Object.values(auth)){
-    if(await hashPassword(pwGerenciaActual, e.salt) === e.hash){ ok = true; break; }
+    if(await hashPassword(pwGerenciaActual, e.salt, e.iter || 150000) === e.hash){ ok = true; break; }
   }
   if(!ok){ console.warn('Migración de login abortada: autoverificación falló'); return; }
   loginAuth = auth;
@@ -14367,8 +14385,8 @@ async function _ensureLoginAuth(){
 async function _setUserPassword(id, pw){
   if(!loginAuth || !loginAuth[id]) return false;
   const salt = _randSalt();
-  const hash = await hashPassword(pw, salt);
-  loginAuth[id] = { ...loginAuth[id], salt, hash };
+  const hash = await hashPassword(pw, salt, ITER_HASH);
+  loginAuth[id] = { ...loginAuth[id], salt, hash, iter: ITER_HASH };
   if(window.fbSetPath) window.fbSetPath('loginAuth/'+id, loginAuth[id]);
   else _persistLoginAuth();
   return true;
@@ -14378,7 +14396,7 @@ async function _setUserPassword(id, pw){
 async function _passwordEnUso(pw){
   if(!loginAuth) return !!loginPasswords[String(pw).trim().toLowerCase()];
   for(const e of Object.values(loginAuth)){
-    if(e?.salt && await hashPassword(pw, e.salt) === e.hash) return true;
+    if(e?.salt && await hashPassword(pw, e.salt, e.iter || 150000) === e.hash) return true;
   }
   return false;
 }
@@ -14672,8 +14690,8 @@ async function agregarUsuarioHousekeeping(){
   const id = nombreClean.toLowerCase().replace(/[.#$/[\]\s]/g,'_');
   if(loginAuth[id]){ showToast('Ya existe un usuario con ese nombre'); return; }
   const salt = _randSalt();
-  const hash = await hashPassword(password.trim(), salt);
-  loginAuth[id] = { role:'housekeeping', label:nombreClean, salt, hash };
+  const hash = await hashPassword(password.trim(), salt, ITER_HASH);
+  loginAuth[id] = { role:'housekeeping', label:nombreClean, salt, hash, iter:ITER_HASH };
   if(window.fbSetPath) window.fbSetPath('loginAuth/'+id, loginAuth[id]); else _persistLoginAuth();
   showToast('Usuario housekeeping "' + nombreClean + '" creado — contraseña: ' + password.trim());
   openGestionPasswords();
@@ -14691,8 +14709,8 @@ async function agregarUsuarioFlorista(){
   const id = nombreClean.toLowerCase().replace(/[.#$/[\]\s]/g,'_');
   if(loginAuth[id]){ showToast('Ya existe un usuario con ese nombre'); return; }
   const salt = _randSalt();
-  const hash = await hashPassword(password.trim(), salt);
-  loginAuth[id] = { role:'florista', label:nombreClean, floristaNombre:nombreClean, salt, hash };
+  const hash = await hashPassword(password.trim(), salt, ITER_HASH);
+  loginAuth[id] = { role:'florista', label:nombreClean, floristaNombre:nombreClean, salt, hash, iter:ITER_HASH };
   if(window.fbSetPath) window.fbSetPath('loginAuth/'+id, loginAuth[id]); else _persistLoginAuth();
   if(!CL_RESP_OPTS.includes(nombreClean)){
     CL_RESP_OPTS.push(nombreClean);
@@ -14715,8 +14733,8 @@ async function agregarUsuarioJardinero(){
   const id = nombreClean.toLowerCase().replace(/[.#$/[\]\s]/g,'_');
   if(loginAuth[id]){ showToast('Ya existe un usuario con ese nombre'); return; }
   const salt = _randSalt();
-  const hash = await hashPassword(password.trim(), salt);
-  loginAuth[id] = { role:'jardinero', label:nombreClean, jardineroNombre:nombreClean, salt, hash };
+  const hash = await hashPassword(password.trim(), salt, ITER_HASH);
+  loginAuth[id] = { role:'jardinero', label:nombreClean, jardineroNombre:nombreClean, salt, hash, iter:ITER_HASH };
   if(window.fbSetPath) window.fbSetPath('loginAuth/'+id, loginAuth[id]); else _persistLoginAuth();
   if(!JARDINEROS_LIST.includes(nombreClean)) JARDINEROS_LIST.push(nombreClean);
   const legNuevo = _crearLegajoParaUsuario(nombreClean, 'jardinero');

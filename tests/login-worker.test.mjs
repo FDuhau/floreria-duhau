@@ -20,7 +20,7 @@ test('las credenciales de cada persona son estables, distintas y no revelan el i
 
 test('crea la cuenta la primera vez y anota el rol', async () => {
   const salt = b64(crypto.getRandomValues(new Uint8Array(16)));
-  const loginAuth = { euge: { role: 'comercial', label: 'Euge', salt, hash: await hashCode('flor9', salt) } };
+  const loginAuth = { euge: { role: 'comercial', label: 'Euge', salt, iter: 100000, hash: await hashCode('flor9', salt, 100000) } };
   const llamadas = [];
   const realFetch = globalThis.fetch;
   globalThis.fetch = async (url, init = {}) => {
@@ -54,8 +54,8 @@ test('crea la cuenta la primera vez y anota el rol', async () => {
 test('el hash coincide con el de la app y encuentra al dueño del código', async () => {
   const salt = b64(crypto.getRandomValues(new Uint8Array(16)));
   const loginAuth = {
-    ana: { role: 'florista', label: 'Ana', salt, hash: await hashCode('Rosa1', salt) },
-    otro: { role: 'gerencia', label: 'Otro', salt, hash: await hashCode('xxxx', salt) },
+    ana: { role: 'florista', label: 'Ana', salt, iter: 100000, hash: await hashCode('Rosa1', salt, 100000) },
+    otro: { role: 'gerencia', label: 'Otro', salt, iter: 100000, hash: await hashCode('xxxx', salt, 100000) },
   };
   assert.equal((await buscarUsuario('  rosa1 ', loginAuth)).id, 'ana');
   assert.equal(await buscarUsuario('nada', loginAuth), null);
@@ -95,4 +95,10 @@ test('el chequeo de estado informa sin mostrar valores secretos', async () => {
   } finally {
     globalThis.fetch = realFetch;
   }
+});
+
+test('buscarUsuario ignora hashes viejos (150k) que el Worker no puede calcular', async () => {
+  const salt = btoa('sal-vieja-123456');
+  const loginAuth = { viejo: { role: 'comercial', label: 'Viejo', salt, hash: await hashCode('abc1', salt) } };
+  assert.equal(await buscarUsuario('abc1', loginAuth), null);
 });
