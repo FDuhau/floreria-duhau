@@ -98,5 +98,20 @@ export async function handleEstado(env) {
   } catch (e) {
     out.autenticacion = String(e.message || e).slice(0, 60);
   }
+  // Recorrido completo con una cuenta de prueba: crear/entrar y escribir en la base.
+  try {
+    if (env.AUTH_PEPPER && env.FIREBASE_API_KEY) {
+      const uid = await asegurarCuenta(env.FIREBASE_API_KEY, await credencialesDe(env.AUTH_PEPPER, '__chequeo__'));
+      out.cuentaDePrueba = uid ? 'ok' : 'sin uid';
+    }
+  } catch (e) {
+    out.cuentaDePrueba = String(e.message || e).slice(0, 80);
+  }
+  try {
+    await writeDb(DB_URL, 'loginDiag', env.FIREBASE_DB_SECRET || 'x', { ultimaPrueba: new Date().toISOString() });
+    out.escrituraBase = 'ok';
+  } catch (e) {
+    out.escrituraBase = String(e.message || e).slice(0, 60);
+  }
   return json(out);
 }
