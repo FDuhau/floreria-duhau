@@ -4763,10 +4763,9 @@ function _histEventoSelector(type, idx, r){
   return _compraEventosBtn(type, idx, r);
 }
 
-// Área editable en el historial (permite corregir pedidos viejos). Los
-// renglones anulados quedan como texto.
+// Área editable en el historial (permite corregir pedidos viejos, también
+// los ya recibidos o anulados).
 function _histAreaCell(type, idx, r){
-  if(r.anulado) return esc(r.sector||'—');
   return `<select class="form-input" onchange="updHistSector('${type}',${idx},this.value)" style="min-width:130px;font-size:12px">${getAreaUsoOpts(r.sector)}</select>`;
 }
 async function updHistSector(type, idx, val){
