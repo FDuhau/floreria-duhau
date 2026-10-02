@@ -112,6 +112,17 @@ export async function handleEstado(env) {
   } catch (e) {
     out.autenticacion = String(e.message || e).slice(0, 60);
   }
+  // Cuántas personas todavía no pasaron al código nuevo (no pueden entrar por el Worker).
+  // Con las reglas cerradas esas personas quedarían afuera, así que debe dar 0 antes de cerrarlas.
+  try {
+    const la = await readDb(DB_URL, 'loginAuth', env.FIREBASE_DB_SECRET || 'x');
+    const faltan = Object.values(la || {}).filter((e) => e && e.salt && e.hash && (e.iter || 150000) > 100000);
+    out.pendientes = faltan.length;
+    // Solo iniciales, para saber a quién pedirle que entre sin publicar nombres.
+    out.pendientesIniciales = faltan.map((e) => String(e.label || '?').slice(0, 1).toUpperCase() + '…');
+  } catch (e) {
+    out.pendientes = String(e.message || e).slice(0, 60);
+  }
   // Cuánto tarda el cálculo del código (se hace una vez por cada persona hasta dar con la correcta).
   try {
     const salt = btoa('0123456789abcdef');

@@ -14588,6 +14588,8 @@ async function doLogin(){
     if(!loginAuth) currentLoginKey = val.trim().toLowerCase(); // modo viejo: cambio de contraseña propia
     _aplicarEntry(entry, found.id);
     applyRole(entry.role);
+    // Caja, sueldos, legajos y claves solo se descargan para gerencia (las reglas de la base los cierran al resto).
+    if(entry.role === 'gerencia') window.fbStartSensibles?.();
     renderSucursalIndicador();
     const screen = document.getElementById('login-screen');
     screen.classList.add('hide');
