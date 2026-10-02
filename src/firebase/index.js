@@ -416,6 +416,63 @@
       if(val && typeof val === 'object') _syncRespFloristas(val);
     });
 
+    // Datos sensibles (caja, cierres, sueldos, legajos, evaluaciones, faltas): las reglas
+    // de la base solo se los dan a gerencia, así que se empiezan a escuchar recién
+    // cuando gerencia entra con su cuenta (ver doLogin). Si arrancaran antes, la base
+    // los rechazaría y la escucha quedaría cancelada para siempre.
+    let _sensiblesIniciados = false;
+    window.fbStartSensibles = () => {
+      if(_sensiblesIniciados) return;
+      _sensiblesIniciados = true;
+      // Con las reglas cerradas, la escucha de usuarios que se abrió antes de entrar
+      // (con la sesión anónima) fue rechazada: se vuelve a abrir con la cuenta de gerencia.
+      fbListen('loginAuth', val => {
+        if(val && typeof val === 'object' && Object.keys(val).length) window._loginAuthReady = true;
+        if(window._setLoginAuth) window._setLoginAuth(val);
+        if(val && typeof val === 'object') _syncRespFloristas(val);
+      });
+
+      fbListen('cajaData', val => {
+        if(!val) return;
+        const arr = Array.isArray(val) ? val : Object.values(val||{});
+        if(window._setCajaData) window._setCajaData(arr);
+        if(document.getElementById('page-caja')?.classList.contains('active') && !window.estaEditando('page-caja')) window.renderCaja();
+      });
+
+      fbListen('cierresCaja', val => {
+        const arr = !val ? [] : (Array.isArray(val) ? val : Object.values(val||{}));
+        if(window._setCierresCaja) window._setCierresCaja(arr);
+      });
+
+      fbListen('legajoData', val => {
+        const arr = !val ? [] : (Array.isArray(val) ? val : Object.values(val||{}));
+        if(window._setLegajoData) window._setLegajoData(arr);
+        if(document.getElementById('page-legajo')?.classList.contains('active')) window.renderLegajo?.();
+      });
+
+      fbListen('faltasData', val => {
+        const arr = !val ? [] : (Array.isArray(val) ? val : Object.values(val||{}));
+        if(window._setFaltasData) window._setFaltasData(arr);
+        if(document.getElementById('page-evaluaciones')?.classList.contains('active') && !window.estaEditando('page-evaluaciones')) window.renderEvaluaciones?.();
+      });
+
+      fbListen('evaluacionesData', val => {
+        const arr = !val ? [] : (Array.isArray(val) ? val : Object.values(val||{}));
+        if(window._setEvaluacionesData) window._setEvaluacionesData(arr);
+        if(document.getElementById('page-evaluaciones')?.classList.contains('active')) window.renderEvaluaciones?.();
+      });
+
+      fbListen('liquidacionConfig', val => {
+        if(window._setLiquidacionConfig) window._setLiquidacionConfig(val||{ horasEsperadas: 192, horas: {} });
+        if(document.getElementById('page-liquidacion')?.classList.contains('active')) window.renderLiquidacion?.();
+      });
+
+      fbListen('cierresMensualesData', val => {
+        const arr = !val ? [] : (Array.isArray(val) ? val : Object.values(val||{}));
+        if(window._setCierresMensuales) window._setCierresMensuales(arr);
+      });
+    };
+
     // ── Listen to all shared data ─────────────────────────────────
     // Wait for main script to be ready
     window.addEventListener('load', () => {
@@ -725,12 +782,6 @@
         if(window._setInventarioData) window._setInventarioData(val);
       });
 
-      fbListen('cajaData', val => {
-        if(!val) return;
-        const arr = Array.isArray(val) ? val : Object.values(val||{});
-        if(window._setCajaData) window._setCajaData(arr);
-        if(document.getElementById('page-caja')?.classList.contains('active') && !window.estaEditando('page-caja')) window.renderCaja();
-      });
 
       fbListen('galeriaData', val => {
         if(!val) return;
@@ -860,33 +911,10 @@
 
       // auditLog (~3 MB) se descarga solo al entrar a Auditoría: ver fbEnsure().
 
-      fbListen('cierresCaja', val => {
-        const arr = !val ? [] : (Array.isArray(val) ? val : Object.values(val||{}));
-        if(window._setCierresCaja) window._setCierresCaja(arr);
-      });
 
-      fbListen('legajoData', val => {
-        const arr = !val ? [] : (Array.isArray(val) ? val : Object.values(val||{}));
-        if(window._setLegajoData) window._setLegajoData(arr);
-        if(document.getElementById('page-legajo')?.classList.contains('active')) window.renderLegajo?.();
-      });
 
-      fbListen('faltasData', val => {
-        const arr = !val ? [] : (Array.isArray(val) ? val : Object.values(val||{}));
-        if(window._setFaltasData) window._setFaltasData(arr);
-        if(document.getElementById('page-evaluaciones')?.classList.contains('active') && !window.estaEditando('page-evaluaciones')) window.renderEvaluaciones?.();
-      });
 
-      fbListen('evaluacionesData', val => {
-        const arr = !val ? [] : (Array.isArray(val) ? val : Object.values(val||{}));
-        if(window._setEvaluacionesData) window._setEvaluacionesData(arr);
-        if(document.getElementById('page-evaluaciones')?.classList.contains('active')) window.renderEvaluaciones?.();
-      });
 
-      fbListen('liquidacionConfig', val => {
-        if(window._setLiquidacionConfig) window._setLiquidacionConfig(val||{ horasEsperadas: 192, horas: {} });
-        if(document.getElementById('page-liquidacion')?.classList.contains('active')) window.renderLiquidacion?.();
-      });
 
 
       fbListen('presupuestosData', val => {
@@ -900,9 +928,5 @@
         if(document.getElementById('page-eventos-sin-floreria')?.classList.contains('active') && !window.estaEditando('page-eventos-sin-floreria')) window.renderEventosSinFloreria?.();
       });
 
-      fbListen('cierresMensualesData', val => {
-        const arr = !val ? [] : (Array.isArray(val) ? val : Object.values(val||{}));
-        if(window._setCierresMensuales) window._setCierresMensuales(arr);
-      });
 
     });

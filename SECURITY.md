@@ -117,3 +117,12 @@ Para activarlo (una sola vez):
 4. Probar que gerencia y el resto entran normalmente.
 
 Si `AUTH_PEPPER` se cambia, las cuentas ya creadas dejan de coincidir: no tocarlo.
+
+### Etapa 3: cerrar la base por rol
+
+1. Pedir a cada persona del personal que entre dos veces (la primera pasa su código al formato nuevo, la segunda ya la verifica el Worker).
+2. Abrir `/api/login-estado`: debe decir `"pendientes": 0` (si no, `pendientesIniciales` muestra las iniciales de quién falta).
+3. Pegar `docs/database.rules.cerrada.json` en Firebase > Realtime Database > Reglas > Publicar. Las reglas no se despliegan con el sitio.
+4. Volver atrás: pegar de nuevo el contenido de `database.rules.json` (reglas abiertas).
+
+Con las reglas cerradas, caja, cierres, liquidación, legajos, evaluaciones, faltas y las claves solo las lee y escribe gerencia (la app empieza a escucharlas recién cuando gerencia entra, `fbStartSensibles`). El ingreso del personal depende del Worker: sin él, no pueden entrar. La herramienta de mover fotos (usa la raíz de la base) necesita volver temporalmente a las reglas abiertas.
