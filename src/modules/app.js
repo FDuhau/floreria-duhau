@@ -14543,15 +14543,15 @@ function mostrarResumenSemanal(retry=0, force=false){
 }
 
 // Ingreso por el servicio de Cloudflare: valida el código y devuelve un token
-// de Firebase con el rol. Si el servicio no está listo (503, sin red) o no
+// de Firebase con su cuenta y rol. Si el servicio no está listo (503, sin red) o no
 // reconoce el código, devuelve null y el ingreso sigue como antes.
 async function loginEnServidor(code){
   try{
     const r = await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ code }) });
     if(!r.ok) return null;
     const d = await r.json();
-    if(!d?.token || !d?.entry || !window.fbSignInWithToken) return null;
-    await window.fbSignInWithToken(d.token);
+    if(!d?.email || !d?.password || !d?.entry || !window.fbSignInWithCredentials) return null;
+    await window.fbSignInWithCredentials(d.email, d.password);
     return { entry: { ...d.entry }, id: d.id };
   }catch(e){
     console.warn('Ingreso por servidor no disponible:', e?.message || e);

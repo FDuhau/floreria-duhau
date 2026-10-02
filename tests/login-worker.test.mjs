@@ -1,24 +1,54 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { generateKeyPairSync, createVerify } from 'node:crypto';
-import { mintCustomToken } from '../worker/firebase-admin.js';
+import { credencialesDe } from '../worker/firebase-admin.js';
 import { hashCode, buscarUsuario, entryPublica, handleLogin } from '../worker/login.js';
 
 const b64 = (u8) => Buffer.from(u8).toString('base64');
 
-test('el token personalizado queda firmado y lleva uid y rol', async () => {
-  const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
-  const pem = privateKey.export({ type: 'pkcs8', format: 'pem' });
-  const sa = { client_email: 'x@proyecto.iam.gserviceaccount.com', private_key: pem };
-  const tok = await mintCustomToken(sa, 'euge', { role: 'comercial' }, 1000);
-  const [h, p, s] = tok.split('.');
-  const v = createVerify('RSA-SHA256');
-  v.update(`${h}.${p}`);
-  assert.ok(v.verify(publicKey, Buffer.from(s, 'base64url')));
-  const body = JSON.parse(Buffer.from(p, 'base64url').toString());
-  assert.equal(body.uid, 'euge');
-  assert.equal(body.claims.role, 'comercial');
-  assert.equal(body.exp, 4600);
+test('las credenciales de cada persona son estables, distintas y no revelan el id', async () => {
+  const a1 = await credencialesDe('pimienta', 'euge');
+  const a2 = await credencialesDe('pimienta', 'euge');
+  const b = await credencialesDe('pimienta', 'ivan');
+  const c = await credencialesDe('otra', 'euge');
+  assert.deepEqual(a1, a2);
+  assert.notEqual(a1.email, b.email);
+  assert.notEqual(a1.email, c.email);
+  assert.notEqual(a1.password, b.password);
+  assert.match(a1.email, /^[a-z0-9]{1,30}@login\.floreria-duhau\.app$/);
+  assert.ok(!a1.email.includes('euge') && a1.password.length >= 40);
+});
+
+test('crea la cuenta la primera vez y anota el rol', async () => {
+  const salt = b64(crypto.getRandomValues(new Uint8Array(16)));
+  const loginAuth = { euge: { role: 'comercial', label: 'Euge', salt, hash: await hashCode('flor9', salt) } };
+  const llamadas = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    llamadas.push({ url: String(url), method: init.method || 'GET', body: init.body });
+    const u = String(url);
+    const json = (o, status = 200) => new Response(JSON.stringify(o), { status });
+    if (u.includes('loginAuth.json')) return json(loginAuth);
+    if (u.includes('signInWithPassword')) return json({ error: { message: 'INVALID_LOGIN_CREDENTIALS' } }, 400);
+    if (u.includes('accounts:signUp')) return json({ localId: 'uid123' });
+    if (u.includes('userRoles/uid123.json')) return json({});
+    return json({}, 404);
+  };
+  try {
+    const env = { FIREBASE_DB_SECRET: 's', AUTH_PEPPER: 'p', FIREBASE_API_KEY: 'k' };
+    const res = await handleLogin(new Request('http://x/api/login', { method: 'POST', body: '{"code":" Flor9 "}' }), env);
+    assert.equal(res.status, 200);
+    const d = await res.json();
+    assert.equal(d.id, 'euge');
+    assert.ok(d.email && d.password);
+    assert.deepEqual(Object.keys(d.entry).sort(), ['label', 'role']);
+    const rol = llamadas.find((l) => l.url.includes('userRoles/uid123.json'));
+    assert.equal(rol.method, 'PUT');
+    assert.equal(JSON.parse(rol.body).role, 'comercial');
+    const mala = await handleLogin(new Request('http://x/api/login', { method: 'POST', body: '{"code":"nope"}' }), env);
+    assert.equal(mala.status, 401);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
 });
 
 test('el hash coincide con el de la app y encuentra al dueño del código', async () => {
@@ -36,7 +66,7 @@ test('la entrada pública nunca incluye salt ni hash', () => {
   assert.deepEqual(e, { role: 'florista', label: 'Ana', floristaNombre: 'Ana' });
 });
 
-test('sin clave de servicio responde 503 para que la app use el ingreso anterior', async () => {
+test('sin los secrets responde 503 para que la app use el ingreso anterior', async () => {
   const res = await handleLogin(new Request('http://x/api/login', { method: 'POST', body: '{"code":"a"}' }), {});
   assert.equal(res.status, 503);
 });

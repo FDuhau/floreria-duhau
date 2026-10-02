@@ -1,10 +1,11 @@
 // ── POST /api/login: valida el código de una persona y devuelve su token ──────
 // El personal sigue escribiendo su código de siempre. El Worker lo compara con
 // los hashes de `loginAuth` (mismo PBKDF2 que usa la app) y, si coincide,
-// entrega un token de Firebase con el rol firmado: ese rol es el que las reglas
-// de la base podrán chequear. Sin el secret FIREBASE_SERVICE_ACCOUNT responde
-// 503 y la app sigue con el ingreso de antes.
-import { getAccessToken, readDb, mintCustomToken } from './firebase-admin.js';
+// entrega las credenciales de SU cuenta de Firebase y deja anotado su rol en
+// `userRoles/{uid}` (solo el Worker escribe ahí): ese rol es el que las reglas
+// de la base podrán chequear. Sin los secrets (FIREBASE_DB_SECRET y
+// AUTH_PEPPER) responde 503 y la app sigue con el ingreso de antes.
+import { readDb, writeDb, credencialesDe, asegurarCuenta } from './firebase-admin.js';
 
 const DB_URL = 'https://floreria-duhau-84de5-default-rtdb.firebaseio.com';
 
@@ -47,7 +48,7 @@ export function entryPublica(entry) {
 }
 
 export async function handleLogin(request, env) {
-  if (!env.FIREBASE_SERVICE_ACCOUNT) return json({ error: 'no_configurado' }, 503);
+  if (!env.FIREBASE_DB_SECRET || !env.AUTH_PEPPER || !env.FIREBASE_API_KEY) return json({ error: 'no_configurado' }, 503);
   let code;
   try {
     code = String((await request.json())?.code ?? '').trim();
@@ -56,19 +57,19 @@ export async function handleLogin(request, env) {
   }
   if (!code || code.length > 100) return json({ error: 'código inválido' }, 400);
 
-  let sa;
   try {
-    sa = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT);
-    const access = await getAccessToken(sa);
-    const loginAuth = await readDb(DB_URL, 'loginAuth', access);
+    const loginAuth = await readDb(DB_URL, 'loginAuth', env.FIREBASE_DB_SECRET);
     const found = await buscarUsuario(code, loginAuth);
     if (!found) return json({ error: 'incorrecto' }, 401);
     const e = found.entry;
-    const token = await mintCustomToken(sa, found.id, {
+    const cred = await credencialesDe(env.AUTH_PEPPER, found.id);
+    const uid = await asegurarCuenta(env.FIREBASE_API_KEY, cred);
+    await writeDb(DB_URL, 'userRoles/' + uid, env.FIREBASE_DB_SECRET, {
       role: e.role,
+      id: found.id,
       jardinero: !!(e.jardineroNombre || e.role === 'jardinero'),
     });
-    return json({ token, id: found.id, entry: entryPublica(e) });
+    return json({ email: cred.email, password: cred.password, id: found.id, entry: entryPublica(e) });
   } catch (err) {
     return json({ error: 'no_disponible' }, 503);
   }

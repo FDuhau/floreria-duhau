@@ -22,6 +22,8 @@
   // Sin ese secret, /api/push responde error y los avisos siguen siendo solo in-app.
   "vars": {
     "VAPID_PUBLIC_KEY": "BPdHl3-CEMyDYx0j780ImwvNPCGaBInhq6lnNOjv6iJu8lfdHb-gcu9kROVchB4jf5oEul748FN_PKwQpc2x0gE",
-    "VAPID_SUBJECT": "mailto:operaciones@lafloreriadelduhau.com.ar"
+    "VAPID_SUBJECT": "mailto:operaciones@lafloreriadelduhau.com.ar",
+    // Clave pública de la app web de Firebase (la misma que viaja en el bundle).
+    "FIREBASE_API_KEY": "AIzaSyDU9kLCnXeO7qnINEy121Nktj1K96gJ9Lw"
   }
 }

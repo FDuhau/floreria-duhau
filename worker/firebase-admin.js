@@ -1,73 +1,64 @@
-// ── Acceso "admin" a Firebase desde el Worker (sin librerías) ─────────────────
-// Usa la clave de servicio (secret FIREBASE_SERVICE_ACCOUNT, JSON) para:
-//  - pedir un access token de Google y leer la base aunque las reglas se cierren
-//  - firmar tokens personalizados de Firebase Auth con el rol de cada persona
-// Todo con WebCrypto, que Workers y Node 20 traen de fábrica.
+// ── Acceso a Firebase desde el Worker, SIN clave de cuenta de servicio ────────
+// Usa dos cosas que sí se pueden crear en la consola:
+//  - el "secreto de la base de datos" (FIREBASE_DB_SECRET) para leer loginAuth
+//    y escribir userRoles aunque las reglas se cierren
+//  - la API de Firebase Authentication con email y contraseña DERIVADOS de un
+//    secreto propio (AUTH_PEPPER): nadie puede adivinarlos ni registrarse con
+//    la cuenta de otra persona.
+// Todo con WebCrypto y fetch, que Workers y Node 20 traen de fábrica.
 
 const enc = new TextEncoder();
+const IDT = 'https://identitytoolkit.googleapis.com/v1/accounts';
 
-function b64url(input) {
-  const bytes = typeof input === 'string' ? enc.encode(input) : new Uint8Array(input);
+function toB64url(buf) {
   let s = '';
-  bytes.forEach((b) => (s += String.fromCharCode(b)));
+  new Uint8Array(buf).forEach((b) => (s += String.fromCharCode(b)));
   return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-async function importKey(pem) {
-  const body = pem.replace(/-----[A-Z ]+-----/g, '').replace(/\s+/g, '');
-  const der = Uint8Array.from(atob(body), (c) => c.charCodeAt(0));
-  return crypto.subtle.importKey('pkcs8', der, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']);
+async function hmac(secret, msg) {
+  const key = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  return toB64url(await crypto.subtle.sign('HMAC', key, enc.encode(msg)));
 }
 
-// JWT firmado con RS256.
-export async function signJwt(payload, privateKeyPem) {
-  const head = b64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
-  const body = b64url(JSON.stringify(payload));
-  const key = await importKey(privateKeyPem);
-  const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, enc.encode(`${head}.${body}`));
-  return `${head}.${body}.${b64url(sig)}`;
+// Email y contraseña de la cuenta de Firebase de cada persona (siempre los mismos).
+export async function credencialesDe(pepper, id) {
+  const e = (await hmac(pepper, 'email:' + id)).replace(/[^a-z0-9]/gi, '').slice(0, 30).toLowerCase();
+  return { email: `${e}@login.floreria-duhau.app`, password: await hmac(pepper, 'pw:' + id) };
 }
 
-// Token personalizado de Firebase Auth: el uid es el id del usuario y los
-// claims llevan el rol (las reglas de la base leen auth.token.role).
-export async function mintCustomToken(sa, uid, claims, now = Math.floor(Date.now() / 1000)) {
-  return signJwt(
-    {
-      iss: sa.client_email,
-      sub: sa.client_email,
-      aud: 'https://identitytoolkit.googleapis.com/google.identity.identitytoolkit.v1.IdentityToolkit',
-      iat: now,
-      exp: now + 3600,
-      uid,
-      claims,
-    },
-    sa.private_key,
-  );
-}
-
-// Access token de Google para leer la base con permisos de servicio.
-export async function getAccessToken(sa, now = Math.floor(Date.now() / 1000)) {
-  const assertion = await signJwt(
-    {
-      iss: sa.client_email,
-      scope: 'https://www.googleapis.com/auth/firebase.database https://www.googleapis.com/auth/userinfo.email',
-      aud: 'https://oauth2.googleapis.com/token',
-      iat: now,
-      exp: now + 3600,
-    },
-    sa.private_key,
-  );
-  const r = await fetch('https://oauth2.googleapis.com/token', {
+async function idt(path, apiKey, body) {
+  const r = await fetch(`${IDT}:${path}?key=${apiKey}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: `grant_type=${encodeURIComponent('urn:ietf:params:oauth:grant-type:jwt-bearer')}&assertion=${assertion}`,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...body, returnSecureToken: true }),
   });
-  if (!r.ok) throw new Error('token ' + r.status);
-  return (await r.json()).access_token;
+  const d = await r.json().catch(() => ({}));
+  return { ok: r.ok, data: d };
 }
 
-export async function readDb(dbUrl, path, accessToken) {
-  const r = await fetch(`${dbUrl}/${path}.json`, { headers: { Authorization: `Bearer ${accessToken}` } });
+// Devuelve el uid de la cuenta, creándola la primera vez.
+export async function asegurarCuenta(apiKey, { email, password }) {
+  let r = await idt('signInWithPassword', apiKey, { email, password });
+  if (r.ok) return r.data.localId;
+  const msg = r.data?.error?.message || '';
+  if (!/EMAIL_NOT_FOUND|INVALID_LOGIN_CREDENTIALS|INVALID_PASSWORD/.test(msg)) throw new Error('auth ' + msg);
+  r = await idt('signUp', apiKey, { email, password });
+  if (!r.ok) throw new Error('signup ' + (r.data?.error?.message || ''));
+  return r.data.localId;
+}
+
+function dbUrl(dbBase, path, secret) {
+  return `${dbBase}/${path}.json?auth=${encodeURIComponent(secret)}`;
+}
+
+export async function readDb(dbBase, path, secret) {
+  const r = await fetch(dbUrl(dbBase, path, secret));
   if (!r.ok) throw new Error('db ' + r.status);
   return r.json();
+}
+
+export async function writeDb(dbBase, path, secret, value) {
+  const r = await fetch(dbUrl(dbBase, path, secret), { method: 'PUT', body: JSON.stringify(value) });
+  if (!r.ok) throw new Error('db ' + r.status);
 }

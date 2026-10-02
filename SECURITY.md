@@ -97,15 +97,23 @@ alcance porque cambia cómo ingresa el personal):
 ## Ingreso por el Worker (etapa 2 del plan de autenticación)
 
 El código del personal se valida en el Worker de Cloudflare (`POST /api/login`,
-`worker/login.js`), que devuelve un token de Firebase con el rol firmado
-(`auth.token.role`). Las reglas de la base todavía NO lo exigen: conviven el
-ingreso nuevo y el viejo (si el Worker no está listo, la app entra como antes).
+`worker/login.js`). Si es correcto, el Worker entrega las credenciales de la
+cuenta de Firebase Authentication de esa persona (email y contraseña derivados
+de un secreto propio, `AUTH_PEPPER`) y anota su rol en `userRoles/{uid}`, un
+nodo donde solo escribe el Worker. Las reglas de la base leerán ese rol. Por ahora
+NO lo exigen: conviven el ingreso nuevo y el viejo (si el Worker no está listo, la
+app entra como antes).
+
+No usa clave de cuenta de servicio (la organización de Google las bloquea).
 
 Para activarlo (una sola vez):
 
-1. Firebase → Configuración del proyecto → Cuentas de servicio → "Generar nueva
-   clave privada" (baja un archivo JSON).
-2. Cloudflare → Workers & Pages → floreria-duhau → Settings → Variables and
-   Secrets → Add → tipo **Secret**, nombre `FIREBASE_SERVICE_ACCOUNT`, valor =
-   todo el contenido del JSON. No subirlo nunca al repo.
-3. Probar que gerencia y el resto entran normalmente.
+1. Firebase → Authentication → Sign-in method → habilitar **Correo electrónico/contraseña**.
+2. Firebase → Configuración del proyecto → Cuentas de servicio → "Secretos de la
+   base de datos" → copiar el secreto.
+3. Cloudflare → Workers & Pages → floreria-duhau → Settings → Variables and
+   Secrets, dos **Secret**: `FIREBASE_DB_SECRET` (el del paso 2) y `AUTH_PEPPER`
+   (cualquier texto largo y al azar, de 40+ caracteres, que nadie más conozca).
+4. Probar que gerencia y el resto entran normalmente.
+
+Si `AUTH_PEPPER` se cambia, las cuentas ya creadas dejan de coincidir: no tocarlo.
