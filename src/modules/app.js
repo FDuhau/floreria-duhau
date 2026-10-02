@@ -4774,6 +4774,30 @@ function _histEventoSelector(type, idx, r){
   return _compraEventosBtn(type, idx, r);
 }
 
+// Área editable en el historial (permite corregir pedidos viejos). Los
+// renglones anulados quedan como texto.
+function _histAreaCell(type, idx, r){
+  if(r.anulado) return esc(r.sector||'—');
+  return `<select class="form-input" onchange="updHistSector('${type}',${idx},this.value)" style="min-width:130px;font-size:12px">${getAreaUsoOpts(r.sector)}</select>`;
+}
+async function updHistSector(type, idx, val){
+  const r = getArr(type)[idx];
+  if(!r) return;
+  const tieneEv = !!r.eventoId || (Array.isArray(r.eventos) && r.eventos.length>0);
+  const esEvento = (val||'').toLowerCase().includes('evento');
+  if(tieneEv && !esEvento){
+    if(!await confirmModal('Esta compra tiene evento(s) asignado(s). Si cambiás el área se van a quitar. ¿Continuar?')){
+      renderHistorialCompras(type); return;
+    }
+    r.eventoId = ''; r.evento = ''; delete r.eventos;
+  }
+  r.sector = val;
+  if(type==='floreria'){ window._comprasFloreLastSave = Date.now(); fbSave('comprasFlore', comprasFlore); }
+  else { window._comprasJardLastSave = Date.now(); fbSave('comprasJard', comprasJard); }
+  renderHistorialCompras(type);
+  if(document.getElementById('page-rentabilidad-eventos')?.classList.contains('active')) renderRentabilidad();
+}
+
 // Tabla del historial de Florería (concepto de varas por paquete y costo por vara)
 function _histTablaFloreria(items){
   return `<table style="width:100%;min-width:900px;font-size:12px;border-collapse:collapse">
@@ -4793,7 +4817,7 @@ function _histTablaFloreria(items){
         <tbody>${items.map(r => { const idx = comprasFlore.indexOf(r); const an = !!r.anulado; const rowStyle = an ? 'border-top:1px solid #F0EDE8;opacity:.5' : 'border-top:1px solid #F0EDE8'; const cvDiv = parseFloat(r.varasPorPaq)||parseFloat(r.totalVaras)||parseFloat(r.qty)||0; const cvVal = (parseMoney(r.costo)>0 && cvDiv>0) ? Math.round(parseMoney(r.costo)/cvDiv) : null; return `<tr style="${rowStyle};${_recepFlagStyle(r)}">
           <td style="padding:6px 10px;font-weight:500;${an?'text-decoration:line-through':''}">${esc(r.prod)}${r.desc?`<div style="font-size:10px;color:var(--mid-gray);font-weight:400">${esc(r.desc)}</div>`:''}${_recepFlagBadge(r, idx)}</td>
           <td style="padding:6px 10px;color:var(--mid-gray)">${esc(r.prov||'—')}</td>
-          <td style="padding:6px 10px;color:var(--mid-gray)">${esc(r.sector||'—')}${_histEventoSelector('floreria',idx,r)}</td>
+          <td style="padding:6px 10px;color:var(--mid-gray)">${_histAreaCell('floreria',idx,r)}${_histEventoSelector('floreria',idx,r)}</td>
           <td style="padding:6px 10px;text-align:center"><input class="form-input" type="number" value="${esc(r.paqRecibidos ?? r.qty ?? '')}" onchange="updHistCantCompra('floreria',${idx},'paqRecibidos',this.value)" style="width:55px;text-align:center" ${an?'disabled':''}></td>
           <td style="padding:6px 10px;text-align:center"><input class="form-input" type="number" value="${esc(r.varasPorPaq ?? '')}" onchange="updHistCantCompra('floreria',${idx},'varasPorPaq',this.value)" style="width:55px;text-align:center" ${an?'disabled':''}></td>
           <td style="padding:6px 10px;text-align:center;font-weight:600">${r.totalVaras||r.qty||'—'}</td>
@@ -4824,7 +4848,7 @@ function _histTablaJardineria(items){
           <td style="padding:6px 10px;font-weight:500;${an?'text-decoration:line-through':''}">${esc(r.prod)}</td>
           <td style="padding:6px 10px;color:var(--mid-gray)">${esc(r.desc||'—')}</td>
           <td style="padding:6px 10px;color:var(--mid-gray)">${esc(r.prov||'—')}</td>
-          <td style="padding:6px 10px;color:var(--mid-gray)">${esc(r.sector||'—')}${_histEventoSelector('jardineria',idx,r)}</td>
+          <td style="padding:6px 10px;color:var(--mid-gray)">${_histAreaCell('jardineria',idx,r)}${_histEventoSelector('jardineria',idx,r)}</td>
           <td style="padding:6px 10px;text-align:center"><input class="form-input" type="number" value="${esc(r.paqRecibidos ?? r.qty ?? '')}" onchange="updHistCantCompra('jardineria',${idx},'paqRecibidos',this.value)" style="width:60px;text-align:center" ${an?'disabled':''}></td>
           <td style="padding:6px 10px;text-align:center">${an ? '<span style="font-size:9px;font-weight:700;background:#7A7A72;color:#fff;padding:2px 7px;border-radius:5px;white-space:nowrap">Anulado</span>' : controlBadgeCompra(r)}</td>
           <td style="padding:6px 10px;text-align:right"><input class="form-input" value="${esc(r.costo||'')}" placeholder="$" onchange="updHistCostoCompra('jardineria',${idx},this.value)" style="width:90px;text-align:right" ${an?'disabled':''}></td>
