@@ -6,6 +6,7 @@ import './lista-precios-css.js';
 import { openGlobalSearch, closeGlobalSearch, handleSearchKey, runGlobalSearch, _gsearchGo, setTareasBusqueda } from './busqueda-global.js';
 import { renderProveedores, openProveedorModal, guardarProveedor, eliminarProveedor } from './proveedores.js';
 import { renderClientes, abrirFichaCliente, openNuevoClienteModal, editarCliente, guardarCliente, eliminarCliente, getClientesData } from './crm-clientes.js';
+import { toggleCfSplit, cfSplitAddRow, cfSplitRemoveRow, cfSplitUpdRow, getCfSplitRows, resetCfSplitRows } from './compras-reparto.js';
 import { openPushNotifModal, enviarPushNotif, initPushForUser, activarNotificaciones } from './notificaciones-push.js';
 import { renderVelas, openVelaModal, guardarVela, delVela, velaAjustar, velaFotoPreview, cambiarFotoVela, openVelaFoto, getVelasData } from './stock-velas.js';
 import { generarPresupuestoPDF } from './presupuesto-pdf.js';
@@ -3250,62 +3251,6 @@ function copiarUltimoPedido(type){
   document.getElementById(p+'-producto')?.focus();
 }
 
-// ── Reparto de un mismo artículo entre varias áreas (florería) ──
-// Cuando lo que llega en una orden se destina a más de un sector del hotel
-// (ej. 3 varas de Limonium: 2 al Lobby Alvear, 1 a Biblioteca), en vez de
-// cargar el mismo producto varias veces a mano se define el reparto acá y
-// addCompra() genera una línea de compra por área con su cantidad de paquetes.
-// El precio por paquete es el mismo en todas (el importe sale de precio × cant).
-let cfSplitRows = [];
-
-function toggleCfSplit(){
-  const wrap = document.getElementById('cf-split-wrap');
-  if(!wrap) return;
-  const visible = wrap.style.display !== 'none';
-  if(visible){
-    wrap.style.display = 'none';
-  } else {
-    wrap.style.display = '';
-    if(cfSplitRows.length === 0){ cfSplitRows = [{sector:'',qty:''},{sector:'',qty:''}]; }
-    renderCfSplitRows();
-  }
-}
-
-function cfSplitAddRow(){
-  cfSplitRows.push({sector:'', qty:''});
-  renderCfSplitRows();
-}
-
-function cfSplitRemoveRow(i){
-  cfSplitRows.splice(i,1);
-  renderCfSplitRows();
-}
-
-function cfSplitUpdRow(i, field, val){
-  if(!cfSplitRows[i]) return;
-  cfSplitRows[i][field] = val;
-  renderCfSplitTotal();
-}
-
-function renderCfSplitTotal(){
-  const totalEl = document.getElementById('cf-split-total');
-  if(!totalEl) return;
-  const total = cfSplitRows.reduce((s,r)=>s+(parseFloat(r.qty)||0),0);
-  totalEl.textContent = total > 0 ? `Total repartido: ${total}` : '';
-}
-
-function renderCfSplitRows(){
-  const el = document.getElementById('cf-split-rows');
-  if(!el) return;
-  el.innerHTML = cfSplitRows.map((r,i)=>`
-    <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
-      <select class="form-input" style="flex:2" onchange="cfSplitUpdRow(${i},'sector',this.value)">${getAreaUsoOpts(r.sector)}</select>
-      <input class="form-input" type="number" placeholder="Cant." value="${esc(r.qty)}" style="width:80px" onchange="cfSplitUpdRow(${i},'qty',this.value)">
-      <button class="btn-icon" style="color:var(--red-alert)" onclick="cfSplitRemoveRow(${i})">✕</button>
-    </div>`).join('');
-  renderCfSplitTotal();
-}
-
 // ── Asociación de compras con eventos ──────────────────────────────────────
 // Cada línea de compra puede vincularse a un evento pendiente, para después
 // cruzar cuánto se gastó en insumos contra lo que se cobra por ese evento.
@@ -3563,7 +3508,7 @@ function addCompra(type){
   // con la cantidad de paquetes de cada una. El precio por paquete es el mismo
   // en todas las líneas (no se prorratea: cada paquete cuesta lo mismo).
   const splits = type==='floreria'
-    ? cfSplitRows.filter(r=>r.sector && parseFloat(r.qty)>0)
+    ? getCfSplitRows().filter(r=>r.sector && parseFloat(r.qty)>0)
     : [];
 
   if(splits.length > 0){
@@ -3580,7 +3525,7 @@ function addCompra(type){
         sucursal
       });
     });
-    cfSplitRows = [];
+    resetCfSplitRows();
     document.getElementById('cf-split-wrap').style.display = 'none';
     showToast(`"${prod}" repartido en ${splits.length} áreas`);
   } else {
@@ -18958,7 +18903,7 @@ Object.assign(window, {
   renderEventosSinFloreria, openEsfModal, guardarEsf, eliminarEsf, exportEsfReclamo,
   renderCierreMensual, generarCierreMensual, verCierreMensual, exportCierrePDF,
   exportVentasXLSX, exportLegajoXLSX, ventasShowMore,
-  toggleCfSplit, cfSplitAddRow, cfSplitRemoveRow, cfSplitUpdRow,
+  getAreaUsoOpts, toggleCfSplit, cfSplitAddRow, cfSplitRemoveRow, cfSplitUpdRow,
   cfImportFile, cfImportCancel, cfImportParseSheet, cfImportConfirm,
   toggleAnularCompra, updHistCantCompra, updHistCostoCompra,
   evImportFile, evImportToggle, evImportConfirm,
