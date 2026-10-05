@@ -6,6 +6,7 @@ import './lista-precios-css.js';
 import { openGlobalSearch, closeGlobalSearch, handleSearchKey, runGlobalSearch, _gsearchGo, setTareasBusqueda } from './busqueda-global.js';
 import { renderProveedores, openProveedorModal, guardarProveedor, eliminarProveedor } from './proveedores.js';
 import { renderClientes, abrirFichaCliente, openNuevoClienteModal, editarCliente, guardarCliente, eliminarCliente, getClientesData } from './crm-clientes.js';
+import { leerFotoComprimida, comprimirImagen } from './imagenes.js';
 import { toggleCfSplit, cfSplitAddRow, cfSplitRemoveRow, cfSplitUpdRow, getCfSplitRows, resetCfSplitRows } from './compras-reparto.js';
 import { openPushNotifModal, enviarPushNotif, initPushForUser, activarNotificaciones } from './notificaciones-push.js';
 import { renderVelas, openVelaModal, guardarVela, delVela, velaAjustar, velaFotoPreview, cambiarFotoVela, openVelaFoto, getVelasData } from './stock-velas.js';
@@ -1990,31 +1991,6 @@ function registrarHora(i, campo){
 // queda en el registro del historial y gerencia la ve desde el panel.
 let _fotoHistIdx = -1;
 let _fotoDataTmp = '';
-
-// Foto para galería / lista de precios / recetas / eventos: antes se guardaba
-// el original (3–5 MB por foto de celular). Ahora se achica a 1400px JPEG; si
-// no es una imagen comprimible (GIF, SVG u otro), se guarda tal cual.
-function leerFotoComprimida(file, cb){
-  if(/^image\/(jpeg|png|webp|heic|heif)/i.test(file.type||'')) comprimirImagen(file, 1400, 0.75, cb);
-  else { const r = new FileReader(); r.onload = e => cb(e.target.result); r.readAsDataURL(file); }
-}
-
-function comprimirImagen(file, maxDim, calidad, cb){
-  const reader = new FileReader();
-  reader.onload = e => {
-    const img = new Image();
-    img.onload = () => {
-      const escala = Math.min(1, maxDim / Math.max(img.width, img.height));
-      const canvas = document.createElement('canvas');
-      canvas.width  = Math.round(img.width*escala);
-      canvas.height = Math.round(img.height*escala);
-      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-      cb(canvas.toDataURL('image/jpeg', calidad));
-    };
-    img.src = e.target.result;
-  };
-  reader.readAsDataURL(file);
-}
 
 function ofrecerFotoNuevo(histIdx, zona){
   const modal = document.getElementById('cl-foto-modal');
@@ -18853,7 +18829,7 @@ Object.assign(window, {
   renderRecetas, seedComposicionesBase, seedComposicionesHotelBase, setCompTab, renderComposicionesHotel, compHotelAdd, delArregloComposicion, renderReportesEquipo, renderReportesVentas, renderCostoHotel, exportCostoHotel, openFichaEmpleado,
   renderCierreDia, initCierreDia, renderCdPersona, cdPersonaRango,
   renderFloreros, openFloreroModal, guardarFlorero, delFlorero, florAjustar, florFotoPreview, cambiarFotoFlorero, openFlorFoto,
-  comprimirImagen, renderVelas, openVelaModal, guardarVela, delVela, velaAjustar, velaFotoPreview, cambiarFotoVela, openVelaFoto,
+  renderVelas, openVelaModal, guardarVela, delVela, velaAjustar, velaFotoPreview, cambiarFotoVela, openVelaFoto,
   exportReporteEquipo, exportReporteVentas,
   openPushNotifModal, enviarPushNotif, initPushForUser,
   renderCalendario, calPrevMonth, calNextMonth,
