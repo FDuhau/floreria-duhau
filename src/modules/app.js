@@ -11729,7 +11729,7 @@ function renderPHItems(){
   if(!phItemRows.length) phItemRows = [{tipo:'', qty:1}];
   list.innerHTML = phItemRows.map((row,i)=>{
     const precio = _precioVariantePH(row.tipo);
-    return `<div class="ph-item-row" style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+    return `<div class="ph-item-row" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px">
       <select onchange="phSetItemTipo(${i},this.value)" style="flex:2;min-width:150px;border:1px solid #E4E2DC;border-radius:6px;padding:8px;font-family:inherit;font-size:13px;outline:none">${_phItemOptionsHTML(row.tipo)}</select>
       <span style="font-size:12px;color:var(--mid-gray)">×</span>
       <input type="number" min="1" value="${row.qty||1}" onchange="phSetItemQty(${i},this.value)" style="width:62px;border:1px solid #E4E2DC;border-radius:6px;padding:8px 6px;font-size:13px;text-align:center;outline:none;font-family:inherit">
@@ -11951,6 +11951,11 @@ function closeSidebar(){
   document.getElementById('hamburger-btn').classList.remove('open');
   document.body.style.overflow = '';
 }
+
+// Si se agranda la ventana (o se achica el zoom) con el menú del celular
+// abierto, hay que cerrarlo: si no, la capa oscura y el bloqueo de scroll
+// quedan pegados sobre la vista de escritorio.
+window.matchMedia('(min-width: 769px)').addEventListener('change', e => { if(e.matches) closeSidebar(); });
 
 // Close sidebar on nav item click (mobile).
 // Los encabezados de grupo (acordeón) NO cierran el sidebar: solo despliegan

@@ -1532,7 +1532,7 @@
     <div style="margin-top:32px;background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;padding:20px" class="gerencia-only">
       <div style="font-size:13px;font-weight:600;letter-spacing:.5px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
         <span>Cierre de Caja Diario</span>
-        <div style="display:flex;gap:10px;align-items:center">
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
           <input type="date" id="cierre-fecha" class="form-input" style="padding:6px 10px;font-size:13px;width:160px">
           <button class="btn-add" onclick="cerrarCajaDia()" style="font-size:12px;padding:8px 16px">Cerrar Caja del Día</button>
         </div>
@@ -2482,7 +2482,7 @@
       <button class="btn-print" onclick="exportPDF('Reportes · Equipo')">Imprimir / PDF</button>
     </div>
     <div id="rep-eq-kpis" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:24px"></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px" id="rep-eq-charts-wrap">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:16px;margin-bottom:24px" id="rep-eq-charts-wrap" class="rep-charts-grid">
       <div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;padding:16px">
         <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:12px;font-weight:500">Horas programadas vs trabajadas</div>
         <canvas id="rep-eq-chart-hs" height="220"></canvas>
@@ -2542,7 +2542,7 @@
       <button class="btn-print" onclick="exportPDF('Reportes · Ventas')">Imprimir / PDF</button>
     </div>
     <div id="rep-vt-kpis" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:24px"></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+    <div class="rep-charts-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:16px;margin-bottom:24px">
       <div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;padding:16px">
         <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:12px;font-weight:500">Ventas últimos 6 meses</div>
         <canvas id="rep-vt-chart-trend" height="220"></canvas>

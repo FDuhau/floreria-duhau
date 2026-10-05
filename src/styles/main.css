@@ -1464,3 +1464,10 @@
   .quick-link-icon svg { width: 24px; height: 24px; stroke: currentColor; stroke-width: 1.6;
     fill: none; stroke-linecap: round; stroke-linejoin: round; display: block; }
   .quick-link-icon:empty { display: none; }
+
+/* Zoom alto / pantallas muy angostas: nada debe empujar la página hacia los costados */
+.rep-charts-grid > * { min-width:0; }
+canvas { max-width:100%; }
+@media (max-width:480px) {
+  input, select, textarea { min-width:0; max-width:100%; }
+}
