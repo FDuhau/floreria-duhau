@@ -203,6 +203,7 @@ const PAGE_LABELS = {control:'Control','control-jardineria':'Control › Seguimi
   'precio-comparacion': 'Compras › Comparar Precios',
   'presupuestos': 'Comercial › Presupuestos Enviados',
   'cotizar-presupuesto': 'Comercial › Armar cotización',
+  'costo-varas': 'Comercial › Costo de varas',
   'cierre-mensual': 'Contable › Cierre Mensual',
   'cierre-dia': 'Reportes › Cierre del Día',
   'tareas-gerencia': 'Gerencia › Tareas Pendientes'
@@ -381,6 +382,7 @@ function navigate(pageId, navEl){
   if(pageId==='precio-comparacion') renderPrecioComparacion();
   if(pageId==='presupuestos') renderPresupuestos();
   if(pageId==='cotizar-presupuesto') renderCotizarPresupuesto();
+  if(pageId==='costo-varas') renderCostoVaras();
   if(pageId==='cierre-mensual'){ const sel=document.getElementById('cierre-mes-sel'); if(sel&&!sel.value) sel.value=CURR_MONTH; renderCierreMensual(); }
   if(pageId==='tareas-gerencia') renderTareasGerencia();
 
@@ -18354,6 +18356,18 @@ function cpRenderArrRows(){
 
 function _ddmm(f){ if(!f) return ''; const p=String(f).split('-'); return (p[2]&&p[1])?`${p[2]}/${p[1]}`:f; }
 
+// Costo actual de una vara de un producto — la misma regla que usan los ítems
+// sueltos de "Armar cotización": el precio por vara cargado en el cotizador y,
+// si no hay, último costo de compra por paquete ÷ varas por paquete.
+function cpCostoVara(prod){
+  const ref = prod ? getUltimoPrecioCompra(prod) : null;
+  const vpp = prod ? getVarasPorPaq(prod) : null;
+  const costoVara = prod
+    ? (+cotizadorPrecios[prod] || (ref && vpp ? ref.precio / vpp : 0))
+    : 0;
+  return { ref, vpp, costoVara };
+}
+
 function cpRenderFreeRows(){
   const cont = document.getElementById('cp-free-rows');
   if(!cont) return;
@@ -18361,11 +18375,7 @@ function cpRenderFreeRows(){
     // Referencia de costo de material: último precio de compra (por paquete)
     // con su fecha y, si se conoce cuántas varas trae el paquete, también el
     // costo por vara (precio por paquete ÷ varas por paquete).
-    const ref = row.prod ? getUltimoPrecioCompra(row.prod) : null;
-    const vpp = row.prod ? getVarasPorPaq(row.prod) : null;
-    const costoVara = row.prod
-      ? (+cotizadorPrecios[row.prod] || (ref && vpp ? ref.precio / vpp : 0))
-      : 0;
+    const { ref, costoVara } = cpCostoVara(row.prod);
     const refLabel = ref
       ? `costo ${_cpMoney(ref.precio)}/paq${ref.fecha?' · '+_ddmm(ref.fecha):''}${costoVara>0?' · '+_cpMoney(Math.round(costoVara))+'/vara':''}`
       : (row.prod ? '<span style="color:var(--mid-gray)">sin costo cargado</span>' : '');
@@ -19207,6 +19217,107 @@ async function delInvItem(i){
   renderInventario();
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// COSTO DE VARAS — calculadora rápida: listado de flores con cantidades y costo
+// actual de cada una + total. Solo calcula (no guarda nada). Usa cpCostoVara(),
+// la misma lógica de costos que la carga flor por flor de "Armar cotización".
+// ══════════════════════════════════════════════════════════════════════════════
+let cvRows = [];   // [{cant, prod}]  (cant como texto para admitir 1/2)
+
+function cvProductos(){
+  return [...new Set([...(stockData||[]).map(s=>s.prod), ...Object.keys(cotizadorPrecios||{}), ...(comprasFlore||[]).map(c=>c.prod)])]
+    .filter(Boolean).sort((a,b)=>a.localeCompare(b,'es'));
+}
+
+// Empareja lo escrito con un producto conocido: exacto (sin mayúsculas/tildes) y,
+// si no, el único producto que lo contenga. Si no encuentra, deja el texto igual.
+function cvResolverProd(txt){
+  const norm = x => String(x||'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  const t = norm(txt);
+  if(!t) return '';
+  const prods = cvProductos();
+  const exacto = prods.find(p=>norm(p)===t);
+  if(exacto) return exacto;
+  const parecidos = prods.filter(p=>norm(p).includes(t));
+  return parecidos.length===1 ? parecidos[0] : String(txt).trim();
+}
+
+function cvParseLinea(linea){
+  const l = linea.trim();
+  if(!l) return null;
+  let m = l.match(/^(\d+(?:[.,]\d+)?(?:\s*\/\s*\d+)?)\s*(?:x|varas?\s+de|de)?\s+(.+)$/i);   // "20 rosas", "20 x rosas"
+  if(m) return { cant:m[1].replace(/\s/g,''), prod:cvResolverProd(m[2]) };
+  m = l.match(/^(.+?)\s*(?:x|:|-|\t)?\s*(\d+(?:[.,]\d+)?)$/i);                               // "rosas 20", "rosas x20"
+  if(m) return { cant:m[2], prod:cvResolverProd(m[1]) };
+  return { cant:'1', prod:cvResolverProd(l) };
+}
+
+function renderCostoVaras(){
+  if(!cvRows.length) cvRows = [{cant:'1', prod:''}];
+  const dl = document.getElementById('cv-prod-list');
+  if(dl) dl.innerHTML = cvProductos().map(p=>`<option value="${esc(p)}">`).join('');
+  cvRender();
+}
+
+function cvRender(){
+  const cont = document.getElementById('cv-rows');
+  if(!cont) return;
+  let total = 0, sinCosto = 0, varasTot = 0;
+  cont.innerHTML = cvRows.map((row,i)=>{
+    const cant = cpParseCant(row.cant);
+    const { ref, costoVara } = cpCostoVara(row.prod);
+    const sub = cant * costoVara;
+    if(row.prod && cant>0){
+      varasTot += cant;
+      if(costoVara>0) total += sub; else sinCosto++;
+    }
+    const costoTxt = !row.prod ? ''
+      : costoVara>0 ? `<strong>${_cpMoney(costoVara)}</strong><span style="color:var(--mid-gray)"> /vara</span>${ref&&ref.fecha?`<div style="font-size:10px;color:var(--mid-gray)">costo del ${_ddmm(ref.fecha)}</div>`:''}`
+      : '<span style="color:var(--red-alert);font-size:12px">sin costo cargado</span>';
+    return `<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+      <input value="${esc(row.cant)}" inputmode="decimal" onchange="cvSet(${i},'cant',this.value)" title="Cantidad de varas — admite 1/2, 1/4" style="width:70px;border:1px solid #E4E2DC;border-radius:6px;padding:8px;text-align:center;font-size:14px">
+      <input value="${esc(row.prod)}" list="cv-prod-list" onchange="cvSet(${i},'prod',this.value)" placeholder="Flor (ej. rosas, hortensias)" style="flex:2;min-width:140px;border:1px solid #E4E2DC;border-radius:6px;padding:8px 10px;font-size:14px">
+      <div style="min-width:130px;text-align:right;font-size:13px">${costoTxt}</div>
+      <div style="min-width:90px;text-align:right;font-size:14px;font-weight:700">${costoVara>0&&cant>0?_cpMoney(sub):'—'}</div>
+      <button class="btn-icon" style="color:var(--red-alert)" onclick="cvRemove(${i})" title="Quitar">✕</button>
+    </div>`;
+  }).join('');
+  const tot = document.getElementById('cv-total');
+  if(tot) tot.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:20px"><span style="font-weight:700">Total</span><strong>${_cpMoney(total)}</strong></div>
+    <div style="font-size:12px;color:var(--mid-gray);margin-top:4px">${varasTot%1===0?varasTot:varasTot.toFixed(1)} varas en total${sinCosto?` · <span style="color:var(--red-alert)">${sinCosto} sin costo cargado (no suman al total)</span>`:''}</div>`;
+}
+
+function cvSet(i,fld,v){
+  const row = cvRows[i]; if(!row) return;
+  row[fld] = fld==='prod' ? cvResolverProd(v) : v;
+  // Al completar la última fila, se abre otra vacía para seguir cargando
+  if(i===cvRows.length-1 && row.prod) cvRows.push({cant:'1', prod:''});
+  cvRender();
+}
+function cvAdd(){ cvRows.push({cant:'1', prod:''}); cvRender(); }
+function cvRemove(i){ cvRows.splice(i,1); if(!cvRows.length) cvRows=[{cant:'1',prod:''}]; cvRender(); }
+function cvReset(){ cvRows=[{cant:'1',prod:''}]; const t=document.getElementById('cv-pegar'); if(t) t.value=''; cvRender(); }
+
+function cvCargarListado(){
+  const ta = document.getElementById('cv-pegar');
+  const nuevas = (ta?.value||'').split(/\n|;/).map(cvParseLinea).filter(Boolean);
+  if(!nuevas.length){ showToast('Pegá primero el listado'); return; }
+  cvRows = cvRows.filter(r=>r.prod).concat(nuevas, [{cant:'1', prod:''}]);
+  if(ta) ta.value = '';
+  cvRender();
+}
+
+function cvCopiar(){
+  const filas = cvRows.filter(r=>r.prod && cpParseCant(r.cant)>0).map(r=>{
+    const c = cpParseCant(r.cant), { costoVara } = cpCostoVara(r.prod);
+    return `${r.cant} ${r.prod}` + (costoVara>0 ? ` — ${_cpMoney(costoVara)}/vara = ${_cpMoney(c*costoVara)}` : ' — sin costo');
+  });
+  if(!filas.length) return;
+  const total = cvRows.reduce((s,r)=>s+cpParseCant(r.cant)*cpCostoVara(r.prod).costoVara, 0);
+  navigator.clipboard.writeText(`Costo de varas\n${filas.join('\n')}\nTotal: ${_cpMoney(total)}`).then(()=>showToast('Costos copiados'));
+}
+
 Object.assign(window, {
   renderInventario, addInvItem, updInv, invAdjust, delInvItem,
   _downloadCSV, addCajaMovimiento, addCompra, addEvArregloRow, addEvArregloRowWithData,
@@ -19315,6 +19426,7 @@ Object.assign(window, {
   installPWA,
   renderPresupuestos, openPresupuestoModal, guardarPresupuesto, cambiarEstadoPres, eliminarPresupuesto,
   verPresupuesto, enviarPresupuestoWhatsApp,
+  renderCostoVaras, cvSet, cvAdd, cvRemove, cvReset, cvCargarListado, cvCopiar,
   renderCotizarPresupuesto, cpAddArr, cpRemoveArr, cpSetArr, cpAddFree, cpRemoveFree, cpSetFree, cpReset, cpGuardar,
   renderEventosSinFloreria, openEsfModal, guardarEsf, eliminarEsf, exportEsfReclamo,
   renderCierreMensual, generarCierreMensual, verCierreMensual, exportCierrePDF,

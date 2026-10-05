@@ -102,6 +102,7 @@
     <div class="nav-sub-item nav-floreria-only" data-group="grp-com-vt" style="display:none" onclick="navigate('cotizador-ops',this)">Cotizador</div>
     <div class="nav-sub-item nav-ventas-only" data-group="grp-com-vt" style="display:none" onclick="navigate('cotizador-eventos-hyatt',this)">Cotizador de Eventos</div>
     <div class="nav-sub-item" data-group="grp-com-vt" onclick="navigate('presupuestos',this)">Presupuestos</div>
+    <div class="nav-sub-item" data-group="grp-com-vt" onclick="navigate('costo-varas',this)">Costo de varas</div>
     <div class="nav-sub-item nav-gerencia-only" data-group="grp-com-vt" style="display:none" onclick="navigate('crm-clientes',this)">CRM Clientes</div>
 
     <div class="nav-item nav-group-hdr nav-gerencia-only" data-group-id="grp-com-cont" style="display:none" onclick="navToggleGroup('grp-com-cont')"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg></span> Contable<span class="nav-chevron">›</span></div>
@@ -2920,6 +2921,7 @@
         <div class="page-subtitle">Seguimiento de propuestas comerciales y tasa de conversión</div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-secondary" onclick="navigate('costo-varas',this)">Costo de varas</button>
         <button class="btn-secondary" onclick="navigate('cotizar-presupuesto',this)">Armar cotización</button>
         <button class="btn-primary" onclick="openPresupuestoModal()">+ Nuevo presupuesto</button>
       </div>
@@ -2931,6 +2933,33 @@
         <tbody id="presupuestos-body"><tr><td colspan="7" style="text-align:center;color:var(--mid-gray);padding:24px">Cargando...</td></tr></tbody>
       </table>
     </div>
+  </div>
+
+  <!-- ══════ COSTO DE VARAS (calculadora rápida) ══════ -->
+  <div id="page-costo-varas" class="content">
+    <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
+      <div>
+        <div class="page-title">Costo de varas</div>
+        <div class="page-subtitle">Cargá las flores con sus cantidades y mirá el costo actual de cada una y el total. No guarda nada.</div>
+      </div>
+      <button class="btn-secondary" onclick="navigate('presupuestos',this)">← Volver a Presupuestos</button>
+    </div>
+    <datalist id="cv-prod-list"></datalist>
+    <div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;padding:18px 20px;margin-bottom:18px">
+      <div id="cv-rows"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+        <button class="btn-secondary" onclick="cvAdd()" style="font-size:12px">+ Agregar flor</button>
+        <button class="btn-secondary" onclick="cvCopiar()" style="font-size:12px">Copiar</button>
+        <button class="btn-secondary" onclick="cvReset()" style="font-size:12px">✕ Limpiar</button>
+      </div>
+    </div>
+    <div style="background:#F4F1EC;border:1px solid var(--light-gray);border-radius:12px;padding:18px 20px;margin-bottom:18px"><div id="cv-total"></div></div>
+    <details style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;padding:14px 20px;margin-bottom:30px">
+      <summary style="cursor:pointer;font-size:13px;font-weight:600">Pegar un listado de una vez</summary>
+      <div style="font-size:11.5px;color:var(--mid-gray);margin:8px 0">Una flor por renglón, con la cantidad adelante o atrás. Ej.: <em>20 rosas</em>, <em>hortensias 10</em>, <em>1/2 fresias</em>.</div>
+      <textarea id="cv-pegar" rows="6" class="form-input" style="width:100%" placeholder="20 rosas&#10;10 hortensias&#10;15 limonium"></textarea>
+      <button class="btn-primary" onclick="cvCargarListado()" style="margin-top:8px">Cargar listado</button>
+    </details>
   </div>
 
   <!-- ══════ ARMAR COTIZACIÓN (presupuesto detallado) ══════ -->
