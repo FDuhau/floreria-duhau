@@ -7906,7 +7906,7 @@ function renderRecepcionPedidos(){
   listEl.innerHTML = pending.map((order) => {
     const globalIdx = order._idx;
     if(!recepState[globalIdx]){
-      recepState[globalIdx] = { checked: false, paqRecibidos: order.qty, varasPorPaq: 1 };
+      recepState[globalIdx] = { checked: false, paqRecibidos: order.qty, varasPorPaq: getVarasPorPaq(order.prod) || 1 };
     }
     const st = recepState[globalIdx];
     // Migrar estado viejo (cantRecibida) al nuevo formato
@@ -8032,7 +8032,7 @@ function recepCheckAll(){
     if(!recepState[o._idx]) recepState[o._idx] = {};
     recepState[o._idx].checked = true;
     if(!recepState[o._idx].paqRecibidos) recepState[o._idx].paqRecibidos = o.qty;
-    if(!recepState[o._idx].varasPorPaq) recepState[o._idx].varasPorPaq = 1;
+    if(!recepState[o._idx].varasPorPaq) recepState[o._idx].varasPorPaq = getVarasPorPaq(o.prod) || 1;
   });
   renderRecepcionPedidos();
 }
@@ -8211,7 +8211,7 @@ function recepToggle(globalIdx, checked){
     if(!recepState[globalIdx].paqRecibidos)
       recepState[globalIdx].paqRecibidos = order.qty;
     if(!recepState[globalIdx].varasPorPaq)
-      recepState[globalIdx].varasPorPaq = 1;
+      recepState[globalIdx].varasPorPaq = getVarasPorPaq(order.prod) || 1;
   }
   renderRecepcionPedidos();
 }
@@ -19259,20 +19259,66 @@ function renderCostoVaras(){
   cvRender();
 }
 
+// Productos cuya última compra no tiene varas por paquete cargadas (o dice 1):
+// ahí el costo por vara sale igual al del paquete entero. Se corrigen desde acá.
+function cvSospechosos(){
+  const ult = {};
+  (comprasFlore||[]).forEach(c=>{
+    if(c.anulado || !(parseMoney(c.costo)>0) || !c.prod) return;
+    const k = String(c.prod).trim().toLowerCase();
+    if(!ult[k] || (c.fecha||'') >= (ult[k].fecha||'')) ult[k] = c;
+  });
+  return Object.values(ult)
+    .filter(c => !((parseFloat(c.varasPorPaq)||0) > 1))
+    .sort((a,b)=>String(a.prod).localeCompare(String(b.prod),'es'));
+}
+
+// Carga las varas por paquete en la última compra del producto y recalcula su
+// costo por vara en el cotizador (mismo recálculo que el historial de compras).
+function cvFijarVarasPorPaq(prod, val){
+  const v = parseFloat(String(val).replace(',','.'));
+  if(!(v>0)) return;
+  const pl = String(prod||'').trim().toLowerCase();
+  let ult = null;
+  (comprasFlore||[]).forEach(c=>{
+    if(c.anulado || String(c.prod||'').trim().toLowerCase()!==pl) return;
+    if(!ult || (c.fecha||'') >= (ult.fecha||'')) ult = c;
+  });
+  if(!ult) return;
+  ult.varasPorPaq = v;
+  const paqRec = parseFloat(ult.paqRecibidos)||0;
+  if(paqRec>0) ult.totalVaras = paqRec * v;
+  recalcCotizadorPrecio(ult);
+  window._comprasFloreLastSave = Date.now(); fbSave('comprasFlore', comprasFlore);
+  showToast('Varas por paquete guardadas: '+prod);
+  cvRender();
+}
+
 function cvRender(){
   const cont = document.getElementById('cv-rows');
   if(!cont) return;
+  const rev = document.getElementById('cv-revisar');
+  if(rev){
+    const sosp = cvSospechosos();
+    rev.style.display = sosp.length ? '' : 'none';
+    rev.innerHTML = !sosp.length ? '' : `<div style="font-size:13px;font-weight:600;margin-bottom:4px">Revisar varas por paquete (${sosp.length})</div>
+      <div style="font-size:11.5px;color:var(--mid-gray);margin-bottom:10px">A estas flores no les cargaron cuántas varas trae el paquete, así que el costo por vara sale igual al del paquete. Poné las varas por paquete y se corrige el costo.</div>
+      ${sosp.map(c=>`<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;flex-wrap:wrap">
+        <div style="flex:2;min-width:140px;font-size:13px">${esc(c.prod)}<span style="color:var(--mid-gray);font-size:11px"> · paquete ${_cpMoney(parseMoney(c.costo))}${c.fecha?' · '+_ddmm(c.fecha):''}</span></div>
+        <input type="number" min="1" placeholder="varas/paq" value="${(parseFloat(c.varasPorPaq)||0)>0?esc(c.varasPorPaq):''}" onchange="cvFijarVarasPorPaq(${JSON.stringify(c.prod).replace(/"/g,'&quot;')},this.value)" style="width:90px;border:1px solid #E4E2DC;border-radius:6px;padding:7px;text-align:center;font-size:13px">
+      </div>`).join('')}`;
+  }
   let total = 0, sinCosto = 0, varasTot = 0;
   cont.innerHTML = cvRows.map((row,i)=>{
     const cant = cpParseCant(row.cant);
-    const { ref, costoVara } = cpCostoVara(row.prod);
+    const { ref, vpp, costoVara } = cpCostoVara(row.prod);
     const sub = cant * costoVara;
     if(row.prod && cant>0){
       varasTot += cant;
       if(costoVara>0) total += sub; else sinCosto++;
     }
     const costoTxt = !row.prod ? ''
-      : costoVara>0 ? `<strong>${_cpMoney(costoVara)}</strong><span style="color:var(--mid-gray)"> /vara</span>${ref&&ref.fecha?`<div style="font-size:10px;color:var(--mid-gray)">costo del ${_ddmm(ref.fecha)}</div>`:''}`
+      : costoVara>0 ? `<strong>${_cpMoney(costoVara)}</strong><span style="color:var(--mid-gray)"> /vara</span>${ref&&ref.fecha?`<div style="font-size:10px;color:var(--mid-gray)">costo del ${_ddmm(ref.fecha)}</div>`:''}${ref&&!(vpp>1)?'<div style="font-size:10px;color:var(--red-alert)">revisar varas por paquete ↓</div>':''}`
       : '<span style="color:var(--red-alert);font-size:12px">sin costo cargado</span>';
     return `<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
       <input value="${esc(row.cant)}" inputmode="decimal" onchange="cvSet(${i},'cant',this.value)" title="Cantidad de varas — admite 1/2, 1/4" style="width:70px;border:1px solid #E4E2DC;border-radius:6px;padding:8px;text-align:center;font-size:14px">
@@ -19426,7 +19472,7 @@ Object.assign(window, {
   installPWA,
   renderPresupuestos, openPresupuestoModal, guardarPresupuesto, cambiarEstadoPres, eliminarPresupuesto,
   verPresupuesto, enviarPresupuestoWhatsApp,
-  renderCostoVaras, cvSet, cvAdd, cvRemove, cvReset, cvCargarListado, cvCopiar,
+  renderCostoVaras, cvFijarVarasPorPaq, cvSet, cvAdd, cvRemove, cvReset, cvCargarListado, cvCopiar,
   renderCotizarPresupuesto, cpAddArr, cpRemoveArr, cpSetArr, cpAddFree, cpRemoveFree, cpSetFree, cpReset, cpGuardar,
   renderEventosSinFloreria, openEsfModal, guardarEsf, eliminarEsf, exportEsfReclamo,
   renderCierreMensual, generarCierreMensual, verCierreMensual, exportCierrePDF,
