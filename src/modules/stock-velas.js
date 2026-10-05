@@ -1,11 +1,11 @@
 import { esc } from './utils.js';
 import { confirmModal } from './modales.js';
 import { showToast } from './tema-toast.js';
+import { comprimirImagen } from './imagenes.js';
 
 // Viven en app.js y se leen por window al momento de usarlos.
 const fbSave = (...a) => window.fbSave(...a);
 const closeModal = (...a) => window.closeModal(...a);
-const comprimirImagen = (...a) => window.comprimirImagen(...a);
 
 // ── STOCK DE VELAS ────────────────────────────────────────────────────────────
 let velasData = [];
