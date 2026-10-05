@@ -2954,6 +2954,13 @@
       </div>
     </div>
     <div style="background:#F4F1EC;border:1px solid var(--light-gray);border-radius:12px;padding:18px 20px;margin-bottom:18px"><div id="cv-total"></div></div>
+    <div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;padding:18px 20px;margin-bottom:18px">
+      <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);font-weight:600;margin-bottom:6px">Tabla por tamaños</div>
+      <div style="font-size:11.5px;color:var(--mid-gray);margin-bottom:8px">Copiá la tabla de Excel (con los títulos Small, Medium, etc.) y pegala acá. Te muestra el costo de cada tamaño. Admite decimales como 0,3.</div>
+      <textarea id="cv-tabla-txt" rows="5" class="form-input" style="width:100%" placeholder="Pegá acá la tabla copiada de Excel"></textarea>
+      <button class="btn-primary" onclick="cvTCargar()" style="margin-top:8px">Calcular costos</button>
+      <div id="cv-tabla-out" style="margin-top:14px"></div>
+    </div>
     <div id="cv-revisar" style="background:#FDF3E3;border:1px solid #EBD3A8;border-radius:12px;padding:14px 20px;margin-bottom:18px;display:none"></div>
     <details style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;padding:14px 20px;margin-bottom:30px">
       <summary style="cursor:pointer;font-size:13px;font-weight:600">Pegar un listado de una vez</summary>

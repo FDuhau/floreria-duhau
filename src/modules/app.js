@@ -19239,7 +19239,12 @@ function cvResolverProd(txt){
   const exacto = prods.find(p=>norm(p)===t);
   if(exacto) return exacto;
   const parecidos = prods.filter(p=>norm(p).includes(t));
-  return parecidos.length===1 ? parecidos[0] : String(txt).trim();
+  if(parecidos.length===1) return parecidos[0];
+  // Abreviaturas ("Rosa Importa" → "Rosas importadas"): cada palabra escrita es
+  // el comienzo de alguna palabra del producto; vale solo si hay uno.
+  const toks = t.split(/\s+/).filter(Boolean);
+  const porPalabras = prods.filter(p=>{ const pt = norm(p).split(/\s+/); return toks.every(w=>pt.some(x=>x.startsWith(w))); });
+  return porPalabras.length===1 ? porPalabras[0] : String(txt).trim();
 }
 
 function cvParseLinea(linea){
@@ -19254,6 +19259,7 @@ function cvParseLinea(linea){
 
 function renderCostoVaras(){
   if(!cvRows.length) cvRows = [{cant:'1', prod:''}];
+  cvTRender();
   const dl = document.getElementById('cv-prod-list');
   if(dl) dl.innerHTML = cvProductos().map(p=>`<option value="${esc(p)}">`).join('');
   cvRender();
@@ -19364,6 +19370,66 @@ function cvCopiar(){
   navigator.clipboard.writeText(`Costo de varas\n${filas.join('\n')}\nTotal: ${_cpMoney(total)}`).then(()=>showToast('Costos copiados'));
 }
 
+// ── Tabla por tamaños (flores en filas, tamaños en columnas) ──────────────────
+// Se pega la tabla copiada de Excel y se muestra el costo de cada tamaño.
+let cvTabla = null;   // { cols:[nombres], rows:[{prod, cants:[texto por columna]}] }
+
+function cvParseTabla(txt){
+  const lineas = String(txt||'').split(/\r?\n/).filter(l=>l.trim());
+  if(!lineas.length) return null;
+  const partir = l => (l.includes('\t') ? l.split('\t') : l.split(/;|\s{2,}/)).map(c=>c.trim());
+  const filas = lineas.map(partir);
+  const esNum = c => c!=='' && cpParseCant(c)>0;
+  const hayNums = f => f.slice(1).some(esNum);
+  let cols;
+  if(!hayNums(filas[0])){ cols = filas.shift().slice(1).filter((c,i,a)=>c!==''||i<a.length-1); }
+  const n = Math.max(...filas.map(f=>f.length-1), 0);
+  if(!cols || !cols.length) cols = Array.from({length:n}, (_,i)=>'Columna '+(i+1));
+  const rows = filas.map(f=>({ prod:cvResolverProd(f[0]), cants: cols.map((_,i)=>f[i+1]||'') }))
+    .filter(r=>r.prod && r.cants.some(esNum));
+  return rows.length ? { cols, rows } : null;
+}
+
+function cvTCargar(){
+  const ta = document.getElementById('cv-tabla-txt');
+  const t = cvParseTabla(ta?.value);
+  if(!t){ showToast('No pude leer la tabla. Copiala desde Excel con los títulos de las columnas'); return; }
+  cvTabla = t;
+  cvTRender();
+}
+function cvTSetProd(i, v){ if(cvTabla && cvTabla.rows[i]){ cvTabla.rows[i].prod = cvResolverProd(v); cvTRender(); } }
+function cvTLimpiar(){ cvTabla = null; const ta=document.getElementById('cv-tabla-txt'); if(ta) ta.value=''; cvTRender(); }
+
+function cvTRender(){
+  const out = document.getElementById('cv-tabla-out');
+  if(!out) return;
+  if(!cvTabla){ out.innerHTML = ''; return; }
+  const { cols, rows } = cvTabla;
+  const tot = cols.map(()=>0);
+  let sinCosto = 0;
+  const filas = rows.map((r,i)=>{
+    const { costoVara } = cpCostoVara(r.prod);
+    if(!(costoVara>0)) sinCosto++;
+    const celdas = cols.map((_,c)=>{
+      const cant = cpParseCant(r.cants[c]);
+      if(!(cant>0)) return '<td style="text-align:right;padding:4px 8px;color:var(--mid-gray)">—</td>';
+      if(!(costoVara>0)) return `<td style="text-align:right;padding:4px 8px"><span style="color:var(--mid-gray);font-size:11px">${esc(r.cants[c])} ×</span> —</td>`;
+      tot[c] += cant*costoVara;
+      return `<td style="text-align:right;padding:4px 8px"><span style="color:var(--mid-gray);font-size:11px">${esc(r.cants[c])} ×</span> ${_cpMoney(cant*costoVara)}</td>`;
+    }).join('');
+    return `<tr style="border-top:1px solid #F0EDE8">
+      <td style="padding:4px 8px;min-width:150px"><input value="${esc(r.prod)}" list="cv-prod-list" onchange="cvTSetProd(${i},this.value)" style="width:100%;border:1px solid ${costoVara>0?'#E4E2DC':'var(--red-alert)'};border-radius:6px;padding:5px 7px;font-size:12.5px"></td>
+      <td style="text-align:right;padding:4px 8px;white-space:nowrap;font-size:12px">${costoVara>0?_cpMoney(costoVara)+'/vara':'<span style="color:var(--red-alert)">sin costo</span>'}</td>${celdas}</tr>`;
+  }).join('');
+  out.innerHTML = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead><tr style="color:var(--mid-gray);font-size:10px;text-transform:uppercase"><th style="text-align:left;padding:4px 8px">Flor</th><th style="text-align:right;padding:4px 8px">Costo vara</th>${cols.map(c=>`<th style="text-align:right;padding:4px 8px">${esc(c)}</th>`).join('')}</tr></thead>
+    <tbody>${filas}</tbody>
+    <tfoot><tr style="border-top:2px solid var(--charcoal);font-weight:700;font-size:15px"><td style="padding:8px" colspan="2">Costo total</td>${tot.map(t=>`<td style="text-align:right;padding:8px">${_cpMoney(t)}</td>`).join('')}</tr></tfoot>
+  </table></div>
+  ${sinCosto?`<div style="font-size:12px;color:var(--red-alert);margin-top:8px">${sinCosto} flor${sinCosto>1?'es':''} sin costo cargado (en rojo): elegí el nombre correcto de la lista y no suman al total.</div>`:''}
+  <button class="btn-secondary" onclick="cvTLimpiar()" style="font-size:12px;margin-top:10px">✕ Limpiar tabla</button>`;
+}
+
 Object.assign(window, {
   renderInventario, addInvItem, updInv, invAdjust, delInvItem,
   _downloadCSV, addCajaMovimiento, addCompra, addEvArregloRow, addEvArregloRowWithData,
@@ -19472,7 +19538,7 @@ Object.assign(window, {
   installPWA,
   renderPresupuestos, openPresupuestoModal, guardarPresupuesto, cambiarEstadoPres, eliminarPresupuesto,
   verPresupuesto, enviarPresupuestoWhatsApp,
-  renderCostoVaras, cvFijarVarasPorPaq, cvSet, cvAdd, cvRemove, cvReset, cvCargarListado, cvCopiar,
+  renderCostoVaras, cvTCargar, cvTSetProd, cvTLimpiar, cvFijarVarasPorPaq, cvSet, cvAdd, cvRemove, cvReset, cvCargarListado, cvCopiar,
   renderCotizarPresupuesto, cpAddArr, cpRemoveArr, cpSetArr, cpAddFree, cpRemoveFree, cpSetFree, cpReset, cpGuardar,
   renderEventosSinFloreria, openEsfModal, guardarEsf, eliminarEsf, exportEsfReclamo,
   renderCierreMensual, generarCierreMensual, verCierreMensual, exportCierrePDF,
