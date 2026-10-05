@@ -18356,16 +18356,39 @@ function cpRenderArrRows(){
 
 function _ddmm(f){ if(!f) return ''; const p=String(f).split('-'); return (p[2]&&p[1])?`${p[2]}/${p[1]}`:f; }
 
-// Costo actual de una vara de un producto — la misma regla que usan los ítems
-// sueltos de "Armar cotización": el precio por vara cargado en el cotizador y,
-// si no hay, último costo de compra por paquete ÷ varas por paquete.
+// Última compra válida (no anulada, con costo) de un producto de Florería.
+function _cpUltimaCompra(prod){
+  const pl = String(prod||'').trim().toLowerCase();
+  let best = null;
+  (comprasFlore||[]).forEach(c=>{
+    if(c.anulado || String(c.prod||'').trim().toLowerCase() !== pl) return;
+    if(!(parseMoney(c.costo)>0)) return;
+    if(!best || (c.fecha||'') >= (best.fecha||'')) best = c;
+  });
+  return best;
+}
+
+// Costo actual de una vara de un producto (Armar cotización y Costo de varas):
+// último costo de compra por paquete ÷ varas por paquete. Las varas por paquete
+// son las de esa compra o, si no las tiene, las últimas cargadas (mayores a 1)
+// en compras anteriores del mismo producto. Si no hay un dato de varas por
+// paquete confiable, se usa el precio por vara guardado en el cotizador.
 function cpCostoVara(prod){
-  const ref = prod ? getUltimoPrecioCompra(prod) : null;
-  const vpp = prod ? getVarasPorPaq(prod) : null;
-  const costoVara = prod
-    ? (+cotizadorPrecios[prod] || (ref && vpp ? ref.precio / vpp : 0))
-    : 0;
-  return { ref, vpp, costoVara };
+  const c = prod ? _cpUltimaCompra(prod) : null;
+  const ref = c ? { precio: parseMoney(c.costo), fecha: c.fecha||'' } : null;
+  let vpp = c ? (parseFloat(c.varasPorPaq) || 0) : 0;
+  if(c && !(vpp > 1)){
+    const pl = String(prod).trim().toLowerCase();
+    let f = '';
+    (comprasFlore||[]).forEach(x=>{
+      const v = parseFloat(x.varasPorPaq) || 0;
+      if(x.anulado || v <= 1 || String(x.prod||'').trim().toLowerCase() !== pl) return;
+      if((x.fecha||'') >= f){ f = x.fecha||''; vpp = v; }
+    });
+  }
+  const guardado = prod ? (+cotizadorPrecios[prod] || 0) : 0;
+  const costoVara = (ref && vpp > 1) ? ref.precio / vpp : (guardado || (ref ? ref.precio / (vpp || 1) : 0));
+  return { ref, vpp: vpp || null, costoVara };
 }
 
 function cpRenderFreeRows(){
@@ -19268,15 +19291,13 @@ function renderCostoVaras(){
 // Productos cuya última compra no tiene varas por paquete cargadas (o dice 1):
 // ahí el costo por vara sale igual al del paquete entero. Se corrigen desde acá.
 function cvSospechosos(){
-  const ult = {};
-  (comprasFlore||[]).forEach(c=>{
-    if(c.anulado || !(parseMoney(c.costo)>0) || !c.prod) return;
-    const k = String(c.prod).trim().toLowerCase();
-    if(!ult[k] || (c.fecha||'') >= (ult[k].fecha||'')) ult[k] = c;
-  });
-  return Object.values(ult)
-    .filter(c => !((parseFloat(c.varasPorPaq)||0) > 1))
-    .sort((a,b)=>String(a.prod).localeCompare(String(b.prod),'es'));
+  const vistos = {};
+  (comprasFlore||[]).forEach(c=>{ if(c.prod) vistos[String(c.prod).trim().toLowerCase()] = c.prod; });
+  return Object.values(vistos)
+    .map(prod => ({ prod, c:_cpUltimaCompra(prod) }))
+    .filter(o => o.c && !((cpCostoVara(o.prod).vpp||0) > 1))
+    .map(o => o.c)
+    .sort((x,y)=>String(x.prod).localeCompare(String(y.prod),'es'));
 }
 
 // Carga las varas por paquete en la última compra del producto y recalcula su
@@ -19284,12 +19305,7 @@ function cvSospechosos(){
 function cvFijarVarasPorPaq(prod, val){
   const v = parseFloat(String(val).replace(',','.'));
   if(!(v>0)) return;
-  const pl = String(prod||'').trim().toLowerCase();
-  let ult = null;
-  (comprasFlore||[]).forEach(c=>{
-    if(c.anulado || String(c.prod||'').trim().toLowerCase()!==pl) return;
-    if(!ult || (c.fecha||'') >= (ult.fecha||'')) ult = c;
-  });
+  const ult = _cpUltimaCompra(prod);
   if(!ult) return;
   ult.varasPorPaq = v;
   const paqRec = parseFloat(ult.paqRecibidos)||0;
