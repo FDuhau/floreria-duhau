@@ -6455,6 +6455,7 @@ function renderHome(){
 // ════════════════════════════════════════
 let ventasData=[];
 let jardRecordatorios=[];
+let jardPlagas=[];
 let jardAlertas=[]; // alertas urgentes con foto que carga gerencia para los jardineros
 window._setVentasData = (arr) => { ventasData.splice(0, ventasData.length, ...arr); };
 
@@ -8196,6 +8197,8 @@ window._setJardRecordatorios = (arr) => {
   notificarRecordatoriosNuevos();
 };
 
+window._setJardPlagas = (arr) => { jardPlagas.splice(0, jardPlagas.length, ...arr); };
+
 // ── ALERTAS URGENTES DE JARDÍN (foto) ─────────────────────────────────────────
 // Gerencia carga una foto de algo del jardín que requiere atención urgente
 // (zona + qué hacer). Les salta a los jardineros al instante como urgente.
@@ -8513,6 +8516,7 @@ function recDiasRestantes(rec){
 
 function renderRecordatoriosJard(){
   if(!document.getElementById('jrec-kpis')) return;
+  renderPlagasJard();
   const vencidos = jardRecordatorios.filter(r=>recEstado(r)==='vencido');
   const proximos = jardRecordatorios.filter(r=>recEstado(r)==='proximo');
   const ok       = jardRecordatorios.filter(r=>recEstado(r)==='ok');
@@ -8598,6 +8602,79 @@ function renderRecordatoriosJard(){
         </tbody>
       </table>
     </div>`;
+}
+
+// ── TABLA DE PLAGAS Y ENFERMEDADES ───────────────────────────────────────────
+// Gerencia y jardineros pueden agregar y editar filas; eliminar es solo de gerencia.
+function renderPlagasJard(){
+  const box = document.getElementById('jplag-tabla');
+  if(!box) return;
+  const puedeEditar = userRole==='gerencia' || userRole==='jardinero' || (userRole==='florista' && !!jardineroNombre);
+  const puedeBorrar = userRole==='gerencia';
+  const filas = jardPlagas.length ? jardPlagas.map((r,i)=>`<tr>
+      <td><strong>${esc(r.planta)}</strong></td>
+      <td>${esc(r.enfermedad)}</td>
+      <td>${esc(r.tratamiento)}</td>
+      <td>${esc(r.dosis)}</td>
+      <td>${r.ultimo?fmtDate(r.ultimo):'—'}</td>
+      <td>${esc(r.quien)}</td>
+      <td style="max-width:260px;white-space:pre-wrap">${esc(r.obs)}</td>
+      <td style="white-space:nowrap">${puedeEditar?`<button class="btn-icon" onclick="openPlagaJardModal(${i})" title="Editar"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/></svg></button>`:''}${puedeBorrar?`<button class="btn-icon" style="color:var(--red-alert)" onclick="deletePlagaJard(${i})" title="Eliminar">✕</button>`:''}</td>
+    </tr>`).join('') : '<tr><td colspan="8" style="text-align:center;color:var(--mid-gray);padding:24px">Todavía no hay controles cargados</td></tr>';
+  box.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <div class="section-title" style="margin:0">Plagas y enfermedades</div>
+      ${puedeEditar?'<button class="btn-add" onclick="openPlagaJardModal(-1)">+ Nuevo control</button>':''}
+    </div>
+    <div class="table-wrapper">
+      <table class="stock-table" style="min-width:900px">
+        <thead><tr>
+          <th>Planta</th><th>Enfermedad</th><th>Tratamiento</th><th>Dosificación</th><th>Último control</th><th>Quién aplicó</th><th>Observación</th><th></th>
+        </tr></thead>
+        <tbody>${filas}</tbody>
+      </table>
+    </div>`;
+}
+
+function openPlagaJardModal(idx){
+  const r = idx>=0 ? jardPlagas[idx] : null;
+  document.getElementById('jplag-modal-idx').value = idx;
+  document.getElementById('jplag-planta').value = r?.planta || '';
+  document.getElementById('jplag-enfermedad').value = r?.enfermedad || '';
+  document.getElementById('jplag-tratamiento').value = r?.tratamiento || '';
+  document.getElementById('jplag-dosis').value = r?.dosis || '';
+  document.getElementById('jplag-ultimo').value = r?.ultimo || '';
+  document.getElementById('jplag-quien').value = r ? (r.quien||'') : (jardineroNombre || '');
+  document.getElementById('jplag-obs').value = r?.obs || '';
+  document.getElementById('jplag-modal-title').textContent = r ? 'Editar control' : 'Nuevo control';
+  document.getElementById('jplag-modal').classList.add('open');
+}
+
+function savePlagaJard(){
+  const idx = parseInt(document.getElementById('jplag-modal-idx').value);
+  const v = id => document.getElementById(id).value.trim();
+  const rec = {
+    planta: v('jplag-planta'),
+    enfermedad: v('jplag-enfermedad'),
+    tratamiento: v('jplag-tratamiento'),
+    dosis: v('jplag-dosis'),
+    ultimo: document.getElementById('jplag-ultimo').value || null,
+    quien: v('jplag-quien'),
+    obs: v('jplag-obs'),
+  };
+  if(!rec.planta){ showToast('Poné el nombre de la planta'); return; }
+  if(idx>=0) jardPlagas[idx]=rec; else jardPlagas.push(rec);
+  fbSave('jardPlagas', jardPlagas);
+  closeModal('jplag-modal');
+  renderPlagasJard();
+}
+
+async function deletePlagaJard(idx){
+  if(userRole !== 'gerencia'){ showToast('Solo gerencia puede eliminar'); return; }
+  if(!await confirmModal('¿Eliminar este control?')) return;
+  jardPlagas.splice(idx,1);
+  fbSave('jardPlagas', jardPlagas);
+  renderPlagasJard();
 }
 
 function marcarRecordatorioHecho(idx){
@@ -11826,7 +11903,7 @@ async function descargarBackup(){
     clientesData: getClientesData, listaPreciosData: ()=>listaPreciosData,
     ramosDispData: ()=>ramosDispData, florerosData: ()=>florerosData, velasData: getVelasData, pedidosHabData: ()=>pedidosHabData, galeriaData: ()=>galeriaData,
     cotizadorPrecios: ()=>cotizadorPrecios, eventoPricing: ()=>eventoPricing,
-    jardineriaData: ()=>jardineriaData, jardineriaLog: ()=>jardineriaLog, jardRecordatorios: ()=>jardRecordatorios,
+    jardineriaData: ()=>jardineriaData, jardineriaLog: ()=>jardineriaLog, jardRecordatorios: ()=>jardRecordatorios, jardPlagas: ()=>jardPlagas,
     habitacionesData: ()=>habitacionesData, habitacionesLog: ()=>habitacionesLog, zonaHorasData: ()=>zonaHorasData,
     horariosData: ()=>window.horariosData, horariosPlantilla: ()=>horariosPlantilla, horariosPersonas: ()=>window.horariosPersonas,
     florTurnos: ()=>window.florTurnos, jardHorarios: ()=>window.jardHorarios,
@@ -18351,7 +18428,7 @@ Object.assign(window, {
   jopsDone, jopsHoraCell, jopsRegistrarHora, jopsResetHora, jopsUpdHora, limpiarCarrito,
   jardTogglePlanHoy, openGestionTareasJard, jardAddTarea, jardRenameTarea, jardDeleteTarea, jardAddGrupo, jardAddSeccion,
   limpiarCarritoOps, limpiarDiaHorario, loadWeekState, lpAddPhotos, lpDelCat, lpDelItem,
-  lpOpenViewer, lpRemovePhoto, lpUpdItem, markHabDone, markJardDone, marcarRecordatorioHecho, navToggleGroup, navExpandGroup, navCollapseGroup, finalizeNavGroups, navigate, openRecordatorioModal, renderBottomNav, renderRecordatoriosJard, saveRecordatorio, deleteRecordatorio, updateBottomNav, openCajaModal,
+  lpOpenViewer, lpRemovePhoto, lpUpdItem, markHabDone, markJardDone, marcarRecordatorioHecho, navToggleGroup, navExpandGroup, navCollapseGroup, finalizeNavGroups, navigate, openRecordatorioModal, renderBottomNav, renderRecordatoriosJard, renderPlagasJard, openPlagaJardModal, savePlagaJard, deletePlagaJard, saveRecordatorio, deleteRecordatorio, updateBottomNav, openCajaModal,
   openAlertaJardinModal, alertaJardFotoPreview, guardarAlertaJardin, resolverAlertaJardin, verFotoAlerta, renderAlertasUrgentesJard, toggleRecepAgrupado,
   openLlamadoModal, llamadoOnZonaChange, llamadoFotoPreview, guardarLlamado, renderLlamadosChecklist, verFotoLlamado, resolverLlamado, eliminarLlamado, renderLlamadosEval,
   openDiaHorario, openEditSaleModal, openEventModal, openEventoDetail, openGestionPasswords,

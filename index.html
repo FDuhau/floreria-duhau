@@ -2285,6 +2285,51 @@
     <div id="jrec-alertas" style="margin-bottom:28px"></div>
     <div id="jrec-config"></div>
 
+    <!-- Tabla de plagas y enfermedades -->
+    <div id="jplag-tabla" style="margin-top:32px"></div>
+
+    <!-- Modal nueva/editar fila de plagas -->
+    <div class="modal-overlay" id="jplag-modal" onclick="if(event.target===this)closeModal('jplag-modal')">
+      <div class="modal" style="max-width:520px">
+        <div class="modal-title" id="jplag-modal-title">Nuevo control</div>
+        <input type="hidden" id="jplag-modal-idx">
+        <div class="form-group">
+          <label class="form-label">Nombre de la planta</label>
+          <input type="text" class="form-input-modal" id="jplag-planta" maxlength="120">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Enfermedad</label>
+          <input type="text" class="form-input-modal" id="jplag-enfermedad" maxlength="120">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tratamiento</label>
+          <input type="text" class="form-input-modal" id="jplag-tratamiento" maxlength="200">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Dosificación</label>
+          <input type="text" class="form-input-modal" id="jplag-dosis" maxlength="120" placeholder="ej. 5 cc por litro de agua">
+        </div>
+        <div class="modal-row" style="grid-template-columns:1fr 1fr;gap:12px;display:grid">
+          <div class="form-group">
+            <label class="form-label">Último control</label>
+            <input type="date" class="form-input-modal" id="jplag-ultimo">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Quién aplicó</label>
+            <input type="text" class="form-input-modal" id="jplag-quien" maxlength="80">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Observación</label>
+          <textarea class="form-input-modal" id="jplag-obs" rows="3" maxlength="500"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-secondary" onclick="closeModal('jplag-modal')">Cancelar</button>
+          <button class="btn-add" onclick="savePlagaJard()">Guardar</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Modal nuevo/editar recordatorio -->
     <div class="modal-overlay" id="jrec-modal" onclick="if(event.target===this)closeModal('jrec-modal')">
       <div class="modal" style="max-width:480px">
