@@ -8605,47 +8605,142 @@ function renderRecordatoriosJard(){
 }
 
 // ── TABLA DE PLAGAS Y ENFERMEDADES ───────────────────────────────────────────
-// Gerencia y jardineros pueden agregar y editar filas; eliminar es solo de gerencia.
+// Gerencia y jardineros pueden agregar, editar y registrar controles; eliminar es solo de gerencia.
+// Cada fila tiene "volver a revisar cada N días" y un semáforo según el último control.
+// Los tratamientos sugeridos son orientativos: la dosis siempre se confirma con la etiqueta del producto.
+const PLAGAS_SUGERENCIAS = {
+  'Cochinilla':        {t:'Jabón potásico o aceite de neem; retirar a mano las más visibles', c:7},
+  'Pulgón':            {t:'Jabón potásico o aceite de neem; chorro de agua sobre los brotes', c:5},
+  'Mosca blanca':      {t:'Aceite de neem o jabón potásico; trampas amarillas pegajosas', c:5},
+  'Arañuela roja':     {t:'Aumentar humedad ambiente y pulverizar jabón potásico o aceite de neem', c:5},
+  'Oídio (polvillo blanco)': {t:'Fungicida a base de azufre o bicarbonato; podar hojas muy afectadas', c:7},
+  'Roya':              {t:'Retirar hojas afectadas y aplicar fungicida cúprico', c:7},
+  'Hongos (manchas en hojas)': {t:'Retirar hojas afectadas, no mojar el follaje y aplicar fungicida cúprico', c:7},
+  'Podredumbre de raíz': {t:'Reducir el riego, mejorar el drenaje y aplicar fungicida al suelo', c:7},
+  'Hormigas':          {t:'Cebo para hormigas lejos de las plantas; controlar pulgones y cochinillas', c:7},
+  'Caracoles y babosas': {t:'Cebo específico o trampas de cerveza; recolectar a la tarde', c:3},
+  'Orugas':            {t:'Recolección manual o Bacillus thuringiensis', c:5},
+  'Trips':             {t:'Trampas azules pegajosas y jabón potásico', c:5},
+};
+const PLAGAS_ESTADOS = {
+  'Detectada':      'background:#fdecea;color:#b3261e',
+  'En tratamiento': 'background:#fff4d6;color:#8a5a00',
+  'Bajo control':   'background:#e3f1fb;color:#1b5e8a',
+  'Resuelta':       'background:#e4f4e6;color:#2e7d32',
+};
+let plagasFiltroEstado = '';
+let plagasFiltroTexto = '';
+
+// Días hasta el próximo control: negativo = atrasado, null = sin fecha o ya resuelta
+function plagaDiasParaControl(r){
+  if(r.estado==='Resuelta') return null;
+  if(!r.ultimo) return -1;
+  const prox = addDaysISO(r.ultimo, parseInt(r.cada)||7);
+  return Math.round((new Date(prox)-new Date(TODAY_ISO))/86400000);
+}
+
+function plagaSemaforo(r){
+  const d = plagaDiasParaControl(r);
+  if(d===null) return {txt:'Cerrada', st:'color:var(--mid-gray)', orden:3};
+  if(d<0) return {txt: r.ultimo ? `Atrasada ${-d} d` : 'Sin controlar', st:'color:var(--red-alert);font-weight:600', orden:0};
+  if(d<=2) return {txt: d===0?'Hoy':`En ${d} d`, st:'color:#A06A00;font-weight:600', orden:1};
+  return {txt:`En ${d} d`, st:'color:#2e7d32', orden:2};
+}
+
+function plagaFiltrar(){
+  plagasFiltroEstado = document.getElementById('jplag-f-estado')?.value || '';
+  plagasFiltroTexto  = (document.getElementById('jplag-f-texto')?.value || '').toLowerCase();
+  renderPlagasJard();
+}
+
 function renderPlagasJard(){
   const box = document.getElementById('jplag-tabla');
   if(!box) return;
   const puedeEditar = userRole==='gerencia' || userRole==='jardinero' || (userRole==='florista' && !!jardineroNombre);
   const puedeBorrar = userRole==='gerencia';
-  const filas = jardPlagas.length ? jardPlagas.map((r,i)=>`<tr>
-      <td><strong>${esc(r.planta)}</strong></td>
-      <td>${esc(r.enfermedad)}</td>
+  const sem = jardPlagas.map(plagaSemaforo);
+  const atrasadas = sem.filter(s=>s.orden===0).length;
+  const proximas  = sem.filter(s=>s.orden===1).length;
+  const activas   = jardPlagas.filter(r=>r.estado!=='Resuelta').length;
+  const chip = (n,label,color) => `<div style="flex:1;min-width:120px;padding:10px 14px;border:1px solid var(--light-gray);border-left:3px solid ${color};border-radius:6px;background:#fff"><div style="font-size:22px;font-weight:600">${n}</div><div style="font-size:11.5px;color:var(--mid-gray)">${label}</div></div>`;
+  const q = plagasFiltroTexto;
+  const items = jardPlagas.map((r,i)=>({r,i,s:sem[i]}))
+    .filter(x=>!plagasFiltroEstado || (x.r.estado||'Detectada')===plagasFiltroEstado)
+    .filter(x=>!q || [x.r.planta,x.r.enfermedad,x.r.zona,x.r.tratamiento,x.r.quien].some(v=>(v||'').toLowerCase().includes(q)))
+    .sort((a,b)=>a.s.orden-b.s.orden);
+  const gravColor = {Alta:'var(--red-alert)', Media:'#A06A00', Leve:'var(--mid-gray)'};
+  const filas = items.length ? items.map(({r,i,s})=>{
+    const est = r.estado || 'Detectada';
+    const hist = (r.historial||[]);
+    const proxFecha = (r.estado!=='Resuelta' && r.ultimo) ? fmtDate(addDaysISO(r.ultimo, parseInt(r.cada)||7)) : '—';
+    return `<tr>
+      <td><strong>${esc(r.planta)}</strong>${r.zona?`<div style="font-size:11px;color:var(--mid-gray)">${esc(r.zona)}</div>`:''}</td>
+      <td>${esc(r.enfermedad)}${r.gravedad?`<div style="font-size:11px;color:${gravColor[r.gravedad]||''}">Gravedad ${esc(r.gravedad)}</div>`:''}</td>
       <td>${esc(r.tratamiento)}</td>
       <td>${esc(r.dosis)}</td>
+      <td><span style="padding:2px 8px;border-radius:10px;font-size:11.5px;white-space:nowrap;${PLAGAS_ESTADOS[est]||''}">${esc(est)}</span></td>
       <td>${r.ultimo?fmtDate(r.ultimo):'—'}</td>
+      <td><span style="${s.st}">${esc(s.txt)}</span><div style="font-size:11px;color:var(--mid-gray)">${proxFecha}${r.cada?` · cada ${parseInt(r.cada)} d`:''}</div></td>
       <td>${esc(r.quien)}</td>
-      <td style="max-width:260px;white-space:pre-wrap">${esc(r.obs)}</td>
-      <td style="white-space:nowrap">${puedeEditar?`<button class="btn-icon" onclick="openPlagaJardModal(${i})" title="Editar"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/></svg></button>`:''}${puedeBorrar?`<button class="btn-icon" style="color:var(--red-alert)" onclick="deletePlagaJard(${i})" title="Eliminar">✕</button>`:''}</td>
-    </tr>`).join('') : '<tr><td colspan="8" style="text-align:center;color:var(--mid-gray);padding:24px">Todavía no hay controles cargados</td></tr>';
+      <td style="max-width:240px;white-space:pre-wrap">${esc(r.obs)}${hist.length?`<div><a href="#" style="font-size:11.5px" onclick="verHistorialPlaga(${i});return false">Ver historial (${hist.length})</a></div>`:''}</td>
+      <td style="white-space:nowrap">${puedeEditar?`<button class="btn-add" style="padding:4px 10px;font-size:11.5px" onclick="openControlPlaga(${i})">✓ Control</button> <button class="btn-icon" onclick="openPlagaJardModal(${i})" title="Editar"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/></svg></button>`:''}${puedeBorrar?`<button class="btn-icon" style="color:var(--red-alert)" onclick="deletePlagaJard(${i})" title="Eliminar">✕</button>`:''}</td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="10" style="text-align:center;color:var(--mid-gray);padding:24px">${jardPlagas.length?'Ningún control coincide con el filtro':'Todavía no hay controles cargados'}</td></tr>`;
   box.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
       <div class="section-title" style="margin:0">Plagas y enfermedades</div>
       ${puedeEditar?'<button class="btn-add" onclick="openPlagaJardModal(-1)">+ Nuevo control</button>':''}
     </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+      ${chip(atrasadas,'Para revisar ya (atrasadas)','var(--red-alert)')}
+      ${chip(proximas,'Se revisan hoy o en 2 días','#A06A00')}
+      ${chip(activas,'Plagas activas','#1b5e8a')}
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+      <input type="text" class="ctrl-search" id="jplag-f-texto" placeholder="Buscar planta, plaga, zona..." value="${esc(plagasFiltroTexto)}" oninput="plagaFiltrar()" style="flex:1;min-width:180px">
+      <select class="form-input" id="jplag-f-estado" onchange="plagaFiltrar()" style="width:170px;padding:6px 8px;font-size:12.5px">
+        <option value="">Todos los estados</option>
+        ${Object.keys(PLAGAS_ESTADOS).map(e=>`<option${plagasFiltroEstado===e?' selected':''}>${e}</option>`).join('')}
+      </select>
+    </div>
     <div class="table-wrapper">
-      <table class="stock-table" style="min-width:900px">
+      <table class="stock-table" style="min-width:1100px">
         <thead><tr>
-          <th>Planta</th><th>Enfermedad</th><th>Tratamiento</th><th>Dosificación</th><th>Último control</th><th>Quién aplicó</th><th>Observación</th><th></th>
+          <th>Planta</th><th>Enfermedad</th><th>Tratamiento</th><th>Dosificación</th><th>Estado</th><th>Último control</th><th>Próximo control</th><th>Quién aplicó</th><th>Observación</th><th></th>
         </tr></thead>
         <tbody>${filas}</tbody>
       </table>
     </div>`;
+  // el input de búsqueda se vuelve a crear: devolverle el foco al escribir
+  if(plagasFiltroTexto){ const t=document.getElementById('jplag-f-texto'); if(t && document.activeElement!==t){ t.focus(); t.setSelectionRange(t.value.length,t.value.length); } }
+}
+
+function plagaSugerir(){
+  const sel = PLAGAS_SUGERENCIAS[document.getElementById('jplag-enfermedad').value.trim()];
+  const ayuda = document.getElementById('jplag-ayuda');
+  if(!sel){ ayuda.textContent=''; return; }
+  const trat = document.getElementById('jplag-tratamiento');
+  if(!trat.value.trim()) trat.value = sel.t;
+  document.getElementById('jplag-cada').value = sel.c;
+  ayuda.textContent = 'Dosis: seguí siempre la etiqueta del producto que uses. Si no tiene, probá primero en una hoja y esperá 24 h.';
 }
 
 function openPlagaJardModal(idx){
   const r = idx>=0 ? jardPlagas[idx] : null;
+  document.getElementById('jplag-sugerencias').innerHTML = Object.keys(PLAGAS_SUGERENCIAS).map(k=>`<option value="${esc(k)}">`).join('');
   document.getElementById('jplag-modal-idx').value = idx;
   document.getElementById('jplag-planta').value = r?.planta || '';
+  document.getElementById('jplag-zona').value = r?.zona || '';
+  document.getElementById('jplag-gravedad').value = r?.gravedad || 'Leve';
   document.getElementById('jplag-enfermedad').value = r?.enfermedad || '';
   document.getElementById('jplag-tratamiento').value = r?.tratamiento || '';
   document.getElementById('jplag-dosis').value = r?.dosis || '';
+  document.getElementById('jplag-estado').value = r?.estado || 'Detectada';
+  document.getElementById('jplag-cada').value = r?.cada || 7;
   document.getElementById('jplag-ultimo').value = r?.ultimo || '';
   document.getElementById('jplag-quien').value = r ? (r.quien||'') : (jardineroNombre || '');
   document.getElementById('jplag-obs').value = r?.obs || '';
+  document.getElementById('jplag-ayuda').textContent = '';
   document.getElementById('jplag-modal-title').textContent = r ? 'Editar control' : 'Nuevo control';
   document.getElementById('jplag-modal').classList.add('open');
 }
@@ -8655,18 +8750,61 @@ function savePlagaJard(){
   const v = id => document.getElementById(id).value.trim();
   const rec = {
     planta: v('jplag-planta'),
+    zona: v('jplag-zona'),
+    gravedad: v('jplag-gravedad'),
     enfermedad: v('jplag-enfermedad'),
     tratamiento: v('jplag-tratamiento'),
     dosis: v('jplag-dosis'),
+    estado: v('jplag-estado'),
+    cada: Math.min(365, Math.max(1, parseInt(v('jplag-cada'))||7)),
     ultimo: document.getElementById('jplag-ultimo').value || null,
     quien: v('jplag-quien'),
     obs: v('jplag-obs'),
   };
   if(!rec.planta){ showToast('Poné el nombre de la planta'); return; }
-  if(idx>=0) jardPlagas[idx]=rec; else jardPlagas.push(rec);
+  if(idx>=0){ rec.historial = jardPlagas[idx].historial || []; jardPlagas[idx]=rec; }
+  else { rec.historial = []; jardPlagas.push(rec); }
   fbSave('jardPlagas', jardPlagas);
   closeModal('jplag-modal');
   renderPlagasJard();
+}
+
+// Registrar que se revisó/aplicó hoy: actualiza último control y deja constancia en el historial
+function openControlPlaga(idx){
+  const r = jardPlagas[idx];
+  document.getElementById('jplag-ctl-idx').value = idx;
+  document.getElementById('jplag-ctl-sub').textContent = `${r.planta} · ${r.enfermedad||'sin enfermedad indicada'}`;
+  document.getElementById('jplag-ctl-fecha').value = TODAY_ISO;
+  document.getElementById('jplag-ctl-quien').value = jardineroNombre || r.quien || '';
+  document.getElementById('jplag-ctl-estado').value = r.estado || 'Detectada';
+  document.getElementById('jplag-ctl-obs').value = '';
+  document.getElementById('jplag-ctl-modal').classList.add('open');
+}
+
+function saveControlPlaga(){
+  const idx = parseInt(document.getElementById('jplag-ctl-idx').value);
+  const r = jardPlagas[idx];
+  if(!r) return;
+  const fecha = document.getElementById('jplag-ctl-fecha').value || TODAY_ISO;
+  const quien = document.getElementById('jplag-ctl-quien').value.trim();
+  const estado = document.getElementById('jplag-ctl-estado').value;
+  const obs = document.getElementById('jplag-ctl-obs').value.trim();
+  r.historial = r.historial || [];
+  r.historial.push({fecha, quien, estado, obs});
+  if(!r.ultimo || fecha>=r.ultimo){
+    r.ultimo = fecha; r.quien = quien; r.estado = estado;
+    if(obs) r.obs = obs;
+  }
+  fbSave('jardPlagas', jardPlagas);
+  closeModal('jplag-ctl-modal');
+  renderPlagasJard();
+  showToast('Control registrado');
+}
+
+function verHistorialPlaga(idx){
+  const r = jardPlagas[idx];
+  const filas = (r.historial||[]).slice().reverse().map(h=>`${fmtDate(h.fecha)} · ${h.estado||''}${h.quien?' · '+h.quien:''}${h.obs?'\n   '+h.obs:''}`).join('\n');
+  alert(`Historial de ${r.planta}\n\n${filas}`);
 }
 
 async function deletePlagaJard(idx){
@@ -18428,7 +18566,7 @@ Object.assign(window, {
   jopsDone, jopsHoraCell, jopsRegistrarHora, jopsResetHora, jopsUpdHora, limpiarCarrito,
   jardTogglePlanHoy, openGestionTareasJard, jardAddTarea, jardRenameTarea, jardDeleteTarea, jardAddGrupo, jardAddSeccion,
   limpiarCarritoOps, limpiarDiaHorario, loadWeekState, lpAddPhotos, lpDelCat, lpDelItem,
-  lpOpenViewer, lpRemovePhoto, lpUpdItem, markHabDone, markJardDone, marcarRecordatorioHecho, navToggleGroup, navExpandGroup, navCollapseGroup, finalizeNavGroups, navigate, openRecordatorioModal, renderBottomNav, renderRecordatoriosJard, renderPlagasJard, openPlagaJardModal, savePlagaJard, deletePlagaJard, saveRecordatorio, deleteRecordatorio, updateBottomNav, openCajaModal,
+  lpOpenViewer, lpRemovePhoto, lpUpdItem, markHabDone, markJardDone, marcarRecordatorioHecho, navToggleGroup, navExpandGroup, navCollapseGroup, finalizeNavGroups, navigate, openRecordatorioModal, renderBottomNav, renderRecordatoriosJard, renderPlagasJard, openPlagaJardModal, savePlagaJard, deletePlagaJard, plagaSugerir, plagaFiltrar, openControlPlaga, saveControlPlaga, verHistorialPlaga, saveRecordatorio, deleteRecordatorio, updateBottomNav, openCajaModal,
   openAlertaJardinModal, alertaJardFotoPreview, guardarAlertaJardin, resolverAlertaJardin, verFotoAlerta, renderAlertasUrgentesJard, toggleRecepAgrupado,
   openLlamadoModal, llamadoOnZonaChange, llamadoFotoPreview, guardarLlamado, renderLlamadosChecklist, verFotoLlamado, resolverLlamado, eliminarLlamado, renderLlamadosEval,
   openDiaHorario, openEditSaleModal, openEventModal, openEventoDetail, openGestionPasswords,
