@@ -2290,16 +2290,29 @@
 
     <!-- Modal nueva/editar fila de plagas -->
     <div class="modal-overlay" id="jplag-modal" onclick="if(event.target===this)closeModal('jplag-modal')">
-      <div class="modal" style="max-width:520px">
+      <div class="modal" style="max-width:560px;max-height:90vh;overflow-y:auto">
         <div class="modal-title" id="jplag-modal-title">Nuevo control</div>
         <input type="hidden" id="jplag-modal-idx">
         <div class="form-group">
           <label class="form-label">Nombre de la planta</label>
           <input type="text" class="form-input-modal" id="jplag-planta" maxlength="120">
         </div>
+        <div class="modal-row" style="grid-template-columns:1fr 1fr;gap:12px;display:grid">
+          <div class="form-group">
+            <label class="form-label">Zona del jardín</label>
+            <input type="text" class="form-input-modal" id="jplag-zona" maxlength="80" placeholder="ej. Patio central">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Gravedad</label>
+            <select class="form-input-modal" id="jplag-gravedad">
+              <option>Leve</option><option>Media</option><option>Alta</option>
+            </select>
+          </div>
+        </div>
         <div class="form-group">
-          <label class="form-label">Enfermedad</label>
-          <input type="text" class="form-input-modal" id="jplag-enfermedad" maxlength="120">
+          <label class="form-label">Enfermedad o plaga <span style="font-weight:400;color:var(--mid-gray)">(elegí una de la lista para autocompletar el tratamiento)</span></label>
+          <input type="text" class="form-input-modal" id="jplag-enfermedad" maxlength="120" list="jplag-sugerencias" oninput="plagaSugerir()">
+          <datalist id="jplag-sugerencias"></datalist>
         </div>
         <div class="form-group">
           <label class="form-label">Tratamiento</label>
@@ -2308,6 +2321,19 @@
         <div class="form-group">
           <label class="form-label">Dosificación</label>
           <input type="text" class="form-input-modal" id="jplag-dosis" maxlength="120" placeholder="ej. 5 cc por litro de agua">
+          <div id="jplag-ayuda" style="font-size:11.5px;color:var(--mid-gray);margin-top:4px;line-height:1.4"></div>
+        </div>
+        <div class="modal-row" style="grid-template-columns:1fr 1fr;gap:12px;display:grid">
+          <div class="form-group">
+            <label class="form-label">Estado</label>
+            <select class="form-input-modal" id="jplag-estado">
+              <option>Detectada</option><option>En tratamiento</option><option>Bajo control</option><option>Resuelta</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Volver a revisar cada (días)</label>
+            <input type="number" class="form-input-modal" id="jplag-cada" min="1" max="365" value="7">
+          </div>
         </div>
         <div class="modal-row" style="grid-template-columns:1fr 1fr;gap:12px;display:grid">
           <div class="form-group">
@@ -2326,6 +2352,39 @@
         <div class="modal-actions">
           <button class="btn-secondary" onclick="closeModal('jplag-modal')">Cancelar</button>
           <button class="btn-add" onclick="savePlagaJard()">Guardar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal registrar control hecho -->
+    <div class="modal-overlay" id="jplag-ctl-modal" onclick="if(event.target===this)closeModal('jplag-ctl-modal')">
+      <div class="modal" style="max-width:460px">
+        <div class="modal-title">Registrar control</div>
+        <input type="hidden" id="jplag-ctl-idx">
+        <div id="jplag-ctl-sub" style="font-size:12.5px;color:var(--mid-gray);margin-bottom:12px"></div>
+        <div class="modal-row" style="grid-template-columns:1fr 1fr;gap:12px;display:grid">
+          <div class="form-group">
+            <label class="form-label">Fecha</label>
+            <input type="date" class="form-input-modal" id="jplag-ctl-fecha">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Quién aplicó</label>
+            <input type="text" class="form-input-modal" id="jplag-ctl-quien" maxlength="80">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Cómo está la planta</label>
+          <select class="form-input-modal" id="jplag-ctl-estado">
+            <option>Detectada</option><option>En tratamiento</option><option>Bajo control</option><option>Resuelta</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Observación</label>
+          <textarea class="form-input-modal" id="jplag-ctl-obs" rows="3" maxlength="500"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-secondary" onclick="closeModal('jplag-ctl-modal')">Cancelar</button>
+          <button class="btn-add" onclick="saveControlPlaga()">Guardar control</button>
         </div>
       </div>
     </div>
