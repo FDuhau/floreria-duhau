@@ -10,6 +10,14 @@ const fbSave = (...a) => window.fbSave(...a);
 
 // ── PEDIDOS DE HABITACIÓN ──────────────────────────────────────────────────────
 export const pedidosHabData = [];
+// Firebase entrega la lista con `window.pedidosHabData = arr`. Sin esto, esa
+// asignación no llegaba a esta lista: al recargar se veía vacía y un pedido
+// nuevo pisaba el historial guardado. Ahora se vuelca sobre la misma lista.
+Object.defineProperty(window, 'pedidosHabData', {
+  get: () => pedidosHabData,
+  set: (arr) => { pedidosHabData.splice(0, pedidosHabData.length, ...(Array.isArray(arr) ? arr : Object.values(arr || {}))); },
+  configurable: true
+});
 
 export function renderHomeHyatt(){
   // KPIs del panel
