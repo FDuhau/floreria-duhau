@@ -7,6 +7,7 @@ import { openGlobalSearch, closeGlobalSearch, handleSearchKey, runGlobalSearch, 
 import { renderProveedores, openProveedorModal, guardarProveedor, eliminarProveedor } from './proveedores.js';
 import { renderClientes, abrirFichaCliente, openNuevoClienteModal, editarCliente, guardarCliente, eliminarCliente, getClientesData } from './crm-clientes.js';
 import { installPWA } from './pwa.js';
+import { toggleSidebar, openSidebar, closeSidebar } from './sidebar.js';
 import { PAGE_LABELS, JARDINERIA_BASE, HABITACIONES_BASE } from './datos-base.js';
 import { renderBottomNav, updateBottomNav } from './nav-inferior.js';
 import { listaPreciosData, renderListaPrecios, lpUpdItem, lpDelItem, lpDelCat, openLpModal, saveLpItem, openLpCatModal, addLpCat, lpAddPhotos, lpRemovePhoto, lpOpenViewer } from './lista-precios.js';
@@ -11981,28 +11982,6 @@ async function delPedidoHab(i){
 // ════════════════════════════
 // MOBILE SIDEBAR
 // ════════════════════════════
-function toggleSidebar(){
-  const sidebar  = document.getElementById('sidebar');
-  const isOpen   = sidebar.classList.contains('open');
-  if(isOpen){ closeSidebar(); } else { openSidebar(); }
-}
-function openSidebar(){
-  document.getElementById('sidebar').classList.add('open');
-  document.getElementById('sidebar-overlay').classList.add('visible');
-  document.getElementById('hamburger-btn').classList.add('open');
-  document.body.style.overflow = 'hidden';
-}
-function closeSidebar(){
-  document.getElementById('sidebar').classList.remove('open');
-  document.getElementById('sidebar-overlay').classList.remove('visible');
-  document.getElementById('hamburger-btn').classList.remove('open');
-  document.body.style.overflow = '';
-}
-
-// Si se agranda la ventana (o se achica el zoom) con el menú del celular
-// abierto, hay que cerrarlo: si no, la capa oscura y el bloqueo de scroll
-// quedan pegados sobre la vista de escritorio.
-window.matchMedia('(min-width: 769px)').addEventListener('change', e => { if(e.matches) closeSidebar(); });
 
 // Close sidebar on nav item click (mobile).
 // Los encabezados de grupo (acordeón) NO cierran el sidebar: solo despliegan
