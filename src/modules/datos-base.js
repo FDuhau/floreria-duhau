@@ -165,3 +165,20 @@ export const HABITACIONES_BASE = [
   {hab:"1310",last:"2026-05-12",visits:9,notas:""},
   {hab:"1409",last:"2026-04-17",visits:9,notas:""},
 ];
+
+// Arreglos del Día de la Madre (precios fijos) para el selector de Nueva Venta
+export const DIA_MADRE_ARREGLOS = [
+  {nombre:'Bouquet · Small', precio:95000},
+  {nombre:'Bouquet · Medium', precio:210000},
+  {nombre:'Bouquet · Large', precio:380000},
+  {nombre:'Bouquet · XLarge', precio:510000},
+  {nombre:'Flower Box · Small', precio:260000},
+  {nombre:'Flower Box · Large', precio:500000},
+  {nombre:'Ramo de 12 rosas importadas', precio:200000},
+  {nombre:'Ramo de 24 rosas importadas', precio:400000},
+  {nombre:'Ramo de 50 rosas importadas', precio:800000},
+  {nombre:'Ramo de 100 rosas importadas', precio:1500000},
+  {nombre:'Colección de autor N°1 (florero de vidrio con rosas garden, hortensias y anémonas)', precio:480000},
+  {nombre:'Colección de autor N°2 (florero de vidrio con jacintos peruanos y anémonas)', precio:390000},
+  {nombre:'Colección de autor N°3 (base de cerámica con rosas garden, ranúnculos, hortensias y flores de estación)', precio:650000},
+];

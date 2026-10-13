@@ -11,7 +11,7 @@ import { toggleSidebar, openSidebar, closeSidebar } from './sidebar.js';
 import { pedidosHabData, configurarPedidosHab, renderHomeHyatt, renderPedidosHab, enviarPedidoHab, updPedidoHabEstado, delPedidoHab, phAddItemRow, phSetItemTipo, phSetItemQty, phRemoveItemRow } from './pedidos-habitacion.js';
 import { alertasAutomaticas } from './alertas-automaticas.js';
 import { configurarCotizadorEventos, initCotizadorEventosHyatt, calcularArreglosEvento, recalcTotalEvento, generarTextoCotEvento, enviarCotizacionEvento, copiarCotizacionEvento } from './cotizador-eventos.js';
-import { PAGE_LABELS, JARDINERIA_BASE, HABITACIONES_BASE } from './datos-base.js';
+import { PAGE_LABELS, JARDINERIA_BASE, HABITACIONES_BASE, DIA_MADRE_ARREGLOS } from './datos-base.js';
 import { renderBottomNav, updateBottomNav } from './nav-inferior.js';
 import { listaPreciosData, renderListaPrecios, lpUpdItem, lpDelItem, lpDelCat, openLpModal, saveLpItem, openLpCatModal, addLpCat, lpAddPhotos, lpRemovePhoto, lpOpenViewer } from './lista-precios.js';
 import { leerFotoComprimida, comprimirImagen } from './imagenes.js';
@@ -6850,6 +6850,11 @@ function populateSaleSelects(currentProd, currentAsignado){
     });
     opts += '</optgroup>';
   }
+  opts += '<optgroup label="🌸 Día de la Madre">';
+  DIA_MADRE_ARREGLOS.forEach(a => {
+    opts += `<option value="${esc(a.nombre)}" data-precio="${a.precio}"${a.nombre===currentProd?' selected':''}>${esc(a.nombre)} — $${a.precio.toLocaleString('es-AR')}</option>`;
+  });
+  opts += '</optgroup>';
   listaPreciosData.forEach(cat => {
     if(!(cat.items||[]).length) return;
     opts += `<optgroup label="${cat.emoji||''} ${esc(cat.cat)}">`;
