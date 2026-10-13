@@ -3552,7 +3552,7 @@ function cfImportParseSheet(){
       prod,
       desc: colMap.desc!=null ? String(row[colMap.desc]??'').trim() : '',
       qty,
-      costo: costoUnit>0 ? String(Math.round(costoUnit*qty*100)/100) : '',
+      costo: costoUnit>0 ? String(costoUnit) : '', // precio por paquete: el importe se calcula como precio × cantidad
       prov: colMap.prov!=null ? String(row[colMap.prov]??'').trim() : '',
       sector: colMap.sector!=null ? String(row[colMap.sector]??'').trim() : ''
     });
@@ -3582,7 +3582,7 @@ function renderCfImportPreview(colMap){
         <thead><tr style="background:#FAF8F4;position:sticky;top:0">
           <th style="padding:5px 8px;text-align:left">Fecha</th><th style="padding:5px 8px;text-align:left">Pedido por</th>
           <th style="padding:5px 8px;text-align:left">Producto</th><th style="padding:5px 8px;text-align:left">Desc.</th>
-          <th style="padding:5px 8px;text-align:center">Cant.</th><th style="padding:5px 8px;text-align:right">Costo total</th>
+          <th style="padding:5px 8px;text-align:center">Cant.</th><th style="padding:5px 8px;text-align:right">Precio x paq</th>
           <th style="padding:5px 8px;text-align:left">Proveedor</th><th style="padding:5px 8px;text-align:left">Área/uso</th>
         </tr></thead>
         <tbody>${cfImportRows.map(r=>`<tr style="border-top:1px solid #F0EDE8">
@@ -4156,6 +4156,7 @@ function renderHistorialCompras(type='floreria'){
         </div>
         <div style="display:flex;align-items:center;gap:10px">
           <span style="font-weight:700;color:#1A1A1A;font-size:14px">${totalBloque ? '$'+totalBloque.toLocaleString('es-AR') : ''}</span>
+          ${type==='floreria' ? `<button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="event.stopPropagation();exportarPedidoXLSX('${fecha}')" title="Descargar este pedido en Excel (mismo formato que el importador)">Exportar Excel</button>` : ''}
           <button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="event.stopPropagation();copiarBloquePedido('${type}','${fecha}')" title="Copiar este pedido con fecha de hoy">Copiar pedido</button>
         </div>
       </div>
@@ -4371,6 +4372,34 @@ async function copiarBloquePedido(type, fecha){
   fbSave(type==='floreria' ? 'comprasFlore' : 'comprasJard', arr);
   renderCompras(type);
   showToast('Pedido copiado con ' + nuevos.length + ' ítems · fecha de hoy · ajustá lo que necesites');
+}
+
+// Exporta un pedido del historial (Compras Florería) a .xlsx con las mismas
+// columnas que lee el importador (cfImportParseSheet), así el archivo se puede
+// volver a importar tal cual. Una hoja con el nombre del mes del pedido.
+async function exportarPedidoXLSX(fecha){
+  if(window.ensureXLSX) await window.ensureXLSX();
+  const X = window.XLSX;
+  if(!X){ showToast('Error: librería XLSX no disponible','error'); return; }
+  const bloque = (comprasFlore||[]).filter(r => (r.fecha||'sin-fecha') === fecha && !r.anulado);
+  if(!bloque.length){ showToast('No hay ítems para exportar en ese pedido'); return; }
+  const rows = bloque.map(r => ({
+    'Fecha': r.fecha || '',
+    'Pedido por': r.pedidopor || '',
+    'Flor / Follaje': r.prod || '',
+    'Descripción': r.desc || '',
+    'Cantidad': parseFloat(r.qty) || 0,
+    'Precio por paquete': parseMoney(r.costo) || '',
+    'Proveedor': r.prov || '',
+    'Área/uso': r.sector || ''
+  }));
+  const ws = X.utils.json_to_sheet(rows);
+  ws['!cols'] = [{wch:12},{wch:16},{wch:28},{wch:26},{wch:10},{wch:18},{wch:22},{wch:20}];
+  const wb = X.utils.book_new();
+  const hoja = fecha!=='sin-fecha' ? getMonthLabel(fecha) : 'Pedido';
+  X.utils.book_append_sheet(wb, ws, hoja);
+  _xlsxDownload(wb, `pedido-${fecha}.xlsx`);
+  showToast('Exportado: pedido-'+fecha+'.xlsx ('+rows.length+' ítems)');
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -17999,7 +18028,7 @@ Object.assign(window, {
   applyRole, arregloEmoji, calcCostoComposicion, calcDuracion, calcHorasDia, calcStockImpact,
   calcularArreglosEvento, cambiarContrasena, changeEventoEstado, clearCompraExtraFilters,
   clearCompraFilter, clearEventImg, clearRecetaImg, closeModal, closeSidebar, confirmResetWeek,
-  confirmVentaRamo, copiarBloquePedido, copiarCotEvento, copiarCotizacion, copiarCotizacionEvento,
+  confirmVentaRamo, copiarBloquePedido, exportarPedidoXLSX, copiarCotEvento, copiarCotizacion, copiarCotizacionEvento,
   renderCompraEvento, ceAddRow, ceRemoveRow, ceSet, ceReset, ceLoadEvento, ceCopiar,
   setCompraEvento, openCompraEventos, cevSet, cevAdd, cevRemove, guardarCompraEventos,
   copiarCotizacionOps, copiarUltimoPedido, cotAgregar, cotAgregarComposicionOps, cotAgregarLP,
