@@ -3836,10 +3836,8 @@ function renderPeriodTabs(type){
 // Cantidad de paquetes de una compra (recibidos si ya llegó, si no lo pedido).
 // Fallback a 1 para filas viejas sin cantidad cargada, así no se anula su importe.
 function _compraCant(r){ return compraCant(r); }
-// Importe total de una línea de compra = precio (por paquete) × cantidad pedida.
-// Se usa la cantidad del pedido (qty), no los paquetes recibidos, para que el
-// importe siempre sea "precio × cantidad" tal como se ve en el renglón, y el
-// total del pedido cierre con la suma de los renglones.
+// Importe total de una línea de compra = precio (por paquete) × cantidad que
+// llegó (si ya se controló/recibió), o la pedida si todavía no llegó.
 function _compraImporte(r){ return compraImporte(r); }
 
 function renderCompraSummary(type, filtered){
@@ -11581,7 +11579,7 @@ function renderCostoHotel(){
         ${a.lineas.slice().sort((x,y)=>(x.fecha||'').localeCompare(y.fecha||'')).map(r=>`<tr style="border-top:1px solid var(--light-gray)">
           <td style="padding:4px 6px;white-space:nowrap">${esc(r.fecha||'')}</td>
           <td style="padding:4px 6px">${esc(r.prod||'')}${r.prov?` <span style="color:var(--mid-gray)">· ${esc(r.prov)}</span>`:''}</td>
-          <td style="padding:4px 6px;text-align:right">${esc(String(r.qty||1))} × ${fmt(parseMoney(r.costo))}</td>
+          <td style="padding:4px 6px;text-align:right">${esc(String(_compraCant(r)))} × ${fmt(parseMoney(r.costo))}</td>
           <td style="padding:4px 6px;text-align:right;font-weight:600">${fmt(_compraImporte(r))}</td></tr>`).join('')}
       </table>
     </div>`).join('') +

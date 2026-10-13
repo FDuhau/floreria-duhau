@@ -40,6 +40,13 @@ test('compraImporte = precio × cantidad pedida', () => {
   assert.equal(compraImporte(null), 0);
 });
 
+test('compraImporte: si llegó distinto de lo pedido, cuenta lo que llegó', () => {
+  assert.equal(compraImporte({ costo: 65000, qty: 2, paqRecibidos: 1, estado: 'recibido' }), 65000);   // faltó
+  assert.equal(compraImporte({ costo: 16000, qty: 2, paqRecibidos: 4, estado: 'controlado' }), 64000); // sobró
+  assert.equal(compraImporte({ costo: 65000, qty: 2, paqRecibidos: 1, estado: 'pedido' }), 130000);    // aún no llegó
+  assert.equal(compraImporte({ costo: 1000, qty: 3, paqRecibidos: '', estado: 'recibido' }), 3000);
+});
+
 test('resumenCompras: lo anulado no cuenta; recibido vs en pedido', () => {
   const filas = [
     { costo: 1000, qty: 2, estado: 'recibido' },          // 2000 recibido

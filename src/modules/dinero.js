@@ -8,13 +8,19 @@ import { parseMoney } from './utils.js';
 
 // Cantidad de paquetes de una compra. Fallback a 1 para filas viejas sin
 // cantidad cargada, así no se anula su importe.
+// Si la compra ya fue controlada/recibida y se cargó cuánto llegó, cuenta lo que
+// llegó (se paga lo recibido, no lo pedido).
 export function compraCant(r) {
   if (!r) return 0;
+  if ((r.estado === 'controlado' || r.estado === 'recibido') && r.paqRecibidos != null && r.paqRecibidos !== '') {
+    const rec = parseFloat(r.paqRecibidos);
+    if (!isNaN(rec) && rec >= 0) return rec;
+  }
   const q = parseFloat(r.qty);
   return !isNaN(q) && q > 0 ? q : 1;
 }
 
-// Importe de una línea de compra = precio (por paquete) × cantidad pedida.
+// Importe de una línea de compra = precio (por paquete) × cantidad (la recibida si ya llegó, si no la pedida).
 export function compraImporte(r) {
   return parseMoney(r && r.costo) * compraCant(r);
 }
