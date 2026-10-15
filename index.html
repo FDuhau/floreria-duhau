@@ -442,6 +442,7 @@
     <!-- Filtro: buscar insumo y agrupar el mismo producto entre arreglos/secciones -->
     <div id="recep-filter-bar" style="display:none;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
       <input type="text" class="ctrl-search" id="recep-search" placeholder="Filtrar por insumo (ej. azarero)..." oninput="renderRecepcionPedidos()" style="flex:1;min-width:180px">
+      <select class="form-input" id="recep-area" onchange="renderRecepcionPedidos()" style="width:200px;padding:7px 10px;font-size:13px"><option value="">Todas las áreas</option></select>
       <button class="filter-btn" id="recep-group-btn" onclick="toggleRecepAgrupado()">Agrupar por insumo</button>
     </div>
     <div id="recep-grouped" style="display:none"></div>
