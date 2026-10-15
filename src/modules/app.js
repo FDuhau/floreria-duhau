@@ -7710,7 +7710,18 @@ function renderRecepcionPedidos(){
 
   // Filtro por nombre de insumo (agrupa el mismo producto aunque esté en pedidos separados)
   const q = (document.getElementById('recep-search')?.value||'').trim().toLowerCase();
-  const pending = q ? allPending.filter(o => (o.prod||'').toLowerCase().includes(q)) : allPending;
+  // Filtro por área (sector): se combina con el de insumo
+  const areaSel = document.getElementById('recep-area');
+  if(areaSel){
+    const areas = [...new Set(allPending.map(o => (o.sector||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));
+    const prevArea = areaSel.value;
+    areaSel.innerHTML = '<option value="">Todas las áreas</option>' + areas.map(a => `<option value="${esc(a)}">${esc(a)}</option>`).join('');
+    areaSel.value = areas.includes(prevArea) ? prevArea : '';
+  }
+  const area = areaSel?.value || '';
+  const pending = allPending.filter(o =>
+    (!q || (o.prod||'').toLowerCase().includes(q)) &&
+    (!area || (o.sector||'').trim() === area));
 
   // Sin alertas de urgencia — circuito simple pedido → recibido
   alertEl.innerHTML = '';
@@ -7879,9 +7890,12 @@ function recepUpdateGlobal(pending){
 }
 
 function recepCheckAll(){
+  const q = (document.getElementById('recep-search')?.value||'').trim().toLowerCase();
+  const area = document.getElementById('recep-area')?.value || '';
   const pending = comprasFlore
     .map((c,i) => ({...c, _idx: i}))
-    .filter(c => c.estado !== 'recibido' && c.estado !== 'controlado' && !c.noLlego);
+    .filter(c => c.estado !== 'recibido' && c.estado !== 'controlado' && !c.noLlego)
+    .filter(c => (!q || (c.prod||'').toLowerCase().includes(q)) && (!area || (c.sector||'').trim() === area));
   pending.forEach(o => {
     if(!recepState[o._idx]) recepState[o._idx] = {};
     recepState[o._idx].checked = true;
