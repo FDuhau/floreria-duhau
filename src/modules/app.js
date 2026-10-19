@@ -14254,7 +14254,7 @@ const EV_ZONAS = [
   'Piano Nobile','Privado Piano','Salon Privado','Biblioteca','Vinoteca',
   'Duhau','Duhau Privado','Terrazas Duhau','Paseo de las Artes/Floreria',
   'Grand Foyer','Gingko I','Gingko II','Gingko III','Tilo',
-  'Nogal y Ceibo','Gioia','Terrazas Gioia','Foyer Posadas','Posadas I','Posadas II'
+  'Nogal y Ceibo','Gioia','Terrazas Gioia','Foyer Posadas','Posadas I','Posadas II','Terraza Tipa','Salon Cristal'
 ];
 
 function evZonasLabel(ev){
