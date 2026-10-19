@@ -11,6 +11,7 @@ import { toggleSidebar, openSidebar, closeSidebar } from './sidebar.js';
 import { pedidosHabData, configurarPedidosHab, renderHomeHyatt, renderPedidosHab, enviarPedidoHab, updPedidoHabEstado, delPedidoHab, phAddItemRow, phSetItemTipo, phSetItemQty, phRemoveItemRow } from './pedidos-habitacion.js';
 import { alertasAutomaticas } from './alertas-automaticas.js';
 import { configurarCotizadorEventos, initCotizadorEventosHyatt, calcularArreglosEvento, recalcTotalEvento, generarTextoCotEvento, enviarCotizacionEvento, copiarCotizacionEvento } from './cotizador-eventos.js';
+import { EV_ZONAS, openZonasEventoModal, guardarZonasEvento } from './zonas-evento.js';
 import { configurarCalendario, getEventosView, initEventosToggle, renderCalendario, calPrevMonth, calNextMonth } from './calendario.js';
 import { configurarCostoHotel, renderCostoHotel, exportCostoHotel } from './costo-hotel.js';
 import { PAGE_LABELS, JARDINERIA_BASE, HABITACIONES_BASE, DIA_MADRE_ARREGLOS } from './datos-base.js';
@@ -14250,13 +14251,6 @@ async function delReceta(i){
 let evArreglosRows = [];
 let evZonasSelected = [];
 
-const EV_ZONAS = [
-  'Piano Nobile','Privado Piano','Salon Privado','Biblioteca','Vinoteca',
-  'Duhau','Duhau Privado','Terrazas Duhau','Paseo de las Artes/Floreria',
-  'Grand Foyer','Gingko I','Gingko II','Gingko III','Tilo',
-  'Nogal y Ceibo','Gioia','Terrazas Gioia','Foyer Posadas','Posadas I','Posadas II','Terraza Tipa','Salon Cristal'
-];
-
 function evZonasLabel(ev){
   return (ev.zonas?.length ? ev.zonas : ev.salon ? [ev.salon] : []).join(', ') || '—';
 }
@@ -17978,7 +17972,7 @@ Object.assign(window, {
   rentAddArreglo, openArregloComposicion, compUpdRow, compAddRow, compRemoveRow, guardarArregloComposicion,
   openGuiaArreglo, _renderGuiaArreglo, guiaFotoInput, guiaQuitarFoto, verFotoArregloRef, guiaVincularComp,
   renderTareasGerencia, openTareaGerencia, guardarTareaGerencia, tgMove, tgMoveTo, tgDelete,
-  renderStock, renderStockAdmin, renderVentaHoraCell, renderVentas, renderZonasPicker,
+  renderStock, renderStockAdmin, renderVentaHoraCell, renderVentas, renderZonasPicker, openZonasEventoModal, guardarZonasEvento,
   resetHora, resetDayState, resetWeekState, resetearPassword, resetearTodasPasswords, saleAutoFillPrice,
   saveEvent, saveInsumosCustom, saveKanbanTask, saveLpItem, saveRamo, saveReceta, saveUrgenciaConfig,
   saveWeekState, setCotTab, setHabReporteMes, setHopsFilter, setJardReporteMes, setJopsFilter,
