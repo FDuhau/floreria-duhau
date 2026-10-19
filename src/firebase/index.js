@@ -656,6 +656,10 @@
         if(window._setLlamadosData) window._setLlamadosData(Array.isArray(val) ? val : Object.values(val||{}));
       });
 
+      fbListen('eventoZonas', val => {
+        if(val && window._setEventoZonas) window._setEventoZonas(val);
+      });
+
       fbListen('florerosData', val => {
         if(window._setFlorerosData) window._setFlorerosData(Array.isArray(val) ? val : Object.values(val||{}));
       });

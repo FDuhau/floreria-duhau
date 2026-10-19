@@ -92,11 +92,10 @@ export function runGlobalSearch(q){
 
   // Checklist tasks
   if(typeof _tareasChecklist !== 'undefined'){
-    _tareasChecklist.forEach(s => {
-      (s.tasks||[]).forEach(t => {
-        if((t||'').toLowerCase().includes(q))
-          results.push({icon:'', label: t, sub: s.section||'', badge:'Checklist', action:()=>{ closeGlobalSearch(); window.navigate('checklist'); }});
-      });
+    _tareasChecklist.forEach(t => {
+      const zona = t.zona || '', act = t.actividad || '';
+      if(zona.toLowerCase().includes(q) || act.toLowerCase().includes(q))
+        results.push({icon:'', label: zona, sub: act, badge:'Checklist', action:()=>{ closeGlobalSearch(); window.navigate('checklist'); }});
     });
   }
 
