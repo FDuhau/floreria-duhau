@@ -4946,10 +4946,49 @@ function costoEvento(ev){
   return { total, sinCosto };
 }
 
-function renderHistorialEventos(){
+// Eventos del Historial según búsqueda, tipo y mes elegidos en pantalla.
+function histEventosFiltrados(){
   const search = (document.getElementById('hist-ev-search')?.value||'').toLowerCase();
+  const tipo = document.getElementById('hist-ev-tipo')?.value||'';
+  const mes = document.getElementById('hist-ev-mes')?.value||'';
+  return eventosData.filter(ev=>{
+    if(ev.estado !== 'Pedidos Finalizados' && ev.estado !== 'Confirmado') return false;
+    const matchSearch = !search || ev.nombre?.toLowerCase().includes(search) || evZonasLabel(ev).toLowerCase().includes(search) || ev.organizador?.toLowerCase().includes(search);
+    return matchSearch && (!tipo || ev.tipo === tipo) && (!mes || (ev.fecha||'').startsWith(mes));
+  });
+}
+
+// Exporta a Excel lo que se ve en el Historial (respeta búsqueda, tipo y mes).
+function exportHistorialEventosXLSX(){
+  const X = window.XLSX;
+  if(!X){ showToast('Error: XLSX no disponible'); return; }
+  const lista = histEventosFiltrados().sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||''));
+  if(!lista.length){ showToast('Sin eventos para exportar'); return; }
+  const rows = lista.map(ev=>{
+    const pr = parseMoney(ev.precio), c = costoEvento(ev);
+    const margen = (pr>0 && c.total>0) ? Math.round(pr-c.total) : '';
+    return {
+      Fecha: ev.fecha||'', Evento: ev.nombre||'', Organizador: ev.organizador||'', Tipo: ev.tipo||'',
+      Salón: evZonasLabel(ev), Pax: +ev.pax||'',
+      Arreglos: (ev.arreglos||[]).map(a=>`${a.qty}× ${a.arreglo}`).join(' · '),
+      'Cant. arreglos': (ev.arreglos||[]).reduce((s,a)=>s+(+a.qty||0),0),
+      'Precio hotel': pr>0 ? pr : (ev.precio||''),
+      'Costo aprox.': c.total>0 ? Math.round(c.total) : '',
+      Margen: margen,
+      'Margen %': margen==='' ? '' : Math.round(margen/pr*100),
+      'Arreglos sin costo': c.sinCosto.join(', ')
+    };
+  });
+  const mes = document.getElementById('hist-ev-mes')?.value || 'todos';
+  const ws = X.utils.json_to_sheet(rows);
+  const wb = X.utils.book_new();
+  X.utils.book_append_sheet(wb, ws, 'Eventos');
+  _xlsxDownload(wb, `eventos-${mes}.xlsx`);
+  showToast('Exportado: eventos-'+mes+'.xlsx ('+rows.length+' eventos)');
+}
+
+function renderHistorialEventos(){
   const tipoSel = document.getElementById('hist-ev-tipo');
-  const tipo = tipoSel?.value||'';
 
   // Poblar filtro de tipos dinámicamente
   if(tipoSel){
@@ -4958,17 +4997,20 @@ function renderHistorialEventos(){
     tipoSel.innerHTML = '<option value="">Todos los tipos</option>' + allTipos.map(t => `<option${t===cur?' selected':''}>${esc(t)}</option>`).join('');
   }
 
+  // Poblar filtro de meses con los que tienen eventos
+  const mesSel = document.getElementById('hist-ev-mes');
   const hechos = eventosData.filter(ev => ev.estado === 'Pedidos Finalizados' || ev.estado === 'Confirmado');
-  const filtered = hechos.filter(ev=>{
-    const matchSearch = !search || ev.nombre?.toLowerCase().includes(search) || evZonasLabel(ev).toLowerCase().includes(search) || ev.organizador?.toLowerCase().includes(search);
-    const matchTipo   = !tipo   || ev.tipo === tipo;
-    return matchSearch && matchTipo;
-  });
+  if(mesSel){
+    const cur = mesSel.value;
+    const meses = [...new Set(hechos.map(e=>(e.fecha||'').slice(0,7)).filter(Boolean))].sort().reverse();
+    mesSel.innerHTML = '<option value="">Todos los meses</option>' + meses.map(m => `<option value="${m}"${m===cur?' selected':''}>${esc(fmtMonth(m))}</option>`).join('');
+  }
+  const filtered = histEventosFiltrados();
 
   // KPIs
   const kpisEl = document.getElementById('hist-ev-kpis');
   if(kpisEl){
-    const totalPax    = hechos.reduce((s,e)=>s+(+e.pax||0),0);
+    const totalPax    = (mesSel?.value?filtered:hechos).reduce((s,e)=>s+(+e.pax||0),0);
     const tiposUniq   = [...new Set(hechos.map(e=>e.tipo).filter(Boolean))].length;
     // Rentabilidad de lo filtrado: solo eventos con precio confirmado y costo completo
     let factur=0, costo=0, conDato=0;
@@ -4979,7 +5021,7 @@ function renderHistorialEventos(){
     const margenTot = factur-costo;
     const money = n => '$'+Math.round(n).toLocaleString('es-AR');
     kpisEl.innerHTML = `
-      <div class="card"><div class="card-label">Total eventos finalizados</div><div class="card-value" style="font-size:32px">${hechos.length}</div></div>
+      <div class="card"><div class="card-label">${mesSel?.value?'Eventos de '+esc(fmtMonth(mesSel.value)):'Total eventos finalizados'}</div><div class="card-value" style="font-size:32px">${mesSel?.value?filtered.length:hechos.length}</div></div>
       <div class="card"><div class="card-label">Total pax acumulado</div><div class="card-value" style="font-size:32px">${totalPax}</div></div>
       <div class="card"><div class="card-label">Tipos de evento</div><div class="card-value" style="font-size:32px">${tiposUniq}</div></div>
       <div class="card"><div class="card-label">Facturado (eventos con costo)</div><div class="card-value" style="font-size:26px">${money(factur)}</div><div style="font-size:11px;color:var(--mid-gray);margin-top:4px">${conDato} evento${conDato===1?'':'s'} con precio y composiciones cargadas</div></div>
@@ -17988,7 +18030,7 @@ Object.assign(window, {
   renderGaleria, abrirLightbox, galeriaAddFotos, galeriaAddUrl, galeriaQuitarFoto, guardarGaleria, editarGaleria, eliminarGaleria,
   setGaleriaSeccion, openFichaGaleria, imprimirFicha, addGalIngRow, galSectorOnChange,
   renderEvHoraCell, renderEvTipos, renderEventos, renderHabLog, renderHabOps,
-  renderHabReporte, renderHistorialCompras, renderHistorialEventos, renderHistoryPanel, renderHome,
+  renderHabReporte, renderHistorialCompras, renderHistorialEventos, exportHistorialEventosXLSX, renderHistoryPanel, renderHome,
   renderHomeHyatt, renderHoraCell, renderHorarios, renderInsumosGrid, renderJardLog, renderJardOps,
   renderJardProdEquipo, renderJardTurnoCard, renderJardReporte, renderJordProd, renderKanban,
   jardSetJardinero, jardRegistrarHoraTurno, jardResetHoraTurno, jardProdDiaClick,
