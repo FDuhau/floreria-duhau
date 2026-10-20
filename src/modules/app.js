@@ -4932,6 +4932,20 @@ const ESTADO_COLORS={
   'Pedidos Finalizados':'background:#E8F0F8;color:#2C5A80'
 };
 
+// Costo aproximado de compra de un evento: suma, por cada arreglo pedido, la
+// cantidad × el costo de su composición (mismo cálculo que el Cotizador).
+// `sinCosto` lista los arreglos que no tienen composición o no tienen precios.
+function costoEvento(ev){
+  let total = 0; const sinCosto = [];
+  (ev.arreglos||[]).forEach(a=>{
+    const nombre = String(a.arreglo||'').trim().toLowerCase();
+    const r = (recetasData||[]).find(x=>(x.nombre||'').trim().toLowerCase()===nombre);
+    const c = r ? calcCostoComposicion(r) : 0;
+    if(c>0) total += (+a.qty||0) * c; else sinCosto.push(a.arreglo);
+  });
+  return { total, sinCosto };
+}
+
 function renderHistorialEventos(){
   const search = (document.getElementById('hist-ev-search')?.value||'').toLowerCase();
   const tipoSel = document.getElementById('hist-ev-tipo');
@@ -4956,17 +4970,28 @@ function renderHistorialEventos(){
   if(kpisEl){
     const totalPax    = hechos.reduce((s,e)=>s+(+e.pax||0),0);
     const tiposUniq   = [...new Set(hechos.map(e=>e.tipo).filter(Boolean))].length;
+    // Rentabilidad de lo filtrado: solo eventos con precio confirmado y costo completo
+    let factur=0, costo=0, conDato=0;
+    filtered.forEach(ev=>{
+      const pr = parseMoney(ev.precio), c = costoEvento(ev);
+      if(pr>0 && c.total>0 && !c.sinCosto.length){ factur+=pr; costo+=c.total; conDato++; }
+    });
+    const margenTot = factur-costo;
+    const money = n => '$'+Math.round(n).toLocaleString('es-AR');
     kpisEl.innerHTML = `
       <div class="card"><div class="card-label">Total eventos finalizados</div><div class="card-value" style="font-size:32px">${hechos.length}</div></div>
       <div class="card"><div class="card-label">Total pax acumulado</div><div class="card-value" style="font-size:32px">${totalPax}</div></div>
-      <div class="card"><div class="card-label">Tipos de evento</div><div class="card-value" style="font-size:32px">${tiposUniq}</div></div>`;
+      <div class="card"><div class="card-label">Tipos de evento</div><div class="card-value" style="font-size:32px">${tiposUniq}</div></div>
+      <div class="card"><div class="card-label">Facturado (eventos con costo)</div><div class="card-value" style="font-size:26px">${money(factur)}</div><div style="font-size:11px;color:var(--mid-gray);margin-top:4px">${conDato} evento${conDato===1?'':'s'} con precio y composiciones cargadas</div></div>
+      <div class="card"><div class="card-label">Costo aprox. de compra</div><div class="card-value" style="font-size:26px">${money(costo)}</div></div>
+      <div class="card"><div class="card-label">Margen aproximado</div><div class="card-value" style="font-size:26px;color:${margenTot>=0?'var(--green-ok)':'var(--red-alert)'}">${money(margenTot)}${factur>0?` <span style="font-size:14px">(${Math.round(margenTot/factur*100)}%)</span>`:''}</div></div>`;
   }
 
   const tbody = document.getElementById('hist-ev-body');
   if(!tbody) return;
 
   if(filtered.length === 0){
-    tbody.innerHTML = '<tr><td colspan="8" style="padding:24px;text-align:center;color:var(--mid-gray)">'+
+    tbody.innerHTML = '<tr><td colspan="10" style="padding:24px;text-align:center;color:var(--mid-gray)">'+
       (hechos.length===0 ? 'Aún no hay eventos finalizados.' : 'Sin resultados para los filtros aplicados.')+'</td></tr>';
     return;
   }
@@ -4979,6 +5004,16 @@ function renderHistorialEventos(){
     const arreglosStr = ev.arreglos?.length
       ? ev.arreglos.map(a=>`${a.qty}× ${esc(a.arreglo)}`).join(' · ')
       : '<span style="color:var(--mid-gray)">—</span>';
+    const pr = parseMoney(ev.precio), c = costoEvento(ev);
+    const dash = '<span style="color:var(--mid-gray)">—</span>';
+    const costoTd = !(ev.arreglos?.length) ? dash
+      : (c.total>0 ? '$'+Math.round(c.total).toLocaleString('es-AR') : dash)
+        + (c.sinCosto.length ? `<div style="font-size:10px;color:var(--red-alert)" title="${esc(c.sinCosto.join(', '))}">sin costo: ${c.sinCosto.length}</div>` : '');
+    let margenTd = dash;
+    if(pr>0 && c.total>0){
+      const m = pr - c.total, col = m>=0 ? 'var(--green-ok)' : 'var(--red-alert)';
+      margenTd = `<span style="color:${col};font-weight:600">$${Math.round(m).toLocaleString('es-AR')}</span><div style="font-size:10px;color:${col}">${Math.round(m/pr*100)}%${c.sinCosto.length?' (parcial)':''}</div>`;
+    }
     return `<tr style="cursor:pointer" onclick="openEventoDetail(${realIdx})">
       <td style="font-weight:600;font-size:13px">${esc(ev.nombre||'')}</td>
       <td style="font-size:13px">${ev.organizador?esc(ev.organizador):'<span style="color:var(--mid-gray)">—</span>'}</td>
@@ -4988,6 +5023,8 @@ function renderHistorialEventos(){
       <td style="text-align:center;font-size:13px">${ev.pax||'—'}</td>
       <td style="font-size:12px;color:var(--charcoal)">${arreglosStr}</td>
       <td style="font-weight:600;font-size:13px;color:#2E7D32">${esc(ev.precio||'—')}</td>
+      <td style="font-size:13px;text-align:right">${costoTd}</td>
+      <td style="font-size:13px;text-align:right">${margenTd}</td>
     </tr>`;
   }).join('');
 }
