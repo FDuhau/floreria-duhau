@@ -4951,7 +4951,9 @@ function histEventosFiltrados(){
   const search = (document.getElementById('hist-ev-search')?.value||'').toLowerCase();
   const tipo = document.getElementById('hist-ev-tipo')?.value||'';
   const mes = document.getElementById('hist-ev-mes')?.value||'';
+  const soloSin = document.getElementById('hist-ev-sinprecio')?.value==='1';
   return eventosData.filter(ev=>{
+    if(soloSin && parseMoney(ev.precio)>0) return false;
     if(ev.estado !== 'Pedidos Finalizados' && ev.estado !== 'Confirmado') return false;
     const matchSearch = !search || ev.nombre?.toLowerCase().includes(search) || evZonasLabel(ev).toLowerCase().includes(search) || ev.organizador?.toLowerCase().includes(search);
     return matchSearch && (!tipo || ev.tipo === tipo) && (!mes || (ev.fecha||'').startsWith(mes));
@@ -4987,6 +4989,18 @@ function exportHistorialEventosXLSX(){
   showToast('Exportado: eventos-'+mes+'.xlsx ('+rows.length+' eventos)');
 }
 
+// Carga el precio de un evento directo desde el Historial (eventos que se
+// venden en USD y el hotel confirma a fin de mes).
+function histEventoSetPrecio(i, valor){
+  const ev = eventosData[i]; if(!ev) return;
+  const v = String(valor||'').trim();
+  if(!(parseMoney(v)>0)){ showToast('Ingresá un precio mayor a 0'); return; }
+  ev.precio = v;
+  _saveEventos();
+  renderHistorialEventos();
+  showToast('Precio guardado: '+(ev.nombre||'evento'));
+}
+
 function renderHistorialEventos(){
   const tipoSel = document.getElementById('hist-ev-tipo');
 
@@ -5020,10 +5034,12 @@ function renderHistorialEventos(){
     });
     const margenTot = factur-costo;
     const money = n => '$'+Math.round(n).toLocaleString('es-AR');
+    const sinPrecio = filtered.filter(e=>!(parseMoney(e.precio)>0)).length;
     kpisEl.innerHTML = `
       <div class="card"><div class="card-label">${mesSel?.value?'Eventos de '+esc(fmtMonth(mesSel.value)):'Total eventos finalizados'}</div><div class="card-value" style="font-size:32px">${mesSel?.value?filtered.length:hechos.length}</div></div>
       <div class="card"><div class="card-label">Total pax acumulado</div><div class="card-value" style="font-size:32px">${totalPax}</div></div>
       <div class="card"><div class="card-label">Tipos de evento</div><div class="card-value" style="font-size:32px">${tiposUniq}</div></div>
+      <div class="card" style="${sinPrecio?'border:1px solid #E0B06A':''}"><div class="card-label">Falta cargar precio</div><div class="card-value" style="font-size:32px;color:${sinPrecio?'#A05A2C':'var(--green-ok)'}">${sinPrecio}</div><div style="font-size:11px;color:var(--mid-gray);margin-top:4px">${sinPrecio?'eventos "a confirmar" (USD): cargalos desde la tabla':'todos los eventos tienen precio'}</div></div>
       <div class="card"><div class="card-label">Facturado (eventos con costo)</div><div class="card-value" style="font-size:26px">${money(factur)}</div><div style="font-size:11px;color:var(--mid-gray);margin-top:4px">${conDato} evento${conDato===1?'':'s'} con precio y composiciones cargadas</div></div>
       <div class="card"><div class="card-label">Costo aprox. de compra</div><div class="card-value" style="font-size:26px">${money(costo)}</div></div>
       <div class="card"><div class="card-label">Margen aproximado</div><div class="card-value" style="font-size:26px;color:${margenTot>=0?'var(--green-ok)':'var(--red-alert)'}">${money(margenTot)}${factur>0?` <span style="font-size:14px">(${Math.round(margenTot/factur*100)}%)</span>`:''}</div></div>`;
@@ -5056,7 +5072,7 @@ function renderHistorialEventos(){
       const m = pr - c.total, col = m>=0 ? 'var(--green-ok)' : 'var(--red-alert)';
       margenTd = `<span style="color:${col};font-weight:600">$${Math.round(m).toLocaleString('es-AR')}</span><div style="font-size:10px;color:${col}">${Math.round(m/pr*100)}%${c.sinCosto.length?' (parcial)':''}</div>`;
     }
-    return `<tr style="cursor:pointer" onclick="openEventoDetail(${realIdx})">
+    return `<tr style="cursor:pointer${pr>0?'':';background:#FFFAF2'}" onclick="openEventoDetail(${realIdx})">
       <td style="font-weight:600;font-size:13px">${esc(ev.nombre||'')}</td>
       <td style="font-size:13px">${ev.organizador?esc(ev.organizador):'<span style="color:var(--mid-gray)">—</span>'}</td>
       <td><span class="badge badge-tipo">${esc(ev.tipo||'—')}</span></td>
@@ -5064,7 +5080,8 @@ function renderHistorialEventos(){
       <td style="font-size:13px">${esc(evZonasLabel(ev))}</td>
       <td style="text-align:center;font-size:13px">${ev.pax||'—'}</td>
       <td style="font-size:12px;color:var(--charcoal)">${arreglosStr}</td>
-      <td style="font-weight:600;font-size:13px;color:#2E7D32">${esc(ev.precio||'—')}</td>
+      <td style="font-weight:600;font-size:13px;color:#2E7D32">${pr>0 ? esc(ev.precio) :
+        `<div onclick="event.stopPropagation()" style="display:flex;gap:4px;align-items:center"><span class="badge" style="background:#FDF0E8;color:#A05A2C;white-space:nowrap">Falta precio</span><input id="hist-ev-p-${realIdx}" placeholder="Precio" inputmode="decimal" style="width:90px;font-size:12px;padding:4px 6px;border:1px solid #E0B06A;border-radius:6px" onkeydown="if(event.key==='Enter')histEventoSetPrecio(${realIdx},this.value)"><button class="btn-secondary" style="font-size:11px;padding:4px 8px" onclick="histEventoSetPrecio(${realIdx},document.getElementById('hist-ev-p-${realIdx}').value)">Guardar</button></div>`}</td>
       <td style="font-size:13px;text-align:right">${costoTd}</td>
       <td style="font-size:13px;text-align:right">${margenTd}</td>
     </tr>`;
@@ -18030,7 +18047,7 @@ Object.assign(window, {
   renderGaleria, abrirLightbox, galeriaAddFotos, galeriaAddUrl, galeriaQuitarFoto, guardarGaleria, editarGaleria, eliminarGaleria,
   setGaleriaSeccion, openFichaGaleria, imprimirFicha, addGalIngRow, galSectorOnChange,
   renderEvHoraCell, renderEvTipos, renderEventos, renderHabLog, renderHabOps,
-  renderHabReporte, renderHistorialCompras, renderHistorialEventos, exportHistorialEventosXLSX, renderHistoryPanel, renderHome,
+  renderHabReporte, renderHistorialCompras, renderHistorialEventos, exportHistorialEventosXLSX, histEventoSetPrecio, renderHistoryPanel, renderHome,
   renderHomeHyatt, renderHoraCell, renderHorarios, renderInsumosGrid, renderJardLog, renderJardOps,
   renderJardProdEquipo, renderJardTurnoCard, renderJardReporte, renderJordProd, renderKanban,
   jardSetJardinero, jardRegistrarHoraTurno, jardResetHoraTurno, jardProdDiaClick,
