@@ -14291,7 +14291,7 @@ function renderComposicionesHotel(){
           <button class="btn-icon" style="color:var(--red-alert)" onclick="delArregloComposicion('${zEsc}')" title="Eliminar composición">✕</button>
         </div>
       </div>
-      <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);margin:8px 0;font-weight:600">Ingredientes por unidad · costo $${costo.toLocaleString('es-AR')}</div>
+      <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);margin:8px 0;font-weight:600">Ingredientes por unidad</div>
       <div class="receta-ingredientes">
         ${ings.map(ing=>{
           const eqVaras = ing.unidad==='paq' ? _ingVaras(ing) : 0;
@@ -14302,6 +14302,7 @@ function renderComposicionesHotel(){
         </div>`;
         }).join('')}
       </div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:10px;padding-top:8px;border-top:1px solid #E4E2DC;font-size:12px"><span style="color:var(--mid-gray);letter-spacing:1.5px;text-transform:uppercase;font-weight:600;font-size:11px">Costo por unidad</span><b style="font-size:14px">${costo>0?'$'+costo.toLocaleString('es-AR'):'sin costo'}</b></div>
     </div>`;
   }).join('');
 }
