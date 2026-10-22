@@ -2154,10 +2154,10 @@ function toggleHistory(){
 // ── Poda automática del historial del checklist (solo gerencia) ───────────────
 // El historial crece sin límite y encima guarda fotos (pesadas). Sin mantenimiento
 // la app se vuelve lenta y Firebase pesado. Esta poda es conservadora:
-//   · registros de más de 6 meses → se archivan (se quitan del historial activo)
+//   · registros de más de 2 meses → se archivan (se quitan del historial activo)
 //   · fotos de más de 60 días → se borra la foto pero el registro queda
 //   · tope duro: como red de seguridad, máximo 4000 registros (los más recientes)
-const HIST_MESES_RETENER = 6;
+const HIST_MESES_RETENER = 2;
 const HIST_DIAS_FOTO = 60;
 const HIST_MAX = 4000;
 
@@ -10698,7 +10698,8 @@ function saveRamo(){
     precio: it.precio || 'A consultar',
     categoria: cat.cat,
     foto: '',
-    creado: TODAY_ISO
+    creado: TODAY_ISO,
+    quien: floristaNombre || window.currentUserLabel || ''
   };
   comprimirImagen(file, 1000, 0.7, data => {
     ramo.foto = data;
@@ -15024,11 +15025,14 @@ function _prodRegistros(){
     const finalizado = est === 'Pedidos Finalizados';
     const pasoArmado = finalizado || est === 'Pendiente de Colocacion' || est === 'Pendiente de Retiro';
     const pasoColoc  = finalizado || est === 'Pendiente de Retiro';
-    add(ev.asignado,           ev.fecha,                       n, 'Evento · Armado',     ev.inicio,           ev.fin,           pasoArmado);
-    add(ev.colocacionAsignado, ev.colocacionFecha || ev.fecha, n, 'Evento · Colocación', ev.colocacionInicio, ev.colocacionFin, pasoColoc);
-    add(ev.retiroAsignado,     ev.retiroFecha || ev.fecha,     n, 'Evento · Retiro',     ev.retiroInicio,     ev.retiroFin,     finalizado);
+    // Un evento asignado cuya fecha ya pasó se da por hecho aunque nadie haya movido su estado.
+    const pasado = f => !!f && f < TODAY_ISO;
+    add(ev.asignado,           ev.fecha,                       n, 'Evento · Armado',     ev.inicio,           ev.fin,           pasoArmado || pasado(ev.fecha));
+    add(ev.colocacionAsignado, ev.colocacionFecha || ev.fecha, n, 'Evento · Colocación', ev.colocacionInicio, ev.colocacionFin, pasoColoc  || pasado(ev.colocacionFecha || ev.fecha));
+    add(ev.retiroAsignado,     ev.retiroFecha || ev.fecha,     n, 'Evento · Retiro',     ev.retiroInicio,     ev.retiroFin,     finalizado || pasado(ev.retiroFecha || ev.fecha));
   });
-  (ventasData||[]).forEach(v => add(v.asignado, v.fecha, v.prod || 'Venta', 'Venta / pedido', v.inicio, v.fin, v.estado === 'entregado'));
+  (ventasData||[]).forEach(v => add(v.asignado, v.fecha, v.prod || 'Venta', 'Venta / pedido', v.inicio, v.fin, v.estado === 'entregado' || (!!v.fecha && v.fecha < TODAY_ISO)));
+  (ramosDispData||[]).forEach(r => add(r.quien, r.creado, r.nombre || 'Ramo', 'Ramo armado', '', '', true));
   (jardineriaLog||[]).forEach(e => add(e.quien, e.fecha, [e.group, e.task].filter(Boolean).join(' · ') || 'Jardinería', 'Jardinería', e.horaInicio, e.horaFin, true));
   (habitacionesLog||[]).forEach(e => add(e.quien, e.fecha, e.hab || 'Habitación', 'Habitaciones', e.horaInicio, e.horaFin, true));
   return out;
@@ -15039,7 +15043,14 @@ function renderProductividad(){
   const todos = _prodRegistros();
   // Populate week options
   const weeks = [...new Set(todos.map(r=>r.week).filter(Boolean))].sort();
-  const curVal = filterEl.value;
+  // La primera vez se abre en la semana en curso; después se respeta lo que elija gerencia.
+  if(!window._prodSemanaInit){
+    window._prodSemanaInit = true;
+    const actual = getWeekLabel(new Date());
+    if(weeks.includes(actual)) filterEl.dataset.pick = actual;
+  }
+  const curVal = filterEl.dataset.pick || filterEl.value;
+  delete filterEl.dataset.pick;
   filterEl.innerHTML = '<option value="">Todas las semanas</option>';
   weeks.forEach(w => {
     const opt = document.createElement('option');
@@ -15047,6 +15058,7 @@ function renderProductividad(){
     if(w === curVal) opt.selected = true;
     filterEl.appendChild(opt);
   });
+  filterEl.value = weeks.includes(curVal) ? curVal : '';
 
   const semanaFiltro = filterEl.value;
   const registros = semanaFiltro
@@ -15084,6 +15096,9 @@ function renderProductividad(){
     body.innerHTML = '<p style="color:var(--mid-gray);font-size:13px;text-align:center;padding:20px">Sin datos para el período seleccionado.</p>';
     return;
   }
+
+  // Detalle ordenado por fecha (y hora) para leer la jornada día por día
+  Object.values(byWho).forEach(d => d.detalle.sort((a,b) => (a.date||'').localeCompare(b.date||'') || (a.inicio||'99').localeCompare(b.inicio||'99')));
 
   // Ordenar por minutos desc
   const sorted = Object.entries(byWho).sort((a,b) => b[1].minutos - a[1].minutos);
@@ -15131,7 +15146,7 @@ function renderProductividad(){
           <div style="width:${pct}%;height:100%;background:${color};border-radius:4px;transition:width .4s"></div>
         </div>
         ${d.detalle.length > 0 ? `
-        <details style="margin-top:4px">
+        <details open style="margin-top:4px">
           <summary style="font-size:12px;color:var(--mid-gray);cursor:pointer;user-select:none">Ver detalle de tareas (${d.detalle.length})</summary>
           <div style="margin-top:10px;overflow-x:auto">
             <table style="width:100%;border-collapse:collapse;font-size:12px">
@@ -15146,7 +15161,7 @@ function renderProductividad(){
               </tr></thead>
               <tbody>
                 ${d.detalle.map(t=>`<tr style="border-bottom:1px solid var(--light-gray)">
-                  <td style="padding:6px 10px;color:var(--mid-gray)">${esc(t.day)}</td>
+                  <td style="padding:6px 10px;color:var(--mid-gray);white-space:nowrap">${esc(t.day)}${t.date ? ' ' + esc(t.date.slice(8,10) + '/' + t.date.slice(5,7)) : ''}</td>
                   <td style="padding:6px 10px;font-weight:500">${esc(t.zona)}</td>
                   <td style="padding:6px 10px"><span class="badge ${getBadge(t.actividad)}">${esc(t.actividad)}</span></td>
                   <td style="padding:6px 10px;text-align:center;font-weight:600">${t.inicio||'—'}</td>
