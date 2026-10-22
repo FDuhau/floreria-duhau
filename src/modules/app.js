@@ -6689,6 +6689,7 @@ const VENTA_PAGO_OPTS=[
   {value:'Cargo a rooms',label:'Cargo a rooms (hotel)'},
   {value:'Cargo a habitación',label:'Cargo a habitación (huésped)'},
   {value:'Cuenta corriente',label:'Cuenta corriente'},
+  {value:'Cargo cliente / outlet F&B',label:'Cargo cliente / outlet F&B'},
 ];
 // Normaliza formas de pago viejas (Débito/Crédito → Tarjeta) para filtrar bien.
 function normPago(fp){ return (fp==='Débito'||fp==='Crédito') ? 'Tarjeta' : (fp||''); }
@@ -6834,6 +6835,7 @@ function renderVentas(){
         <option value="Cargo a rooms" ${v.formaPago==='Cargo a rooms'?'selected':''}>Cargo a rooms (hotel)</option>
         <option value="Cargo a habitación" ${v.formaPago==='Cargo a habitación'?'selected':''}>Cargo a habitación (huésped)</option>
         <option value="Cuenta corriente" ${v.formaPago==='Cuenta corriente'?'selected':''}>Cuenta corriente</option>
+        <option value="Cargo cliente / outlet F&amp;B" ${v.formaPago==='Cargo cliente / outlet F&B'?'selected':''}>Cargo cliente / outlet F&amp;B</option>
       </select>
     </td>
     <td>
@@ -6886,7 +6888,7 @@ function ventasCierreMes(){
     grupos[g].total += parseMoney(v.precio);
     grupos[g].count++;
   });
-  const orden = ['Efectivo','Tarjeta','Transferencia','Mercado Pago','Link de pago','Hotel','Cuenta corriente','Sin forma de pago'];
+  const orden = ['Efectivo','Tarjeta','Transferencia','Mercado Pago','Link de pago','Hotel','Cuenta corriente','Cargo cliente / outlet F&B','Sin forma de pago'];
   const claves = Object.keys(grupos).sort((a,b)=>{
     const ia = orden.indexOf(a), ib = orden.indexOf(b);
     return (ia<0?99:ia) - (ib<0?99:ib);
