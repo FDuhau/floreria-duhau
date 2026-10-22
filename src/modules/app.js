@@ -14225,6 +14225,7 @@ function renderRecetas(){
             <span style="background:#F0EEE8;border-radius:4px;padding:2px 8px;font-size:12px;font-weight:600">${_fmtCant(ing.qty)} vara${(+ing.qty)===1?'':'s'}</span>
           </div>`).join('')}
       </div>
+      ${(()=>{ const c = calcCostoComposicion(r); return `<div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:10px;padding-top:8px;border-top:1px solid #E4E2DC;font-size:12px"><span style="color:var(--mid-gray);letter-spacing:1.5px;text-transform:uppercase;font-weight:600;font-size:11px">Costo por unidad</span><b style="font-size:14px">${c>0?'$'+Math.round(c).toLocaleString('es-AR'):'sin costo'}</b></div>`; })()}
     </div>`).join('');
 }
 
