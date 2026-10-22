@@ -2154,10 +2154,10 @@ function toggleHistory(){
 // ── Poda automática del historial del checklist (solo gerencia) ───────────────
 // El historial crece sin límite y encima guarda fotos (pesadas). Sin mantenimiento
 // la app se vuelve lenta y Firebase pesado. Esta poda es conservadora:
-//   · registros de más de 6 meses → se archivan (se quitan del historial activo)
+//   · registros de más de 2 meses → se archivan (se quitan del historial activo)
 //   · fotos de más de 60 días → se borra la foto pero el registro queda
 //   · tope duro: como red de seguridad, máximo 4000 registros (los más recientes)
-const HIST_MESES_RETENER = 6;
+const HIST_MESES_RETENER = 2;
 const HIST_DIAS_FOTO = 60;
 const HIST_MAX = 4000;
 
