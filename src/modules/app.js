@@ -15002,10 +15002,37 @@ function toggleProductividad(){
   if(show) renderProductividad();
 }
 
+// Junta TODO el trabajo con horario de inicio/fin: checklist del hotel, eventos
+// (armado/colocación/retiro), ventas, jardinería y habitaciones. Antes el informe
+// leía solo el historial de la checklist y los eventos nunca aparecían.
+function _prodRegistros(){
+  const out = (checklistHistory||[]).map(r => ({ ...r }));
+  const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const add = (who, fecha, zona, actividad, inicio, fin) => {
+    if(!who || !inicio || !fin) return;
+    const iso = String(fecha||'').slice(0,10);
+    const p = iso.split('-').map(Number);
+    const d = p.length===3 && p[0] ? new Date(p[0], p[1]-1, p[2]) : null;
+    out.push({ who, date: iso, week: d ? getWeekLabel(d) : '', day: d ? DIAS[d.getDay()] : '',
+      zona, actividad, inicio, fin, ref: 0 });
+  };
+  (eventosData||[]).forEach(ev => {
+    const n = ev.nombre || '(evento)';
+    add(ev.asignado,           ev.fecha,                            n, 'Evento · Armado',     ev.inicio,           ev.fin);
+    add(ev.colocacionAsignado, ev.colocacionFecha || ev.fecha,      n, 'Evento · Colocación', ev.colocacionInicio, ev.colocacionFin);
+    add(ev.retiroAsignado,     ev.retiroFecha || ev.fecha,          n, 'Evento · Retiro',     ev.retiroInicio,     ev.retiroFin);
+  });
+  (ventasData||[]).forEach(v => add(v.asignado, v.fecha, v.prod || 'Venta', 'Venta / pedido', v.inicio, v.fin));
+  (jardineriaLog||[]).forEach(e => add(e.quien, e.fecha, [e.group, e.task].filter(Boolean).join(' · ') || 'Jardinería', 'Jardinería', e.horaInicio, e.horaFin));
+  (habitacionesLog||[]).forEach(e => add(e.quien, e.fecha, e.hab || 'Habitación', 'Habitaciones', e.horaInicio, e.horaFin));
+  return out;
+}
+
 function renderProductividad(){
   const filterEl = document.getElementById('prod-week-filter');
+  const todos = _prodRegistros();
   // Populate week options
-  const weeks = [...new Set(checklistHistory.map(r=>r.week).filter(Boolean))].sort();
+  const weeks = [...new Set(todos.map(r=>r.week).filter(Boolean))].sort();
   const curVal = filterEl.value;
   filterEl.innerHTML = '<option value="">Todas las semanas</option>';
   weeks.forEach(w => {
@@ -15017,13 +15044,15 @@ function renderProductividad(){
 
   const semanaFiltro = filterEl.value;
   const registros = semanaFiltro
-    ? checklistHistory.filter(r => r.week === semanaFiltro)
-    : checklistHistory;
+    ? todos.filter(r => r.week === semanaFiltro)
+    : todos;
 
-  // Agrupar por operario
-  const byWho = {};
+  // Agrupar por operario (ignora mayúsculas/acentos: "Iván" e "Ivan" son la misma persona)
+  const byWho = {}, nombres = {};
   registros.forEach(r => {
-    const who = r.who || '—';
+    const clave = _normName(r.who) || '—';
+    if(!nombres[clave]) nombres[clave] = r.who || '—';
+    const who = clave;
     if(!byWho[who]) byWho[who] = { tareas: 0, conHorario: 0, minutos: 0, conRef: 0, excedidas: 0, detalle: [] };
     byWho[who].tareas++;
     if(r.inicio && r.fin){
@@ -15064,7 +15093,7 @@ function renderProductividad(){
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
           <div style="display:flex;align-items:center;gap:10px">
             <span style="font-size:20px"></span>
-            <span style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:500;color:var(--charcoal)">${esc(who)}</span>
+            <span style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:500;color:var(--charcoal)">${esc(nombres[who] || who)}</span>
           </div>
           <div style="display:flex;gap:16px;flex-wrap:wrap">
             <div style="text-align:center">
