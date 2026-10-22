@@ -4968,16 +4968,19 @@ function exportHistorialEventosXLSX(){
   if(!lista.length){ showToast('Sin eventos para exportar'); return; }
   const rows = lista.map(ev=>{
     const pr = parseMoney(ev.precio), c = costoEvento(ev);
-    const margen = (pr>0 && c.total>0) ? Math.round(pr-c.total) : '';
+    const esp = ingresoEsperado(ev), base = pr>0 ? pr : esp;
+    const margen = (base>0 && c.total>0) ? Math.round(base-c.total) : '';
     return {
       Fecha: ev.fecha||'', Evento: ev.nombre||'', Organizador: ev.organizador||'', Tipo: ev.tipo||'',
       Salón: evZonasLabel(ev), Pax: +ev.pax||'',
       Arreglos: (ev.arreglos||[]).map(a=>`${a.qty}× ${a.arreglo}`).join(' · '),
       'Cant. arreglos': (ev.arreglos||[]).reduce((s,a)=>s+(+a.qty||0),0),
       'Precio hotel': pr>0 ? pr : (ev.precio||''),
+      'Servicio (tarifa)': ev.tarifaPax||'', 'Tarifa por pax': tarifaPaxDe(ev)||'', 'Ingreso esperado': esp||'',
       'Costo aprox.': c.total>0 ? Math.round(c.total) : '',
-      Margen: margen,
-      'Margen %': margen==='' ? '' : Math.round(margen/pr*100),
+      'Costo por pax': (c.total>0 && +ev.pax>0) ? Math.round(c.total/ev.pax) : '',
+      Margen: margen, 'Margen sobre': margen==='' ? '' : (pr>0 ? 'precio real' : 'esperado'),
+      'Margen %': margen==='' ? '' : Math.round(margen/base*100),
       'Arreglos sin costo': c.sinCosto.join(', ')
     };
   });
@@ -4987,6 +4990,66 @@ function exportHistorialEventosXLSX(){
   X.utils.book_append_sheet(wb, ws, 'Eventos');
   _xlsxDownload(wb, `eventos-${mes}.xlsx`);
   showToast('Exportado: eventos-'+mes+'.xlsx ('+rows.length+' eventos)');
+}
+
+// ── Tarifas por pax que paga el hotel según el servicio (las edita gerencia) ──
+// Se guardan dentro de eventoPricing.tarifasPax (ya sincronizado). Mientras
+// gerencia no las cambie se usa la tabla que pasó el hotel.
+const TARIFAS_PAX_BASE = [
+  {nombre:'Almuerzo buffet · 2 arreglos altos', valor:2450},
+  {nombre:'Desayuno · centro de mesas con follaje', valor:4600},
+  {nombre:'Almuerzo · centro de mesas con flores', valor:7000},
+  {nombre:'Cocktail · arreglos, juegos de living y estación en vivo', valor:12201},
+  {nombre:'Menú informal · cocktail + mesa dulce', valor:13300},
+  {nombre:'Bodas / cumpleaños · centro de mesa + 2 arreglos de estación', valor:13800},
+  {nombre:'Meeting Package · follaje + arreglos altos estación', valor:6000}
+];
+function tarifasPaxLista(){
+  const t = eventoPricing.tarifasPax;
+  const l = Array.isArray(t) ? t : (t ? Object.values(t) : null);
+  return (l && l.length) ? l : TARIFAS_PAX_BASE.map(x=>({...x}));
+}
+function tarifaPaxDe(ev){
+  const t = tarifasPaxLista().find(x=>x.nombre===ev.tarifaPax);
+  return t ? (+t.valor||0) : 0;
+}
+// Ingreso esperado de un evento: pax × tarifa del servicio elegido.
+function ingresoEsperado(ev){ return (+ev.pax||0) * tarifaPaxDe(ev); }
+
+function _guardarTarifasPax(l){
+  eventoPricing.tarifasPax = l;
+  fbSave('eventoPricing', eventoPricing);
+  renderHistorialEventos();
+}
+function histTarifaSet(i, campo, v){
+  if(userRole!=='gerencia'){ showToast('Solo gerencia puede cambiar las tarifas'); return; }
+  const l = tarifasPaxLista().map(x=>({...x}));
+  if(!l[i]) return;
+  if(campo==='valor') l[i].valor = Math.max(0, parseMoney(v));
+  else {
+    const nuevo = String(v||'').trim(); if(!nuevo) return;
+    const viejo = l[i].nombre; l[i].nombre = nuevo;
+    if(viejo!==nuevo){ eventosData.forEach(e=>{ if(e.tarifaPax===viejo) e.tarifaPax = nuevo; }); _saveEventos(); }
+  }
+  _guardarTarifasPax(l);
+}
+function histTarifaAdd(){
+  if(userRole!=='gerencia'){ showToast('Solo gerencia puede cambiar las tarifas'); return; }
+  const l = tarifasPaxLista().map(x=>({...x}));
+  l.push({nombre:'Nuevo servicio', valor:0});
+  _guardarTarifasPax(l);
+}
+function histTarifaDel(i){
+  if(userRole!=='gerencia'){ showToast('Solo gerencia puede cambiar las tarifas'); return; }
+  const l = tarifasPaxLista().map(x=>({...x}));
+  l.splice(i,1);
+  _guardarTarifasPax(l);
+}
+function histEventoSetTarifa(i, nombre){
+  const ev = eventosData[i]; if(!ev) return;
+  ev.tarifaPax = nombre || '';
+  _saveEventos();
+  renderHistorialEventos();
 }
 
 // Carga el precio de un evento directo desde el Historial (eventos que se
@@ -5021,6 +5084,19 @@ function renderHistorialEventos(){
   }
   const filtered = histEventosFiltrados();
 
+  // Panel de tarifas por pax
+  const tarEl = document.getElementById('hist-ev-tarifas');
+  if(tarEl){
+    const edit = userRole==='gerencia', dis = edit ? '' : ' disabled';
+    tarEl.innerHTML = tarifasPaxLista().map((t,i)=>`<div style="display:flex;gap:6px;align-items:center;margin:4px 0">
+      <input value="${esc(t.nombre)}"${dis} onchange="histTarifaSet(${i},'nombre',this.value)" style="flex:1;min-width:200px;font-size:12px;padding:5px 7px;border:1px solid #E4E2DC;border-radius:6px">
+      <span style="color:var(--mid-gray)">$</span>
+      <input value="${t.valor}"${dis} inputmode="decimal" onchange="histTarifaSet(${i},'valor',this.value)" style="width:90px;font-size:12px;padding:5px 7px;text-align:right;border:1px solid #E4E2DC;border-radius:6px">
+      <span style="font-size:11px;color:var(--mid-gray)">por pax</span>
+      ${edit?`<button class="btn-icon" style="color:var(--red-alert)" onclick="histTarifaDel(${i})" title="Quitar">✕</button>`:''}
+    </div>`).join('') + (edit?'<button class="btn-secondary" style="font-size:11px;padding:4px 10px;margin-top:6px" onclick="histTarifaAdd()">+ Agregar servicio</button>':'<div style="font-size:11px;color:var(--mid-gray);margin-top:6px">Solo gerencia puede editar las tarifas.</div>');
+  }
+
   // KPIs
   const kpisEl = document.getElementById('hist-ev-kpis');
   if(kpisEl){
@@ -5049,7 +5125,7 @@ function renderHistorialEventos(){
   if(!tbody) return;
 
   if(filtered.length === 0){
-    tbody.innerHTML = '<tr><td colspan="10" style="padding:24px;text-align:center;color:var(--mid-gray)">'+
+    tbody.innerHTML = '<tr><td colspan="11" style="padding:24px;text-align:center;color:var(--mid-gray)">'+
       (hechos.length===0 ? 'Aún no hay eventos finalizados.' : 'Sin resultados para los filtros aplicados.')+'</td></tr>';
     return;
   }
@@ -5064,14 +5140,22 @@ function renderHistorialEventos(){
       : '<span style="color:var(--mid-gray)">—</span>';
     const pr = parseMoney(ev.precio), c = costoEvento(ev);
     const dash = '<span style="color:var(--mid-gray)">—</span>';
+    const pax = +ev.pax||0, esp = ingresoEsperado(ev);
+    const money = n => '$'+Math.round(n).toLocaleString('es-AR');
     const costoTd = !(ev.arreglos?.length) ? dash
-      : (c.total>0 ? '$'+Math.round(c.total).toLocaleString('es-AR') : dash)
+      : (c.total>0 ? money(c.total)+(pax>0?`<div style="font-size:10px;color:var(--mid-gray)">${money(c.total/pax)}/pax</div>`:'') : dash)
         + (c.sinCosto.length ? `<div style="font-size:10px;color:var(--red-alert)" title="${esc(c.sinCosto.join(', '))}">sin costo: ${c.sinCosto.length}</div>` : '');
+    // Margen sobre el precio real; si todavía no está cargado, sobre el esperado (pax × tarifa)
+    const base = pr>0 ? pr : esp, estim = !(pr>0);
     let margenTd = dash;
-    if(pr>0 && c.total>0){
-      const m = pr - c.total, col = m>=0 ? 'var(--green-ok)' : 'var(--red-alert)';
-      margenTd = `<span style="color:${col};font-weight:600">$${Math.round(m).toLocaleString('es-AR')}</span><div style="font-size:10px;color:${col}">${Math.round(m/pr*100)}%${c.sinCosto.length?' (parcial)':''}</div>`;
+    if(base>0 && c.total>0){
+      const m = base - c.total, col = m>=0 ? 'var(--green-ok)' : 'var(--red-alert)';
+      margenTd = `<span style="color:${col};font-weight:600">${m<0?'-':''}${money(Math.abs(m))}</span><div style="font-size:10px;color:${col}">${Math.round(m/base*100)}%${estim?' (est.)':''}${c.sinCosto.length?' (parcial)':''}</div>`;
     }
+    const tarifas = tarifasPaxLista();
+    const tarifaTd = `<div onclick="event.stopPropagation()"><select onchange="histEventoSetTarifa(${realIdx},this.value)" style="max-width:130px;font-size:11px;padding:3px">
+      <option value="">—</option>${tarifas.map(t=>`<option value="${esc(t.nombre)}"${t.nombre===ev.tarifaPax?' selected':''}>${esc(t.nombre.split(' · ')[0])} (${money(t.valor)})</option>`).join('')}</select>
+      ${esp>0?`<div style="font-size:10px;color:var(--mid-gray)">esperado ${money(esp)}</div>`:''}</div>`;
     return `<tr style="cursor:pointer${pr>0?'':';background:#FFFAF2'}" onclick="openEventoDetail(${realIdx})">
       <td style="font-weight:600;font-size:13px">${esc(ev.nombre||'')}</td>
       <td style="font-size:13px">${ev.organizador?esc(ev.organizador):'<span style="color:var(--mid-gray)">—</span>'}</td>
@@ -5082,6 +5166,7 @@ function renderHistorialEventos(){
       <td style="font-size:12px;color:var(--charcoal)">${arreglosStr}</td>
       <td style="font-weight:600;font-size:13px;color:#2E7D32">${pr>0 ? esc(ev.precio) :
         `<div onclick="event.stopPropagation()" style="display:flex;gap:4px;align-items:center"><span class="badge" style="background:#FDF0E8;color:#A05A2C;white-space:nowrap">Falta precio</span><input id="hist-ev-p-${realIdx}" placeholder="Precio" inputmode="decimal" style="width:90px;font-size:12px;padding:4px 6px;border:1px solid #E0B06A;border-radius:6px" onkeydown="if(event.key==='Enter')histEventoSetPrecio(${realIdx},this.value)"><button class="btn-secondary" style="font-size:11px;padding:4px 8px" onclick="histEventoSetPrecio(${realIdx},document.getElementById('hist-ev-p-${realIdx}').value)">Guardar</button></div>`}</td>
+      <td style="font-size:12px">${tarifaTd}</td>
       <td style="font-size:13px;text-align:right">${costoTd}</td>
       <td style="font-size:13px;text-align:right">${margenTd}</td>
     </tr>`;
@@ -18047,7 +18132,7 @@ Object.assign(window, {
   renderGaleria, abrirLightbox, galeriaAddFotos, galeriaAddUrl, galeriaQuitarFoto, guardarGaleria, editarGaleria, eliminarGaleria,
   setGaleriaSeccion, openFichaGaleria, imprimirFicha, addGalIngRow, galSectorOnChange,
   renderEvHoraCell, renderEvTipos, renderEventos, renderHabLog, renderHabOps,
-  renderHabReporte, renderHistorialCompras, renderHistorialEventos, exportHistorialEventosXLSX, histEventoSetPrecio, renderHistoryPanel, renderHome,
+  renderHabReporte, renderHistorialCompras, renderHistorialEventos, exportHistorialEventosXLSX, histEventoSetPrecio, histTarifaSet, histTarifaAdd, histTarifaDel, histEventoSetTarifa, renderHistoryPanel, renderHome,
   renderHomeHyatt, renderHoraCell, renderHorarios, renderInsumosGrid, renderJardLog, renderJardOps,
   renderJardProdEquipo, renderJardTurnoCard, renderJardReporte, renderJordProd, renderKanban,
   jardSetJardinero, jardRegistrarHoraTurno, jardResetHoraTurno, jardProdDiaClick,

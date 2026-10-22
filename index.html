@@ -1229,6 +1229,12 @@
       </div>
     </div>
 
+    <details style="margin-bottom:16px;background:var(--warm-white);border:1px solid var(--light-gray);border-radius:10px;padding:10px 14px">
+      <summary style="cursor:pointer;font-size:13px;font-weight:600">Tarifas por pax que paga el hotel (según servicio)</summary>
+      <div style="font-size:11px;color:var(--mid-gray);margin:6px 0">Elegí el servicio en cada evento y la tabla calcula el ingreso esperado (pax × tarifa) y el margen aunque el precio todavía no esté cargado.</div>
+      <div id="hist-ev-tarifas"></div>
+    </details>
+
     <!-- KPIs -->
     <div class="cards-grid cards-grid-3" style="margin-bottom:20px" id="hist-ev-kpis"></div>
 
@@ -1245,6 +1251,7 @@
             <th>Pax</th>
             <th>Arreglos</th>
             <th>Precio</th>
+            <th title="Servicio del hotel y su tarifa por pax">Servicio</th>
             <th title="Según el último costo de compra de cada flor y la composición del arreglo">Costo aprox.</th>
             <th>Margen</th>
           </tr>
