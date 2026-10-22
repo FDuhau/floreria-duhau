@@ -15008,23 +15008,29 @@ function toggleProductividad(){
 function _prodRegistros(){
   const out = (checklistHistory||[]).map(r => ({ ...r }));
   const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-  const add = (who, fecha, zona, actividad, inicio, fin) => {
-    if(!who || !inicio || !fin) return;
+  // Una tarea cuenta si tiene inicio y fin, o si se la dio por hecha aunque no se
+  // haya anotado el horario (igual que las de la checklist marcadas sin cronómetro).
+  const add = (who, fecha, zona, actividad, inicio, fin, hecho) => {
+    if(!who || !((inicio && fin) || hecho)) return;
     const iso = String(fecha||'').slice(0,10);
     const p = iso.split('-').map(Number);
     const d = p.length===3 && p[0] ? new Date(p[0], p[1]-1, p[2]) : null;
     out.push({ who, date: iso, week: d ? getWeekLabel(d) : '', day: d ? DIAS[d.getDay()] : '',
-      zona, actividad, inicio, fin, ref: 0 });
+      zona, actividad, inicio: inicio||'', fin: fin||'', ref: 0 });
   };
   (eventosData||[]).forEach(ev => {
     const n = ev.nombre || '(evento)';
-    add(ev.asignado,           ev.fecha,                            n, 'Evento · Armado',     ev.inicio,           ev.fin);
-    add(ev.colocacionAsignado, ev.colocacionFecha || ev.fecha,      n, 'Evento · Colocación', ev.colocacionInicio, ev.colocacionFin);
-    add(ev.retiroAsignado,     ev.retiroFecha || ev.fecha,          n, 'Evento · Retiro',     ev.retiroInicio,     ev.retiroFin);
+    const est = ev.estado;
+    const finalizado = est === 'Pedidos Finalizados';
+    const pasoArmado = finalizado || est === 'Pendiente de Colocacion' || est === 'Pendiente de Retiro';
+    const pasoColoc  = finalizado || est === 'Pendiente de Retiro';
+    add(ev.asignado,           ev.fecha,                       n, 'Evento · Armado',     ev.inicio,           ev.fin,           pasoArmado);
+    add(ev.colocacionAsignado, ev.colocacionFecha || ev.fecha, n, 'Evento · Colocación', ev.colocacionInicio, ev.colocacionFin, pasoColoc);
+    add(ev.retiroAsignado,     ev.retiroFecha || ev.fecha,     n, 'Evento · Retiro',     ev.retiroInicio,     ev.retiroFin,     finalizado);
   });
-  (ventasData||[]).forEach(v => add(v.asignado, v.fecha, v.prod || 'Venta', 'Venta / pedido', v.inicio, v.fin));
-  (jardineriaLog||[]).forEach(e => add(e.quien, e.fecha, [e.group, e.task].filter(Boolean).join(' · ') || 'Jardinería', 'Jardinería', e.horaInicio, e.horaFin));
-  (habitacionesLog||[]).forEach(e => add(e.quien, e.fecha, e.hab || 'Habitación', 'Habitaciones', e.horaInicio, e.horaFin));
+  (ventasData||[]).forEach(v => add(v.asignado, v.fecha, v.prod || 'Venta', 'Venta / pedido', v.inicio, v.fin, v.estado === 'entregado'));
+  (jardineriaLog||[]).forEach(e => add(e.quien, e.fecha, [e.group, e.task].filter(Boolean).join(' · ') || 'Jardinería', 'Jardinería', e.horaInicio, e.horaFin, true));
+  (habitacionesLog||[]).forEach(e => add(e.quien, e.fecha, e.hab || 'Habitación', 'Habitaciones', e.horaInicio, e.horaFin, true));
   return out;
 }
 
@@ -15055,9 +15061,11 @@ function renderProductividad(){
     const who = clave;
     if(!byWho[who]) byWho[who] = { tareas: 0, conHorario: 0, minutos: 0, conRef: 0, excedidas: 0, detalle: [] };
     byWho[who].tareas++;
+    let conDur = false;
     if(r.inicio && r.fin){
       const dur = calcDuracion(r.inicio, r.fin);
       if(dur){
+        conDur = true;
         byWho[who].conHorario++;
         byWho[who].minutos += dur;
         // Comparación con el tiempo de referencia de la tarea (si tiene).
@@ -15068,6 +15076,7 @@ function renderProductividad(){
         byWho[who].detalle.push({ zona: r.zona, actividad: r.actividad, inicio: r.inicio, fin: r.fin, dur, ref, excedida, day: r.day, date: r.date });
       }
     }
+    if(!conDur) byWho[who].detalle.push({ zona: r.zona, actividad: r.actividad, inicio: '', fin: '', dur: 0, ref: 0, excedida: false, day: r.day, date: r.date });
   });
 
   const body = document.getElementById('productividad-body');
@@ -15140,9 +15149,9 @@ function renderProductividad(){
                   <td style="padding:6px 10px;color:var(--mid-gray)">${esc(t.day)}</td>
                   <td style="padding:6px 10px;font-weight:500">${esc(t.zona)}</td>
                   <td style="padding:6px 10px"><span class="badge ${getBadge(t.actividad)}">${esc(t.actividad)}</span></td>
-                  <td style="padding:6px 10px;text-align:center;font-weight:600">${t.inicio}</td>
-                  <td style="padding:6px 10px;text-align:center;font-weight:600">${t.fin}</td>
-                  <td style="padding:6px 10px;text-align:center">${durBadge(t.inicio,t.fin,t.ref)}</td>
+                  <td style="padding:6px 10px;text-align:center;font-weight:600">${t.inicio||'—'}</td>
+                  <td style="padding:6px 10px;text-align:center;font-weight:600">${t.fin||'—'}</td>
+                  <td style="padding:6px 10px;text-align:center">${t.inicio && t.fin ? durBadge(t.inicio,t.fin,t.ref) : '<span style="color:var(--mid-gray);font-size:11px">sin horario</span>'}</td>
                   <td style="padding:6px 10px;text-align:center;color:var(--mid-gray)">${t.ref ? t.ref+'m' : '—'}</td>
                 </tr>`).join('')}
               </tbody>
