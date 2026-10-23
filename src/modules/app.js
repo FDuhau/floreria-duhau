@@ -9199,7 +9199,7 @@ function openRecordatorioModal(idx){
   // Build task picker
   const sel = document.getElementById('jrec-modal-task');
   const groups = {};
-  JARDINERIA_BASE.forEach(t => {
+  jardineriaData.forEach(t => {
     const k = `${t.section} · ${t.group}`;
     if(!groups[k]) groups[k] = [];
     groups[k].push(t);
@@ -9549,8 +9549,94 @@ async function jardAddSeccion(){
   showToast(`Sección "${s.trim()}" creada`);
 }
 
+// Al renombrar o borrar zonas, se arrastran las horas y el plan del día que estaban guardados con el nombre viejo
+function _jardMoverClaves(fn){
+  Object.keys(jardPlanDia).forEach(iso=>{
+    Object.keys(jardPlanDia[iso]).forEach(k=>{
+      const nk = fn(k.split('|||'));
+      if(nk===k) return;
+      delete jardPlanDia[iso][k];
+      if(nk) jardPlanDia[iso][nk]=true;
+    });
+    if(!Object.keys(jardPlanDia[iso]).length) delete jardPlanDia[iso];
+  });
+  fbSave('jardPlanDia', jardPlanDia);
+}
+function _jardMoverHoras(secOld, grpOld, secNew, grpNew){
+  const ko = secOld+'|||'+grpOld;
+  if(!zonaHorasData[ko]) return;
+  if(secNew!==null) zonaHorasData[secNew+'|||'+grpNew] = zonaHorasData[ko];
+  delete zonaHorasData[ko];
+  fbSave('zonaHorasData', zonaHorasData);
+}
+function _jardPoblarSecciones(){
+  const sel = document.getElementById('ctrl-jard-section');
+  if(!sel) return;
+  const cur = sel.value;
+  const secs = [...new Set(jardineriaData.map(r=>r.section))];
+  sel.innerHTML = '<option value="">Todas las secciones</option>' + secs.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');
+  sel.value = secs.includes(cur) ? cur : '';
+}
+function _jardRefrescarVistas(){
+  renderCtrlJard?.();
+  renderJardOps?.();
+}
+
+async function jardRenameGrupo(section, group){
+  if(userRole!=='gerencia') return;
+  const nuevo = await promptModal('Nuevo nombre del grupo / zona:', {title:'Renombrar grupo', default:group});
+  if(!nuevo || !nuevo.trim() || nuevo.trim()===group) return;
+  const n = nuevo.trim();
+  jardineriaData.forEach(r=>{ if(r.section===section && r.group===group) r.group = n; });
+  _jardMoverClaves(([s,g,t])=> (s===section && g===group) ? [s,n,t].join('|||') : [s,g,t].join('|||'));
+  _jardMoverHoras(section, group, section, n);
+  _saveJardineria();
+  openGestionTareasJard();
+  showToast('Grupo renombrado');
+}
+
+async function jardDeleteGrupo(section, group){
+  if(userRole!=='gerencia') return;
+  const cant = jardineriaData.filter(r=>r.section===section && r.group===group).length;
+  if(!await confirmModal(`¿Eliminar el grupo "${group}" con sus ${cant} tareas? Se pierde el historial de visitas de ese grupo.`)) return;
+  jardineriaData = jardineriaData.filter(r=>!(r.section===section && r.group===group));
+  _jardMoverClaves(([s,g,t])=> (s===section && g===group) ? null : [s,g,t].join('|||'));
+  _jardMoverHoras(section, group, null, null);
+  _saveJardineria();
+  openGestionTareasJard();
+  showToast('Grupo eliminado');
+}
+
+async function jardRenameSeccion(section){
+  if(userRole!=='gerencia') return;
+  const nuevo = await promptModal('Nuevo nombre de la sección / zona:', {title:'Renombrar sección', default:section});
+  if(!nuevo || !nuevo.trim() || nuevo.trim()===section) return;
+  const n = nuevo.trim();
+  const grupos = [...new Set(jardineriaData.filter(r=>r.section===section).map(r=>r.group))];
+  jardineriaData.forEach(r=>{ if(r.section===section) r.section = n; });
+  _jardMoverClaves(([s,g,t])=> s===section ? [n,g,t].join('|||') : [s,g,t].join('|||'));
+  grupos.forEach(g=>_jardMoverHoras(section, g, n, g));
+  _saveJardineria();
+  openGestionTareasJard();
+  showToast('Sección renombrada');
+}
+
+async function jardDeleteSeccion(section){
+  if(userRole!=='gerencia') return;
+  const cant = jardineriaData.filter(r=>r.section===section).length;
+  if(!await confirmModal(`¿Eliminar la sección "${section}" completa, con sus ${cant} tareas? Se pierde el historial de visitas de toda la sección.`)) return;
+  const grupos = [...new Set(jardineriaData.filter(r=>r.section===section).map(r=>r.group))];
+  jardineriaData = jardineriaData.filter(r=>r.section!==section);
+  _jardMoverClaves(([s,g,t])=> s===section ? null : [s,g,t].join('|||'));
+  grupos.forEach(g=>_jardMoverHoras(section, g, null, null));
+  _saveJardineria();
+  openGestionTareasJard();
+  showToast('Sección eliminada');
+}
+
 function openGestionTareasJard(){
   if(userRole!=='gerencia'){ showToast('Solo gerencia'); return; }
+  _jardRefrescarVistas();
   let ov = document.getElementById('gestion-tareas-jard-modal');
   if(!ov){ ov=document.createElement('div'); ov.id='gestion-tareas-jard-modal'; ov.className='modal-overlay'; document.body.appendChild(ov); }
   const bySec = {};
@@ -9572,13 +9658,21 @@ function openGestionTareasJard(){
         </div>`;
       }).join('');
       return `<div style="margin:6px 0;border:1px solid var(--light-gray);border-radius:8px;overflow:hidden">
-        <div style="padding:7px 12px;background:var(--cream);font-size:12px;font-weight:600;color:var(--charcoal)">${esc(grp)}</div>
+        <div style="padding:7px 12px;background:var(--cream);font-size:12px;font-weight:600;color:var(--charcoal);display:flex;align-items:center;gap:8px">
+          <span style="flex:1;min-width:0">${esc(grp)}</span>
+          <button class="btn-icon" title="Renombrar grupo" onclick="jardRenameGrupo('${secEsc}','${grpEsc}')"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/></svg></button>
+          <button class="btn-icon" style="color:var(--red-alert)" title="Eliminar grupo" onclick="jardDeleteGrupo('${secEsc}','${grpEsc}')">✕</button>
+        </div>
         <div style="display:flex;flex-direction:column;gap:1px;background:var(--light-gray)">${tareasHTML}</div>
         <div style="padding:6px 12px;background:var(--warm-white)"><button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="jardAddTarea('${secEsc}','${grpEsc}')">+ Agregar tarea</button></div>
       </div>`;
     }).join('');
     return `<div style="margin-bottom:14px;border:1px solid var(--light-gray);border-radius:10px;overflow:hidden">
-      <div style="padding:10px 12px;background:#EBF0E8;font-size:13.5px;font-weight:700;color:var(--sage-dark)">${getSectionEmoji(sec)} ${esc(sec)}</div>
+      <div style="padding:10px 12px;background:#EBF0E8;font-size:13.5px;font-weight:700;color:var(--sage-dark);display:flex;align-items:center;gap:8px">
+        <span style="flex:1;min-width:0">${getSectionEmoji(sec)} ${esc(sec)}</span>
+        <button class="btn-icon" title="Renombrar sección" onclick="jardRenameSeccion('${secEsc}')"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/></svg></button>
+        <button class="btn-icon" style="color:var(--red-alert)" title="Eliminar sección" onclick="jardDeleteSeccion('${secEsc}')">✕</button>
+      </div>
       <div style="padding:8px 10px">${gruposHTML}
         <button class="btn-secondary" style="font-size:11px;padding:4px 10px;margin-top:4px" onclick="jardAddGrupo('${secEsc}')">+ Agregar grupo</button>
       </div>
@@ -9587,7 +9681,7 @@ function openGestionTareasJard(){
   ov.innerHTML = `<div class="modal" style="max-width:620px;max-height:88vh;overflow-y:auto">
     <button class="modal-close" onclick="closeModal('gestion-tareas-jard-modal')">✕</button>
     <div class="modal-title">Gestionar tareas de jardinería</div>
-    <div style="font-size:12px;color:var(--mid-gray);margin-bottom:14px">Agregá, renombrá o eliminá las tareas que hacen los jardineros. Los cambios se aplican para todos y se sincronizan con el equipo.</div>
+    <div style="font-size:12px;color:var(--mid-gray);margin-bottom:14px">Agregá, renombrá o eliminá secciones, grupos y tareas. Lo que ya está registrado se mantiene. Los cambios se aplican para todos y se sincronizan con el equipo.</div>
     ${secHTML}
     <div style="margin-top:8px"><button class="btn-add" style="font-size:12px;padding:8px 16px" onclick="jardAddSeccion()">+ Agregar sección / zona</button></div>
   </div>`;
@@ -10106,6 +10200,7 @@ function jardProdDiaClick(nombre, _fecha){
 
 function renderCtrlJard(){
   renderAlertasUrgentesJard();
+  _jardPoblarSecciones();
   const search=(document.getElementById('ctrl-jard-search')?.value||'').toLowerCase();
   const mode=ctrlJardFilterMode;
   const secFilter=(document.getElementById('ctrl-jard-section')?.value||'');
@@ -18298,7 +18393,7 @@ Object.assign(window, {
   getWeekLabel, guardarDiaHorario, habsHoraCell, habsRegistrarHora, habsResetHora,
   hopsVisita, horNavMes, initChecklist, initCotizadorEventosHyatt, initCtrlHab, initCtrlJard,
   jopsDone, jopsHoraCell, jopsRegistrarHora, jopsResetHora, jopsUpdHora, limpiarCarrito,
-  jardTogglePlanHoy, openGestionTareasJard, jardAddTarea, jardRenameTarea, jardDeleteTarea, jardAddGrupo, jardAddSeccion,
+  jardTogglePlanHoy, openGestionTareasJard, jardRenameGrupo, jardDeleteGrupo, jardRenameSeccion, jardDeleteSeccion, jardAddTarea, jardRenameTarea, jardDeleteTarea, jardAddGrupo, jardAddSeccion,
   limpiarCarritoOps, limpiarDiaHorario, loadWeekState, lpAddPhotos, lpDelCat, lpDelItem,
   lpOpenViewer, lpRemovePhoto, lpUpdItem, markHabDone, markJardDone, marcarRecordatorioHecho, navToggleGroup, navExpandGroup, navCollapseGroup, finalizeNavGroups, navigate, openRecordatorioModal, renderBottomNav, renderRecordatoriosJard, renderPlagasJard, renderStockJard, stockJardFiltrar, openStockJardModal, saveStockJard, deleteStockJard, openPlagaJardModal, savePlagaJard, deletePlagaJard, plagaSugerir, plagaFiltrar, openControlPlaga, saveControlPlaga, verHistorialPlaga, saveRecordatorio, deleteRecordatorio, updateBottomNav, openCajaModal,
   openAlertaJardinModal, alertaJardFotoPreview, guardarAlertaJardin, resolverAlertaJardin, verFotoAlerta, renderAlertasUrgentesJard, toggleRecepAgrupado,
