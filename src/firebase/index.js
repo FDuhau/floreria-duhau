@@ -693,6 +693,18 @@
         if(document.getElementById('page-recordatorios-jardineria')?.classList.contains('active')) window.renderPlagasJard?.();
       });
 
+      fbListen('jardStockPlantas', val => {
+        const arr = val ? (Array.isArray(val) ? val : Object.values(val)) : [];
+        if(window._setJardStockPlantas) window._setJardStockPlantas(arr);
+        if(document.getElementById('page-control-jardineria')?.classList.contains('active')) window.renderStockJard?.();
+      });
+
+      fbListen('jardStockProductos', val => {
+        const arr = val ? (Array.isArray(val) ? val : Object.values(val)) : [];
+        if(window._setJardStockProductos) window._setJardStockProductos(arr);
+        if(document.getElementById('page-control-jardineria')?.classList.contains('active')) window.renderStockJard?.();
+      });
+
       fbListen('jardRecordatorios', val => {
         const arr = val ? (Array.isArray(val) ? val : Object.values(val)) : [];
         if(window._setJardRecordatorios) window._setJardRecordatorios(arr);

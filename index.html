@@ -2196,6 +2196,19 @@
         <tbody id="ctrl-jard-body"></tbody>
       </table>
     </div>
+    <div id="jstock-tablas"></div>
+    <div class="modal-overlay" id="jstock-modal" onclick="if(event.target===this)closeModal('jstock-modal')">
+      <div class="modal" style="max-width:560px;max-height:90vh;overflow-y:auto">
+        <div class="modal-title" id="jstock-modal-title">Nuevo</div>
+        <input type="hidden" id="jstock-tipo">
+        <input type="hidden" id="jstock-idx">
+        <div id="jstock-campos"></div>
+        <div class="modal-actions">
+          <button class="btn-secondary" onclick="closeModal('jstock-modal')">Cancelar</button>
+          <button class="btn-add" onclick="saveStockJard()">Guardar</button>
+        </div>
+      </div>
+    </div>
     <div style="margin-top:32px">
       <div class="section-title toggle-section-header" onclick="toggleCtrlSection('jard-prod-wrap','jard-prod-chev')" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none">
         <span>⏱ Productividad del equipo · Jardinería</span>
