@@ -2170,6 +2170,7 @@
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn-add" style="background:var(--red-alert);border-color:var(--red-alert)" onclick="openAlertaJardinModal()">Alerta urgente</button>
+        <button class="btn-secondary gerencia-only" onclick="openGestionTareasJard()">Editar zonas y tareas</button>
         <button class="btn-add" onclick="exportCtrlCSV()">↓ Exportar CSV</button>
       </div>
     </div>
@@ -2184,9 +2185,6 @@
       <button class="ctrl-tab" id="ctj-none" onclick="ctrlJardFilter('none',this)">Sin datos</button>
       <select class="form-input" id="ctrl-jard-section" onchange="renderCtrlJard()" style="width:200px;padding:7px 10px;font-size:12px">
         <option value="">Todas las secciones</option>
-        <option value="Palacio">Zona Palacio</option>
-        <option value="Jardín Central">Jardín Central</option>
-        <option value="Edificio Posadas">Edificio Posadas</option>
       </select>
     </div>
     <div class="table-wrapper">
