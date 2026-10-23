@@ -15,7 +15,7 @@ import { EV_ZONAS, openZonasEventoModal, guardarZonasEvento } from './zonas-even
 import { configurarCalendario, getEventosView, initEventosToggle, renderCalendario, calPrevMonth, calNextMonth } from './calendario.js';
 import { configurarCostoHotel, renderCostoHotel, exportCostoHotel } from './costo-hotel.js';
 import { PAGE_LABELS, JARDINERIA_BASE, HABITACIONES_BASE, DIA_MADRE_ARREGLOS } from './datos-base.js';
-import { renderBottomNav, updateBottomNav } from './nav-inferior.js';
+import { renderBottomNav, updateBottomNav, irAAtajoInicial } from './nav-inferior.js';
 import { listaPreciosData, renderListaPrecios, lpUpdItem, lpDelItem, lpDelCat, openLpModal, saveLpItem, openLpCatModal, addLpCat, lpAddPhotos, lpRemovePhoto, lpOpenViewer } from './lista-precios.js';
 import { leerFotoComprimida, comprimirImagen } from './imagenes.js';
 import { toggleCfSplit, cfSplitAddRow, cfSplitRemoveRow, cfSplitUpdRow, getCfSplitRows, resetCfSplitRows } from './compras-reparto.js';
@@ -13430,6 +13430,7 @@ async function doLogin(){
     setTimeout(()=>initPushForUser?.(), 2000);
     setTimeout(()=>alertasAutomaticas(TODAY_ISO), 4000);
     setTimeout(()=>checkOnboarding(entry.role), 800);
+    setTimeout(()=>irAAtajoInicial(), 100);
     // Briefing del día (si ya se vio hoy, cae al aviso de eventos de siempre)
     setTimeout(()=>mostrarBriefingDia(), 2200);
     // Mantenimiento: poda del historial (gerencia, una vez al día, sin urgencia)

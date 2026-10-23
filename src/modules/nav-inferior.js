@@ -63,3 +63,28 @@ export function updateBottomNav(pageId) {
     el.classList.toggle('active', el.dataset.page === pageId);
   });
 }
+
+// ── ATAJOS DE LA APP INSTALADA ──────────────────────────────────────────────
+// Al mantener apretado el ícono de la app, el manifiesto ofrece accesos
+// directos (/?ir=checklist, etc.). Se guarda el destino al abrir y se usa
+// recién después del login; solo se respeta si esa sección está en la barra
+// inferior del rol (así un atajo no abre nada que el rol no vería).
+let _destinoAtajo = null;
+try {
+  const u = new URL(location.href);
+  _destinoAtajo = u.searchParams.get('ir');
+  if(_destinoAtajo){
+    u.searchParams.delete('ir');
+    history.replaceState(null, '', u.pathname + u.search + u.hash);
+  }
+} catch(e){ _destinoAtajo = null; }
+
+export function irAAtajoInicial() {
+  const destino = _destinoAtajo;
+  _destinoAtajo = null;
+  if(!destino) return;
+  const item = document.querySelector('.bottom-nav-item[data-page="' + CSS.escape(destino) + '"]');
+  if(!item) return;
+  window.navigate?.(destino, null);
+  updateBottomNav(destino);
+}
