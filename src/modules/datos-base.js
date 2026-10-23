@@ -1,6 +1,6 @@
 // Datos fijos de la app (textos de las pantallas y listas iniciales de jardinería y habitaciones).
 
-export const PAGE_LABELS = {control:'Control','control-jardineria':'Control › Seguimiento Jardinería','control-habitaciones':'Control › Habitaciones con Plantas',
+export const PAGE_LABELS = {control:'Control','control-jardineria':'Control › Seguimiento Jardinería','control-habitaciones':'Control › Habitaciones con Plantas','stock-jardineria':'Control › Stock Plantas y Fertilizantes',
   home:'Inicio', operaciones:'Operaciones',
   checklist:'Operaciones › Checklist', stock:'Operaciones › Stock',
   inventario:'Operaciones › Inventario',

@@ -16,7 +16,7 @@ const CHROMIUM_PATH = process.env.CHROMIUM_PATH || undefined;
 
 const PAGES = [
   'home', 'checklist', 'control-jardineria', 'control-habitaciones',
-  'recordatorios-jardineria', 'legajo', 'control-horarios', 'evaluaciones',
+  'recordatorios-jardineria', 'stock-jardineria', 'legajo', 'control-horarios', 'evaluaciones',
   'liquidacion', 'compras', 'compras-floreria', 'compras-jardineria',
   'compra-evento', 'stock-admin', 'floreros', 'velas', 'proveedores',
   'precio-comparacion', 'comercial', 'eventos-comercial', 'historial-eventos',

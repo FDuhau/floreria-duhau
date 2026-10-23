@@ -265,7 +265,8 @@ function navigate(pageId, navEl){
   if(pageId==='cotizador-ops')      renderCotizadorOps();
   if(pageId==='recetas-arreglos')       setCompTab(compTab);
   if(pageId==='recordatorios-jardineria') renderRecordatoriosJard();
-  if(pageId==='control-jardineria'){ renderCtrlJard(); renderStockJard(); }
+  if(pageId==='control-jardineria') renderCtrlJard();
+  if(pageId==='stock-jardineria') renderStockJard();
   if(pageId==='jardineria-ops') renderJardOps();
   if(pageId==='hab-ops') renderHabOps();
   if(pageId==='recepcion-pedidos') renderRecepcionPedidos();

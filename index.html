@@ -66,6 +66,7 @@
     <div class="nav-sub-item" data-group="grp-ctrl" onclick="navigate('control-jardineria',this)">Seguimiento Jardinería</div>
     <div class="nav-sub-item" data-group="grp-ctrl" onclick="navigate('control-habitaciones',this)">Habitaciones con Plantas</div>
     <div class="nav-sub-item" data-group="grp-ctrl" onclick="navigate('recordatorios-jardineria',this)">Recordatorios Jardín</div>
+    <div class="nav-sub-item" data-group="grp-ctrl" onclick="navigate('stock-jardineria',this)">Stock Plantas y Fertilizantes</div>
     <div class="nav-item nav-group-hdr" data-group-id="grp-rrhh" onclick="navToggleGroup('grp-rrhh')"><span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M2.5 20c0-3 3-5 6.5-5s6.5 2 6.5 5"/><path d="M16 6a3 3 0 010 6M22 20c0-2.4-1.8-4.3-4.5-5"/></svg></span> Recursos Humanos<span class="nav-chevron">›</span></div>
     <div class="nav-sub-item" data-group="grp-rrhh" onclick="navigate('legajo',this)">Legajo de Empleados</div>
     <div class="nav-sub-item" data-group="grp-rrhh" onclick="navigate('control-horarios',this)">Horarios y Productividad</div>
@@ -126,6 +127,7 @@
     <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('cotizador-ops',this)">Cotizador</div>
     <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('jardineria-ops',this)">Tareas Jardinería</div>
     <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('hab-ops',this)">Habitaciones con Plantas</div>
+    <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('stock-jardineria',this)">Stock Plantas y Fertilizantes</div>
     <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('recepcion-pedidos',this)">Recepción de Pedidos</div>
     <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('floreros',this)">Stock de Floreros</div>
     <div class="nav-sub-item" data-group="grp-ops" onclick="navigate('velas',this)">Stock de Velas</div>
@@ -2131,6 +2133,11 @@
         <div class="quick-link-title">Recordatorios Jardín</div>
         <div class="quick-link-sub">Alertas y mantenimiento</div>
       </div>
+      <div class="quick-link" onclick="navigate('stock-jardineria',this)">
+        <span class="quick-link-icon"></span>
+        <div class="quick-link-title">Stock Plantas y Fertilizantes</div>
+        <div class="quick-link-sub">Reemplazos y productos de cuidado</div>
+      </div>
       <div class="quick-link" onclick="navigate('legajo',this)">
         <span class="quick-link-icon"></span>
         <div class="quick-link-title">Legajo de Empleados</div>
@@ -2196,19 +2203,6 @@
         <tbody id="ctrl-jard-body"></tbody>
       </table>
     </div>
-    <div id="jstock-tablas"></div>
-    <div class="modal-overlay" id="jstock-modal" onclick="if(event.target===this)closeModal('jstock-modal')">
-      <div class="modal" style="max-width:560px;max-height:90vh;overflow-y:auto">
-        <div class="modal-title" id="jstock-modal-title">Nuevo</div>
-        <input type="hidden" id="jstock-tipo">
-        <input type="hidden" id="jstock-idx">
-        <div id="jstock-campos"></div>
-        <div class="modal-actions">
-          <button class="btn-secondary" onclick="closeModal('jstock-modal')">Cancelar</button>
-          <button class="btn-add" onclick="saveStockJard()">Guardar</button>
-        </div>
-      </div>
-    </div>
     <div style="margin-top:32px">
       <div class="section-title toggle-section-header" onclick="toggleCtrlSection('jard-prod-wrap','jard-prod-chev')" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none">
         <span>⏱ Productividad del equipo · Jardinería</span>
@@ -2225,6 +2219,27 @@
       </div>
       <div id="jard-reporte-wrap" style="display:none">
         <div id="jard-reporte-body"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ STOCK JARDINERÍA ══════ -->
+  <div id="page-stock-jardineria" class="content">
+    <div class="page-header">
+      <div class="page-title">Stock de Plantas y Fertilizantes</div>
+      <div class="page-subtitle">Plantas de reemplazo para el jardín y productos de cuidado</div>
+    </div>
+    <div id="jstock-tablas"></div>
+    <div class="modal-overlay" id="jstock-modal" onclick="if(event.target===this)closeModal('jstock-modal')">
+      <div class="modal" style="max-width:560px;max-height:90vh;overflow-y:auto">
+        <div class="modal-title" id="jstock-modal-title">Nuevo</div>
+        <input type="hidden" id="jstock-tipo">
+        <input type="hidden" id="jstock-idx">
+        <div id="jstock-campos"></div>
+        <div class="modal-actions">
+          <button class="btn-secondary" onclick="closeModal('jstock-modal')">Cancelar</button>
+          <button class="btn-add" onclick="saveStockJard()">Guardar</button>
+        </div>
       </div>
     </div>
   </div>
