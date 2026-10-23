@@ -265,7 +265,7 @@ function navigate(pageId, navEl){
   if(pageId==='cotizador-ops')      renderCotizadorOps();
   if(pageId==='recetas-arreglos')       setCompTab(compTab);
   if(pageId==='recordatorios-jardineria') renderRecordatoriosJard();
-  if(pageId==='control-jardineria') renderCtrlJard();
+  if(pageId==='control-jardineria'){ renderCtrlJard(); renderStockJard(); }
   if(pageId==='jardineria-ops') renderJardOps();
   if(pageId==='hab-ops') renderHabOps();
   if(pageId==='recepcion-pedidos') renderRecepcionPedidos();
@@ -6672,6 +6672,8 @@ function renderHome(){
 let ventasData=[];
 let jardRecordatorios=[];
 let jardPlagas=[];
+let jardStockPlantas=[];
+let jardStockProductos=[];
 let jardAlertas=[]; // alertas urgentes con foto que carga gerencia para los jardineros
 window._setVentasData = (arr) => { ventasData.splice(0, ventasData.length, ...arr); };
 
@@ -8435,6 +8437,8 @@ window._setJardRecordatorios = (arr) => {
 };
 
 window._setJardPlagas = (arr) => { jardPlagas.splice(0, jardPlagas.length, ...arr); };
+window._setJardStockPlantas = (arr) => { jardStockPlantas.splice(0, jardStockPlantas.length, ...arr); };
+window._setJardStockProductos = (arr) => { jardStockProductos.splice(0, jardStockProductos.length, ...arr); };
 
 // ── ALERTAS URGENTES DE JARDÍN (foto) ─────────────────────────────────────────
 // Gerencia carga una foto de algo del jardín que requiere atención urgente
@@ -9050,6 +9054,131 @@ async function deletePlagaJard(idx){
   jardPlagas.splice(idx,1);
   fbSave('jardPlagas', jardPlagas);
   renderPlagasJard();
+}
+
+// ── STOCK DE JARDÍN: PLANTAS DE REEMPLAZO Y FERTILIZANTES / FITOSANITARIOS ───
+// Gerencia y jardineros cargan y editan; eliminar es solo de gerencia.
+// Cuando la cantidad llega al mínimo avisado, la fila se marca en rojo.
+const STOCK_JARD_CFG = {
+  plantas: {
+    titulo:'Plantas para reemplazo', nuevo:'+ Nueva planta', vacio:'Todavía no hay plantas cargadas', clave:'jardStockPlantas',
+    campos:[
+      {k:'nombre', l:'Planta', req:true, max:120},
+      {k:'ubicacion', l:'Dónde está', max:80, ph:'ej. Vivero, patio de servicio'},
+      {k:'cantidad', l:'Cantidad', num:true},
+      {k:'minimo', l:'Avisar si quedan', num:true},
+      {k:'tamano', l:'Tamaño / maceta', max:80, ph:'ej. maceta 20'},
+      {k:'obs', l:'Observación', area:true, max:500},
+    ],
+  },
+  productos: {
+    titulo:'Fertilizantes y fitosanitarios', nuevo:'+ Nuevo producto', vacio:'Todavía no hay productos cargados', clave:'jardStockProductos',
+    campos:[
+      {k:'nombre', l:'Producto', req:true, max:120},
+      {k:'tipo', l:'Tipo', opts:['Fertilizante','Fitosanitario','Otro']},
+      {k:'cantidad', l:'Cantidad', num:true},
+      {k:'unidad', l:'Unidad', max:20, ph:'ej. litros, kg, envases'},
+      {k:'minimo', l:'Avisar si quedan', num:true},
+      {k:'vence', l:'Vencimiento', date:true},
+      {k:'obs', l:'Observación', area:true, max:500},
+    ],
+  },
+};
+const stockJardLista = t => t==='plantas' ? jardStockPlantas : jardStockProductos;
+let stockJardFiltro = {plantas:'', productos:''};
+
+function stockJardFiltrar(t){
+  stockJardFiltro[t] = (document.getElementById('jstock-f-'+t)?.value || '').toLowerCase();
+  renderStockJard();
+}
+
+function renderStockJard(){
+  const box = document.getElementById('jstock-tablas');
+  if(!box) return;
+  const puedeEditar = userRole==='gerencia' || userRole==='jardinero' || (userRole==='florista' && !!jardineroNombre);
+  const puedeBorrar = userRole==='gerencia';
+  const lapiz = '<svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/></svg>';
+  const bloque = t => {
+    const cfg = STOCK_JARD_CFG[t];
+    const lista = stockJardLista(t);
+    const q = stockJardFiltro[t];
+    const bajo = r => r.minimo!=='' && r.minimo!=null && r.cantidad!=='' && r.cantidad!=null && Number(r.cantidad) <= Number(r.minimo);
+    const vencido = r => t==='productos' && r.vence && r.vence < TODAY_ISO;
+    const nBajos = lista.filter(bajo).length;
+    const items = lista.map((r,i)=>({r,i})).filter(x=>!q || [x.r.nombre,x.r.ubicacion,x.r.tipo,x.r.tamano,x.r.obs].some(v=>(v||'').toLowerCase().includes(q)));
+    const heads = t==='plantas'
+      ? ['Planta','Dónde está','Tamaño','Cantidad','Mínimo','Observación']
+      : ['Producto','Tipo','Cantidad','Mínimo','Vencimiento','Observación'];
+    const filas = items.length ? items.map(({r,i})=>{
+      const rojo = bajo(r) ? 'background:#fdecea' : '';
+      const cant = `<strong style="${bajo(r)?'color:var(--red-alert)':''}">${esc(String(r.cantidad??''))}${t==='productos'&&r.unidad?' '+esc(r.unidad):''}</strong>${bajo(r)?'<div style="font-size:11px;color:var(--red-alert)">Hay que reponer</div>':''}`;
+      const min = r.minimo!==''&&r.minimo!=null ? esc(String(r.minimo)) : '—';
+      const celdas = t==='plantas'
+        ? `<td><strong>${esc(r.nombre)}</strong></td><td>${esc(r.ubicacion)}</td><td>${esc(r.tamano)}</td><td>${cant}</td><td>${min}</td>`
+        : `<td><strong>${esc(r.nombre)}</strong></td><td>${esc(r.tipo)}</td><td>${cant}</td><td>${min}</td><td>${r.vence?`<span style="${vencido(r)?'color:var(--red-alert);font-weight:600':''}">${fmtDate(r.vence)}${vencido(r)?' (vencido)':''}</span>`:'—'}</td>`;
+      return `<tr style="${rojo}">${celdas}<td style="max-width:240px;white-space:pre-wrap">${esc(r.obs)}</td>
+        <td style="white-space:nowrap">${puedeEditar?`<button class="btn-icon" onclick="openStockJardModal('${t}',${i})" title="Editar">${lapiz}</button>`:''}${puedeBorrar?`<button class="btn-icon" style="color:var(--red-alert)" onclick="deleteStockJard('${t}',${i})" title="Eliminar">✕</button>`:''}</td></tr>`;
+    }).join('') : `<tr><td colspan="7" style="text-align:center;color:var(--mid-gray);padding:24px">${lista.length?'Nada coincide con la búsqueda':cfg.vacio}</td></tr>`;
+    return `<div style="margin-top:32px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <div class="section-title" style="margin:0">${cfg.titulo}${nBajos?` <span style="font-size:12px;font-weight:600;color:var(--red-alert)">· ${nBajos} para reponer</span>`:''}</div>
+        ${puedeEditar?`<button class="btn-add" onclick="openStockJardModal('${t}',-1)">${cfg.nuevo}</button>`:''}
+      </div>
+      <input type="text" class="ctrl-search" id="jstock-f-${t}" placeholder="Buscar..." value="${esc(q)}" oninput="stockJardFiltrar('${t}')" style="margin-bottom:12px;max-width:320px">
+      <div class="table-wrapper"><table class="stock-table" style="min-width:760px">
+        <thead><tr>${heads.map(h=>`<th>${h}</th>`).join('')}<th></th></tr></thead>
+        <tbody>${filas}</tbody>
+      </table></div>
+    </div>`;
+  };
+  const activo = document.activeElement?.id || '';
+  box.innerHTML = bloque('plantas') + bloque('productos');
+  if(activo.startsWith('jstock-f-')){ const t=document.getElementById(activo); if(t){ t.focus(); t.setSelectionRange(t.value.length,t.value.length); } }
+}
+
+function openStockJardModal(t, idx){
+  const cfg = STOCK_JARD_CFG[t];
+  const r = idx>=0 ? stockJardLista(t)[idx] : null;
+  document.getElementById('jstock-tipo').value = t;
+  document.getElementById('jstock-idx').value = idx;
+  document.getElementById('jstock-modal-title').textContent = (r?'Editar ':'Nuevo ') + (t==='plantas'?'planta':'producto');
+  document.getElementById('jstock-campos').innerHTML = cfg.campos.map(c=>{
+    const val = r?.[c.k] ?? (c.opts?c.opts[0]:'');
+    const id = 'jstock-c-'+c.k;
+    const input = c.opts ? `<select class="form-input-modal" id="${id}">${c.opts.map(o=>`<option${o===val?' selected':''}>${o}</option>`).join('')}</select>`
+      : c.area ? `<textarea class="form-input-modal" id="${id}" rows="3" maxlength="${c.max}">${esc(String(val))}</textarea>`
+      : c.num ? `<input type="number" class="form-input-modal" id="${id}" min="0" step="any" value="${esc(String(val))}">`
+      : c.date ? `<input type="date" class="form-input-modal" id="${id}" value="${esc(String(val))}">`
+      : `<input type="text" class="form-input-modal" id="${id}" maxlength="${c.max}" value="${esc(String(val))}"${c.ph?` placeholder="${esc(c.ph)}"`:''}>`;
+    return `<div class="form-group"><label class="form-label">${c.l}</label>${input}</div>`;
+  }).join('');
+  document.getElementById('jstock-modal').classList.add('open');
+}
+
+function saveStockJard(){
+  const t = document.getElementById('jstock-tipo').value;
+  const idx = parseInt(document.getElementById('jstock-idx').value);
+  const cfg = STOCK_JARD_CFG[t];
+  const rec = {};
+  cfg.campos.forEach(c=>{
+    const v = document.getElementById('jstock-c-'+c.k).value.trim();
+    rec[c.k] = c.num ? (v===''?'':Math.max(0, parseFloat(v)||0)) : v;
+  });
+  if(!rec.nombre){ showToast('Poné el nombre'); return; }
+  const lista = stockJardLista(t);
+  if(idx>=0) lista[idx]=rec; else lista.push(rec);
+  fbSave(cfg.clave, lista);
+  closeModal('jstock-modal');
+  renderStockJard();
+}
+
+async function deleteStockJard(t, idx){
+  if(userRole !== 'gerencia'){ showToast('Solo gerencia puede eliminar'); return; }
+  if(!await confirmModal('¿Eliminar esta fila?')) return;
+  const lista = stockJardLista(t);
+  lista.splice(idx,1);
+  fbSave(STOCK_JARD_CFG[t].clave, lista);
+  renderStockJard();
 }
 
 function marcarRecordatorioHecho(idx){
@@ -11835,7 +11964,7 @@ async function descargarBackup(){
     clientesData: getClientesData, listaPreciosData: ()=>listaPreciosData,
     ramosDispData: ()=>ramosDispData, florerosData: ()=>florerosData, velasData: getVelasData, pedidosHabData: ()=>pedidosHabData, galeriaData: ()=>galeriaData,
     cotizadorPrecios: ()=>cotizadorPrecios, eventoPricing: ()=>eventoPricing,
-    jardineriaData: ()=>jardineriaData, jardineriaLog: ()=>jardineriaLog, jardRecordatorios: ()=>jardRecordatorios, jardPlagas: ()=>jardPlagas,
+    jardineriaData: ()=>jardineriaData, jardineriaLog: ()=>jardineriaLog, jardRecordatorios: ()=>jardRecordatorios, jardPlagas: ()=>jardPlagas, jardStockPlantas: ()=>jardStockPlantas, jardStockProductos: ()=>jardStockProductos,
     habitacionesData: ()=>habitacionesData, habitacionesLog: ()=>habitacionesLog, zonaHorasData: ()=>zonaHorasData,
     horariosData: ()=>window.horariosData, horariosPlantilla: ()=>horariosPlantilla, horariosPersonas: ()=>window.horariosPersonas,
     florTurnos: ()=>window.florTurnos, jardHorarios: ()=>window.jardHorarios,
@@ -18170,7 +18299,7 @@ Object.assign(window, {
   jopsDone, jopsHoraCell, jopsRegistrarHora, jopsResetHora, jopsUpdHora, limpiarCarrito,
   jardTogglePlanHoy, openGestionTareasJard, jardAddTarea, jardRenameTarea, jardDeleteTarea, jardAddGrupo, jardAddSeccion,
   limpiarCarritoOps, limpiarDiaHorario, loadWeekState, lpAddPhotos, lpDelCat, lpDelItem,
-  lpOpenViewer, lpRemovePhoto, lpUpdItem, markHabDone, markJardDone, marcarRecordatorioHecho, navToggleGroup, navExpandGroup, navCollapseGroup, finalizeNavGroups, navigate, openRecordatorioModal, renderBottomNav, renderRecordatoriosJard, renderPlagasJard, openPlagaJardModal, savePlagaJard, deletePlagaJard, plagaSugerir, plagaFiltrar, openControlPlaga, saveControlPlaga, verHistorialPlaga, saveRecordatorio, deleteRecordatorio, updateBottomNav, openCajaModal,
+  lpOpenViewer, lpRemovePhoto, lpUpdItem, markHabDone, markJardDone, marcarRecordatorioHecho, navToggleGroup, navExpandGroup, navCollapseGroup, finalizeNavGroups, navigate, openRecordatorioModal, renderBottomNav, renderRecordatoriosJard, renderPlagasJard, renderStockJard, stockJardFiltrar, openStockJardModal, saveStockJard, deleteStockJard, openPlagaJardModal, savePlagaJard, deletePlagaJard, plagaSugerir, plagaFiltrar, openControlPlaga, saveControlPlaga, verHistorialPlaga, saveRecordatorio, deleteRecordatorio, updateBottomNav, openCajaModal,
   openAlertaJardinModal, alertaJardFotoPreview, guardarAlertaJardin, resolverAlertaJardin, verFotoAlerta, renderAlertasUrgentesJard, toggleRecepAgrupado,
   openLlamadoModal, llamadoOnZonaChange, llamadoFotoPreview, guardarLlamado, renderLlamadosChecklist, verFotoLlamado, resolverLlamado, eliminarLlamado, renderLlamadosEval,
   openDiaHorario, openEditSaleModal, openEventModal, openEventoDetail, openGestionPasswords,
