@@ -12427,7 +12427,7 @@ function applyRole(role){
     // Florista que también es jardinero (ej. Ivan): además de lo de florería, ve jardinería
     const alsoJardinero = !!jardineroNombre;
     const OPS_ALLOW = ['Checklist Diaria','Stock Florería','Eventos / Maison','Cotizador','Recepción de Pedidos','Stock de Floreros','Stock de Velas'];
-    if(alsoJardinero) OPS_ALLOW.push('Tareas Jardinería','Habitaciones con Plantas','Recordatorios Jardín');
+    if(alsoJardinero) OPS_ALLOW.push('Tareas Jardinería','Habitaciones con Plantas','Recordatorios Jardín','Stock Plantas y Fertilizantes');
     document.querySelectorAll('.nav-section-label').forEach(label => {
       if(label.textContent.trim() === 'Principal'){
         label.style.display = '';
@@ -12460,7 +12460,7 @@ function applyRole(role){
     document.querySelector('[data-group-id="grp-com-ev"]').style.display = '';
     setTimeout(() => { navExpandGroup('grp-ops'); navExpandGroup('grp-com-vt'); navExpandGroup('grp-com-ev'); }, 50);
     const FL_QL = ['Checklist','Stock','Eventos','Cotizador','Recepción','Ramos','Lista de Precios','Galería','Composiciones'];
-    if(alsoJardinero) FL_QL.push('Tareas Jardinería','Habitaciones con Plantas','Recordatorios Jardín');
+    if(alsoJardinero) FL_QL.push('Tareas Jardinería','Habitaciones con Plantas','Recordatorios Jardín','Stock Plantas y Fertilizantes');
     document.querySelectorAll('.quick-link').forEach(ql => {
       const title = ql.querySelector('.quick-link-title')?.textContent || '';
       // Mostrar explícitamente los permitidos (revela también los nav-jard-only ocultos por defecto)
@@ -12594,14 +12594,14 @@ function applyRole(role){
     document.querySelectorAll('.nav-section-label, .nav-item, .nav-sub-item').forEach(el => {
       el.style.display = 'none';
     });
-    // Operaciones: Tareas Jardinería, Habitaciones con Plantas, Recordatorios Jardín (nav-jard-only)
+    // Operaciones: Tareas Jardinería, Habitaciones con Plantas, Stock Plantas y Fertilizantes, Recordatorios Jardín (nav-jard-only)
     document.querySelectorAll('.nav-section-label').forEach(label => {
       if(label.textContent.trim() === 'Operaciones'){
         label.style.display = '';
         let sib = label.nextElementSibling;
         while(sib && !sib.classList.contains('nav-section-label')){
           const t = sib.textContent.trim();
-          if(t === 'Tareas Jardinería' || t === 'Habitaciones con Plantas' || sib.classList.contains('nav-jard-only'))
+          if(t === 'Tareas Jardinería' || t === 'Habitaciones con Plantas' || t === 'Stock Plantas y Fertilizantes' || sib.classList.contains('nav-jard-only'))
             sib.style.display = '';
           sib = sib.nextElementSibling;
         }
