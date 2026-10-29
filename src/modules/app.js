@@ -4871,7 +4871,7 @@ function updC(type,i,field,val){
       // Banner en página de stock si está visible
       const alertEl = document.getElementById('stock-alert-area');
       if(alertEl){
-        alertEl.innerHTML = `<div class="alert-banner green"><strong>${esc(order.prod)}</strong> recibido — se ${matched?'agregaron <strong>'+qty+'</strong> unidades al stock existente':'creó un nuevo ítem en stock con <strong>'+qty+'</strong> unidades'}.</div>`;
+        alertEl.innerHTML = `<div class="alert-banner green"><strong>${esc(order.prod)}</strong> recibido — se ${!nuevo?'agregaron <strong>'+qty+'</strong> unidades al stock existente':'creó un nuevo ítem en stock con <strong>'+qty+'</strong> unidades'}.</div>`;
         setTimeout(()=>{ if(alertEl && alertEl.children[0]) alertEl.removeChild(alertEl.children[0]); renderStock(); }, 5000);
       }
 
