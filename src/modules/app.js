@@ -2302,6 +2302,16 @@ function applyStockControls(){
 }
 function setStockSort(v){ stockSort = v; _saveStockPrefs(); renderStock(); }
 
+// Equivalencia del stock actual en paquetes (varas por paquete de Compras)
+function _stockPaqHtml(item){
+  const vpp = _varasPorPaqResuelto(item.prod);
+  if(vpp > 0){
+    const paq = Math.round((item.actual / vpp) * 10) / 10;
+    return `<div style="font-size:11px;color:var(--mid-gray);margin-top:3px;text-align:center" title="${vpp} varas por paquete">≈ ${paq} paq</div>`;
+  }
+  return `<div style="font-size:10px;color:var(--red-alert);margin-top:3px;text-align:center" title="Cargá las varas por paquete en Compras">sin dato de paq</div>`;
+}
+
 function renderStock(){
   const tbody = document.getElementById('stock-body');
   tbody.innerHTML = '';
@@ -2367,15 +2377,7 @@ function renderStock(){
       compHtml = `<span style="color:${color};font-weight:600">${icon}${compStr}</span>${warning}`;
     }
 
-    // Equivalencia del stock actual en paquetes (varas por paquete de Compras)
-    const vppStock = _varasPorPaqResuelto(item.prod);
-    let paqHtml;
-    if(vppStock > 0){
-      const paq = Math.round((item.actual / vppStock) * 10) / 10;
-      paqHtml = `<div style="font-size:11px;color:var(--mid-gray);margin-top:3px;text-align:center" title="${vppStock} varas por paquete">≈ ${paq} paq</div>`;
-    } else {
-      paqHtml = `<div style="font-size:10px;color:var(--red-alert);margin-top:3px;text-align:center" title="Cargá las varas por paquete en Compras">sin dato de paq</div>`;
-    }
+    const paqHtml = _stockPaqHtml(item);
 
     tbody.innerHTML += `<tr>
       <td style="font-weight:500">${esc(item.prod)}</td>
@@ -2541,7 +2543,7 @@ function renderStockAdmin(){
         <button class="qty-btn" onclick="adjustStock(${i},-1)">−</button>
         <span class="qty-val">${item.actual}</span>
         <button class="qty-btn" onclick="adjustStock(${i},+1)">+</button>
-      </div></td>
+      </div>${_stockPaqHtml(item)}</td>
       <td><input type="number" step="0.5" min="0" value="${item.actual}"
         style="width:60px;border:1px solid var(--light-gray);border-radius:6px;padding:4px 6px;font-size:12px;font-family:'DM Sans',sans-serif"
         onchange="setStock(${i},+this.value)" title="Ingresar cantidad directa"></td>
