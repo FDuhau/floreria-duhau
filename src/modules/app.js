@@ -2252,15 +2252,51 @@ function getAlerta(item, comprometido){
   return 'ok';
 }
 
+// Color / variedad de un renglón de stock (vacío si el producto no se separa por color)
+function _stockColor(s){ return String(s.color||'').trim().toLowerCase(); }
+function _stockNombre(s){ return s.color ? `${s.prod} · ${s.color}` : s.prod; }
+function _colorCoincide(color, desc){
+  const c = String(color||'').trim().toLowerCase(), d = String(desc||'').trim().toLowerCase();
+  return !!c && !!d && (d.includes(c) || c.includes(d));
+}
+// Renglones de stock de un producto por nombre exacto (todos sus colores)
+function _stockFilasDe(prod){
+  const pl = String(prod||'').trim().toLowerCase();
+  return stockData.filter(s => String(s.prod||'').trim().toLowerCase() === pl);
+}
+// Suma varas a un producto recibido. Si el pedido trae color en la descripción
+// va al renglón de ese color (se crea si no existe); si no, al renglón sin color.
+// Devuelve true si creó un renglón nuevo.
+function _stockIngresar(prod, desc, sector, qty){
+  const prodLower = String(prod||'').toLowerCase();
+  const filas = stockData.filter(s => s.prod.toLowerCase().includes(prodLower) || prodLower.includes(s.prod.toLowerCase()));
+  const d = String(desc||'').trim();
+  const sumar = f => { f.actual = +Math.max(0, f.actual + qty).toFixed(1); };
+  if(d){
+    const fila = filas.find(f => _colorCoincide(f.color, d));
+    if(fila){ sumar(fila); return false; }
+    stockData.push({ prod, color:d, area: sector || filas[0]?.area || 'Sin área', min:1, max:Math.max(qty*2,4), actual:qty });
+    return true;
+  }
+  const sinColor = filas.filter(f => !f.color);
+  if(sinColor.length){ sinColor.forEach(sumar); return false; }
+  stockData.push({ prod, area: sector || 'Sin área', min:1, max:Math.max(qty*2,4), actual:qty });
+  return true;
+}
+
 function getStockEnPedido(item){
   // Pedidos en curso (pedidos aún no recibidos)
+  const coloresDelProd = _stockFilasDe(item.prod).map(f=>f.color).filter(Boolean);
   const pending = [...comprasFlore,...comprasJard].filter(c=>
-    c.estado!=='recibido' && !c.anulado && c.prod && c.prod.toLowerCase().includes(item.prod.toLowerCase())
+    c.estado!=='recibido' && !c.anulado && c.prod && c.prod.toLowerCase().includes(item.prod.toLowerCase()) &&
+    (item.color ? _colorCoincide(item.color, c.desc) : !coloresDelProd.some(col => _colorCoincide(col, c.desc)))
   );
   return +(pending.reduce((s,c)=>s+parseFloat(c.qty||0),0).toFixed(1));
 }
 
 function getStockComprometido(item){
+  // Los eventos piden el producto sin color: lo comprometido se muestra en el renglón sin color
+  if(item.color) return 0;
   // Suma de ingredientes requeridos por eventos que aún no se confirmaron/realizaron
   const ACTIVE_ESTADOS = ['Pedidos Pendientes','En Proceso','Pendiente de Colocacion','Pendiente de Retiro'];
   let total = 0;
@@ -2330,9 +2366,9 @@ function renderStock(){
   const _sev = {comprar:0, atencion:1, ok:2};
   const _al = i => getAlerta(stockData[i], comprometidos[i]);
   const _cmp = {
-    estado:      (a,b)=> _sev[_al(a)]-_sev[_al(b)] || stockData[a].prod.localeCompare(stockData[b].prod,'es'),
-    nombre:      (a,b)=> stockData[a].prod.localeCompare(stockData[b].prod,'es'),
-    area:        (a,b)=> (stockData[a].area||'').localeCompare(stockData[b].area||'','es') || stockData[a].prod.localeCompare(stockData[b].prod,'es'),
+    estado:      (a,b)=> _sev[_al(a)]-_sev[_al(b)] || _stockNombre(stockData[a]).localeCompare(_stockNombre(stockData[b]),'es'),
+    nombre:      (a,b)=> _stockNombre(stockData[a]).localeCompare(_stockNombre(stockData[b]),'es'),
+    area:        (a,b)=> (stockData[a].area||'').localeCompare(stockData[b].area||'','es') || _stockNombre(stockData[a]).localeCompare(_stockNombre(stockData[b]),'es'),
     'actual-asc':(a,b)=> stockData[a].actual-stockData[b].actual,
     'actual-desc':(a,b)=> stockData[b].actual-stockData[a].actual,
     nivel:       (a,b)=> (stockData[a].actual/(stockData[a].max||1))-(stockData[b].actual/(stockData[b].max||1)),
@@ -2340,7 +2376,7 @@ function renderStock(){
   const order = stockData.map((_,i)=>i).filter(i=>{
     const al = _al(i);
     return (stockFilter==='all'||al===stockFilter) &&
-      (stockSearch===''||stockData[i].prod.toLowerCase().includes(stockSearch)||stockData[i].area.toLowerCase().includes(stockSearch));
+      (stockSearch===''||stockData[i].prod.toLowerCase().includes(stockSearch)||_stockColor(stockData[i]).includes(stockSearch)||stockData[i].area.toLowerCase().includes(stockSearch));
   });
   order.sort(_cmp[stockSort] || _cmp.estado);
 
@@ -2380,7 +2416,7 @@ function renderStock(){
     const paqHtml = _stockPaqHtml(item);
 
     tbody.innerHTML += `<tr>
-      <td style="font-weight:500">${esc(item.prod)}</td>
+      <td style="font-weight:500">${esc(item.prod)}${item.color?`<div style="font-size:11px;font-weight:400;color:var(--mid-gray)">${esc(item.color)}</div>`:''}</td>
       <td style="font-size:12px;color:var(--mid-gray)">${esc(item.area)}</td>
       <td>${item.min}</td><td>${item.max}</td>
       <td><div style="display:flex;align-items:center;gap:4px">
@@ -2456,7 +2492,7 @@ function setStockMax(i,v){
 async function delStock(i){
   const item = stockData[i];
   if(!item) return;
-  if(!await confirmModal('¿Eliminar "'+item.prod+'" del stock?\nEsto lo quita de la lista por completo.')) return;
+  if(!await confirmModal('¿Eliminar "'+_stockNombre(item)+'" del stock?\nEsto lo quita de la lista por completo.')) return;
   stockData.splice(i,1);
   fbSave('stockData', stockData);
   renderStock();
@@ -2470,6 +2506,7 @@ function filterStock(v){ stockSearch=v.toLowerCase(); _saveStockPrefs(); renderS
 // cargar algo que quedó por fuera del flujo automático de recepción de compras.
 function openAddStockModal(){
   document.getElementById('as-prod').value = '';
+  document.getElementById('as-color').value = '';
   document.getElementById('as-area').value = '';
   document.getElementById('as-actual').value = '0';
   document.getElementById('as-min').value = '1';
@@ -2483,13 +2520,14 @@ function openAddStockModal(){
 function guardarStockManual(){
   const prod = document.getElementById('as-prod').value.trim();
   if(!prod){ showToast('Poné el nombre del producto','error'); return; }
+  const color = document.getElementById('as-color').value.trim();
   const area = document.getElementById('as-area').value.trim() || 'Sin área';
-  const dup = stockData.find(s => (s.prod||'').trim().toLowerCase()===prod.toLowerCase() && (s.area||'').trim().toLowerCase()===area.toLowerCase());
+  const dup = stockData.find(s => (s.prod||'').trim().toLowerCase()===prod.toLowerCase() && _stockColor(s)===color.toLowerCase() && (s.area||'').trim().toLowerCase()===area.toLowerCase());
   if(dup){ showToast('Ya existe ese producto en esa área'); return; }
   const actual = Math.max(0, parseFloat(document.getElementById('as-actual').value)||0);
   const min = Math.max(0, parseFloat(document.getElementById('as-min').value)||0);
   const max = Math.max(min, parseFloat(document.getElementById('as-max').value)||0);
-  stockData.push({ prod, area, min, max, actual });
+  stockData.push(color ? { prod, color, area, min, max, actual } : { prod, area, min, max, actual });
   fbSave('stockData', stockData);
   closeModal('add-stock-modal');
   renderStockAdmin();
@@ -2531,7 +2569,7 @@ function renderStockAdmin(){
     }
 
     tbody.innerHTML += `<tr>
-      <td style="font-weight:500">${esc(item.prod)}</td>
+      <td style="font-weight:500">${esc(item.prod)}${item.color?`<div style="font-size:11px;font-weight:400;color:var(--mid-gray)">${esc(item.color)}</div>`:''}</td>
       <td style="font-size:12px;color:var(--mid-gray)">${esc(item.area)}</td>
       <td><input type="number" step="0.5" min="0" value="${item.min}"
         style="width:58px;border:1px solid var(--light-gray);border-radius:6px;padding:4px 6px;font-size:12px;font-family:'DM Sans',sans-serif"
@@ -4825,30 +4863,10 @@ function updC(type,i,field,val){
   if(field==='estado' && val==='recibido' && prevEstado!=='recibido'){
     const qty = parseFloat(order.qty)||0;
     if(qty>0 && order.prod){
-      const prodLower = order.prod.toLowerCase();
-      let matched = false;
-
-      // Buscar en stock existente
-      stockData.forEach(s=>{
-        if(s.prod.toLowerCase().includes(prodLower) || prodLower.includes(s.prod.toLowerCase())){
-          s.actual = +Math.max(0,(s.actual+qty)).toFixed(1);
-          matched = true;
-        }
-      });
-
-      if(!matched){
-        // No existe en stock → agregar nuevo ítem automáticamente
-        stockData.push({
-          prod: order.prod,
-          area: order.sector || 'Sin área',
-          min: 1,
-          max: Math.max(qty * 2, 4),
-          actual: qty
-        });
-        showToast('Nuevo producto agregado al stock: ' + order.prod);
-      } else {
-        showToast('Stock actualizado: +' + qty + ' ' + order.prod);
-      }
+      // Suma al renglón del color pedido (o al del producto sin color)
+      const nuevo = _stockIngresar(order.prod, order.desc, order.sector, qty);
+      showToast(nuevo ? 'Nuevo producto agregado al stock: ' + _stockNombre(stockData[stockData.length-1])
+                      : 'Stock actualizado: +' + qty + ' ' + order.prod);
 
       // Banner en página de stock si está visible
       const alertEl = document.getElementById('stock-alert-area');
@@ -8160,15 +8178,7 @@ function _subirCompraAlStock(idx){
   const varasPaq = parseFloat(o.varasPorPaq) || 1;
   const totalVaras = paqRec * varasPaq;
   if(totalVaras > 0){
-    const prodLower = (o.prod||'').toLowerCase();
-    let matched = false;
-    stockData.forEach(s => {
-      if(s.prod.toLowerCase().includes(prodLower) || prodLower.includes(s.prod.toLowerCase())){
-        s.actual = +Math.max(0, s.actual + totalVaras).toFixed(1);
-        matched = true;
-      }
-    });
-    if(!matched) stockData.push({ prod:o.prod, area:o.sector||'Sin área', min:1, max:Math.max(totalVaras*2,4), actual:totalVaras });
+    _stockIngresar(o.prod, o.desc, o.sector, totalVaras);
   }
   o.estado = 'recibido';
   o.totalVaras = totalVaras;
@@ -14737,15 +14747,16 @@ function previewStockImpact(){
   if(Object.keys(impact).length===0){ preview.innerHTML=''; return; }
 
   const lines = Object.entries(impact).map(([prod,qty])=>{
-    const stockItem = stockData.find(s=>s.prod.toLowerCase()===prod.toLowerCase());
+    const filas = _stockFilasDe(prod);
+    const stockItem = filas.length ? { actual: +filas.reduce((t,f)=>t+f.actual,0).toFixed(1) } : null;
     const actual = stockItem ? stockItem.actual : '?';
     const after = stockItem ? +(stockItem.actual - qty).toFixed(1) : '?';
     const ok = typeof after==='number' && after>=0;
     return `<span style="margin-right:10px">${ok?'':''} <b>${esc(prod)}</b>: ${actual} → ${after>=0?after:'<span style="color:#B03020">'+after+'</span>'}${ok?'':' (insuficiente)'}</span>`;
   });
   const hasShortage = Object.entries(impact).some(([prod,qty])=>{
-    const s = stockData.find(x=>x.prod.toLowerCase()===prod.toLowerCase());
-    return s && s.actual < qty;
+    const filas = _stockFilasDe(prod);
+    return filas.length && filas.reduce((t,f)=>t+f.actual,0) < qty;
   });
   preview.innerHTML = `<div class="${hasShortage?'stock-impact':'stock-impact ok'}">
     <div style="font-weight:600;margin-bottom:6px">${hasShortage?'Stock insuficiente para algunos ingredientes':'Stock suficiente para todos los arreglos'}</div>
@@ -14770,12 +14781,16 @@ function descontarStockEvento(arrRows){
   const impact = calcStockImpact(arrRows);
   const descuentos = [];
   Object.entries(impact).forEach(([prod,qty])=>{
-    stockData.forEach(s=>{
-      if(s.prod.toLowerCase()===prod.toLowerCase()){
-        const antes = s.actual;
-        s.actual = +Math.max(0, s.actual - qty).toFixed(1);
-        descuentos.push(`${prod}: ${antes} → ${s.actual}`);
-      }
+    // Primero el renglón sin color; lo que falte sale de los colores, del que más tiene al que menos
+    const filas = _stockFilasDe(prod).sort((a,b)=> (a.color?1:0)-(b.color?1:0) || b.actual-a.actual);
+    let resto = qty;
+    filas.forEach(s=>{
+      if(resto <= 0) return;
+      const antes = s.actual;
+      const saca = Math.min(antes, resto);
+      s.actual = +Math.max(0, antes - saca).toFixed(1);
+      resto = +(resto - saca).toFixed(1);
+      descuentos.push(`${_stockNombre(s)}: ${antes} → ${s.actual}`);
     });
   });
   return descuentos;
