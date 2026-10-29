@@ -2367,6 +2367,16 @@ function renderStock(){
       compHtml = `<span style="color:${color};font-weight:600">${icon}${compStr}</span>${warning}`;
     }
 
+    // Equivalencia del stock actual en paquetes (varas por paquete de Compras)
+    const vppStock = _varasPorPaqResuelto(item.prod);
+    let paqHtml;
+    if(vppStock > 0){
+      const paq = Math.round((item.actual / vppStock) * 10) / 10;
+      paqHtml = `<div style="font-size:11px;color:var(--mid-gray);margin-top:3px;text-align:center" title="${vppStock} varas por paquete">≈ ${paq} paq</div>`;
+    } else {
+      paqHtml = `<div style="font-size:10px;color:var(--red-alert);margin-top:3px;text-align:center" title="Cargá las varas por paquete en Compras">sin dato de paq</div>`;
+    }
+
     tbody.innerHTML += `<tr>
       <td style="font-weight:500">${esc(item.prod)}</td>
       <td style="font-size:12px;color:var(--mid-gray)">${esc(item.area)}</td>
@@ -2376,7 +2386,7 @@ function renderStock(){
         <input type="number" value="${item.actual%1===0?item.actual:item.actual.toFixed(1)}" onchange="setStock(${i},+this.value)"
           style="width:56px;text-align:center;font-weight:600;font-size:13px;border:1px solid var(--light-gray);border-radius:5px;padding:3px 4px;background:var(--warm-white);color:var(--charcoal)" title="Editar cantidad actual">
         <button class="btn-icon" style="width:24px;height:24px;border:1px solid var(--light-gray);border-radius:5px;font-size:15px" onclick="adjustStock(${i},1)">+</button>
-      </div></td>
+      </div>${paqHtml}</td>
       <td>${pedidoHtml}</td>
       <td>${compHtml}</td>
       <td><div style="display:flex;align-items:center;gap:6px">
