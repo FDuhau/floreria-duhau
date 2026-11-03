@@ -5,7 +5,7 @@ export function alertasAutomaticas(hoyISO){
   const bajos = (window.stockData||[]).filter(s => s.alerta === 'comprar');
   if(bajos.length > 0){
     setTimeout(()=>{
-      new Notification('⚠️ Stock bajo', {
+      new Notification('Stock bajo', {
         body: `${bajos.length} insumo${bajos.length>1?'s':''} por reponer: ${bajos.slice(0,3).map(s=>s.nombre).join(', ')}${bajos.length>3?'...':''}`,
         icon: '/icon-192.png', tag: 'stock-bajo'
       });
@@ -15,7 +15,7 @@ export function alertasAutomaticas(hoyISO){
   const eventosHoyAl = (window.eventosData||[]).filter(ev => ev.fecha === hoyISO && ev.estado !== 'Pedidos Finalizados');
   if(eventosHoyAl.length > 0){
     setTimeout(()=>{
-      new Notification('📅 Eventos de hoy', {
+      new Notification('Eventos de hoy', {
         body: eventosHoyAl.map(e => e.nombre).join(' · '),
         icon: '/icon-192.png', tag: 'eventos-hoy'
       });
@@ -29,7 +29,7 @@ export function alertasAutomaticas(hoyISO){
     const delay = cierre.getTime() - now.getTime();
     setTimeout(()=>{
       if(Notification.permission === 'granted'){
-        new Notification('💰 Recordatorio de caja', {
+        new Notification('Recordatorio de caja', {
           body: 'Es hora de verificar y cerrar la caja del día.',
           icon: '/icon-192.png', tag: 'cierre-caja'
         });

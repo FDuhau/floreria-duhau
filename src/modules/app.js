@@ -1,4 +1,5 @@
 import { esc, parseMoney, fmtDate, fmtDateTime } from './utils.js';
+import { icon } from './iconos.js';
 import { _evStripAcc, _evParseEvents, _evToEvento } from './daily-import.js';
 import { crearSync, aLista, aplicarOps, mismaLista } from './eventos-sync.js';
 import { confirmModal, alertModal, promptModal } from './modales.js';
@@ -640,7 +641,7 @@ function openTiemposEstimados(){
   }).join('');
   ov.innerHTML = `<div class="modal" style="max-width:520px;max-height:85vh;display:flex;flex-direction:column">
     <button class="modal-close" onclick="closeModal('cl-tiempos-modal'); if(window.renderChecklistTable) renderChecklistTable();">✕</button>
-    <div class="modal-title">⏱ Tiempos estimados por área</div>
+    <div class="modal-title">Tiempos estimados por área</div>
     <div style="font-size:12px;color:var(--mid-gray);margin:-6px 0 12px">Cargá los minutos estimados de cada arreglo, por separado para cuando se hace <b>Nuevo</b> y para el <b>Retoque</b>. Queda fijo y sirve para medir cuánto se demora cada sección (marca en rojo las tareas que se pasan del tiempo).</div>
     <div style="overflow-y:auto;flex:1"><table style="width:100%;border-collapse:collapse">
       <thead><tr>
@@ -1118,7 +1119,7 @@ function durBadge(inicio, fin, ref){
   if(!mins) return '<span style="font-size:12px;color:var(--mid-gray)">—</span>';
   // Excedida: superó el tiempo promedio de referencia definido por gerencia
   if(ref && mins > ref){
-    return `<span title="Excedió la referencia de ${ref}m" style="font-size:12px;font-weight:600;color:var(--red-alert);background:#FDECEC;padding:2px 8px;border-radius:10px">${fmtDur(mins)}</span>`;
+    return `<span title="Excedió la referencia de ${ref}m" style="font-size:12px;font-weight:600;color:var(--red-alert);background:var(--alert-soft);padding:2px 8px;border-radius:10px">${fmtDur(mins)}</span>`;
   }
   const color = mins > 60 ? 'var(--amber)' : 'var(--green-ok)';
   const bg    = mins > 60 ? '#FDF8E8'      : '#EBF5E8';
@@ -1417,9 +1418,9 @@ function renderChecklistTable(){
   const thead = document.getElementById('checklist-thead');
   if(thead){
     if(userRole === 'florista'){
-      thead.innerHTML = '<tr><th>Zona</th><th>Actividad</th><th style="width:60px">⏱ Ref.</th><th>Observaciones</th><th style="width:90px">Inicio</th><th style="width:90px">Fin</th></tr>';
+      thead.innerHTML = '<tr><th>Zona</th><th>Actividad</th><th style="width:60px">Ref.</th><th>Observaciones</th><th style="width:90px">Inicio</th><th style="width:90px">Fin</th></tr>';
     } else {
-      thead.innerHTML = '<tr><th style="width:32px">✓</th><th>Zona</th><th>Actividad</th><th style="width:60px">⏱ Ref.</th><th>Observaciones</th><th style="width:90px">Inicio</th><th style="width:90px">Fin</th><th style="width:75px">Duración</th><th>Responsable</th><th style="width:32px"></th></tr>';
+      thead.innerHTML = '<tr><th style="width:32px">✓</th><th>Zona</th><th>Actividad</th><th style="width:60px">Ref.</th><th>Observaciones</th><th style="width:90px">Inicio</th><th style="width:90px">Fin</th><th style="width:75px">Duración</th><th>Responsable</th><th style="width:32px"></th></tr>';
     }
   }
 
@@ -1469,7 +1470,7 @@ function renderChecklistTable(){
       ? `<input type="number" min="0" value="${ref||''}" placeholder="min"
           style="width:52px;padding:4px 5px;font-size:12px;border:1px solid var(--light-gray);border-radius:4px;text-align:center;background:var(--warm-white);color:var(--charcoal)"
           onchange="updTiempoRef(${i},this.value,'${actLower}')">`
-      : (ref ? `<span style="font-size:12px;font-weight:600;color:var(--mid-gray);white-space:nowrap">⏱ ${ref}m</span>` : '<span style="font-size:12px;color:var(--mid-gray)">—</span>');
+      : (ref ? `<span style="font-size:12px;font-weight:600;color:var(--mid-gray);white-space:nowrap">${icon('clock')}${ref}m</span>` : '<span style="font-size:12px;color:var(--mid-gray)">—</span>');
 
     const tr = document.createElement('tr');
     tr.className = sh.rowCls + (done ? ' task-row-done' : '');
@@ -1576,7 +1577,7 @@ function renderChecklistTable(){
     const vtHeader = document.createElement('tr');
     vtHeader.className = 'cl-section-row';
     vtHeader.style.cssText = 'background:#E8EDF8';
-    vtHeader.innerHTML = `<td colspan="${isFlorista?6:10}" style="font-weight:600;color:#2C5A80">Ventas pendientes</td>`;
+    vtHeader.innerHTML = `<td colspan="${isFlorista?6:10}" style="font-weight:600;color:var(--info)">Ventas pendientes</td>`;
     tbody.appendChild(vtHeader);
 
     ventasHoy.forEach(v => {
@@ -1588,7 +1589,7 @@ function renderChecklistTable(){
 
       if(isFlorista){
         vtTr.innerHTML = `
-          <td style="font-weight:600;font-size:12.5px;color:#2C5A80">${esc(v.prod)}${badgeDiaRelativa(v.fecha)}</td>
+          <td style="font-weight:600;font-size:12.5px;color:var(--info)">${esc(v.prod)}${badgeDiaRelativa(v.fecha)}</td>
           <td style="font-size:12px">${esc(v.cliente||'')}</td>
           <td></td>
           <td style="font-size:12px;color:var(--mid-gray);max-width:200px;overflow:hidden;text-overflow:ellipsis">${esc(detalle)}</td>
@@ -1597,7 +1598,7 @@ function renderChecklistTable(){
       } else {
         vtTr.innerHTML = `
           <td style="width:32px"></td>
-          <td style="font-weight:600;font-size:12.5px;color:#2C5A80">${esc(v.prod)}${badgeDiaRelativa(v.fecha)}</td>
+          <td style="font-weight:600;font-size:12.5px;color:var(--info)">${esc(v.prod)}${badgeDiaRelativa(v.fecha)}</td>
           <td style="font-size:12px">${esc(v.cliente||'')}</td>
           <td></td>
           <td style="font-size:12px;color:var(--mid-gray);max-width:200px">${esc(detalle)}</td>
@@ -1683,7 +1684,7 @@ function renderChecklistCards(el){
         </div>
         <div class="cl-card-badges">
           <span class="badge ${getBadge(curAct)}">${esc(curAct)}</span>
-          ${ref?`<span class="cl-card-ref" title="Tiempo promedio de referencia">⏱ ${ref}m</span>`:''}
+          ${ref?`<span class="cl-card-ref" title="Tiempo promedio de referencia">${icon('clock')}${ref}m</span>`:''}
           ${dur}
         </div>
       </div>
@@ -1747,7 +1748,7 @@ function renderChecklistCards(el){
       <div class="cl-cards-empty-sub">Gerencia asigna las tareas desde la checklist general.</div>
     </div>`}
     ${evHTML ? '<div class="cl-cards-sec-hdr" style="color:#B8602A">Eventos del día</div>'+evHTML : ''}
-    ${vtHTML ? '<div class="cl-cards-sec-hdr" style="color:#2C5A80">Ventas pendientes</div>'+vtHTML : ''}`;
+    ${vtHTML ? '<div class="cl-cards-sec-hdr" style="color:var(--info)">Ventas pendientes</div>'+vtHTML : ''}`;
 }
 
 function renderHoraCell(i, campo, done){
@@ -1769,7 +1770,7 @@ function renderHoraCell(i, campo, done){
   const disAttr   = (done || sinInicio) ? 'disabled' : '';
   const disStyle  = done ? 'opacity:.45;cursor:not-allowed' : sinInicio ? 'opacity:.35;cursor:not-allowed' : '';
   const disStr    = disAttr ? `${disAttr} style="${disStyle}"` : '';
-  const label = campo==='inicio' ? '▶&nbsp;Inicio' : '⏹&nbsp;Fin';
+  const label = campo==='inicio' ? icon('play')+'Inicio' : icon('stop')+'Fin';
   const cls   = campo==='inicio' ? 'btn-hora-inicio' : 'btn-hora-fin';
   const title = sinInicio ? 'title="Primero registrá el Inicio"' : '';
   return `<button class="${cls}" ${disStr} ${title} onclick="registrarHora(${i},'${campo}')">${label}</button>`;
@@ -1840,7 +1841,7 @@ function registrarHora(i, campo){
     showToast('Tarea finalizada — Inicio: ' + inicioFinal + ' · Fin: ' + horaActual + durTxt);
     // Aviso a gerencia si se excedió el tiempo promedio de referencia
     if(excedida){
-      window.pushSend?.('⏱ Tarea excedida',
+      window.pushSend?.('Tarea excedida',
         `${resp} tardó ${fmtDur(durFinal)} en "${t.zona} · ${clState.actividad[i]||t.actividad}" (referencia: ${ref}m)`,
         'tarea-excedida', 'roles:gerencia');
     }
@@ -1852,7 +1853,7 @@ function registrarHora(i, campo){
     navigator.vibrate?.([40,60,80]);
     _checkFestejoChecklist();
   } else if(campo === 'inicio'){
-    showToast('▶ Inicio registrado: ' + horaActual);
+    showToast('Inicio registrado: ' + horaActual);
     navigator.vibrate?.(30);
   }
 
@@ -1951,9 +1952,9 @@ function showAlertaHorario(msg){
     overlay.innerHTML = `
       <div style="background:white;border-radius:16px;padding:32px 28px;max-width:340px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
         <div style="font-size:48px;margin-bottom:12px"></div>
-        <div id="alerta-horario-msg" style="font-size:15px;font-weight:600;color:#1A1A1A;line-height:1.5;margin-bottom:24px;white-space:pre-line"></div>
+        <div id="alerta-horario-msg" style="font-size:15px;font-weight:600;color:var(--charcoal);line-height:1.5;margin-bottom:24px;white-space:pre-line"></div>
         <button onclick="document.getElementById('alerta-horario-overlay').remove()"
-          style="background:#1A1A1A;color:white;border:none;border-radius:10px;padding:12px 32px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;width:100%">
+          style="background:var(--charcoal);color:white;border:none;border-radius:10px;padding:12px 32px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;width:100%">
           Entendido
         </button>
       </div>`;
@@ -2746,7 +2747,7 @@ function renderKanban(){
           const dias = Math.round((new Date(fechaEv)-new Date(TODAY_ISO))/86400000);
           if(dias===0){ cardEl.classList.add('kanban-urg-hoy'); urgChip='<span class="kanban-urg-chip" style="background:var(--red-alert)">HOY</span>'; }
           else if(dias===1){ cardEl.classList.add('kanban-urg-prox'); urgChip='<span class="kanban-urg-chip" style="background:#D4820A">Mañana</span>'; }
-          else if(dias>1 && dias<=3){ cardEl.classList.add('kanban-urg-prox'); urgChip=`<span class="kanban-urg-chip" style="background:#D4A820">En ${dias} días</span>`; }
+          else if(dias>1 && dias<=3){ cardEl.classList.add('kanban-urg-prox'); urgChip=`<span class="kanban-urg-chip" style="background:var(--amber)">En ${dias} días</span>`; }
           else if(dias<0){ cardEl.classList.add('kanban-urg-pasado'); urgChip='<span class="kanban-urg-chip" style="background:var(--mid-gray)">Pasado</span>'; }
         }
       }
@@ -2937,8 +2938,8 @@ function renderTareasGerencia(){
       let dueChip = '';
       if(t.date && col.key!=='done'){
         const dias = Math.round((new Date(t.date)-new Date(TODAY_ISO))/86400000);
-        if(dias<0)      dueChip = `<span class="kanban-tag" style="background:#FCE9E4;color:#B23B1E">Vencida</span>`;
-        else if(dias===0) dueChip = `<span class="kanban-tag" style="background:#FBF1DE;color:#8A6D00">Hoy</span>`;
+        if(dias<0)      dueChip = `<span class="kanban-tag" style="background:#FCE9E4;color:var(--red-alert)">Vencida</span>`;
+        else if(dias===0) dueChip = `<span class="kanban-tag" style="background:#FBF1DE;color:var(--amber)">Hoy</span>`;
       }
       const descLines = (t.desc||'').split('\n').filter(Boolean);
       const tagsHTML = (prioChip||dueChip) ? `<div class="kanban-card-tags">${prioChip}${dueChip}</div>` : '';
@@ -3610,13 +3611,13 @@ function renderCfImportPreview(colMap){
     <div style="font-size:12px;color:var(--mid-gray);margin-bottom:10px">Columnas detectadas: ${esc(detectados)}. Los pedidos se cargan en estado "Pedido" (no tocan el stock) — el stock se actualiza recién cuando los controles/recepciones como a cualquier otro pedido.</div>
     <div style="max-height:320px;overflow:auto;border:1px solid var(--light-gray);border-radius:6px">
       <table style="width:100%;font-size:12px;border-collapse:collapse">
-        <thead><tr style="background:#FAF8F4;position:sticky;top:0">
+        <thead><tr style="background:var(--surface-1);position:sticky;top:0">
           <th style="padding:5px 8px;text-align:left">Fecha</th><th style="padding:5px 8px;text-align:left">Pedido por</th>
           <th style="padding:5px 8px;text-align:left">Producto</th><th style="padding:5px 8px;text-align:left">Desc.</th>
           <th style="padding:5px 8px;text-align:center">Cant.</th><th style="padding:5px 8px;text-align:right">Precio x paq</th>
           <th style="padding:5px 8px;text-align:left">Proveedor</th><th style="padding:5px 8px;text-align:left">Área/uso</th>
         </tr></thead>
-        <tbody>${cfImportRows.map(r=>`<tr style="border-top:1px solid #F0EDE8">
+        <tbody>${cfImportRows.map(r=>`<tr style="border-top:1px solid var(--surface-2)">
           <td style="padding:5px 8px">${esc(r.fecha||'—')}</td>
           <td style="padding:5px 8px">${esc(r.pedidopor||'—')}</td>
           <td style="padding:5px 8px;font-weight:500">${esc(r.prod)}</td>
@@ -3765,15 +3766,15 @@ function renderEvImportPreview(){
   const c = evImportParsed.filter(e=>e.status==='cargado').length;
   const BADGE = {
     nuevo:      '<span style="background:#E6F2E6;color:#2E6B2E;font-size:12px;font-weight:600;padding:2px 7px;border-radius:4px">NUEVO</span>',
-    modificado: '<span style="background:#FBF3D9;color:#8A6D00;font-size:12px;font-weight:600;padding:2px 7px;border-radius:4px">MODIFICADO</span>',
+    modificado: '<span style="background:#FBF3D9;color:var(--amber);font-size:12px;font-weight:600;padding:2px 7px;border-radius:4px">MODIFICADO</span>',
     cargado:    '<span style="background:#EFEDE8;color:#8A857A;font-size:12px;font-weight:600;padding:2px 7px;border-radius:4px">YA CARGADO</span>'
   };
   const rows = evImportParsed.map((e,i)=>{
     const o=e.nuevo;
     const dis = e.status==='cargado';
-    const cambios = e.cambios.length ? `<div style="font-size:12px;color:#8A6D00;margin-top:3px">Cambió: ${esc(e.cambios.join(', '))}</div>` : '';
+    const cambios = e.cambios.length ? `<div style="font-size:12px;color:var(--amber);margin-top:3px">Cambió: ${esc(e.cambios.join(', '))}</div>` : '';
     const arreglos = o.notas ? `<div style="font-size:12px;color:var(--mid-gray);margin-top:4px;white-space:pre-wrap">${esc(o.notas)}</div>` : '';
-    return `<div style="display:flex;gap:10px;padding:10px 4px;border-top:1px solid #F0EDE8;${dis?'opacity:.55':''}">
+    return `<div style="display:flex;gap:10px;padding:10px 4px;border-top:1px solid var(--surface-2);${dis?'opacity:.55':''}">
       <input type="checkbox" ${e._sel?'checked':''} ${dis?'disabled':''} onchange="evImportToggle(${i})" style="margin-top:3px;width:16px;height:16px;flex:0 0 auto">
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -3897,7 +3898,7 @@ function getStockBadge(prodName){
   if(al === 'ok'){
     return `<span class="stock-inline-badge sib-ok">${best.actual} uds</span>`;
   } else if(al === 'atencion'){
-    return `<span class="stock-inline-badge sib-low">${best.actual} uds</span><div style="font-size:12px;color:#A06A00;margin-top:2px">Mín: ${best.min}</div>`;
+    return `<span class="stock-inline-badge sib-low">${best.actual} uds</span><div style="font-size:12px;color:var(--amber);margin-top:2px">Mín: ${best.min}</div>`;
   } else {
     const label = best.actual <= 0 ? 'Sin stock' : best.actual+' uds';
     return `<span class="stock-inline-badge sib-out">${label}</span><div style="font-size:12px;color:var(--red-alert);margin-top:2px">Mín: ${best.min}</div>`;
@@ -4010,14 +4011,14 @@ function renderCompras(type){
       ? activosBloque.filter(r => r.estado==='controlado' && !r.noLlego).length
       : 0;
     html += `<tr class="compra-date-header">
-      <td colspan="${NCOLS}" style="background:#F4F1EC;padding:10px 14px;border-bottom:2px solid #E5E3DC">
+      <td colspan="${NCOLS}" style="background:var(--surface-2);padding:10px 14px;border-bottom:2px solid var(--light-gray)">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
           <div>
-            <strong style="font-size:14px;color:#1A1A1A">Pedido del ${fecha!=='sin-fecha' ? fmtDate(fecha) : 'sin fecha'}</strong>
-            <span style="color:#7A7A72;font-size:12px;margin-left:10px">${cantItems} ítem${cantItems!==1?'s':''} · ${cantTotal} unidades${anuladosBloque>0?` · <span style="color:#B23B1E">${anuladosBloque} anulado${anuladosBloque!==1?'s':''}</span>`:''}</span>
+            <strong style="font-size:14px;color:var(--charcoal)">Pedido del ${fecha!=='sin-fecha' ? fmtDate(fecha) : 'sin fecha'}</strong>
+            <span style="color:var(--mid-gray);font-size:12px;margin-left:10px">${cantItems} ítem${cantItems!==1?'s':''} · ${cantTotal} unidades${anuladosBloque>0?` · <span style="color:var(--red-alert)">${anuladosBloque} anulado${anuladosBloque!==1?'s':''}</span>`:''}</span>
           </div>
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-            <span style="font-weight:600;color:#1A1A1A;font-size:13px">${totalBloque ? '$'+totalBloque.toLocaleString('es-AR') : ''}</span>
+            <span style="font-weight:600;color:var(--charcoal);font-size:13px">${totalBloque ? '$'+totalBloque.toLocaleString('es-AR') : ''}</span>
             ${controladosBloque>0 ? `<button class="btn-primary" style="font-size:12px;padding:4px 12px" onclick="recibirPedidoCompleto('${fecha}')" title="Recibir todos los ítems controlados de este pedido y subirlos al stock de una vez">✓ Recibir todo (${controladosBloque})</button>` : ''}
             <button class="btn-secondary" style="font-size:12px;padding:4px 10px" onclick="copiarBloquePedido('${type}','${fecha}')" title="Copiar este pedido con fecha de hoy para modificar">Copiar pedido</button>
           </div>
@@ -4048,7 +4049,7 @@ function renderCompras(type){
         ${_compraEventosBtn(type,i,r)}</td>
       <td data-label="Estado">
         ${r.estado==='controlado'
-          ? `<span class="badge" style="background:#FBF3D9;color:#8A6D00;border:1px solid #E9D9A0;font-size:12px;padding:3px 8px;border-radius:4px;white-space:nowrap">Controlado · falta precio</span>`
+          ? `<span class="badge" style="background:#FBF3D9;color:var(--amber);border:1px solid #E9D9A0;font-size:12px;padding:3px 8px;border-radius:4px;white-space:nowrap">Controlado · falta precio</span>`
           : `<select class="form-select" onchange="updC('${type}',${i},'estado',this.value);updateKpiCompras()" style="min-width:120px">
           <option value="pedido" ${r.estado!=='recibido'?'selected':''}>Pedido</option>
           <option value="recibido" ${r.estado==='recibido'?'selected':''}>Recibido</option>
@@ -4176,17 +4177,17 @@ function renderHistorialCompras(type='floreria'){
     const abierto = filtrando || _histPedidosAbiertos.has(key);
 
     html += `<div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:10px;margin-bottom:10px;overflow:hidden">
-      <div style="background:#F4F1EC;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;cursor:pointer"
+      <div style="background:var(--surface-2);padding:12px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;cursor:pointer"
         onclick="toggleHistPedido('${type}','${fecha}')" title="${abierto?'Ocultar':'Ver'} el detalle de este pedido">
         <div style="display:flex;align-items:center;gap:9px;min-width:0">
-          <span id="histcar-${type}-${fecha}" style="color:#7A7A72;font-size:12px;width:12px;flex-shrink:0">${abierto?'▾':'▸'}</span>
+          <span id="histcar-${type}-${fecha}" style="color:var(--mid-gray);font-size:12px;width:12px;flex-shrink:0">${abierto?'▾':'▸'}</span>
           <div style="min-width:0">
-            <strong style="font-size:14px;color:#1A1A1A">Pedido del ${fecha!=='sin-fecha' ? fmtDate(fecha) : 'sin fecha'}</strong>
-            <span style="color:#7A7A72;font-size:12px;margin-left:10px">${items.length} orden${items.length!==1?'es':''}${metaExtra}</span>
+            <strong style="font-size:14px;color:var(--charcoal)">Pedido del ${fecha!=='sin-fecha' ? fmtDate(fecha) : 'sin fecha'}</strong>
+            <span style="color:var(--mid-gray);font-size:12px;margin-left:10px">${items.length} orden${items.length!==1?'es':''}${metaExtra}</span>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:10px">
-          <span style="font-weight:700;color:#1A1A1A;font-size:14px">${totalBloque ? '$'+totalBloque.toLocaleString('es-AR') : ''}</span>
+          <span style="font-weight:700;color:var(--charcoal);font-size:14px">${totalBloque ? '$'+totalBloque.toLocaleString('es-AR') : ''}</span>
           ${type==='floreria' ? `<button class="btn-secondary" style="font-size:12px;padding:4px 10px" onclick="event.stopPropagation();exportarPedidoXLSX('${fecha}')" title="Descargar este pedido en Excel (mismo formato que el importador)">Exportar Excel</button>` : ''}
           <button class="btn-secondary" style="font-size:12px;padding:4px 10px" onclick="event.stopPropagation();copiarBloquePedido('${type}','${fecha}')" title="Copiar este pedido con fecha de hoy">Copiar pedido</button>
         </div>
@@ -4243,7 +4244,7 @@ async function updHistSector(type, idx, val){
 // Tabla del historial de Florería (concepto de varas por paquete y costo por vara)
 function _histTablaFloreria(items){
   return `<table style="width:100%;min-width:900px;font-size:12px;border-collapse:collapse">
-        <thead><tr style="background:#FAF8F4">
+        <thead><tr style="background:var(--surface-1)">
           <th style="padding:6px 10px;text-align:left;color:var(--mid-gray);font-size:12px">Producto</th>
           <th style="padding:6px 10px;text-align:left;color:var(--mid-gray);font-size:12px">Proveedor</th>
           <th style="padding:6px 10px;text-align:left;color:var(--mid-gray);font-size:12px">Área</th>
@@ -4263,11 +4264,11 @@ function _histTablaFloreria(items){
           <td style="padding:6px 10px;text-align:center"><input class="form-input" type="number" value="${esc(r.paqRecibidos ?? r.qty ?? '')}" onchange="updHistCantCompra('floreria',${idx},'paqRecibidos',this.value)" style="width:55px;text-align:center" ${an?'disabled':''}></td>
           <td style="padding:6px 10px;text-align:center"><input class="form-input" type="number" value="${esc(r.varasPorPaq ?? '')}" onchange="updHistCantCompra('floreria',${idx},'varasPorPaq',this.value)" style="width:55px;text-align:center" ${an?'disabled':''}></td>
           <td style="padding:6px 10px;text-align:center;font-weight:600">${r.totalVaras||r.qty||'—'}</td>
-          <td style="padding:6px 10px;text-align:center">${an ? '<span style="font-size:12px;font-weight:700;background:#7A7A72;color:#fff;padding:2px 7px;border-radius:5px;white-space:nowrap">Anulado</span>' : controlBadgeCompra(r)}</td>
+          <td style="padding:6px 10px;text-align:center">${an ? '<span style="font-size:12px;font-weight:700;background:var(--mid-gray);color:#fff;padding:2px 7px;border-radius:5px;white-space:nowrap">Anulado</span>' : controlBadgeCompra(r)}</td>
           <td style="padding:6px 10px;text-align:right"><input class="form-input" value="${esc(r.costo||'')}" placeholder="$" onchange="updHistCostoCompra('floreria',${idx},this.value)" style="width:90px;text-align:right" ${an?'disabled':''}></td>
           <td style="padding:6px 10px;text-align:right;font-weight:600">${parseMoney(r.costo)>0?'$'+_compraImporte(r).toLocaleString('es-AR'):'<span style="color:var(--mid-gray);font-weight:400">—</span>'}</td>
           <td style="padding:6px 10px;text-align:right;font-weight:700;color:var(--sage-dark)">${cvVal!=null?'$'+cvVal.toLocaleString('es-AR'):'<span style="color:var(--mid-gray);font-weight:400">—</span>'}</td>
-          <td style="padding:6px 10px;text-align:center;white-space:nowrap"><button class="btn-secondary" style="font-size:12px;padding:3px 8px" onclick="toggleAnularCompra('floreria',${idx})">${an?'↩️ Reactivar':'Anular'}</button></td>
+          <td style="padding:6px 10px;text-align:center;white-space:nowrap"><button class="btn-secondary" style="font-size:12px;padding:3px 8px" onclick="toggleAnularCompra('floreria',${idx})">${an?icon('undo')+'Reactivar':'Anular'}</button></td>
         </tr>`; }).join('')}</tbody>
       </table>`;
 }
@@ -4275,7 +4276,7 @@ function _histTablaFloreria(items){
 // Tabla del historial de Jardinería / General (productos por unidad, sin varas)
 function _histTablaJardineria(items){
   return `<table style="width:100%;min-width:720px;font-size:12px;border-collapse:collapse">
-        <thead><tr style="background:#FAF8F4">
+        <thead><tr style="background:var(--surface-1)">
           <th style="padding:6px 10px;text-align:left;color:var(--mid-gray);font-size:12px">Producto</th>
           <th style="padding:6px 10px;text-align:left;color:var(--mid-gray);font-size:12px">Descripción</th>
           <th style="padding:6px 10px;text-align:left;color:var(--mid-gray);font-size:12px">Proveedor</th>
@@ -4292,10 +4293,10 @@ function _histTablaJardineria(items){
           <td style="padding:6px 10px;color:var(--mid-gray)">${esc(r.prov||'—')}</td>
           <td style="padding:6px 10px;color:var(--mid-gray)">${_histAreaCell('jardineria',idx,r)}${_histEventoSelector('jardineria',idx,r)}</td>
           <td style="padding:6px 10px;text-align:center"><input class="form-input" type="number" value="${esc(r.paqRecibidos ?? r.qty ?? '')}" onchange="updHistCantCompra('jardineria',${idx},'paqRecibidos',this.value)" style="width:60px;text-align:center" ${an?'disabled':''}></td>
-          <td style="padding:6px 10px;text-align:center">${an ? '<span style="font-size:12px;font-weight:700;background:#7A7A72;color:#fff;padding:2px 7px;border-radius:5px;white-space:nowrap">Anulado</span>' : controlBadgeCompra(r)}</td>
+          <td style="padding:6px 10px;text-align:center">${an ? '<span style="font-size:12px;font-weight:700;background:var(--mid-gray);color:#fff;padding:2px 7px;border-radius:5px;white-space:nowrap">Anulado</span>' : controlBadgeCompra(r)}</td>
           <td style="padding:6px 10px;text-align:right"><input class="form-input" value="${esc(r.costo||'')}" placeholder="$" onchange="updHistCostoCompra('jardineria',${idx},this.value)" style="width:90px;text-align:right" ${an?'disabled':''}></td>
           <td style="padding:6px 10px;text-align:right;font-weight:600">${parseMoney(r.costo)>0?'$'+_compraImporte(r).toLocaleString('es-AR'):'<span style="color:var(--mid-gray);font-weight:400">—</span>'}</td>
-          <td style="padding:6px 10px;text-align:center;white-space:nowrap"><button class="btn-secondary" style="font-size:12px;padding:3px 8px" onclick="toggleAnularCompra('jardineria',${idx})">${an?'↩️ Reactivar':'Anular'}</button></td>
+          <td style="padding:6px 10px;text-align:center;white-space:nowrap"><button class="btn-secondary" style="font-size:12px;padding:3px 8px" onclick="toggleAnularCompra('jardineria',${idx})">${an?icon('undo')+'Reactivar':'Anular'}</button></td>
         </tr>`; }).join('')}</tbody>
       </table>`;
 }
@@ -4312,7 +4313,7 @@ function controlBadgeCompra(r){
   const base = 'font-size:12px;font-weight:600;padding:3px 8px;border-radius:6px;display:inline-block;line-height:1.4;white-space:nowrap';
   const info = `Pedí ${fn(qty)} · Llegó ${fn(recibido)}`;
   if(diff === 0){
-    return `<span style="${base};background:#EBF5E8;color:#2C6B3A">${info}</span>`;
+    return `<span style="${base};background:var(--ok-soft);color:var(--green-ok)">${info}</span>`;
   }
   const detalle = diff < 0 ? `faltan ${fn(-diff)}` : `sobran ${fn(diff)}`;
   const colores = diff < 0 ? 'background:#FCEBEA;color:#B0281B' : 'background:#FDF3E3;color:#8A5A16';
@@ -4376,7 +4377,7 @@ async function toggleAnularCompra(type, idx){
   }
   if(type==='floreria'){ window._comprasFloreLastSave = Date.now(); fbSave('comprasFlore', comprasFlore); }
   else { window._comprasJardLastSave = Date.now(); fbSave('comprasJard', comprasJard); }
-  showToast(order.anulado ? 'Pedido anulado — excluido de costos y métricas' : '↩️ Pedido reactivado');
+  showToast(order.anulado ? 'Pedido anulado — excluido de costos y métricas' : 'Pedido reactivado');
   renderHistorialCompras(type);
 }
 
@@ -4563,20 +4564,20 @@ function renderPedidoAuto(){
 
   let baseHTML;
   if(!areas.length){
-    baseHTML = `<div style="font-size:12.5px;color:var(--mid-gray);padding:10px;background:#FAF8F4;border-radius:8px">No hay composiciones por área cargadas todavía. Cargá las flores de cada área en <strong>Composiciones</strong> y van a aparecer acá como base del pedido.</div>`;
+    baseHTML = `<div style="font-size:12.5px;color:var(--mid-gray);padding:10px;background:var(--surface-1);border-radius:8px">No hay composiciones por área cargadas todavía. Cargá las flores de cada área en <strong>Composiciones</strong> y van a aparecer acá como base del pedido.</div>`;
   } else {
     baseHTML = areas.map((area,ai)=>{
       const ings = (arreglosComposicion[area]||[]);
       const resumen = ings.map(g=>`${g.qty} ${esc(g.prod)}`).join(', ');
       const dia = _paAreaDia(area);
       const sel = !!_paBaseSel[area];
-      return `<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 4px;border-top:1px solid #F0EDE8">
+      return `<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 4px;border-top:1px solid var(--surface-2)">
         <input type="checkbox" ${sel?'checked':''} onchange="paToggleArea(${ai})" style="margin-top:3px;width:16px;height:16px;flex:0 0 auto">
         <div style="flex:1;min-width:0">
           <div style="font-weight:600;font-size:13px">${esc(area)} <span style="font-weight:400;color:var(--mid-gray)">· ${ings.length} flor${ings.length!==1?'es':''}</span></div>
           <div style="font-size:12px;color:var(--mid-gray);margin-top:2px">${resumen}</div>
         </div>
-        <select onchange="paSetAreaDia(${ai},this.value)" style="font-size:12px;border:1px solid #E4E2DC;border-radius:6px;padding:4px 6px;flex:0 0 auto" title="En qué pedido entra esta área">
+        <select onchange="paSetAreaDia(${ai},this.value)" style="font-size:12px;border:1px solid var(--light-gray);border-radius:6px;padding:4px 6px;flex:0 0 auto" title="En qué pedido entra esta área">
           <option value="ambos" ${dia==='ambos'?'selected':''}>Mié y Vie</option>
           <option value="mie" ${dia==='mie'?'selected':''}>Solo Mié</option>
           <option value="vie" ${dia==='vie'?'selected':''}>Solo Vie</option>
@@ -4587,13 +4588,13 @@ function renderPedidoAuto(){
 
   let evHTML;
   if(!eventos.length){
-    evHTML = `<div style="font-size:12.5px;color:var(--mid-gray);padding:10px;background:#FAF8F4;border-radius:8px">No hay eventos pendientes con arreglos cargados.</div>`;
+    evHTML = `<div style="font-size:12.5px;color:var(--mid-gray);padding:10px;background:var(--surface-1);border-radius:8px">No hay eventos pendientes con arreglos cargados.</div>`;
   } else {
     evHTML = eventos.map(({ev,i})=>{
       const impact = calcStockImpact(ev.arreglos||[]);
       const resumen = Object.entries(impact).map(([p,v])=>`${Math.ceil(v)} ${esc(p)}`).join(', ') || 'sin flores';
       const sel = !!_paEvSel[i];
-      return `<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 4px;border-top:1px solid #F0EDE8">
+      return `<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 4px;border-top:1px solid var(--surface-2)">
         <input type="checkbox" ${sel?'checked':''} onchange="paToggleEvento(${i})" style="margin-top:3px;width:16px;height:16px;flex:0 0 auto">
         <div style="flex:1;min-width:0">
           <div style="font-weight:600;font-size:13px">${esc(ev.nombre||'(evento)')} <span style="font-weight:400;color:var(--mid-gray)">${ev.fecha?'· '+fmtDate(ev.fecha):''}</span></div>
@@ -4613,8 +4614,8 @@ function renderPedidoAuto(){
     <div style="max-height:34vh;overflow:auto;margin-bottom:14px">${baseHTML}</div>
     <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);font-weight:600;margin-bottom:2px">Flores de eventos pendientes</div>
     <div style="max-height:24vh;overflow:auto;margin-bottom:14px">${evHTML}</div>
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px solid #E5E3DC;padding-top:12px">
-      <div style="font-size:12.5px;color:var(--mid-gray)">Se van a cargar <strong style="color:#1A1A1A">${rows.length}</strong> ítem${rows.length!==1?'s':''} como "pedido", con el último precio conocido de cada flor.</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px solid var(--light-gray);padding-top:12px">
+      <div style="font-size:12.5px;color:var(--mid-gray)">Se van a cargar <strong style="color:var(--charcoal)">${rows.length}</strong> ítem${rows.length!==1?'s':''} como "pedido", con el último precio conocido de cada flor.</div>
       <div style="display:flex;gap:8px">
         <button class="btn-secondary" onclick="closeModal('pedido-auto-modal')">Cancelar</button>
         <button class="btn-add" ${rows.length?'':'disabled'} onclick="generarPedidoAuto()">Generar pedido</button>
@@ -4666,11 +4667,11 @@ function ceRenderRows(){
   cont.innerHTML = ceRows.map((row,i)=>{
     const opts = nombres.map(n=>`<option value="${esc(n)}"${n===row.arreglo?' selected':''}>${arregloEmoji(n)} ${esc(n)}</option>`).join('');
     return `<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
-      <select onchange="ceSet(${i},'arreglo',this.value)" style="flex:2;min-width:180px;border:1px solid #E4E2DC;border-radius:6px;padding:7px 9px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none">
+      <select onchange="ceSet(${i},'arreglo',this.value)" style="flex:2;min-width:180px;border:1px solid var(--light-gray);border-radius:6px;padding:7px 9px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none">
         <option value="">— Tipo de arreglo —</option>${opts}
       </select>
       <span style="font-size:12px;color:var(--mid-gray)">×</span>
-      <input type="number" min="1" value="${esc(row.qty)}" onchange="ceSet(${i},'qty',this.value)" style="width:70px;border:1px solid #E4E2DC;border-radius:6px;padding:7px 6px;font-size:13px;text-align:center;outline:none;font-family:'DM Sans',sans-serif">
+      <input type="number" min="1" value="${esc(row.qty)}" onchange="ceSet(${i},'qty',this.value)" style="width:70px;border:1px solid var(--light-gray);border-radius:6px;padding:7px 6px;font-size:13px;text-align:center;outline:none;font-family:'DM Sans',sans-serif">
       <button type="button" class="btn-icon" style="color:var(--red-alert)" onclick="ceRemoveRow(${i})" title="Quitar">✕</button>
     </div>`;
   }).join('');
@@ -4716,7 +4717,7 @@ function ceRender(){
     const paqStr = paquetes!=null
       ? `<strong style="font-size:15px">${paquetes}</strong>`
       : '<span style="color:var(--red-alert)" title="Cargá las varas por paquete en Compras Florería">—</span>';
-    return `<tr style="border-top:1px solid #F0EDE8">
+    return `<tr style="border-top:1px solid var(--surface-2)">
       <td style="padding:8px 12px;font-weight:500">${esc(prod)}</td>
       <td style="padding:8px 12px;text-align:center">${varas%1===0?varas:varas.toFixed(1)}</td>
       <td style="padding:8px 12px;text-align:center;color:var(--mid-gray)">${vppStr}</td>
@@ -4736,17 +4737,17 @@ function ceRender(){
   const compraStr = compra.map(c=>`${c.paquetes} ${esc(c.prod)}`).join(' · ');
 
   out.innerHTML = `
-    <div style="background:#EBF5E8;border:1px solid #C6E0BE;border-radius:12px;padding:16px 18px;margin-bottom:16px">
-      <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#2C6B3A;font-weight:600;margin-bottom:8px">Comprar</div>
+    <div style="background:var(--ok-soft);border:1px solid #C6E0BE;border-radius:12px;padding:16px 18px;margin-bottom:16px">
+      <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--green-ok);font-weight:600;margin-bottom:8px">Comprar</div>
       ${compra.length
-        ? `<div style="font-size:16px;color:#1A1A1A;line-height:1.7">${compra.map(c=>`<strong>${c.paquetes}</strong> ${esc(c.prod)}`).join(' &nbsp;·&nbsp; ')}</div>`
+        ? `<div style="font-size:16px;color:var(--charcoal);line-height:1.7">${compra.map(c=>`<strong>${c.paquetes}</strong> ${esc(c.prod)}`).join(' &nbsp;·&nbsp; ')}</div>`
         : '<div style="font-size:13px;color:var(--mid-gray)">Ningún producto tiene varas por paquete cargadas en Compras todavía.</div>'}
       ${faltantes.length ? `<div style="font-size:12px;color:var(--red-alert);margin-top:8px">Sin varas por paquete (cargalas en Compras Florería): ${faltantes.map(esc).join(', ')}</div>` : ''}
       ${compra.length ? `<button class="btn-secondary" style="font-size:12px;margin-top:12px" onclick="ceCopiar()">Copiar lista</button>` : ''}
     </div>
     <div class="table-wrapper">
       <table style="width:100%;border-collapse:collapse;font-size:13px;background:var(--warm-white);border:1px solid var(--light-gray);border-radius:10px;overflow:hidden">
-        <thead><tr style="background:#FAF8F4">
+        <thead><tr style="background:var(--surface-1)">
           <th style="padding:9px 12px;text-align:left;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Producto</th>
           <th style="padding:9px 12px;text-align:center;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Varas necesarias</th>
           <th style="padding:9px 12px;text-align:center;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Varas x paquete</th>
@@ -5097,9 +5098,9 @@ function renderHistorialEventos(){
   if(tarEl){
     const edit = userRole==='gerencia', dis = edit ? '' : ' disabled';
     tarEl.innerHTML = tarifasPaxLista().map((t,i)=>`<div style="display:flex;gap:6px;align-items:center;margin:4px 0">
-      <input value="${esc(t.nombre)}"${dis} onchange="histTarifaSet(${i},'nombre',this.value)" style="flex:1;min-width:200px;font-size:12px;padding:5px 7px;border:1px solid #E4E2DC;border-radius:6px">
+      <input value="${esc(t.nombre)}"${dis} onchange="histTarifaSet(${i},'nombre',this.value)" style="flex:1;min-width:200px;font-size:12px;padding:5px 7px;border:1px solid var(--light-gray);border-radius:6px">
       <span style="color:var(--mid-gray)">$</span>
-      <input value="${t.valor}"${dis} inputmode="decimal" onchange="histTarifaSet(${i},'valor',this.value)" style="width:90px;font-size:12px;padding:5px 7px;text-align:right;border:1px solid #E4E2DC;border-radius:6px">
+      <input value="${t.valor}"${dis} inputmode="decimal" onchange="histTarifaSet(${i},'valor',this.value)" style="width:90px;font-size:12px;padding:5px 7px;text-align:right;border:1px solid var(--light-gray);border-radius:6px">
       <span style="font-size:12px;color:var(--mid-gray)">por pax</span>
       ${edit?`<button class="btn-icon" style="color:var(--red-alert)" onclick="histTarifaDel(${i})" title="Quitar">✕</button>`:''}
     </div>`).join('') + (edit?'<button class="btn-secondary" style="font-size:12px;padding:4px 10px;margin-top:6px" onclick="histTarifaAdd()">+ Agregar servicio</button>':'<div style="font-size:12px;color:var(--mid-gray);margin-top:6px">Solo gerencia puede editar las tarifas.</div>');
@@ -5172,8 +5173,8 @@ function renderHistorialEventos(){
       <td style="font-size:13px">${esc(evZonasLabel(ev))}</td>
       <td style="text-align:center;font-size:13px">${ev.pax||'—'}</td>
       <td style="font-size:12px;color:var(--charcoal)">${arreglosStr}</td>
-      <td style="font-weight:600;font-size:13px;color:#2E7D32">${pr>0 ? esc(ev.precio) :
-        `<div onclick="event.stopPropagation()" style="display:flex;gap:4px;align-items:center"><span class="badge" style="background:#FDF0E8;color:#A05A2C;white-space:nowrap">Falta precio</span><input id="hist-ev-p-${realIdx}" placeholder="Precio" inputmode="decimal" style="width:90px;font-size:12px;padding:4px 6px;border:1px solid #E0B06A;border-radius:6px" onkeydown="if(event.key==='Enter')histEventoSetPrecio(${realIdx},this.value)"><button class="btn-secondary" style="font-size:12px;padding:4px 8px" onclick="histEventoSetPrecio(${realIdx},document.getElementById('hist-ev-p-${realIdx}').value)">Guardar</button></div>`}</td>
+      <td style="font-weight:600;font-size:13px;color:var(--green-ok)">${pr>0 ? esc(ev.precio) :
+        `<div onclick="event.stopPropagation()" style="display:flex;gap:4px;align-items:center"><span class="badge" style="background:var(--amber-soft);color:#A05A2C;white-space:nowrap">Falta precio</span><input id="hist-ev-p-${realIdx}" placeholder="Precio" inputmode="decimal" style="width:90px;font-size:12px;padding:4px 6px;border:1px solid #E0B06A;border-radius:6px" onkeydown="if(event.key==='Enter')histEventoSetPrecio(${realIdx},this.value)"><button class="btn-secondary" style="font-size:12px;padding:4px 8px" onclick="histEventoSetPrecio(${realIdx},document.getElementById('hist-ev-p-${realIdx}').value)">Guardar</button></div>`}</td>
       <td style="font-size:12px">${tarifaTd}</td>
       <td style="font-size:13px;text-align:right">${costoTd}</td>
       <td style="font-size:13px;text-align:right">${margenTd}</td>
@@ -5252,7 +5253,7 @@ function renderCotizadorOps(){
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600;color:var(--charcoal);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(f.n)}</div>
         <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
-          <span style="font-size:12px;background:#EBF0E8;color:var(--green-ok);padding:1px 6px;border-radius:8px;font-weight:600">${f.actual} uds</span>
+          <span style="font-size:12px;background:var(--ok-soft);color:var(--green-ok);padding:1px 6px;border-radius:8px;font-weight:600">${f.actual} uds</span>
           ${precioTxt}
         </div>
       </div>
@@ -5801,7 +5802,7 @@ function renderCotEventos(){
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;font-weight:600;color:var(--charcoal)">${esc(f.n)}</div>
           <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
-            <span style="font-size:12px;background:#EBF0E8;color:var(--green-ok);padding:1px 6px;border-radius:8px;font-weight:600">${f.actual} uds</span>
+            <span style="font-size:12px;background:var(--ok-soft);color:var(--green-ok);padding:1px 6px;border-radius:8px;font-weight:600">${f.actual} uds</span>
             <span style="font-size:12px;color:var(--mid-gray)">$${costo.toLocaleString('es-AR')}</span>
             <span style="font-size:12px;color:var(--sage-dark);font-weight:600">→ $${pFinal.toLocaleString('es-AR')}</span>
           </div>
@@ -5970,14 +5971,14 @@ function renderEventos(){
     const i = eventosData.indexOf(ev);
     const stStyle=ESTADO_COLORS[ev.estado]||'';
     const stOpts=['Pedidos Pendientes','En Proceso','Pendiente de Colocacion','Confirmado','Pedidos Finalizados'].map(o=>`<option value="${o}"${ev.estado===o?' selected':''}>${o}</option>`).join('');
-    const fromOpsTag = ev.fromKanban ? '<span style="font-size:12px;background:#E8F0F8;color:#2C5A80;padding:2px 7px;border-radius:4px;font-weight:600;letter-spacing:.5px">DESDE OPERACIONES</span>' : '';
+    const fromOpsTag = ev.fromKanban ? '<span style="font-size:12px;background:var(--info-soft);color:var(--info);padding:2px 7px;border-radius:4px;font-weight:600;letter-spacing:.5px">DESDE OPERACIONES</span>' : '';
     const arreglosResumen = (ev.arreglos && ev.arreglos.length)
       ? `<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">
           <span style="font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Arreglos</span>
           ${ev.arreglos.map(a=>`<span style="background:var(--blush-light);color:#7A3A2A;font-size:12px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap">${a.qty}× ${esc(a.arreglo)}</span>`).join('')}
         </div>`
       : '';
-    return `<div class="event-card"${ev.fromKanban?' style="border-left:3px solid #2C5A80"':''}>
+    return `<div class="event-card"${ev.fromKanban?' style="border-left:3px solid var(--info)"':''}>
       <div class="event-card-header">
         <div style="display:flex;flex-direction:column;gap:4px"><div class="event-name">${esc(ev.nombre)}${badgeDiaRelativa(ev.fecha)}</div>${fromOpsTag}</div>
         <span class="event-type">${esc(ev.tipo)}</span>
@@ -6188,7 +6189,7 @@ function renderProductividadHome(){
   if(!el) return;
   if(userRole==='florista' && floristaNombre){
     el.innerHTML=`<div class="home-dash-card" style="margin-bottom:20px">
-      <div class="home-card-title">⏱ Mi Turno Hoy</div>
+      <div class="home-card-title">Mi turno hoy</div>
       ${_prodCardHTML(floristaNombre, getProdFlorista(floristaNombre), true)}
     </div>`;
   } else if(userRole==='gerencia'){
@@ -6381,7 +6382,7 @@ function renderCierreDia(){
   if(!data.personas.length){
     cont.innerHTML = `<div style="text-align:center;padding:48px 20px;color:var(--mid-gray)">
       <div style="font-size:40px;margin-bottom:10px"></div>
-      <div style="font-size:15px;font-weight:600;color:#7A7A72">Sin asistencia registrada para el ${fmtDate(fecha)}</div>
+      <div style="font-size:15px;font-weight:600;color:var(--mid-gray)">Sin asistencia registrada para el ${fmtDate(fecha)}</div>
       <div style="font-size:13px;margin-top:6px">Aparecerá el detalle cuando el equipo fiche su turno o tenga tareas/eventos asignados.</div></div>`;
     return;
   }
@@ -6392,8 +6393,8 @@ function renderCierreDia(){
     const turnoStr = p.desde ? `${p.desde}${p.hasta?' – '+p.hasta:' (en curso)'}` : 'Sin turno fichado';
     const horasStr = p.horasMin ? ` · ${fmtMin(p.horasMin)}` : '';
     const asistTag = p.ficho
-      ? '<span style="font-size:12px;font-weight:700;background:#EBF5E8;color:#2C6B3A;padding:2px 8px;border-radius:5px">✓ Fichó</span>'
-      : '<span style="font-size:12px;font-weight:700;background:#FDF0E8;color:#B4772A;padding:2px 8px;border-radius:5px">Planificado</span>';
+      ? '<span style="font-size:12px;font-weight:700;background:var(--ok-soft);color:var(--green-ok);padding:2px 8px;border-radius:5px">✓ Fichó</span>'
+      : '<span style="font-size:12px;font-weight:700;background:var(--amber-soft);color:#B4772A;padding:2px 8px;border-radius:5px">Planificado</span>';
 
     const checklistHtml = p.checklist.length
       ? `<div style="margin-top:10px"><div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:6px">Checklist · ${p.tareasHechas}/${p.tareasTotal}</div>
@@ -6425,7 +6426,7 @@ function renderCierreDia(){
           <span style="font-size:12px;color:var(--mid-gray)">${esc(p.area)}</span>
           ${asistTag}
         </div>
-        <div style="font-size:12.5px;color:var(--mid-gray)">⏱ ${turnoStr}${horasStr}</div>
+        <div style="font-size:12.5px;color:var(--mid-gray)">${icon('clock')}${turnoStr}${horasStr}</div>
       </div>
       ${checklistHtml}${jardHtml}${eventosHtml}${ventasHtml}${nada}
     </div>`;
@@ -6694,7 +6695,7 @@ let jardAlertas=[]; // alertas urgentes con foto que carga gerencia para los jar
 window._setVentasData = (arr) => { ventasData.splice(0, ventasData.length, ...arr); };
 
 const VENTA_ESTADOS=['pendiente','confirmado','entregado'];
-const VENTA_ESTADO_LABEL={'pendiente':'⏳ Pendiente','confirmado':'Confirmado','entregado':'Entregado'};
+const VENTA_ESTADO_LABEL={'pendiente':'Pendiente','confirmado':'Confirmado','entregado':'Entregado'};
 const VENTA_ESTADO_COLOR={'pendiente':ESTADO_COLORS['Pedidos Pendientes'],'confirmado':ESTADO_COLORS['Confirmado'],'entregado':ESTADO_COLORS['Pedidos Finalizados']};
 
 // Formas de pago canónicas (para el filtro y el cierre de mes)
@@ -6768,7 +6769,7 @@ function renderVentas(){
   if(vkb){
     const fromOps = ventasData.filter(v=>v.fromKanban && v.estado==='pendiente');
     vkb.innerHTML = fromOps.length
-      ? `<div class="alert-banner" style="background:#E8F0F8;border-color:#B0C8E0;color:#2C5A80"><strong>${fromOps.length} ramo${fromOps.length>1?'s':''} cargado${fromOps.length>1?'s':''} desde Operaciones</strong> — completá precio y cliente.</div>`
+      ? `<div class="alert-banner" style="background:var(--info-soft);border-color:#B0C8E0;color:var(--info)"><strong>${fromOps.length} ramo${fromOps.length>1?'s':''} cargado${fromOps.length>1?'s':''} desde Operaciones</strong> — completá precio y cliente.</div>`
       : '';
   }
   // ── Poblar selects de filtro (mes, forma de pago, tipo = descripción de ramo) ──
@@ -6824,7 +6825,7 @@ function renderVentas(){
     const pend = lista.filter(o=>o.v.facturado!=='Sí' && parseMoney(o.v.precio)>0);
     const totalPend = pend.reduce((s,o)=>s+parseMoney(o.v.precio),0);
     const pillPend = pend.length
-      ? `<span style="background:#FDECEC;color:var(--red-alert);border:1px solid #F0C0C0;border-radius:10px;padding:2px 9px;font-weight:600;font-size:12px;white-space:nowrap">Sin facturar: ${pend.length} · $${totalPend.toLocaleString('es-AR')}</span>`
+      ? `<span style="background:var(--alert-soft);color:var(--red-alert);border:1px solid #F0C0C0;border-radius:10px;padding:2px 9px;font-weight:600;font-size:12px;white-space:nowrap">Sin facturar: ${pend.length} · $${totalPend.toLocaleString('es-AR')}</span>`
       : '';
     if(fMes||fPago||fTipo||fFact){
       const total = lista.reduce((s,o)=>s+parseMoney(o.v.precio),0);
@@ -7113,7 +7114,7 @@ function populateSaleSelects(currentProd, currentAsignado){
     });
     opts += '</optgroup>';
   }
-  opts += '<optgroup label="🌸 Día de la Madre">';
+  opts += '<optgroup label="Día de la Madre">';
   DIA_MADRE_ARREGLOS.forEach(a => {
     opts += `<option value="${esc(a.nombre)}" data-precio="${a.precio}"${a.nombre===currentProd?' selected':''}>${esc(a.nombre)} — $${a.precio.toLocaleString('es-AR')}</option>`;
   });
@@ -7258,7 +7259,7 @@ function cajaRowHTML(r, i, running){
     <td><input class="form-input" value="${esc(r.desc)}" onchange="updCaja(${i},'desc',this.value)" style="min-width:180px;padding:5px 7px;font-size:12px"></td>
     <td><input class="form-input" value="${esc(r.ticket||'')}" onchange="updCaja(${i},'ticket',this.value)" placeholder="—" style="width:75px;padding:5px 7px;font-size:12px"></td>
     <td>
-      <select class="form-select" onchange="updCajaTipo(${i},this.value)" style="font-size:12px;font-weight:600;padding:4px 6px;${r.tipo==='ingreso'?'background:#EBF5E8;color:var(--green-ok)':'background:#FBE8E8;color:var(--red-alert)'}">
+      <select class="form-select" onchange="updCajaTipo(${i},this.value)" style="font-size:12px;font-weight:600;padding:4px 6px;${r.tipo==='ingreso'?'background:var(--ok-soft);color:var(--green-ok)':'background:#FBE8E8;color:var(--red-alert)'}">
         <option value="ingreso" ${r.tipo==='ingreso'?'selected':''}>Ingreso</option>
         <option value="egreso"  ${r.tipo==='egreso' ?'selected':''}>Egreso</option>
       </select>
@@ -7298,7 +7299,7 @@ function renderCaja(){
   // ── Resumen (enfocado en el mes) ──
   const sumEl=document.getElementById('caja-summary');
   sumEl.innerHTML=`
-    <div class="card"><div class="card-label">↩️ Saldo anterior</div><div class="card-value ${arrastre>=0?'green':'red'}" style="font-size:22px">$${arrastre.toLocaleString('es-AR')}</div></div>
+    <div class="card"><div class="card-label">Saldo anterior</div><div class="card-value ${arrastre>=0?'green':'red'}" style="font-size:22px">$${arrastre.toLocaleString('es-AR')}</div></div>
     <div class="card"><div class="card-label">Ingresos del mes</div><div class="card-value green" style="font-size:24px">$${inMes.toLocaleString('es-AR')}</div></div>
     <div class="card"><div class="card-label">Egresos del mes</div><div class="card-value red" style="font-size:24px">$${egMes.toLocaleString('es-AR')}</div></div>
     <div class="card"><div class="card-label">Saldo Actual</div><div class="card-value ${saldoFinal>=0?'green':'red'}" style="font-size:24px">$${saldoFinal.toLocaleString('es-AR')}</div></div>`;
@@ -7574,7 +7575,7 @@ function renderGaleria(){
       const chips = galMateriaPrima(g).length ? galMateriaPrima(g) : flores;
       const _sd = galSecDe(g);
       const secBadge = _sd==='hotel'
-        ? `<span style="background:#E8EEF4;color:#2C5A80;padding:2px 8px;border-radius:20px;font-size:12px;font-weight:600">Hotel</span>`
+        ? `<span style="background:#E8EEF4;color:var(--info);padding:2px 8px;border-radius:20px;font-size:12px;font-weight:600">Hotel</span>`
         : _sd==='ramos'
         ? `<span style="background:var(--sage-light);color:#3A5A3A;padding:2px 8px;border-radius:20px;font-size:12px;font-weight:600">Ramo</span>`
         : `<span style="background:var(--blush-light);color:#7A3A2A;padding:2px 8px;border-radius:20px;font-size:12px;font-weight:600">Evento</span>`;
@@ -7626,8 +7627,8 @@ function fichaRows(g){
 
 function fichaGaleriaHTML(g){
   return fichaRows(g).map(([l,v])=>`<tr>
-    <td style="border:1px solid #E4E2DC;padding:9px 12px;font-weight:600;background:#FAF8F4;width:38%;vertical-align:top">${l}</td>
-    <td style="border:1px solid #E4E2DC;padding:9px 12px;vertical-align:top">${v}</td>
+    <td style="border:1px solid var(--light-gray);padding:9px 12px;font-weight:600;background:var(--surface-1);width:38%;vertical-align:top">${l}</td>
+    <td style="border:1px solid var(--light-gray);padding:9px 12px;vertical-align:top">${v}</td>
   </tr>`).join('');
 }
 
@@ -7687,7 +7688,7 @@ async function imprimirFicha(idx){
       ${foto?`<div class="foto"><img src="${foto}"></div>`:''}
       <table>${fichaRows(g).map(([l,v])=>`<tr><td class="k">${l}</td><td>${v}</td></tr>`).join('')}</table>
     </div>
-    <button onclick="window.print()" style="margin-top:24px;padding:8px 20px;cursor:pointer">🖨️ Imprimir</button>
+    <button onclick="window.print()" style="margin-top:24px;padding:8px 20px;cursor:pointer">Imprimir</button>
   </body></html>`);
   win.document.close();
 }
@@ -7729,8 +7730,8 @@ function abrirLightbox(idx){
 
 function galIngRowHTML(prod, qty){
   return `<div class="ev-arreglo-row" style="display:flex;gap:8px;margin-bottom:6px">
-    <input list="gal-insumos-list" value="${esc(prod||'')}" placeholder="Materia prima (flor / follaje)" style="flex:2;min-width:0;border:1px solid #E4E2DC;border-radius:4px;padding:6px 8px;font-family:'DM Sans',sans-serif;font-size:12.5px;outline:none">
-    <input type="text" value="${esc(qty||'')}" placeholder="Cant. (ej. 3, 1 paquete)" style="flex:1;min-width:0;border:1px solid #E4E2DC;border-radius:4px;padding:6px 8px;font-size:12.5px;outline:none;font-family:'DM Sans',sans-serif">
+    <input list="gal-insumos-list" value="${esc(prod||'')}" placeholder="Materia prima (flor / follaje)" style="flex:2;min-width:0;border:1px solid var(--light-gray);border-radius:4px;padding:6px 8px;font-family:'DM Sans',sans-serif;font-size:12.5px;outline:none">
+    <input type="text" value="${esc(qty||'')}" placeholder="Cant. (ej. 3, 1 paquete)" style="flex:1;min-width:0;border:1px solid var(--light-gray);border-radius:4px;padding:6px 8px;font-size:12.5px;outline:none;font-family:'DM Sans',sans-serif">
     <button type="button" class="btn-icon" style="color:var(--red-alert)" onclick="this.closest('.ev-arreglo-row').remove()">✕</button>
   </div>`;
 }
@@ -8077,7 +8078,7 @@ function renderRecepcionPedidos(){
     // Migrar estado viejo (cantRecibida) al nuevo formato
     if(st.cantRecibida && !st.paqRecibidos){ st.paqRecibidos = st.cantRecibida; st.varasPorPaq = 1; }
     const totalVaras = (parseFloat(st.paqRecibidos)||0) * (parseFloat(st.varasPorPaq)||1);
-    const estadoBadge = '<span style="background:#EBF0E8;color:#3A5230;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:700">PEDIDO</span>';
+    const estadoBadge = '<span style="background:var(--ok-soft);color:#3A5230;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:700">PEDIDO</span>';
     const paqOk = parseFloat(st.paqRecibidos) >= parseFloat(order.qty);
     const rowClass = st.checked ? (paqOk ? 'recep-ok' : 'recep-parcial') : '';
 
@@ -8326,7 +8327,7 @@ function recepVolverAControl(globalIdx){
   if(!o) return;
   o.estado = 'pedido';
   window._comprasFloreLastSave = Date.now(); fbSave('comprasFlore', comprasFlore);
-  showToast(`↩️ "${o.prod}" volvió a control`);
+  showToast(`"${o.prod}" volvió a control`);
   renderRecepcionPedidos();
 }
 
@@ -8351,7 +8352,7 @@ function _renderRevisionRecep(controlados){
               <div style="font-size:12px;color:var(--mid-gray)">${o.paqRecibidos||0} paq × ${o.varasPorPaq||1} = <strong>${o.totalVaras||0} varas</strong>${o.prov?' · '+esc(o.prov):''}${o.sector?' · '+esc(o.sector):''}</div>
               ${_recepFlagBadge(o, idx)}
             </div>
-            <button class="btn-secondary" style="font-size:12px;padding:5px 10px;white-space:nowrap" onclick="recepVolverAControl(${idx})" title="Volver a control para corregir">↩️ Corregir</button>
+            <button class="btn-secondary" style="font-size:12px;padding:5px 10px;white-space:nowrap" onclick="recepVolverAControl(${idx})" title="Volver a control para corregir">${icon('undo')}Corregir</button>
           </div>`;
         }).join('')}
       </div>
@@ -8617,7 +8618,7 @@ function notificarAlertasUrgentes(){
     _alertasAvisadas.add(a.id);
     showToast(`Jardín urgente: ${a.tipo} en ${a.zona}`);
     if(typeof Notification!=='undefined' && Notification.permission==='granted'){
-      try{ new Notification('🚨 Jardín URGENTE: '+a.tipo, { body:`${a.zona}${a.nota?' — '+a.nota:''}`, icon:'/icon-192.png', tag:'jard-urgente' }); }catch(e){}
+      try{ new Notification('Jardín URGENTE: '+a.tipo, { body:`${a.zona}${a.nota?' — '+a.nota:''}`, icon:'/icon-192.png', tag:'jard-urgente' }); }catch(e){}
     }
   });
 }
@@ -8740,7 +8741,7 @@ function notificarLlamados(){
     _llamadosAvisados.add(l.id);
     showToast('Tenés un llamado de atención de gerencia');
     if(typeof Notification!=='undefined' && Notification.permission==='granted'){
-      try{ new Notification('⚠️ Llamado de atención', {body:`${l.zona?l.zona+': ':''}${l.nota||''}`, icon:'/icon-192.png', tag:'llamado'}); }catch(e){}
+      try{ new Notification('Llamado de atención', {body:`${l.zona?l.zona+': ':''}${l.nota||''}`, icon:'/icon-192.png', tag:'llamado'}); }catch(e){}
     }
   });
 }
@@ -8753,8 +8754,8 @@ function renderLlamadosChecklist(){
   else if(floristaNombre) lista = _llamadosActivos().filter(l=>l.empleadoNombre===floristaNombre);
   else lista = [];
   if(!lista.length){ el.innerHTML=''; return; }
-  el.innerHTML = `<div class="jalert-wrap" style="border-color:#C99A00;background:#FFFBF0">
-    <div class="jalert-hdr" style="color:#8A6D00">${lista.length} ${lista.length===1?'llamado de atención':'llamados de atención'}</div>
+  el.innerHTML = `<div class="jalert-wrap" style="border-color:#C99A00;background:var(--amber-soft)">
+    <div class="jalert-hdr" style="color:var(--amber)">${lista.length} ${lista.length===1?'llamado de atención':'llamados de atención'}</div>
     ${lista.map(l=>`<div class="jalert-card">
       ${l.foto?`<img src="${l.foto}" class="jalert-foto" onclick="verFotoLlamado(${l.id})" alt="">`:''}
       <div class="jalert-body">
@@ -8813,16 +8814,16 @@ function renderLlamadosEval(){
   el.innerHTML = personas.map(pers=>{
     const items = byPers[pers].sort((a,b)=>b.creado-a.creado);
     return `<div style="border:1px solid var(--light-gray);border-radius:10px;margin-bottom:12px;overflow:hidden">
-      <div style="padding:10px 14px;background:#FFFBF0;display:flex;justify-content:space-between;align-items:center">
-        <strong style="color:#8A6D00">${esc(pers)}</strong>
+      <div style="padding:10px 14px;background:var(--amber-soft);display:flex;justify-content:space-between;align-items:center">
+        <strong style="color:var(--amber)">${esc(pers)}</strong>
         <span style="font-size:12px;color:var(--mid-gray)">${items.length} llamado${items.length!==1?'s':''}</span>
       </div>
       <div style="display:flex;flex-direction:column">
-        ${items.map(l=>`<div style="display:flex;gap:10px;align-items:center;padding:9px 14px;border-top:1px solid #F0EDE8">
-          ${l.foto?`<img src="${l.foto}" onclick="verFotoLlamado(${l.id})" style="width:52px;height:52px;object-fit:cover;border-radius:6px;cursor:pointer;flex-shrink:0" alt="">`:'<div style="width:52px;height:52px;border-radius:6px;background:#F0EDE8;display:flex;align-items:center;justify-content:center;flex-shrink:0"></div>'}
+        ${items.map(l=>`<div style="display:flex;gap:10px;align-items:center;padding:9px 14px;border-top:1px solid var(--surface-2)">
+          ${l.foto?`<img src="${l.foto}" onclick="verFotoLlamado(${l.id})" style="width:52px;height:52px;object-fit:cover;border-radius:6px;cursor:pointer;flex-shrink:0" alt="">`:'<div style="width:52px;height:52px;border-radius:6px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex-shrink:0"></div>'}
           <div style="flex:1;min-width:0">
             <div style="font-size:13px;font-weight:600;color:var(--charcoal)">${esc(l.zona||'Arreglo')} ${l.resuelto?'<span style="font-size:12px;color:var(--green-ok)">✓ visto</span>':'<span style="font-size:12px;color:var(--amber)">pendiente</span>'}</div>
-            ${l.nota?`<div style="font-size:12px;color:#7A7A72">${esc(l.nota)}</div>`:''}
+            ${l.nota?`<div style="font-size:12px;color:var(--mid-gray)">${esc(l.nota)}</div>`:''}
             <div style="font-size:12px;color:var(--mid-gray)">${fmtDate(l.fecha)} · por ${esc(l.por||'gerencia')}</div>
           </div>
           <button class="btn-icon" style="color:var(--red-alert)" title="Eliminar del registro" onclick="eliminarLlamado(${l.id})">✕</button>
@@ -9399,7 +9400,7 @@ function notificarRecordatoriosNuevos(){
     : `Gerencia agregó ${sinAvisar.length} recordatorios de jardinería`;
   showToast(''+msg);
   if(typeof Notification!=='undefined' && Notification.permission==='granted'){
-    try{ new Notification('🌿 Recordatorios de jardinería', { body:msg, icon:'/icon-192.png', tag:'jard-rec' }); }catch(e){}
+    try{ new Notification('Recordatorios de jardinería', { body:msg, icon:'/icon-192.png', tag:'jard-rec' }); }catch(e){}
   }
 }
 let zonaHorasData = {};   // key: section+'|||'+group → {inicio:'', fin:'', fecha:''}
@@ -9436,10 +9437,10 @@ function urgenciaPanelHTML(scope){
   if(userRole!=='gerencia') return '';
   const ok = urgenciaConfig.okMax ?? 3, warn = urgenciaConfig.warnMax ?? 7;
   return `
-  <div style="background:#FFFFFF;border:1px solid #E5E3DC;border-radius:12px;padding:14px 16px;margin-bottom:16px">
+  <div style="background:#FFFFFF;border:1px solid var(--light-gray);border-radius:12px;padding:14px 16px;margin-bottom:16px">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
-      <div style="font-size:12.5px;font-weight:700;color:#1A1A1A;letter-spacing:.3px">
-        Umbrales de urgencia <span style="font-weight:400;color:#7A7A72">· ajustá según la estación (en verano se riega más seguido)</span>
+      <div style="font-size:12.5px;font-weight:700;color:var(--charcoal);letter-spacing:.3px">
+        Umbrales de urgencia <span style="font-weight:400;color:var(--mid-gray)">· ajustá según la estación (en verano se riega más seguido)</span>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         <button class="btn-secondary" style="font-size:12px;padding:5px 10px" onclick="setUrgenciaPreset('verano')">Verano</button>
@@ -9449,11 +9450,11 @@ function urgenciaPanelHTML(scope){
       </div>
     </div>
     <div style="display:flex;gap:18px;align-items:flex-end;flex-wrap:wrap;margin-top:12px">
-      <label style="font-size:12px;color:#7A7A72">Al día hasta (días)
+      <label style="font-size:12px;color:var(--mid-gray)">Al día hasta (días)
         <input type="number" min="1" max="60" id="urg-ok-${scope}" value="${ok}"
           class="form-input" style="width:90px;padding:6px 8px;font-size:13px;margin-top:4px;display:block">
       </label>
-      <label style="font-size:12px;color:#7A7A72">Próxima hasta (días)
+      <label style="font-size:12px;color:var(--mid-gray)">Próxima hasta (días)
         <input type="number" min="2" max="90" id="urg-warn-${scope}" value="${warn}"
           class="form-input" style="width:90px;padding:6px 8px;font-size:13px;margin-top:4px;display:block">
       </label>
@@ -9545,7 +9546,7 @@ function zonaHoraBtn(idx, campo, zh){
     const bg    = campo==='horaInicio'?'#EBF5E8':'#FDF0F0';
     return `<span style="font-size:13px;font-weight:700;color:${color};background:${bg};padding:3px 10px;border-radius:8px;display:inline-block">${val}</span>`;
   }
-  const label = campo==='horaInicio'?'▶ Inicio':'⏹ Fin';
+  const label = campo==='horaInicio'?icon('play')+'Inicio':icon('stop')+'Fin';
   const cls   = campo==='horaInicio'?'btn-hora-inicio':'btn-hora-fin';
   return `<button class="${cls}" onclick="event.stopPropagation();zonaSetHora(${idx},'${campo}')">${label}</button>`;
 }
@@ -9771,7 +9772,7 @@ function openGestionTareasJard(){
       </div>`;
     }).join('');
     return `<div style="margin-bottom:14px;border:1px solid var(--light-gray);border-radius:10px;overflow:hidden">
-      <div style="padding:10px 12px;background:#EBF0E8;font-size:13.5px;font-weight:700;color:var(--sage-dark);display:flex;align-items:center;gap:8px">
+      <div style="padding:10px 12px;background:var(--ok-soft);font-size:13.5px;font-weight:700;color:var(--sage-dark);display:flex;align-items:center;gap:8px">
         <span style="flex:1;min-width:0">${getSectionEmoji(sec)} ${esc(sec)}</span>
         <button class="btn-icon" title="Renombrar sección" onclick="jardRenameSeccion('${secEsc}')"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/></svg></button>
         <button class="btn-icon" style="color:var(--red-alert)" title="Eliminar sección" onclick="jardDeleteSeccion('${secEsc}')">✕</button>
@@ -9862,9 +9863,9 @@ function renderJardOps(){
           <div style="font-size:12px;color:var(--mid-gray);margin-top:1px">${esc(z.section)} · ${z.items.length} tarea${z.items.length!==1?'s':''}</div>
         </div>
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
-          ${z.alertCount?`<span style="background:#FDECEA;color:#C62828;padding:3px 9px;border-radius:12px;font-size:12px;font-weight:700">${z.alertCount} urgente${z.alertCount!==1?'s':''}</span>`:''}
+          ${z.alertCount?`<span style="background:var(--alert-soft);color:#C62828;padding:3px 9px;border-radius:12px;font-size:12px;font-weight:700">${z.alertCount} urgente${z.alertCount!==1?'s':''}</span>`:''}
           ${z.warnCount ?`<span style="background:#FFF8E1;color:#E65100;padding:3px 9px;border-radius:12px;font-size:12px;font-weight:700">${z.warnCount} pronto</span>`:''}
-          ${z.okCount   ?`<span style="background:#E8F5E9;color:#2E7D32;padding:3px 9px;border-radius:12px;font-size:12px;font-weight:700">${z.okCount} al día</span>`:''}
+          ${z.okCount   ?`<span style="background:var(--ok-soft);color:var(--green-ok);padding:3px 9px;border-radius:12px;font-size:12px;font-weight:700">${z.okCount} al día</span>`:''}
           <span id="${chevId}" style="font-size:14px;color:var(--mid-gray);transition:transform .2s;display:inline-block">▼</span>
         </div>
       </div>`;
@@ -9878,7 +9879,7 @@ function renderJardOps(){
       const enPlan = jardEnPlanHoy(r);
       const planCtrl = userRole==='gerencia'
         ? `<button class="btn-icon" title="${enPlan?'Quitar del plan de hoy':'Marcar para hoy'}" style="flex-shrink:0;font-size:14px" onclick="jardTogglePlanHoy(${i})">${enPlan?'':'☆'}</button>`
-        : (enPlan?'<span style="flex-shrink:0;font-size:12px;background:#EBF0E8;color:var(--sage-dark);padding:2px 7px;border-radius:8px;font-weight:600">Hoy</span>':'');
+        : (enPlan?'<span style="flex-shrink:0;font-size:12px;background:var(--ok-soft);color:var(--sage-dark);padding:2px 7px;border-radius:8px;font-weight:600">Hoy</span>':'');
       const taskEl = document.createElement('div');
       taskEl.style.cssText = 'background:var(--warm-white);padding:14px;display:flex;flex-direction:column;gap:8px'+(enPlan?';box-shadow:inset 3px 0 0 var(--sage-dark)':'');
       taskEl.innerHTML = `
@@ -9951,7 +9952,7 @@ function jopsHoraCell(i, campo, r){
     return `<span ${reset} style="font-size:13px;font-weight:700;color:${color};background:${bg};padding:3px 10px;border-radius:8px;display:inline-block;${done?'':'cursor:pointer'}">${val}</span>`;
   }
   const dis   = done ? 'disabled style="opacity:.45;cursor:not-allowed"' : '';
-  const label = campo==='horaInicio' ? '▶&nbsp;Inicio' : '⏹&nbsp;Fin';
+  const label = campo==='horaInicio' ? icon('play')+'Inicio' : icon('stop')+'Fin';
   const cls   = campo==='horaInicio' ? 'btn-hora-inicio' : 'btn-hora-fin';
   return `<button class="${cls}" ${dis} onclick="jopsRegistrarHora(${i},'${campo}')">${label}</button>`;
 }
@@ -10017,7 +10018,7 @@ function jardRegistrarHoraTurno(campo){
     window.fbSetPath?.('florTurnos/'+nombre+'/'+TODAY_ISO+'/'+campo, hh+':'+mm);
   }
   renderJardTurnoCard();
-  showToast(campo==='inicio' ? '▶ Jornada iniciada: '+hh+':'+mm : '⏹ Jornada finalizada: '+hh+':'+mm);
+  showToast(campo==='inicio' ? 'Jornada iniciada: '+hh+':'+mm : 'Jornada finalizada: '+hh+':'+mm);
 }
 
 function jardResetHoraTurno(campo){
@@ -10061,17 +10062,17 @@ function renderJardTurnoCard(){
       </div>` : ''}
       ${dur > 0 ? `<div style="text-align:center;min-width:70px">
         <div style="font-size:12px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">${fin?'Horas':'Transcurrido'}</div>
-        <div style="font-size:22px;font-weight:700;color:${fin?'var(--charcoal)':'#2C6B3A'}">${fmtDur(dur)}</div>
+        <div style="font-size:22px;font-weight:700;color:${fin?'var(--charcoal)':'var(--green-ok)'}">${fmtDur(dur)}</div>
       </div>` : ''}
     </div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding-top:10px;border-top:1px solid var(--light-gray)">
-      <span style="font-size:12px;color:var(--mid-gray);font-weight:600">⏱ Jornada:</span>
+      <span style="font-size:12px;color:var(--mid-gray);font-weight:600">Jornada:</span>
       ${inicio
-        ? `<span onclick="jardResetHoraTurno('inicio')" title="Tocar para borrar" style="font-size:13px;font-weight:700;color:#2C4A3E;background:#EBF5E8;padding:4px 12px;border-radius:8px;cursor:pointer">▶ ${inicio}</span>`
-        : `<button class="btn-hora-inicio" onclick="jardRegistrarHoraTurno('inicio')">▶&nbsp;Inicio de jornada</button>`}
+        ? `<span onclick="jardResetHoraTurno('inicio')" title="Tocar para borrar" style="font-size:13px;font-weight:700;color:var(--accent);background:var(--ok-soft);padding:4px 12px;border-radius:8px;cursor:pointer">▶ ${inicio}</span>`
+        : `<button class="btn-hora-inicio" onclick="jardRegistrarHoraTurno('inicio')">${icon('play')}Inicio de jornada</button>`}
       ${fin
-        ? `<span onclick="jardResetHoraTurno('fin')" title="Tocar para borrar" style="font-size:13px;font-weight:700;color:#8B3A3A;background:#FDF0F0;padding:4px 12px;border-radius:8px;cursor:pointer">⏹ ${fin}</span>`
-        : inicio ? `<button class="btn-hora-fin" onclick="jardRegistrarHoraTurno('fin')">⏹&nbsp;Fin de jornada</button>` : ''}
+        ? `<span onclick="jardResetHoraTurno('fin')" title="Tocar para borrar" style="font-size:13px;font-weight:700;color:var(--red-alert);background:var(--alert-soft);padding:4px 12px;border-radius:8px;cursor:pointer">${icon('stop')}${fin}</span>`
+        : inicio ? `<button class="btn-hora-fin" onclick="jardRegistrarHoraTurno('fin')">${icon('stop')}Fin de jornada</button>` : ''}
     </div>
   </div>`;
 }
@@ -10100,7 +10101,7 @@ function florRegistrarTurno(campo){
     window.fbSetPath?.('jardHorarios/'+floristaNombre+'/'+TODAY_ISO+'/'+campo, hh+':'+mm);
   }
   renderFlorTurnoCard();
-  showToast(campo==='inicio' ? '▶ Jornada iniciada: '+hh+':'+mm : '⏹ Jornada finalizada: '+hh+':'+mm);
+  showToast(campo==='inicio' ? 'Jornada iniciada: '+hh+':'+mm : 'Jornada finalizada: '+hh+':'+mm);
 }
 
 function florResetTurno(campo){
@@ -10148,17 +10149,17 @@ function renderFlorTurnoCard(){
       </div>` : ''}
       ${dur > 0 ? `<div style="text-align:center;min-width:70px">
         <div style="font-size:12px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">${fin?'Horas':'Transcurrido'}</div>
-        <div style="font-size:22px;font-weight:700;color:${fin?'var(--charcoal)':'#2C6B3A'}">${fmtDur(dur)}</div>
+        <div style="font-size:22px;font-weight:700;color:${fin?'var(--charcoal)':'var(--green-ok)'}">${fmtDur(dur)}</div>
       </div>` : ''}
     </div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding-top:10px;border-top:1px solid var(--light-gray)">
-      <span style="font-size:12px;color:var(--mid-gray);font-weight:600">⏱ Jornada:</span>
+      <span style="font-size:12px;color:var(--mid-gray);font-weight:600">Jornada:</span>
       ${inicio
-        ? `<span onclick="florResetTurno('inicio')" title="Tocar para borrar" style="font-size:13px;font-weight:700;color:#2C4A3E;background:#EBF5E8;padding:4px 12px;border-radius:8px;cursor:pointer">▶ ${inicio}</span>`
-        : `<button class="btn-hora-inicio" onclick="florRegistrarTurno('inicio')">▶&nbsp;Inicio de jornada</button>`}
+        ? `<span onclick="florResetTurno('inicio')" title="Tocar para borrar" style="font-size:13px;font-weight:700;color:var(--accent);background:var(--ok-soft);padding:4px 12px;border-radius:8px;cursor:pointer">▶ ${inicio}</span>`
+        : `<button class="btn-hora-inicio" onclick="florRegistrarTurno('inicio')">${icon('play')}Inicio de jornada</button>`}
       ${fin
-        ? `<span onclick="florResetTurno('fin')" title="Tocar para borrar" style="font-size:13px;font-weight:700;color:#8B3A3A;background:#FDF0F0;padding:4px 12px;border-radius:8px;cursor:pointer">⏹ ${fin}</span>`
-        : inicio ? `<button class="btn-hora-fin" onclick="florRegistrarTurno('fin')">⏹&nbsp;Fin de jornada</button>` : ''}
+        ? `<span onclick="florResetTurno('fin')" title="Tocar para borrar" style="font-size:13px;font-weight:700;color:var(--red-alert);background:var(--alert-soft);padding:4px 12px;border-radius:8px;cursor:pointer">${icon('stop')}${fin}</span>`
+        : inicio ? `<button class="btn-hora-fin" onclick="florRegistrarTurno('fin')">${icon('stop')}Fin de jornada</button>` : ''}
     </div>
   </div>`;
 }
@@ -10240,7 +10241,7 @@ function renderJardProdEquipo(){
       </div>`;
     }
 
-    html += `<div style="background:#FDFCFB;border:1px solid #E4E2DC;border-radius:8px;padding:16px;margin-bottom:12px">
+    html += `<div style="background:var(--surface-1);border:1px solid var(--light-gray);border-radius:8px;padding:16px;margin-bottom:12px">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:8px">
         <div style="display:flex;align-items:center;gap:8px">
           <span style="font-size:18px"></span>
@@ -10249,7 +10250,7 @@ function renderJardProdEquipo(){
         <div style="display:flex;gap:20px;flex-wrap:wrap">
           <div style="text-align:center"><div style="font-size:12px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">Horas mes</div><div style="font-size:22px;font-weight:700;color:var(--charcoal)">${fmtDur(totalMin)}</div></div>
           <div style="text-align:center"><div style="font-size:12px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">Días</div><div style="font-size:22px;font-weight:700;color:var(--charcoal)">${diasTrabajados}</div></div>
-          <div style="text-align:center"><div style="font-size:12px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">Prom. diario</div><div style="font-size:22px;font-weight:700;color:#2C6B3A">${avgHoras>0?fmtDur(avgHoras):'—'}</div></div>
+          <div style="text-align:center"><div style="font-size:12px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">Prom. diario</div><div style="font-size:22px;font-weight:700;color:var(--green-ok)">${avgHoras>0?fmtDur(avgHoras):'—'}</div></div>
           <div style="text-align:center"><div style="font-size:12px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">Tareas mes</div><div style="font-size:22px;font-weight:700;color:var(--charcoal)">${tareasTotal}</div></div>
         </div>
       </div>
@@ -10263,27 +10264,27 @@ function renderJardProdEquipo(){
 
 function _jardDiaHTML(nombre, fecha, dd){
   const tareasItems = dd.tareas.map(t => `
-    <div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid #F0EEE8">
+    <div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid var(--surface-2)">
       <div style="flex:1;min-width:0">
         <div style="font-size:12px;font-weight:600;color:var(--charcoal)">${esc(t.task)}</div>
         <div style="font-size:12px;color:var(--mid-gray)">${esc(t.group)} · ${esc(t.section)}</div>
         ${t.obs ? `<div style="font-size:12px;color:#5A5A50;margin-top:2px;font-style:italic">"${esc(t.obs)}"</div>` : ''}
       </div>
       ${t.horaInicio||t.horaFin ? `<div style="text-align:right;white-space:nowrap;font-size:12px;color:var(--mid-gray)">
-        ${t.horaInicio?'▶ '+t.horaInicio:''}${t.horaFin?' · ⏹ '+t.horaFin:''}
-        ${t.horaInicio&&t.horaFin?'<br><span style="color:#2C6B3A;font-weight:600">'+fmtDur(calcDuracion(t.horaInicio,t.horaFin))+'</span>':''}
+        ${t.horaInicio?icon('play')+t.horaInicio:''}${t.horaFin?' · '+icon('stop')+t.horaFin:''}
+        ${t.horaInicio&&t.horaFin?'<br><span style="color:var(--green-ok);font-weight:600">'+fmtDur(calcDuracion(t.horaInicio,t.horaFin))+'</span>':''}
       </div>` : ''}
     </div>`).join('');
 
-  return `<div style="border:1px solid #E4E2DC;border-radius:6px;overflow:hidden">
+  return `<div style="border:1px solid var(--light-gray);border-radius:6px;overflow:hidden">
     <div style="background:var(--cream);padding:8px 12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;cursor:pointer"
          onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
       <div style="display:flex;align-items:center;gap:10px">
         <span style="font-size:12px;font-weight:700;color:var(--charcoal)">${fmtDate(fecha)}</span>
-        ${dd.inicio ? `<span style="font-size:12px;color:var(--mid-gray)">▶ ${dd.inicio}${dd.fin?' · ⏹ '+dd.fin:' · en curso'}</span>` : ''}
+        ${dd.inicio ? `<span style="font-size:12px;color:var(--mid-gray)">${icon('play')}${dd.inicio}${dd.fin?' · '+icon('stop')+dd.fin:' · en curso'}</span>` : ''}
       </div>
       <div style="display:flex;gap:12px;align-items:center">
-        ${dd.dur>0 ? `<span style="font-size:12px;font-weight:700;color:#2C6B3A">${fmtDur(dd.dur)}</span>` : ''}
+        ${dd.dur>0 ? `<span style="font-size:12px;font-weight:700;color:var(--green-ok)">${fmtDur(dd.dur)}</span>` : ''}
         <span style="font-size:12px;color:var(--mid-gray)">${dd.tareas.length} tarea${dd.tareas.length!==1?'s':''}</span>
         <span style="font-size:12px;color:var(--mid-gray)">▾</span>
       </div>
@@ -10361,26 +10362,26 @@ function renderCtrlJard(){
     const tr=document.createElement('tr');
     tr.innerHTML=`
       <td>
-        <div style="font-weight:600;font-size:13px;color:#1A1A1A;line-height:1.4">${esc(r.group)}</div>
+        <div style="font-weight:600;font-size:13px;color:var(--charcoal);line-height:1.4">${esc(r.group)}</div>
         <span class="section-pill ${getSectionPillCls(r.section)}" style="margin-top:4px;display:inline-block">${esc(r.section)}</span>
       </td>
-      <td style="font-size:13px;color:#1A1A1A">${esc(r.task)}</td>
-      <td style="font-size:12.5px;color:#7A7A72;white-space:nowrap">
+      <td style="font-size:13px;color:var(--charcoal)">${esc(r.task)}</td>
+      <td style="font-size:12.5px;color:var(--mid-gray);white-space:nowrap">
         ${ userRole==='gerencia'
           ? `<input type="date" value="${r.last||''}" max="${TODAY_ISO}"
                onchange="gerenciaSetFecha('jard',${i},this.value)"
                title="Editar fecha de última visita"
-               style="font-size:12px;padding:4px 6px;border:1px solid #E5E3DC;border-radius:6px;color:#1A1A1A">`
+               style="font-size:12px;padding:4px 6px;border:1px solid var(--light-gray);border-radius:6px;color:var(--charcoal)">`
           : (r.last ? fmtDate(r.last) : '<em style="color:#B0AFA5;font-size:12px">Sin registro</em>') }
         ${ r.last ? `<div style="font-size:12px;color:#B0AFA5;margin-top:3px">${_diasDesdeTxt(r.last)}</div>` : '' }
       </td>
       <td>
         <span class="alerta-badge ${alCls}"
-          style="font-size:12px;padding:3px 10px;${badge.status==='none'?'background:#ECEAE4;color:#7A7A72':''}">
+          style="font-size:12px;padding:3px 10px;${badge.status==='none'?'background:#ECEAE4;color:var(--mid-gray)':''}">
           ${alLbl}
         </span>
       </td>
-      <td style="text-align:center;font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400;color:#1A1A1A">
+      <td style="text-align:center;font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400;color:var(--charcoal)">
         ${monthVisits}
       </td>
       <td>
@@ -10522,7 +10523,7 @@ function renderHabOps(){
         <div style="font-size:20px;font-weight:600;color:var(--charcoal);font-family:'Cormorant Garamond',serif">Hab. ${esc(r.hab)}</div>
         <span class="days-badge ${badge.cls}" style="flex-shrink:0">${badge.label}</span>
       </div>
-      ${r.comentarioHK ? `<div style="background:#FDF3E3;border:1px solid #E9D8B0;border-radius:6px;padding:8px 11px;font-size:12.5px;color:#8A5A16;line-height:1.4"><strong>Housekeeping:</strong> ${esc(r.comentarioHK)}</div>` : ''}
+      ${r.comentarioHK ? `<div style="background:var(--amber-soft);border:1px solid #E9D8B0;border-radius:6px;padding:8px 11px;font-size:12.5px;color:#8A5A16;line-height:1.4"><strong>Housekeeping:</strong> ${esc(r.comentarioHK)}</div>` : ''}
       <div style="display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--mid-gray)">
         <span>Última visita: ${r.last ? fmtDate(r.last) : '<em>Sin registro</em>'}</span>
         <span style="font-family:'Cormorant Garamond',serif;font-size:16px;color:var(--charcoal)" title="Visitas este mes">${monthVisits} <span style="font-size:12px;color:var(--mid-gray)">este mes</span></span>
@@ -10583,7 +10584,7 @@ function habsHoraCell(i, campo, r){
     return `<span ${reset} style="font-size:13px;font-weight:700;color:${color};background:${bg};padding:3px 10px;border-radius:8px;display:inline-block;${done?'':'cursor:pointer'}">${val}</span>`;
   }
   const dis   = done ? 'disabled style="opacity:.45;cursor:not-allowed"' : '';
-  const label = campo==='horaInicio' ? '▶&nbsp;Inicio' : '⏹&nbsp;Fin';
+  const label = campo==='horaInicio' ? icon('play')+'Inicio' : icon('stop')+'Fin';
   const cls   = campo==='horaInicio' ? 'btn-hora-inicio' : 'btn-hora-fin';
   return `<button class="${cls}" ${dis} onclick="habsRegistrarHora(${i},'${campo}')">${label}</button>`;
 }
@@ -10633,19 +10634,19 @@ function renderCtrlHab(){
     const tr=document.createElement('tr');
     tr.innerHTML=`
       <td><span class="hab-num">Hab. ${esc(r.hab)}</span></td>
-      <td style="font-size:12.5px;color:#7A7A72;white-space:nowrap">
+      <td style="font-size:12.5px;color:var(--mid-gray);white-space:nowrap">
         ${ userRole==='gerencia'
           ? `<input type="date" value="${r.last||''}" max="${TODAY_ISO}"
                onchange="gerenciaSetFecha('hab',${i},this.value)"
                title="Editar fecha de última visita"
-               style="font-size:12px;padding:4px 6px;border:1px solid #E5E3DC;border-radius:6px;color:#1A1A1A">`
+               style="font-size:12px;padding:4px 6px;border:1px solid var(--light-gray);border-radius:6px;color:var(--charcoal)">`
           : (r.last ? fmtDate(r.last) : '<em style="color:#B0AFA5">—</em>') }
         ${ r.last ? `<div style="font-size:12px;color:#B0AFA5;margin-top:3px">${_diasDesdeTxt(r.last)}</div>` : '' }
       </td>
       <td>
         <span class="alerta-badge ${alCls}" style="font-size:12px;padding:3px 10px">${alLbl}</span>
       </td>
-      <td style="text-align:center;font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400;color:#1A1A1A">
+      <td style="text-align:center;font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400;color:var(--charcoal)">
         ${monthVisits}
       </td>
       <td>
@@ -10661,7 +10662,7 @@ function renderCtrlHab(){
       </td>
       <td style="vertical-align:middle">
         ${isHK
-          ? `<span style="font-size:12.5px;color:#7A7A72">${esc(r.notas||'—')}</span>`
+          ? `<span style="font-size:12.5px;color:var(--mid-gray)">${esc(r.notas||'—')}</span>`
           : `<input class="cl-obs-input" value="${esc(r.notas||'')}" placeholder="Observaciones..."
           onchange="habitacionesData[${i}].notas=this.value"
           style="width:100%;min-width:160px">`}
@@ -10940,7 +10941,7 @@ function renderRamosDisp(){
   if(ramosDispData.length === 0){
     grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:48px 20px;color:var(--mid-gray)">
       <div style="font-size:40px;margin-bottom:10px"></div>
-      <div style="font-size:15px;font-weight:600;color:#7A7A72">No hay ramos armados en este momento</div>
+      <div style="font-size:15px;font-weight:600;color:var(--mid-gray)">No hay ramos armados en este momento</div>
       <div style="font-size:13px;margin-top:6px">Cargá los ramos que estén listos para vender con "+ Cargar ramo armado".</div>
     </div>`;
     return;
@@ -10957,11 +10958,11 @@ function renderRamosDisp(){
     return `<div class="lp-card">
       ${foto}
       <div class="lp-card-body">
-        ${r.categoria?`<span class="section-pill" style="background:#EBF0E8;color:var(--sage-dark);display:inline-block;margin-bottom:6px">${esc(r.categoria)}</span>`:''}
+        ${r.categoria?`<span class="section-pill" style="background:var(--ok-soft);color:var(--sage-dark);display:inline-block;margin-bottom:6px">${esc(r.categoria)}</span>`:''}
         <div class="lp-card-name" style="font-weight:600">${esc(r.nombre)}</div>
-        <div class="lp-card-desc" style="min-height:auto;color:#7A7A72;font-size:12.5px;margin:4px 0 8px">${esc(r.desc||'')}</div>
+        <div class="lp-card-desc" style="min-height:auto;color:var(--mid-gray);font-size:12.5px;margin:4px 0 8px">${esc(r.desc||'')}</div>
         <div class="lp-card-footer">
-          <div class="lp-price-input" style="font-weight:700;color:#1A1A1A">${esc(r.precio||'A consultar')}</div>
+          <div class="lp-price-input" style="font-weight:700;color:var(--charcoal)">${esc(r.precio||'A consultar')}</div>
           <div class="lp-card-actions" style="display:flex;gap:6px">
             <button class="btn-add" style="padding:6px 12px;font-size:12px" onclick="openVentaRamo(${i})">✓ Vender</button>
             ${userRole!=='ventas' ? `<button class="btn-icon" onclick="cambiarFotoRamo(${i})" title="Cambiar foto"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><rect x="3" y="7" width="18" height="13" rx="2"/><circle cx="12" cy="13" r="3.5"/><path d="M8 7l1.5-2h5L16 7"/></svg></button>` : ''}
@@ -11008,7 +11009,7 @@ function ramoOnProdChange(){
   const it = listaPreciosData[+ci]?.items[+ii];
   if(!it){ info.style.display = 'none'; return; }
   info.style.display = 'block';
-  info.innerHTML = `${it.desc?`${esc(it.desc)}<br>`:''}<span style="color:#7A7A72">Precio: <strong style="color:#1A1A1A">${esc(it.precio||'A consultar')}</strong></span>`;
+  info.innerHTML = `${it.desc?`${esc(it.desc)}<br>`:''}<span style="color:var(--mid-gray)">Precio: <strong style="color:var(--charcoal)">${esc(it.precio||'A consultar')}</strong></span>`;
 }
 
 function saveRamo(){
@@ -11102,7 +11103,7 @@ function renderFloreros(){
   if(!florerosData.length){
     grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:48px 20px;color:var(--mid-gray)">
       <div style="font-size:40px;margin-bottom:10px"></div>
-      <div style="font-size:15px;font-weight:600;color:#7A7A72">Todavía no cargaste floreros</div>
+      <div style="font-size:15px;font-weight:600;color:var(--mid-gray)">Todavía no cargaste floreros</div>
       <div style="font-size:13px;margin-top:6px">Cargá tus floreros con foto y cantidad con "+ Agregar florero".</div></div>`;
     return;
   }
@@ -11117,7 +11118,7 @@ function renderFloreros(){
       ${foto}
       <div class="lp-card-body">
         <div class="lp-card-name" style="font-weight:600">${esc(f.nombre||'Florero')}</div>
-        ${f.notas?`<div style="font-size:12px;color:#7A7A72;margin:2px 0 6px">${esc(f.notas)}</div>`:''}
+        ${f.notas?`<div style="font-size:12px;color:var(--mid-gray);margin:2px 0 6px">${esc(f.notas)}</div>`:''}
         <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
           <button class="btn-icon" style="border:1px solid var(--light-gray);border-radius:6px;width:30px;height:30px;font-size:18px" onclick="florAjustar(${i},-1)">−</button>
           <span style="min-width:44px;text-align:center;font-size:22px;font-weight:700;color:${cant>0?'var(--charcoal)':'var(--red-alert)'}">${cant}</span>
@@ -11220,7 +11221,7 @@ function openVentaRamo(i){
   if(!r) return;
   document.getElementById('ramo-sell-idx').value = i;
   document.getElementById('ramo-sell-info').innerHTML =
-    `<strong>${esc(r.nombre)}</strong>${r.desc?` · ${esc(r.desc)}`:''}<br><span style="color:#7A7A72">Precio: ${esc(r.precio||'A consultar')}</span>`;
+    `<strong>${esc(r.nombre)}</strong>${r.desc?` · ${esc(r.desc)}`:''}<br><span style="color:var(--mid-gray)">Precio: ${esc(r.precio||'A consultar')}</span>`;
   document.getElementById('ramo-sell-cliente').value='';
   document.getElementById('ramo-sell-destinatario').value='';
   document.getElementById('ramo-sell-pago').value='';
@@ -11441,7 +11442,7 @@ function openFichaEmpleado(nombre, mesISO){
       ${card('Evaluación', stars, m.evalCount?`prom ${m.evalProm.toFixed(1)} · ${m.evalCount} eval`:'sin evaluar', 'var(--charcoal)')}
       ${card('Llamados de atención', m.llamados, 'este mes', m.llamados?'var(--red-alert)':'var(--green-ok)')}
     </div>
-    ${m.llamadosList.length?`<div style="margin-top:18px"><div class="card-label">Llamados de atención del mes</div>${m.llamadosList.map(l=>`<div style="display:flex;gap:8px;align-items:center;padding:7px 0;border-top:1px solid #F0EDE8;font-size:12px">${l.foto?`<img src="${l.foto}" onclick="verFotoLlamado(${l.id})" style="width:34px;height:34px;object-fit:cover;border-radius:5px;cursor:pointer">`:'<span style="color:var(--amber)"></span>'}<span style="flex:1">${esc(l.zona||'Arreglo')}${l.nota?' — '+esc(l.nota):''}</span><span style="color:var(--mid-gray);font-size:12px">${fmtDate(l.fecha)}</span></div>`).join('')}</div>`:''}
+    ${m.llamadosList.length?`<div style="margin-top:18px"><div class="card-label">Llamados de atención del mes</div>${m.llamadosList.map(l=>`<div style="display:flex;gap:8px;align-items:center;padding:7px 0;border-top:1px solid var(--surface-2);font-size:12px">${l.foto?`<img src="${l.foto}" onclick="verFotoLlamado(${l.id})" style="width:34px;height:34px;object-fit:cover;border-radius:5px;cursor:pointer">`:'<span style="color:var(--amber)"></span>'}<span style="flex:1">${esc(l.zona||'Arreglo')}${l.nota?' — '+esc(l.nota):''}</span><span style="color:var(--mid-gray);font-size:12px">${fmtDate(l.fecha)}</span></div>`).join('')}</div>`:''}
   </div>`;
   ov.classList.add('open');
 }
@@ -11720,7 +11721,7 @@ function _prodResumenHTML(nombre, desde, hasta, m){
 
   const diaRows = P.dias.map(D=>{
     const ocup = D.real ? _prodPct(D.minTareas/60, D.real.horas) : null;
-    const tareasTxt = D.tareas.map(t=>`<div style="display:flex;gap:8px;padding:3px 0;border-top:1px solid #F0EDE8;font-size:12px">
+    const tareasTxt = D.tareas.map(t=>`<div style="display:flex;gap:8px;padding:3px 0;border-top:1px solid var(--surface-2);font-size:12px">
         <span style="color:var(--mid-gray);min-width:84px">${t.inicio&&t.fin?esc(t.inicio)+'–'+esc(t.fin):'sin horario'}</span>
         <span style="color:var(--mid-gray);min-width:78px">${esc(t.area)}</span>
         <span style="flex:1">${esc(t.desc)}</span>
@@ -11733,7 +11734,7 @@ function _prodResumenHTML(nombre, desde, hasta, m){
         <span style="min-width:70px">${D.tareas.length} tarea${D.tareas.length!==1?'s':''}</span>
         <span style="min-width:90px;color:var(--mid-gray)">${D.minTareas?fmtDur(D.minTareas)+' en tareas':'sin tiempos'}</span>
         <span style="min-width:120px;color:var(--mid-gray)">${D.real?`jornada ${esc(D.real.inicio)}–${esc(D.real.fin)} (${hs(D.real.horas)})`:'sin fichar'}</span>
-        ${D.faltas.map(f=>`<span style="font-size:12px;font-weight:600;padding:2px 8px;border-radius:10px;${f.justificada?'background:#EBF5E8;color:var(--green-ok)':'background:#FDECEC;color:var(--red-alert)'}">Falta ${f.justificada?'justificada':'sin justificar'} · ${esc(f.motivo||'')}</span>`).join('')}
+        ${D.faltas.map(f=>`<span style="font-size:12px;font-weight:600;padding:2px 8px;border-radius:10px;${f.justificada?'background:var(--ok-soft);color:var(--green-ok)':'background:var(--alert-soft);color:var(--red-alert)'}">Falta ${f.justificada?'justificada':'sin justificar'} · ${esc(f.motivo||'')}</span>`).join('')}
         <span style="margin-left:auto;font-weight:600;color:${_prodPctColor(ocup)}" title="Tiempo en tareas sobre la jornada fichada">${ocup==null?'':ocup+'% ocupado'}</span>
       </summary>
       <div style="padding:2px 8px 10px">${tareasTxt || `<div style="font-size:12px;color:var(--mid-gray)">${D.real?'Fichó la jornada pero no registró tareas.':D.faltas.map(f=>esc(f.obs||'Sin observación')).join(' · ')}</div>`}</div>
@@ -11913,7 +11914,7 @@ function renderReportesEquipo(){
         <td><strong>${esc(d.nombre)}</strong></td>
         <td>${isJardinero(d.nombre)?'Jardinería':'Florería'}</td>
         <td style="color:${asisCol};font-weight:600">${m.asistencia!=null?m.asistencia+'%':'—'}</td>
-        <td>${m.diasTarde?`<span style="color:#D4A820">⏰ ${m.diasTarde} (${m.minTarde}min)</span>`:(m.diasFichados?'<span style="color:var(--green-ok)">✓ en hora</span>':'—')}</td>
+        <td>${m.diasTarde?`<span style="color:var(--amber)">${icon('clock')}${m.diasTarde} (${m.minTarde}min)</span>`:(m.diasFichados?'<span style="color:var(--green-ok)">✓ en hora</span>':'—')}</td>
         <td>${d.hsProg}h</td>
         <td>${d.hsTrab}h</td>
         <td style="color:${col};font-weight:600">${pct!=null?pct+'%'+trend:'—'}</td>
@@ -11936,7 +11937,7 @@ function renderReporteTiempos(mesISO, filtroEmp){
   const regs = (checklistHistory||[]).filter(r =>
     (r?.date||'').startsWith(mesISO) && (parseInt(r?.duracion)||0) > 0 && (!filtroEmp || r.who === filtroEmp)
   );
-  const titulo = '<div class="section-title" style="margin-bottom:6px">⏱ Tiempos del checklist — real vs referencia</div>'
+  const titulo = '<div class="section-title" style="margin-bottom:6px">Tiempos del checklist — real vs referencia</div>'
     + '<div style="font-size:12px;color:var(--mid-gray);margin-bottom:14px">Tareas completadas con Inicio/Fin registrado en el mes. El desvío compara el promedio real contra el tiempo de referencia.</div>';
   if(!regs.length){
     el.innerHTML = titulo + '<p style="color:var(--mid-gray);font-size:13px">Sin tareas con duración registrada en el mes seleccionado.</p>';
@@ -12137,7 +12138,7 @@ async function descargarBackup(){
   const criticos = { 'compras florería':comprasFlore, 'ventas':ventasData, 'caja':cajaData, 'eventos':eventosData, 'stock':stockData };
   const vacios = Object.entries(criticos).filter(([,v])=>!_len(v)).map(([k])=>k);
   if(vacios.length >= 2){
-    const ok = await confirmModal(`⚠️ Parece que la app todavía no terminó de cargar todos los datos: ${vacios.join(', ')} figuran VACÍOS.\n\nSi descargás ahora, el backup puede salir INCOMPLETO y no servir para restaurar. Lo mejor es esperar unos segundos a que cargue todo y volver a intentar.\n\n¿Descargar igual?`);
+    const ok = await confirmModal(`Parece que la app todavía no terminó de cargar todos los datos: ${vacios.join(', ')} figuran VACÍOS.\n\nSi descargás ahora, el backup puede salir INCOMPLETO y no servir para restaurar. Lo mejor es esperar unos segundos a que cargue todo y volver a intentar.\n\n¿Descargar igual?`);
     if(!ok) return;
   }
   const fuentes = {
@@ -12326,7 +12327,7 @@ function renderRestaurarComprasPreview(){
   const meses=Object.keys(porMes).sort().map(m=>`${m}: ${porMes[m]}`).join(' · ');
   body.innerHTML = `
     <div style="font-size:12.5px;color:var(--mid-gray);margin-bottom:12px">Fuente: ${esc(fuente)} · ${oldF} compras florería, ${oldJ} jardinería y ${oldE} eventos en el archivo.</div>
-    <div style="background:#F4F1EC;border-radius:8px;padding:12px 14px;margin-bottom:14px">
+    <div style="background:var(--surface-2);border-radius:8px;padding:12px 14px;margin-bottom:14px">
       <div style="font-size:14px;font-weight:600;margin-bottom:4px">Se van a recuperar ${total} registro${total!==1?'s':''}</div>
       <div style="font-size:12.5px;color:var(--mid-gray)">Compras florería: <strong>${addF.length}</strong> · Jardinería: <strong>${addJ.length}</strong> · Eventos: <strong>${addE.length}</strong> — solo los que faltan; no se pisa ni duplica nada de lo actual.</div>
       ${meses?`<div style="font-size:12px;color:var(--mid-gray);margin-top:6px">Compras florería por mes → ${esc(meses)}</div>`:''}
@@ -12636,7 +12637,7 @@ function renderPlantilla(){
         <td style="font-weight:600">
           <div style="display:flex;align-items:center;gap:6px">
             <span>${esc(nombre)}</span>
-            ${isJardinero(nombre) ? '<span style="font-size:12px;background:#EBF5E8;color:#2C6B3A;padding:1px 6px;border-radius:8px;font-weight:600;white-space:nowrap">Jard.</span>' : ''}
+            ${isJardinero(nombre) ? '<span style="font-size:12px;background:var(--ok-soft);color:var(--green-ok);padding:1px 6px;border-radius:8px;font-weight:600;white-space:nowrap">Jard.</span>' : ''}
             <button class="btn-icon" title="Quitar de la lista de horarios" onclick="horariosRemovePersona('${esc(nombre)}')" style="color:var(--red-alert);font-size:12px;padding:0 4px;margin-left:auto">✕</button>
           </div>
         </td>
@@ -12752,13 +12753,13 @@ function renderHorarios(){
   // Generar grilla del mes
   let calHtml = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
     <button class="btn-secondary" onclick="horNavMes(-1)" style="padding:5px 12px">◀</button>
-    <strong style="font-size:15px;color:#1A1A1A">${meses[horMes]} ${horAnio}</strong>
+    <strong style="font-size:15px;color:var(--charcoal)">${meses[horMes]} ${horAnio}</strong>
     <button class="btn-secondary" onclick="horNavMes(1)" style="padding:5px 12px">▶</button>
   </div>`;
 
   calHtml += `<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--light-gray);border-radius:8px;overflow:hidden">`;
   ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].forEach(d => {
-    calHtml += `<div style="background:#E5E3DC;padding:6px;text-align:center;font-size:12px;font-weight:600;color:var(--charcoal);letter-spacing:.5px">${d}</div>`;
+    calHtml += `<div style="background:var(--light-gray);padding:6px;text-align:center;font-size:12px;font-weight:600;color:var(--charcoal);letter-spacing:.5px">${d}</div>`;
   });
 
   // Celdas vacías antes del primer día
@@ -12790,7 +12791,7 @@ function renderHorarios(){
     const border = isToday ? '2px solid var(--green-ok)' : 'none';
 
     calHtml += `<div style="background:${bgColor};padding:6px;min-height:60px;cursor:pointer;border:${border}" onclick="openDiaHorario('${iso}')">
-      <div style="font-size:12px;font-weight:${isToday?'700':'500'};color:${isToday?'var(--green-ok)':'#1A1A1A'};margin-bottom:3px">${d}</div>
+      <div style="font-size:12px;font-weight:${isToday?'700':'500'};color:${isToday?'var(--green-ok)':'var(--charcoal)'};margin-bottom:3px">${d}</div>
       ${asignados > 0 ? `<div style="font-size:12px;color:var(--sage-dark);font-weight:600">${asignados} empleado${asignados>1?'s':''}</div>
         <div style="font-size:12px;color:var(--mid-gray)">${totalHs}h total</div>` : ''}
     </div>`;
@@ -12831,7 +12832,7 @@ function openDiaHorario(iso){
           : '';
         return `<div style="padding:8px 0;border-bottom:1px solid var(--light-gray)">
           <div style="display:flex;align-items:center;gap:10px">
-            <strong style="flex:1;font-size:13px;color:#1A1A1A;min-width:80px">${esc(nombre)}</strong>
+            <strong style="flex:1;font-size:13px;color:var(--charcoal);min-width:80px">${esc(nombre)}</strong>
             <input type="time" value="${h.desde||''}" id="hor_${nombre}_${iso}_desde"
               style="width:90px;padding:4px 6px;border:1px solid var(--light-gray);border-radius:4px;font-size:12px;font-family:inherit">
             <span style="font-size:12px;color:var(--mid-gray)">→</span>
@@ -12928,7 +12929,7 @@ function _detalleFichajesPersona(nombre){
     filas += `<tr>
       <td style="padding:6px 12px;font-size:13px">${dow} ${dm(iso)}</td>
       <td style="padding:6px 12px;text-align:center;color:var(--green-ok);font-weight:600">${real.inicio}</td>
-      <td style="padding:6px 12px;text-align:center;color:#8B3A3A;font-weight:600">${real.fin}</td>
+      <td style="padding:6px 12px;text-align:center;color:var(--red-alert);font-weight:600">${real.fin}</td>
       <td style="padding:6px 12px;text-align:right;font-weight:700">${r1(real.horas)}h</td>
       <td style="padding:6px 12px;text-align:right;color:var(--mid-gray)">${prog?r1(prog)+'h':'—'}</td>
     </tr>`;
@@ -13085,7 +13086,7 @@ function renderProductividadHorarios(empleados){
     } else if(minsJornada === 0 && minsTareas > 0){
       statusColor = 'var(--amber)'; statusIcon = ''; statusText = 'Tareas registradas · falta marcar jornada';
     } else if(minsJornada === 0){
-      statusColor = 'var(--mid-gray)'; statusIcon = '⏳'; statusText = 'Sin actividad registrada';
+      statusColor = 'var(--mid-gray)'; statusIcon = ''; statusText = 'Sin actividad registrada';
     } else if(diff > 0.5){
       statusColor = 'var(--red-alert)'; statusIcon = ''; statusText = `+${diff.toFixed(1)}h extra · revisar`;
     } else if(hsProgramadas === 0){
@@ -13102,7 +13103,7 @@ function renderProductividadHorarios(empleados){
     return `<div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:10px;padding:14px 16px;margin-bottom:8px">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
         <div>
-          <strong style="font-size:14px;color:#1A1A1A">${esc(nombre)}</strong>
+          <strong style="font-size:14px;color:var(--charcoal)">${esc(nombre)}</strong>
           <span style="font-size:12px;color:var(--mid-gray);margin-left:8px">${tareasHechas}/${tareasAsignadas} tareas</span>
         </div>
         <span style="font-size:12px;font-weight:600;color:${statusColor}">${statusIcon} ${statusText}</span>
@@ -13125,12 +13126,12 @@ function renderProductividadHorarios(empleados){
         </div>
         <div style="flex:1;min-width:150px">
           <div style="font-size:12px;color:var(--mid-gray);margin-bottom:2px">Tiempo de trabajo (jornada)</div>
-          <div style="height:8px;background:#E5E3DC;border-radius:4px;overflow:hidden">
+          <div style="height:8px;background:var(--light-gray);border-radius:4px;overflow:hidden">
             <div style="height:100%;width:${Math.min(100,pct)}%;background:${barColor};border-radius:4px;transition:width .5s"></div>
           </div>
           <div style="font-size:12px;color:var(--mid-gray);margin:1px 0 8px;text-align:right">${pct}% de lo programado</div>
           <div style="font-size:12px;color:var(--mid-gray);margin-bottom:2px">Tiempo en tareas asignadas</div>
-          <div style="height:8px;background:#E5E3DC;border-radius:4px;overflow:hidden">
+          <div style="height:8px;background:var(--light-gray);border-radius:4px;overflow:hidden">
             <div style="height:100%;width:${Math.min(100,pctTareas)}%;background:var(--sage-dark);border-radius:4px;transition:width .5s"></div>
           </div>
           <div style="font-size:12px;color:var(--mid-gray);margin-top:1px;text-align:right">${pctTareas}% ${minsJornada>0?'de la jornada':'de lo programado'}</div>
@@ -13153,7 +13154,7 @@ function renderEvHoraCell(evIdx, campo, ev, fase){
     return `<span style="font-size:13px;font-weight:600;color:var(--green-ok)">${val}</span>`;
   }
   if(campo === 'inicio' || (campo === 'fin' && ev[iniField])){
-    return `<button onclick="registrarHoraEvento(${evIdx},'${campo}','${fase}')" style="background:${campo==='inicio'?'var(--green-ok)':'var(--amber)'};color:white;border:none;border-radius:4px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:inherit">${campo==='inicio'?'▶ Inicio':'⏹ Fin'}</button>`;
+    return `<button onclick="registrarHoraEvento(${evIdx},'${campo}','${fase}')" style="background:${campo==='inicio'?'var(--green-ok)':'var(--amber)'};color:white;border:none;border-radius:4px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:inherit">${campo==='inicio'?icon('play')+'Inicio':icon('stop')+'Fin'}</button>`;
   }
   return '<span style="color:var(--mid-gray);font-size:12px">—</span>';
 }
@@ -13181,7 +13182,7 @@ function registrarHoraEvento(evIdx, campo, fase){
     }
     _saveEventos();
     renderChecklistTable();
-    showToast(`▶ Inicio de retiro: "${ev.nombre}" · ${hhmm}`);
+    showToast(`Inicio de retiro: "${ev.nombre}" · ${hhmm}`);
     return;
   }
 
@@ -13212,7 +13213,7 @@ function registrarHoraEvento(evIdx, campo, fase){
     }
     _saveEventos();
     renderChecklistTable();
-    showToast(`▶ Inicio de colocación: "${ev.nombre}" · ${hhmm}`);
+    showToast(`Inicio de colocación: "${ev.nombre}" · ${hhmm}`);
     return;
   }
 
@@ -13228,12 +13229,12 @@ function registrarHoraEvento(evIdx, campo, fase){
     renderHome();
     // Aviso a gerencia para que asigne la colocación
     window.pushSend?.('Evento listo para colocación', `"${ev.nombre}" fue armado por ${ev.asignado||'el equipo'}. Asigná la colocación.`, 'colocacion');
-    showToast(`⏹ Armado finalizado: "${ev.nombre}". Avisamos a gerencia para la colocación.`);
+    showToast(`Armado finalizado: "${ev.nombre}". Avisamos a gerencia para la colocación.`);
     return;
   }
   _saveEventos();
   renderChecklistTable();
-  showToast(`▶ Inicio de armado: "${ev.nombre}" · ${hhmm}`);
+  showToast(`Inicio de armado: "${ev.nombre}" · ${hhmm}`);
 }
 
 // Inicio/Fin para ventas
@@ -13243,7 +13244,7 @@ function renderVentaHoraCell(vIdx, campo, v){
     return `<span style="font-size:13px;font-weight:600;color:var(--green-ok)">${val}</span>`;
   }
   if(campo === 'inicio' || (campo === 'fin' && v.inicio)){
-    return `<button onclick="registrarHoraVenta(${vIdx},'${campo}')" style="background:${campo==='inicio'?'var(--green-ok)':'var(--amber)'};color:white;border:none;border-radius:4px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:inherit">${campo==='inicio'?'▶ Inicio':'⏹ Fin'}</button>`;
+    return `<button onclick="registrarHoraVenta(${vIdx},'${campo}')" style="background:${campo==='inicio'?'var(--green-ok)':'var(--amber)'};color:white;border:none;border-radius:4px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:inherit">${campo==='inicio'?icon('play')+'Inicio':icon('stop')+'Fin'}</button>`;
   }
   return '<span style="color:var(--mid-gray);font-size:12px">—</span>';
 }
@@ -13259,7 +13260,7 @@ function registrarHoraVenta(vIdx, campo){
   fbSave('ventasData', ventasData);
   if(campo === 'fin') sincronizarVentaCaja(vIdx);
   renderChecklistTable();
-  showToast(`${campo==='inicio'?'▶':'⏹'} ${campo} registrado para "${ventasData[vIdx].prod}": ${hh}:${mm}`);
+  showToast(`${campo==='inicio'?'Inicio':'Fin'} registrado para "${ventasData[vIdx].prod}": ${hh}:${mm}`);
   // Ramo terminado: ofrecer sacarle una foto para el cliente (se guarda 48 hs).
   if(campo === 'fin') ofrecerFotoRamo(vIdx);
 }
@@ -13610,7 +13611,7 @@ function mostrarResumenSemanal(retry=0, force=false){
   const flor = Object.entries(r.porFlor).sort((a,b)=>b[1].hechas-a[1].hechas);
   const rows = [
     ['', `${r.regs} tareas completadas` + (flor.length ? ' — ' + esc(flor.slice(0,3).map(([n,d])=>`${n}: ${d.hechas}`).join(', ')) : '')],
-    flor.some(([,d])=>d.exc) ? ['⏱', 'Excedidas: ' + esc(flor.filter(([,d])=>d.exc).map(([n,d])=>`${n} ${d.exc}`).join(', '))] : null,
+    flor.some(([,d])=>d.exc) ? ['', 'Excedidas: ' + esc(flor.filter(([,d])=>d.exc).map(([n,d])=>`${n} ${d.exc}`).join(', '))] : null,
     ['', `${fmtARS(r.totalVentas)} en ventas (${r.nVentas})`],
     ['', `${r.eventos} evento${r.eventos!==1?'s':''} realizado${r.eventos!==1?'s':''}`],
     r.peorZona && r.peorDias>=5 ? ['', `Zona más atrasada de Nuevo: ${esc(r.peorZona)} (${r.peorDias>900?'sin registro':r.peorDias+' días'})`] : null,
@@ -13739,14 +13740,14 @@ async function openGestionPasswords(){
     <button class="modal-close" onclick="document.getElementById('gestion-passwords-modal').classList.remove('open')">✕</button>
     <div class="modal-title">Gestión de Usuarios</div>
     <div style="font-size:12px;color:var(--mid-gray);margin-bottom:6px">Cambiá o reseteá la contraseña de cualquier usuario.</div>
-    <div style="font-size:12px;color:var(--sage-dark);background:#EBF5E8;border-radius:8px;padding:8px 12px;margin-bottom:16px">Las contraseñas se guardan cifradas — por seguridad no se pueden ver, solo cambiar.</div>
+    <div style="font-size:12px;color:var(--sage-dark);background:var(--ok-soft);border-radius:8px;padding:8px 12px;margin-bottom:16px">Las contraseñas se guardan cifradas — por seguridad no se pueden ver, solo cambiar.</div>
     <div style="display:flex;flex-direction:column;gap:1px;background:var(--light-gray);border-radius:8px;overflow:hidden">
       ${entries.map(([id, e]) => `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--warm-white)">
         <div style="flex:1;min-width:0">
-          <div style="font-size:13px;font-weight:600;color:#1A1A1A">${esc(e.label || e.floristaNombre || id)}</div>
+          <div style="font-size:13px;font-weight:600;color:var(--charcoal)">${esc(e.label || e.floristaNombre || id)}</div>
           <div style="font-size:12px;color:var(--mid-gray)">${roleLabels[e.role]||e.role}</div>
         </div>
-        <div style="background:#F4F1EC;padding:4px 12px;border-radius:6px;font-size:12px;color:var(--mid-gray);min-width:70px;text-align:center">•••••</div>
+        <div style="background:var(--surface-2);padding:4px 12px;border-radius:6px;font-size:12px;color:var(--mid-gray);min-width:70px;text-align:center">•••••</div>
         <button onclick="resetearPassword('${esc(id)}')" style="background:none;border:1px solid var(--light-gray);border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;font-family:inherit;color:var(--charcoal);white-space:nowrap">Cambiar</button>
         ${(e.role==='florista'||e.role==='housekeeping'||e.role==='jardinero') ? `<button onclick="eliminarUsuario('${esc(id)}')" style="background:none;border:1px solid #E8CECE;border-radius:6px;padding:5px 8px;font-size:12px;cursor:pointer;font-family:inherit;color:var(--red-alert);white-space:nowrap">✕</button>` : ''}
       </div>`).join('')}
@@ -14292,10 +14293,10 @@ function renderRecetas(){
           <div class="receta-ing-row">
             <span style="font-size:18px;line-height:1"></span>
             <span style="flex:1;font-weight:500">${esc(ing.prod)}</span>
-            <span style="background:#F0EEE8;border-radius:4px;padding:2px 8px;font-size:12px;font-weight:600">${_fmtCant(ing.qty)} vara${(+ing.qty)===1?'':'s'}</span>
+            <span style="background:var(--surface-2);border-radius:4px;padding:2px 8px;font-size:12px;font-weight:600">${_fmtCant(ing.qty)} vara${(+ing.qty)===1?'':'s'}</span>
           </div>`).join('')}
       </div>
-      ${(()=>{ const c = calcCostoComposicion(r); return `<div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:10px;padding-top:8px;border-top:1px solid #E4E2DC;font-size:12px"><span style="color:var(--mid-gray);letter-spacing:1px;text-transform:uppercase;font-weight:600;font-size:12px">Costo por unidad</span><b style="font-size:14px">${c>0?'$'+Math.round(c).toLocaleString('es-AR'):'sin costo'}</b></div>`; })()}
+      ${(()=>{ const c = calcCostoComposicion(r); return `<div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:10px;padding-top:8px;border-top:1px solid var(--light-gray);font-size:12px"><span style="color:var(--mid-gray);letter-spacing:1px;text-transform:uppercase;font-weight:600;font-size:12px">Costo por unidad</span><b style="font-size:14px">${c>0?'$'+Math.round(c).toLocaleString('es-AR'):'sin costo'}</b></div>`; })()}
     </div>`).join('');
 }
 
@@ -14368,11 +14369,11 @@ function renderComposicionesHotel(){
           return `<div class="receta-ing-row">
           <span style="font-size:18px;line-height:1"></span>
           <span style="flex:1;font-weight:500">${esc(ing.prod)}</span>
-          <span style="background:#F0EEE8;border-radius:4px;padding:2px 8px;font-size:12px;font-weight:600" title="${ing.unidad==='paq'?(eqVaras?_fmtCant(eqVaras)+' varas':'cargá varas por paquete en Compras'):''}">${_fmtIngUnidad(ing)}${ing.unidad==='paq'&&eqVaras?` · ${_fmtCant(eqVaras)}v`:''}</span>
+          <span style="background:var(--surface-2);border-radius:4px;padding:2px 8px;font-size:12px;font-weight:600" title="${ing.unidad==='paq'?(eqVaras?_fmtCant(eqVaras)+' varas':'cargá varas por paquete en Compras'):''}">${_fmtIngUnidad(ing)}${ing.unidad==='paq'&&eqVaras?` · ${_fmtCant(eqVaras)}v`:''}</span>
         </div>`;
         }).join('')}
       </div>
-      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:10px;padding-top:8px;border-top:1px solid #E4E2DC;font-size:12px"><span style="color:var(--mid-gray);letter-spacing:1px;text-transform:uppercase;font-weight:600;font-size:12px">Costo por unidad</span><b style="font-size:14px">${costo>0?'$'+costo.toLocaleString('es-AR'):'sin costo'}</b></div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:10px;padding-top:8px;border-top:1px solid var(--light-gray);font-size:12px"><span style="color:var(--mid-gray);letter-spacing:1px;text-transform:uppercase;font-weight:600;font-size:12px">Costo por unidad</span><b style="font-size:14px">${costo>0?'$'+costo.toLocaleString('es-AR'):'sin costo'}</b></div>
     </div>`;
   }).join('');
 }
@@ -14392,7 +14393,7 @@ async function compHotelAdd(sel){
 async function delArregloComposicion(zona){
   if(userRole!=='gerencia'){ showToast('Solo gerencia'); return; }
   if(!_arreglosComposicionLoaded){
-    showToast('⏳ Las composiciones todavía se están cargando. Esperá unos segundos e intentá de nuevo.');
+    showToast('Las composiciones todavía se están cargando. Esperá unos segundos e intentá de nuevo.');
     return;
   }
   if(!await confirmModal(`¿Eliminar la composición de "${zona}"?`)) return;
@@ -14456,8 +14457,8 @@ function openRecetaModal(i){
 
 function recetaIngRowHTML(prod, qty, ii){
   return `<div class="ev-arreglo-row" id="rec-ing-${ii}">
-    <input list="rec-flor-list" value="${esc(prod||'')}" placeholder="Flor / follaje (podés poner opciones: A / B / C)" style="flex:2;min-width:0;border:1px solid #E4E2DC;border-radius:4px;padding:5px 8px;font-family:'DM Sans',sans-serif;font-size:12.5px;outline:none">
-    <input type="text" value="${esc(_fmtCant(qty||1))}" placeholder="Cant." title="Varas por unidad. Podés poner fracciones: 1/3, 1/2…" style="width:56px;border:1px solid #E4E2DC;border-radius:4px;padding:5px 6px;font-size:12.5px;text-align:center;outline:none;font-family:'DM Sans',sans-serif">
+    <input list="rec-flor-list" value="${esc(prod||'')}" placeholder="Flor / follaje (podés poner opciones: A / B / C)" style="flex:2;min-width:0;border:1px solid var(--light-gray);border-radius:4px;padding:5px 8px;font-family:'DM Sans',sans-serif;font-size:12.5px;outline:none">
+    <input type="text" value="${esc(_fmtCant(qty||1))}" placeholder="Cant." title="Varas por unidad. Podés poner fracciones: 1/3, 1/2…" style="width:56px;border:1px solid var(--light-gray);border-radius:4px;padding:5px 6px;font-size:12.5px;text-align:center;outline:none;font-family:'DM Sans',sans-serif">
     <button type="button" class="btn-icon" style="color:var(--red-alert)" onclick="this.closest('.ev-arreglo-row').remove()">✕</button>
   </div>`;
 }
@@ -14550,11 +14551,11 @@ function addEvArregloRow(){
   div.className = 'ev-arreglo-row';
   div.id = 'ev-arr-row-'+idx;
   div.innerHTML = `
-    <select onchange="evSetArreglo(${idx},this.value)" style="flex:2;border:1px solid #E4E2DC;border-radius:4px;padding:5px 8px;font-family:'DM Sans',sans-serif;font-size:12.5px;outline:none">
+    <select onchange="evSetArreglo(${idx},this.value)" style="flex:2;border:1px solid var(--light-gray);border-radius:4px;padding:5px 8px;font-family:'DM Sans',sans-serif;font-size:12.5px;outline:none">
       <option value="">— Tipo de arreglo —</option>${arregloOpts}
     </select>
     <span style="font-size:12px;color:var(--mid-gray)">×</span>
-    <input type="number" min="1" value="1" placeholder="Cant." onchange="evSetArregloQty(${idx},this.value)" style="width:60px;border:1px solid #E4E2DC;border-radius:4px;padding:5px 6px;font-size:12.5px;text-align:center;outline:none;font-family:'DM Sans',sans-serif">
+    <input type="number" min="1" value="1" placeholder="Cant." onchange="evSetArregloQty(${idx},this.value)" style="width:60px;border:1px solid var(--light-gray);border-radius:4px;padding:5px 6px;font-size:12.5px;text-align:center;outline:none;font-family:'DM Sans',sans-serif">
     <button type="button" class="btn-icon" style="color:var(--red-alert)" onclick="evRemoveArregloRow(${idx})">✕</button>`;
   list.appendChild(div);
 }
@@ -14571,7 +14572,7 @@ function previewStockImpact(){
     const actual = stockItem ? stockItem.actual : '?';
     const after = stockItem ? +(stockItem.actual - qty).toFixed(1) : '?';
     const ok = typeof after==='number' && after>=0;
-    return `<span style="margin-right:10px">${ok?'':''} <b>${esc(prod)}</b>: ${actual} → ${after>=0?after:'<span style="color:#B03020">'+after+'</span>'}${ok?'':' (insuficiente)'}</span>`;
+    return `<span style="margin-right:10px">${ok?'':''} <b>${esc(prod)}</b>: ${actual} → ${after>=0?after:'<span style="color:var(--red-alert)">'+after+'</span>'}${ok?'':' (insuficiente)'}</span>`;
   });
   const hasShortage = Object.entries(impact).some(([prod,qty])=>{
     const filas = _stockFilasDe(prod);
@@ -14704,11 +14705,11 @@ function openEventoDetail(i){
             <div style="display:grid;grid-template-columns:1fr auto auto;gap:4px 12px;align-items:center">
               <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);font-weight:600">Ingrediente</div>
               <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);font-weight:600;text-align:center">× unidad</div>
-              <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#2E7D32;font-weight:600;text-align:center">Total cámara</div>
+              <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--green-ok);font-weight:600;text-align:center">Total cámara</div>
               ${ings.map(ing=>`
                 <div style="font-size:12px;color:var(--charcoal)">${esc(ing.prod)}</div>
                 <div style="font-size:12px;text-align:center;color:var(--mid-gray)">${ing.qty} ud${ing.qty>1?'s':''}</div>
-                <div style="font-size:13px;font-weight:700;text-align:center;color:#2E7D32">${ing.qty * a.qty} ud${(ing.qty*a.qty)>1?'s':''}</div>
+                <div style="font-size:13px;font-weight:700;text-align:center;color:var(--green-ok)">${ing.qty * a.qty} ud${(ing.qty*a.qty)>1?'s':''}</div>
               `).join('')}
             </div>
           </div>`
@@ -14970,11 +14971,11 @@ function addEvArregloRowWithData(arreglo, qty){
   const div = document.createElement('div');
   div.className='ev-arreglo-row'; div.id='ev-arr-row-'+idx;
   div.innerHTML=`
-    <select onchange="evSetArreglo(${idx},this.value)" style="flex:2;border:1px solid #E4E2DC;border-radius:4px;padding:5px 8px;font-family:'DM Sans',sans-serif;font-size:12.5px;outline:none">
+    <select onchange="evSetArreglo(${idx},this.value)" style="flex:2;border:1px solid var(--light-gray);border-radius:4px;padding:5px 8px;font-family:'DM Sans',sans-serif;font-size:12.5px;outline:none">
       <option value="">— Tipo de arreglo —</option>${arregloOpts}
     </select>
     <span style="font-size:12px;color:var(--mid-gray)">×</span>
-    <input type="number" min="1" value="${qty}" onchange="evSetArregloQty(${idx},this.value)" style="width:60px;border:1px solid #E4E2DC;border-radius:4px;padding:5px 6px;font-size:12.5px;text-align:center;outline:none;font-family:'DM Sans',sans-serif">
+    <input type="number" min="1" value="${qty}" onchange="evSetArregloQty(${idx},this.value)" style="width:60px;border:1px solid var(--light-gray);border-radius:4px;padding:5px 6px;font-size:12.5px;text-align:center;outline:none;font-family:'DM Sans',sans-serif">
     <button type="button" class="btn-icon" style="color:var(--red-alert)" onclick="evRemoveArregloRow(${idx})">✕</button>`;
   list.appendChild(div);
 }
@@ -15026,7 +15027,7 @@ function renderJordProd(){
     const pct  = Math.round(d.minutos/maxMin*100);
     const avg  = d.tareas > 0 ? Math.round(d.minutos/d.tareas) : 0;
     const color = d.minutos > 240 ? 'var(--amber)' : '#2C4A3E';
-    html += `<div style="background:#FDFCFB;border:1px solid #E4E2DC;border-radius:4px;padding:18px">
+    html += `<div style="background:var(--surface-1);border:1px solid var(--light-gray);border-radius:4px;padding:18px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
         <div style="display:flex;align-items:center;gap:10px">
           <span style="font-size:20px"></span>
@@ -15187,7 +15188,7 @@ function renderProductividad(){
     const excPct = d.conRef > 0 ? Math.round(d.excedidas / d.conRef * 100) : 0;
     const excColor = d.excedidas === 0 ? 'var(--green-ok)' : excPct >= 40 ? 'var(--red-alert)' : 'var(--amber)';
     html += `
-      <div style="background:#FDFCFB;border:1px solid #E4E2DC;border-radius:4px;padding:18px">
+      <div style="background:var(--surface-1);border:1px solid var(--light-gray);border-radius:4px;padding:18px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
           <div style="display:flex;align-items:center;gap:10px">
             <span style="font-size:20px"></span>
@@ -15693,10 +15694,10 @@ function renderRentabilidadHotel(){
   if(alEl){
     const bloques = [];
     if(alertasMargen.length)  bloques.push(`<div style="color:#8B2020"><strong>Margen negativo</strong> (el costo supera el precio Hyatt): ${alertasMargen.map(esc).join(', ')}</div>`);
-    if(alertasDesvio.length)  bloques.push(`<div style="color:#8A6D00"><strong>Costo real muy por encima del teórico</strong>: ${alertasDesvio.map(esc).join(', ')}</div>`);
-    if(alertasSinCosto.length)bloques.push(`<div style="color:#8A6D00"><strong>Flores sin costo por vara</strong> (cargá su compra recibida): ${[...new Set(alertasSinCosto)].map(esc).join(', ')}</div>`);
+    if(alertasDesvio.length)  bloques.push(`<div style="color:var(--amber)"><strong>Costo real muy por encima del teórico</strong>: ${alertasDesvio.map(esc).join(', ')}</div>`);
+    if(alertasSinCosto.length)bloques.push(`<div style="color:var(--amber)"><strong>Flores sin costo por vara</strong> (cargá su compra recibida): ${[...new Set(alertasSinCosto)].map(esc).join(', ')}</div>`);
     alEl.innerHTML = bloques.length
-      ? `<div style="background:#FFFBF0;border:1px solid #E9DCae;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:12.5px;display:flex;flex-direction:column;gap:6px">${bloques.join('')}</div>`
+      ? `<div style="background:var(--amber-soft);border:1px solid #E9DCae;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:12.5px;display:flex;flex-direction:column;gap:6px">${bloques.join('')}</div>`
       : '';
   }
 
@@ -15788,7 +15789,7 @@ function compRemoveRow(i){ _compEditRows.splice(i,1); if(!_compEditRows.length) 
 
 function guardarArregloComposicion(){
   if(!_arreglosComposicionLoaded){
-    showToast('⏳ Las composiciones todavía se están cargando. Esperá unos segundos e intentá de nuevo.');
+    showToast('Las composiciones todavía se están cargando. Esperá unos segundos e intentá de nuevo.');
     return;
   }
   const rows = _compEditRows
@@ -15847,7 +15848,7 @@ function _renderGuiaArreglo(){
           <span style="color:var(--sage-dark);font-weight:600;white-space:nowrap">${_fmtIngUnidad(g)}</span>
         </li>`).join('')}
        </ul>`
-    : `<div style="font-size:12.5px;color:var(--mid-gray);padding:14px;background:#FAF8F4;border-radius:8px;text-align:center">No encontramos la composición de este arreglo.${puedeEditar?' Vinculala con una ya cargada abajo.':''}</div>`;
+    : `<div style="font-size:12.5px;color:var(--mid-gray);padding:14px;background:var(--surface-1);border-radius:8px;text-align:center">No encontramos la composición de este arreglo.${puedeEditar?' Vinculala con una ya cargada abajo.':''}</div>`;
 
   // Selector de vínculo con una composición existente (solo gerencia). No recarga
   // ingredientes: solo apunta esta zona a una composición ya cargada.
@@ -15869,7 +15870,7 @@ function _renderGuiaArreglo(){
 
   const fotoHTML = foto
     ? `<img src="${foto}" onclick="verFotoArregloRef()" style="width:100%;max-height:340px;object-fit:cover;border-radius:10px;cursor:zoom-in;display:block" alt="Foto de ${esc(zona)}">`
-    : `<div style="font-size:12.5px;color:var(--mid-gray);padding:28px 14px;background:#FAF8F4;border:1px dashed var(--light-gray);border-radius:10px;text-align:center">Sin foto de referencia todavía.${puedeEditar?' Agregá una para que la florista sepa cómo debe quedar.':''}</div>`;
+    : `<div style="font-size:12.5px;color:var(--mid-gray);padding:28px 14px;background:var(--surface-1);border:1px dashed var(--light-gray);border-radius:10px;text-align:center">Sin foto de referencia todavía.${puedeEditar?' Agregá una para que la florista sepa cómo debe quedar.':''}</div>`;
   ov.innerHTML = `<div class="modal" style="max-width:460px;max-height:90vh;overflow-y:auto">
     <button class="modal-close" onclick="closeModal('guia-arreglo-modal')">✕</button>
     <div class="modal-title">Guía · ${esc(zona)}</div>
@@ -15896,7 +15897,7 @@ function guiaVincularComp(zona, key){
 }
 function guiaFotoInput(input){
   const file = input.files[0]; if(!file) return;
-  if(!_arreglosFotoRefLoaded){ showToast('⏳ Esperá unos segundos a que sincronice y probá de nuevo.'); return; }
+  if(!_arreglosFotoRefLoaded){ showToast('Esperá unos segundos a que sincronice y probá de nuevo.'); return; }
   comprimirImagen(file, 1000, 0.7, data => {
     arreglosFotoRef[_guiaFotoZona] = data;
     _saveArreglosFotoRef();
@@ -16063,14 +16064,14 @@ function renderLegajo(){
     const esMono = e.tipo==='monotributista';
     const tipoBadge = esMono
       ? `<span style="background:#F3ECDD;color:#8A6D1F;padding:2px 8px;border-radius:20px;font-size:12px;font-weight:600">Monotributista · quincenal</span>`
-      : `<span style="background:#E8EEF4;color:#2C5A80;padding:2px 8px;border-radius:20px;font-size:12px;font-weight:600">Nómina · mensual</span>`;
+      : `<span style="background:#E8EEF4;color:var(--info);padding:2px 8px;border-radius:20px;font-size:12px;font-weight:600">Nómina · mensual</span>`;
     return `<div class="card">
       <div style="font-size:16px;font-weight:600;margin-bottom:4px">${esc(e.nombre)} ${esc(e.apellido)}</div>
       <div style="font-size:12px;color:var(--mid-gray);margin-bottom:6px;text-transform:capitalize">${esc(e.cargo||'')}${e.sucursal?' · '+esc(e.sucursal):''}</div>
       <div style="font-size:12px;color:var(--mid-gray);margin-bottom:6px">Usuario en la app: <strong>${esc(_nombreAppLegajo(e))}</strong></div>
       <div style="margin-bottom:8px">${tipoBadge}</div>
       <div style="font-size:12px;margin-bottom:4px">Ingreso: <strong>${e.fechaIngreso ? fmtDate(e.fechaIngreso) : '—'}</strong></div>
-      <div style="font-size:12px;margin-bottom:4px">⏱ ${esMono?'Horas ref.':'Horas contrato'}: <strong>${(+e.horasContrato||0)}h/mes</strong></div>
+      <div style="font-size:12px;margin-bottom:4px">${esMono?'Horas ref.':'Horas contrato'}: <strong>${(+e.horasContrato||0)}h/mes</strong></div>
       <div style="font-size:12px;margin-bottom:12px">Vacaciones restantes: <strong>${vac}</strong> días</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         <button class="btn-secondary" style="font-size:12px" onclick="verDetalleLegajo(${i})">Ver detalle</button>
@@ -16215,7 +16216,7 @@ function _legDocSlot(e, idx, tipo, icon, label){
       <div style="font-size:13px;font-weight:600;color:var(--mid-gray)">${icon} ${esc(label)}</div>
       <div style="font-size:12px;color:var(--mid-gray)">Sin cargar</div>
     </div>
-    <label class="btn-add" style="font-size:12px;cursor:pointer;margin:0">⬆ Subir<input type="file" accept="image/*,application/pdf" style="display:none" onchange="legSubirDoc('${tipo}',this)"></label>
+    <label class="btn-add" style="font-size:12px;cursor:pointer;margin:0">${icon('upload')}Subir<input type="file" accept="image/*,application/pdf" style="display:none" onchange="legSubirDoc('${tipo}',this)"></label>
   </div>`;
 }
 
@@ -16657,7 +16658,7 @@ function generarOrdenCompra(idx, tipo='flore'){
       <div class="firma-box">Firma Aprobación</div>
       <div class="firma-box">Firma Proveedor</div>
     </div>
-    <button onclick="window.print()" style="margin-top:24px;padding:8px 20px;cursor:pointer">🖨️ Imprimir</button>
+    <button onclick="window.print()" style="margin-top:24px;padding:8px 20px;cursor:pointer">Imprimir</button>
   </body></html>`);
   win.document.close();
 }
@@ -17107,11 +17108,11 @@ function cpRenderArrRows(){
   cont.innerHTML = cpArrRows.map((row,i)=>{
     const opts = nombres.map(n=>`<option value="${esc(n)}"${n===row.arreglo?' selected':''}>${arregloEmoji(n)} ${esc(n)}</option>`).join('');
     return `<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
-      <select onchange="cpSetArr(${i},'arreglo',this.value)" style="flex:2;min-width:170px;border:1px solid #E4E2DC;border-radius:6px;padding:7px 9px;font-size:13px">
+      <select onchange="cpSetArr(${i},'arreglo',this.value)" style="flex:2;min-width:170px;border:1px solid var(--light-gray);border-radius:6px;padding:7px 9px;font-size:13px">
         <option value="">— Arreglo de evento —</option>${opts}
       </select>
       <span style="color:var(--mid-gray)">×</span>
-      <input type="number" min="1" value="${esc(row.qty)}" onchange="cpSetArr(${i},'qty',this.value)" style="width:64px;border:1px solid #E4E2DC;border-radius:6px;padding:7px;text-align:center;font-size:13px">
+      <input type="number" min="1" value="${esc(row.qty)}" onchange="cpSetArr(${i},'qty',this.value)" style="width:64px;border:1px solid var(--light-gray);border-radius:6px;padding:7px;text-align:center;font-size:13px">
       <button class="btn-icon" style="color:var(--red-alert)" onclick="cpRemoveArr(${i})" title="Quitar">✕</button>
     </div>`;
   }).join('');
@@ -17167,10 +17168,10 @@ function cpRenderFreeRows(){
       : (row.prod ? '<span style="color:var(--mid-gray)">sin costo cargado</span>' : '');
     return `
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
-      <input value="${esc(row.cant)}" onchange="cpSetFree(${i},'cant',this.value)" placeholder="1, 1/2, 1/4" title="Cantidad — admite fracciones como 1/2 o 1/4" style="width:78px;border:1px solid #E4E2DC;border-radius:6px;padding:7px;text-align:center;font-size:13px">
-      <input value="${esc(row.prod)}" list="cp-prod-list" onchange="cpSetFree(${i},'prod',this.value)" placeholder="Producto (ej. hortensias, paq fresias)" style="flex:2;min-width:150px;border:1px solid #E4E2DC;border-radius:6px;padding:7px 9px;font-size:13px">
+      <input value="${esc(row.cant)}" onchange="cpSetFree(${i},'cant',this.value)" placeholder="1, 1/2, 1/4" title="Cantidad — admite fracciones como 1/2 o 1/4" style="width:78px;border:1px solid var(--light-gray);border-radius:6px;padding:7px;text-align:center;font-size:13px">
+      <input value="${esc(row.prod)}" list="cp-prod-list" onchange="cpSetFree(${i},'prod',this.value)" placeholder="Producto (ej. hortensias, paq fresias)" style="flex:2;min-width:150px;border:1px solid var(--light-gray);border-radius:6px;padding:7px 9px;font-size:13px">
       <span style="color:var(--mid-gray)">$</span>
-      <input type="number" min="0" value="${esc(row.precio)}" onchange="cpSetFree(${i},'precio',this.value)" placeholder="Precio" title="Precio por unidad o por paquete" style="width:100px;border:1px solid #E4E2DC;border-radius:6px;padding:7px;text-align:right;font-size:13px">
+      <input type="number" min="0" value="${esc(row.precio)}" onchange="cpSetFree(${i},'precio',this.value)" placeholder="Precio" title="Precio por unidad o por paquete" style="width:100px;border:1px solid var(--light-gray);border-radius:6px;padding:7px;text-align:right;font-size:13px">
       <span style="font-size:12px;color:var(--sage-dark);white-space:nowrap;min-width:200px" title="Último costo de compra de este material: por paquete, su fecha y el costo por vara">${refLabel}</span>
       <button class="btn-icon" style="color:var(--red-alert)" onclick="cpRemoveFree(${i})" title="Quitar">✕</button>
     </div>`;
@@ -17230,7 +17231,7 @@ function cpRender(){
           <thead><tr style="color:var(--mid-gray);font-size:12px;text-transform:uppercase">
             <th style="text-align:left;padding:2px 4px">Ingrediente</th><th style="text-align:center">Varas</th><th style="text-align:right">Precio/vara</th><th style="text-align:right">Costo</th>
           </tr></thead>
-          <tbody>${ings.map(x=>`<tr style="border-top:1px solid #F0EDE8">
+          <tbody>${ings.map(x=>`<tr style="border-top:1px solid var(--surface-2)">
             <td style="padding:3px 4px">${esc(x.prod)}</td>
             <td style="text-align:center">${x.varas%1===0?x.varas:x.varas.toFixed(1)}</td>
             <td style="text-align:right;color:${x.pu?'inherit':'var(--red-alert)'}"${x.opcion?` title="Precio estimado — tomado de la opción con dato: ${esc(x.opcion)}"`:''}>${x.pu?(x.opcion?'≈ ':'')+_cpMoney(x.pu):'sin dato'}</td>
@@ -17251,7 +17252,7 @@ function cpRender(){
         <thead><tr style="color:var(--mid-gray);font-size:12px;text-transform:uppercase">
           <th style="text-align:left;padding:3px 6px">Cant.</th><th style="text-align:left">Producto</th><th style="text-align:right">Precio</th><th style="text-align:right">Subtotal</th>
         </tr></thead>
-        <tbody>${freeValid.map(r=>{ const c=cpParseCant(r.cant); const p=parseFloat(r.precio)||0; return `<tr style="border-top:1px solid #F0EDE8">
+        <tbody>${freeValid.map(r=>{ const c=cpParseCant(r.cant); const p=parseFloat(r.precio)||0; return `<tr style="border-top:1px solid var(--surface-2)">
           <td style="padding:3px 6px">${esc(r.cant)}</td><td>${esc(r.prod)}</td><td style="text-align:right">${_cpMoney(p)}</td><td style="text-align:right;font-weight:600">${_cpMoney(c*p)}</td>
         </tr>`; }).join('')}</tbody>
       </table>`;
@@ -17447,7 +17448,7 @@ function renderPedidosRamos(){
   const pedidos = (ventasData||[]).filter(v => v.esPedidoRamo && v.estado !== 'entregado' && !v.fin);
   const sorted = [...pedidos].sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||''));
   if(!sorted.length){ el.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--mid-gray);padding:24px">Sin pedidos. Tocá «+ Nuevo Pedido» para encargar un ramo y asignarlo a un florista.</td></tr>'; return; }
-  const estLbl = {pendiente:'⏳ Pendiente', confirmado:'Confirmado', entregado:'Entregado'};
+  const estLbl = {pendiente:'Pendiente', confirmado:'Confirmado', entregado:'Entregado'};
   const floristas = (typeof getFloristasActivos === 'function' ? getFloristasActivos() : []);
   el.innerHTML = sorted.map(v=>{
     const i = ventasData.indexOf(v);
@@ -17503,7 +17504,7 @@ async function eliminarPedidoRamo(i){
 // Detalle de un pedido/venta — se abre al tocarlo en el checklist, igual que los eventos
 function openVentaDetail(vIdx){
   const v = ventasData[vIdx]; if(!v) return;
-  const estados = {pendiente:'⏳ Pendiente', confirmado:'Confirmado', entregado:'Entregado'};
+  const estados = {pendiente:'Pendiente', confirmado:'Confirmado', entregado:'Entregado'};
   const row = (label, val) => val ? `<div><div class="detail-field-label">${label}</div><div class="detail-field-value">${esc(String(val))}</div></div>` : '';
   let ov = document.getElementById('venta-detail-modal');
   if(!ov){ ov = document.createElement('div'); ov.id='venta-detail-modal'; ov.className='modal-overlay'; document.body.appendChild(ov); }
@@ -17605,7 +17606,7 @@ function renderEventosSinFloreria(){
       <td>${esc(ev.salon||'—')}</td>
       <td>${esc(ev.marca||'—')}</td>
       <td style="font-size:12px;color:var(--charcoal);max-width:220px">${esc(ev.arregloCorr||'—')}</td>
-      <td style="white-space:nowrap;font-weight:600;color:#B03020">${ev.monto?('$'+parseMoney(ev.monto).toLocaleString('es-AR',{maximumFractionDigits:0})):'—'}</td>
+      <td style="white-space:nowrap;font-weight:600;color:var(--red-alert)">${ev.monto?('$'+parseMoney(ev.monto).toLocaleString('es-AR',{maximumFractionDigits:0})):'—'}</td>
       <td><span style="background:${st.bg};color:${st.col};padding:2px 8px;border-radius:10px;font-size:12px;white-space:nowrap">${st.lbl}</span></td>
       <td onclick="event.stopPropagation()" style="white-space:nowrap">
         <button class="btn-icon" title="Editar" onclick="openEsfModal(${realIdx})"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/></svg></button>
@@ -17743,7 +17744,7 @@ function exportEsfReclamo(){
     <div class="firma">
       <div class="line">Florería Duhau</div>
     </div>
-    <div class="actions"><button onclick="window.print()">🖨️ Imprimir / Guardar PDF</button></div>
+    <div class="actions"><button onclick="window.print()">Imprimir / Guardar PDF</button></div>
   </body></html>`);
   win.document.close();
 }
@@ -17830,7 +17831,7 @@ function verCierreMensual(idx){
     <tr><th>Cantidad compras</th><td>${c.cantCompras}</td></tr>
     <tr><th>Eventos del mes</th><td>${c.cantEventos}</td></tr>
   </tbody></table>
-  <button onclick="window.print()" style="padding:8px 20px;cursor:pointer">🖨️ Imprimir</button>
+  <button onclick="window.print()" style="padding:8px 20px;cursor:pointer">Imprimir</button>
   </body></html>`);
   win.document.close();
 }
@@ -18091,7 +18092,7 @@ function cvRender(){
       <div style="font-size:12px;color:var(--mid-gray);margin-bottom:10px">A estas flores no les cargaron cuántas varas trae el paquete, así que el costo por vara sale igual al del paquete. Poné las varas por paquete y se corrige el costo.</div>
       ${sosp.map(c=>`<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;flex-wrap:wrap">
         <div style="flex:2;min-width:140px;font-size:13px">${esc(c.prod)}<span style="color:var(--mid-gray);font-size:12px"> · paquete ${_cpMoney(parseMoney(c.costo))}${c.fecha?' · '+_ddmm(c.fecha):''}</span></div>
-        <input type="number" min="1" placeholder="varas/paq" value="${(parseFloat(c.varasPorPaq)||0)>0?esc(c.varasPorPaq):''}" onchange="cvFijarVarasPorPaq(${JSON.stringify(c.prod).replace(/"/g,'&quot;')},this.value)" style="width:90px;border:1px solid #E4E2DC;border-radius:6px;padding:7px;text-align:center;font-size:13px">
+        <input type="number" min="1" placeholder="varas/paq" value="${(parseFloat(c.varasPorPaq)||0)>0?esc(c.varasPorPaq):''}" onchange="cvFijarVarasPorPaq(${JSON.stringify(c.prod).replace(/"/g,'&quot;')},this.value)" style="width:90px;border:1px solid var(--light-gray);border-radius:6px;padding:7px;text-align:center;font-size:13px">
       </div>`).join('')}`;
   }
   let total = 0, sinCosto = 0, varasTot = 0;
@@ -18107,8 +18108,8 @@ function cvRender(){
       : costoVara>0 ? `<strong>${_cpMoney(costoVara)}</strong><span style="color:var(--mid-gray)"> /vara</span>${ref&&ref.fecha?`<div style="font-size:12px;color:var(--mid-gray)">costo del ${_ddmm(ref.fecha)}</div>`:''}${ref&&!(vpp>1)?'<div style="font-size:12px;color:var(--red-alert)">revisar varas por paquete ↓</div>':''}`
       : '<span style="color:var(--red-alert);font-size:12px">sin costo cargado</span>';
     return `<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
-      <input value="${esc(row.cant)}" inputmode="decimal" onchange="cvSet(${i},'cant',this.value)" title="Cantidad de varas — admite 1/2, 1/4" style="width:70px;border:1px solid #E4E2DC;border-radius:6px;padding:8px;text-align:center;font-size:14px">
-      <input value="${esc(row.prod)}" list="cv-prod-list" onchange="cvSet(${i},'prod',this.value)" placeholder="Flor (ej. rosas, hortensias)" style="flex:2;min-width:140px;border:1px solid #E4E2DC;border-radius:6px;padding:8px 10px;font-size:14px">
+      <input value="${esc(row.cant)}" inputmode="decimal" onchange="cvSet(${i},'cant',this.value)" title="Cantidad de varas — admite 1/2, 1/4" style="width:70px;border:1px solid var(--light-gray);border-radius:6px;padding:8px;text-align:center;font-size:14px">
+      <input value="${esc(row.prod)}" list="cv-prod-list" onchange="cvSet(${i},'prod',this.value)" placeholder="Flor (ej. rosas, hortensias)" style="flex:2;min-width:140px;border:1px solid var(--light-gray);border-radius:6px;padding:8px 10px;font-size:14px">
       <div style="min-width:130px;text-align:right;font-size:13px">${costoTxt}</div>
       <div style="min-width:90px;text-align:right;font-size:14px;font-weight:700">${costoVara>0&&cant>0?_cpMoney(sub):'—'}</div>
       <button class="btn-icon" style="color:var(--red-alert)" onclick="cvRemove(${i})" title="Quitar">✕</button>
@@ -18197,8 +18198,8 @@ function cvTRender(){
       tot[c] += cant*costoVara;
       return `<td style="text-align:right;padding:4px 8px"><span style="color:var(--mid-gray);font-size:12px">${esc(r.cants[c])} ×</span> ${_cpMoney(cant*costoVara)}</td>`;
     }).join('');
-    return `<tr style="border-top:1px solid #F0EDE8">
-      <td style="padding:4px 8px;min-width:150px"><input value="${esc(r.prod)}" list="cv-prod-list" onchange="cvTSetProd(${i},this.value)" style="width:100%;border:1px solid ${costoVara>0?'#E4E2DC':'var(--red-alert)'};border-radius:6px;padding:5px 7px;font-size:12.5px"></td>
+    return `<tr style="border-top:1px solid var(--surface-2)">
+      <td style="padding:4px 8px;min-width:150px"><input value="${esc(r.prod)}" list="cv-prod-list" onchange="cvTSetProd(${i},this.value)" style="width:100%;border:1px solid ${costoVara>0?'var(--light-gray)':'var(--red-alert)'};border-radius:6px;padding:5px 7px;font-size:12.5px"></td>
       <td style="text-align:right;padding:4px 8px;white-space:nowrap;font-size:12px">${costoVara>0?_cpMoney(costoVara)+'/vara':'<span style="color:var(--red-alert)">sin costo</span>'}</td>${celdas}</tr>`;
   }).join('');
   out.innerHTML = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">

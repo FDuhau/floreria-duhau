@@ -1,5 +1,6 @@
 import './styles/main.css';
 import './styles/profesional.css';
+import './modules/estados-carga.js';  // antes de firebase: registra la llegada de cada dato
 import './firebase/index.js';
 import './modules/app.js';
 import './modules/ui-enhance.js';

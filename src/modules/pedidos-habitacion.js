@@ -42,11 +42,11 @@ export function renderHomeHyatt(){
     el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--mid-gray)">No hay pedidos todavía. Cargá el primero desde "Pedidos de Habitación".</div>';
     return;
   }
-  const estadoIcons = {pendiente:'⏳',preparando:'',listo:'',entregado:''};
+  const estadoIcons = {pendiente:'',preparando:'',listo:'',entregado:''};
   el.innerHTML = ultimos.map(p =>
     `<div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:8px;padding:10px 14px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
       <div><strong>${_phResumen(p)}</strong> — Hab. ${esc(p.habitacion)} · ${esc(p.cliente)}</div>
-      <span style="font-size:13px">${estadoIcons[p.estado]||'⏳'} ${p.estado}</span>
+      <span style="font-size:13px">${p.estado}</span>
     </div>`
   ).join('');
 }
@@ -221,12 +221,12 @@ export function renderPedidosHab(){
     list.innerHTML = '<div style="text-align:center;padding:32px;color:var(--mid-gray)">No hay pedidos todavía.</div>';
     return;
   }
-  const estadoIcons = {pendiente:'⏳',preparando:'',listo:'',entregado:''};
+  const estadoIcons = {pendiente:'',preparando:'',listo:'',entregado:''};
   const estadoLabels = {pendiente:'Pendiente',preparando:'En preparación',listo:'Listo',entregado:'Entregado'};
   const estadoColors = {pendiente:'#FDF8E8',preparando:'#EBF0E8',listo:'#E8F0F8',entregado:'#F4F1EC'};
 
   list.innerHTML = pedidosHabData.map((p,i) => {
-    const icon = estadoIcons[p.estado]||'⏳';
+    const icon = estadoIcons[p.estado]||'';
     const label = estadoLabels[p.estado]||'Pendiente';
     const bg = estadoColors[p.estado]||'#FDF8E8';
     const isGerOrOps = window.userRole === 'gerencia' || window.userRole === 'operario';
@@ -249,7 +249,7 @@ export function renderPedidosHab(){
       ${p.obs?`<div style="margin-top:8px;font-size:12px;color:var(--mid-gray);font-style:italic">"${esc(p.obs)}"</div>`:''}
       ${isGerOrOps ? `<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
         <select class="form-input" style="width:170px;padding:5px 8px;font-size:12px" onchange="updPedidoHabEstado(${i},this.value)">
-          <option value="pendiente" ${p.estado==='pendiente'?'selected':''}>⏳ Pendiente</option>
+          <option value="pendiente" ${p.estado==='pendiente'?'selected':''}>Pendiente</option>
           <option value="preparando" ${p.estado==='preparando'?'selected':''}>En preparación</option>
           <option value="listo" ${p.estado==='listo'?'selected':''}>Listo</option>
           <option value="entregado" ${p.estado==='entregado'?'selected':''}>Entregado</option>

@@ -188,13 +188,13 @@
         <button class="filter-btn"        id="jops-btn-warn"  onclick="setJopsFilter('warn')">Próxima</button>
         <button class="filter-btn"        id="jops-btn-ok"    onclick="setJopsFilter('ok')">Al día</button>
         <button class="btn-secondary gerencia-only" onclick="openGestionTareasJard()" style="font-size:12px">Tareas</button>
-        <button class="btn-secondary" onclick="toggleJordProd()" id="jops-prod-btn" style="font-size:12px;background:#2C4A3E;color:white;border-color:#2C4A3E;display:none">Productividad</button>
+        <button class="btn-secondary" onclick="toggleJordProd()" id="jops-prod-btn" style="font-size:12px;background:var(--accent);color:white;border-color:var(--accent);display:none">Productividad</button>
       </div>
     </div>
 
     <!-- ══ PANEL PRODUCTIVIDAD JARDINERÍA ══ -->
     <div class="history-panel" id="jops-prod-panel" style="display:none;margin-bottom:20px">
-      <div class="history-header" style="background:#2C4A3E">
+      <div class="history-header" style="background:var(--accent)">
         <span>Productividad Jardinería — tiempo registrado por jardinero</span>
         <div style="display:flex;gap:10px;align-items:center">
           <select id="jops-prod-period" onchange="renderJordProd()" style="border-radius:6px;padding:4px 10px;font-size:12px;font-family:'DM Sans',sans-serif;outline:none;border:none">
@@ -268,7 +268,7 @@
 
     <!-- ══ PANEL PRODUCTIVIDAD ══ -->
     <div class="history-panel" id="productividad-panel" style="display:none;margin-bottom:20px">
-      <div class="history-header" style="background:#2C4A3E">
+      <div class="history-header" style="background:var(--accent)">
         <span>Informe de Productividad — tiempo registrado por operario</span>
         <div style="display:flex;gap:10px;align-items:center">
           <select id="prod-week-filter" onchange="renderProductividad()" style="border-radius:6px;padding:4px 10px;font-size:12px;font-family:'DM Sans',sans-serif;outline:none;border:none">
@@ -388,16 +388,16 @@
       No hay pedidos pendientes de recepción
     </div>
     <!-- Barra de acciones rápidas -->
-    <div id="recep-action-bar" style="display:none;background:#FDFCFB;border:1px solid #E4E2DC;border-radius:4px;padding:14px 20px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+    <div id="recep-action-bar" style="display:none;background:var(--surface-1);border:1px solid var(--light-gray);border-radius:4px;padding:14px 20px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
       <div style="display:flex;align-items:center;gap:10px">
-        <button class="btn-secondary" onclick="recepCheckAll()" style="font-size:12px">☑ Marcar todo</button>
-        <button class="btn-secondary" onclick="recepUncheckAll()" style="font-size:12px">☐ Desmarcar todo</button>
+        <button class="btn-secondary" onclick="recepCheckAll()" style="font-size:12px"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg>Marcar todo</button>
+        <button class="btn-secondary" onclick="recepUncheckAll()" style="font-size:12px"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/></svg>Desmarcar todo</button>
       </div>
       <div id="recep-global-progress" style="font-size:12px;color:var(--mid-gray)"></div>
     </div>
     <div id="recep-list"></div>
     <!-- Botón confirmar todo -->
-    <div id="recep-confirm-all-wrap" style="display:none;background:var(--cream);border:1px solid #E4E2DC;border-radius:4px;padding:20px;margin-top:8px;text-align:center">
+    <div id="recep-confirm-all-wrap" style="display:none;background:var(--cream);border:1px solid var(--light-gray);border-radius:4px;padding:20px;margin-top:8px;text-align:center">
       <div style="font-size:13px;color:var(--mid-gray);margin-bottom:14px" id="recep-confirm-summary"></div>
       <button class="btn-recep-confirm" id="recep-btn-all" onclick="recepConfirmarTodo()" style="font-size:14px;padding:12px 40px">Controlar todo · pasa a revisión
       </button>
@@ -469,7 +469,7 @@
         <div class="insumos-grid" id="insumos-grid"></div>
         <div style="margin-top:10px;font-size:12px;color:var(--mid-gray)">
           <span id="insumos-selected-count">0</span> insumos seleccionados
-          <span id="insumos-custom-badge" style="display:none;margin-left:10px;background:#EBF0E8;color:#3A5230;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600"></span>
+          <span id="insumos-custom-badge" style="display:none;margin-left:10px;background:var(--ok-soft);color:#3A5230;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600"></span>
         </div>
       </div>
     </div>
@@ -492,7 +492,7 @@
           <input type="file" id="restaurar-compras-file" accept=".json,application/json" style="display:none" onchange="restaurarComprasFile(this)">
         </div>
       </div>
-      <div id="cf-import-sheet-picker" style="display:none;margin-bottom:12px;background:#FAF8F4;border:1px solid var(--light-gray);border-radius:8px;padding:10px 12px;display:flex;gap:10px;align-items:center">
+      <div id="cf-import-sheet-picker" style="display:none;margin-bottom:12px;background:var(--surface-1);border:1px solid var(--light-gray);border-radius:8px;padding:10px 12px;display:flex;gap:10px;align-items:center">
         <span style="font-size:12px;color:var(--mid-gray)">Hoja / mes a importar:</span>
         <select class="form-input" id="cf-import-sheet-sel" style="width:200px"></select>
         <button class="btn-add" style="font-size:12px" onclick="cfImportParseSheet()">Leer hoja</button>
@@ -529,7 +529,7 @@
       </div>
       <div style="margin-top:8px">
         <button class="btn-secondary" type="button" onclick="toggleCfSplit()" id="cf-split-toggle-btn" style="font-size:12px;padding:4px 10px" title="Cuando un mismo artículo se reparte entre varias áreas del hotel">Repartir este artículo entre varias áreas</button>
-        <div id="cf-split-wrap" style="display:none;margin-top:10px;background:#FAF8F4;border:1px solid var(--light-gray);border-radius:8px;padding:12px">
+        <div id="cf-split-wrap" style="display:none;margin-top:10px;background:var(--surface-1);border:1px solid var(--light-gray);border-radius:8px;padding:12px">
           <div id="cf-split-rows"></div>
           <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
             <button class="btn-secondary" type="button" onclick="cfSplitAddRow()" style="font-size:12px;padding:4px 10px">+ Agregar área</button>
@@ -586,7 +586,7 @@
         </label>
         <button class="btn-secondary" onclick="clearCompraExtraFilters('floreria')" style="font-size:12px;padding:5px 10px">✕ Limpiar filtros</button>
       </div>
-      <div id="cf-prov-summary" style="display:none;background:#F4F1EC;border-radius:8px;padding:9px 14px;margin-bottom:12px;font-size:13px;color:var(--charcoal)"></div>
+      <div id="cf-prov-summary" style="display:none;background:var(--surface-2);border-radius:8px;padding:9px 14px;margin-bottom:12px;font-size:13px;color:var(--charcoal)"></div>
       <div class="compras-hist-summary" id="compras-flore-summary"></div>
     </div>
     <div id="cf-ext-filters" style="margin-bottom:12px"></div>
@@ -605,7 +605,7 @@
         </select>
         <button class="btn-secondary" onclick="document.getElementById('hist-compras-search').value='';document.getElementById('hist-compras-prov').value='';renderHistorialCompras('floreria')" style="font-size:12px;padding:5px 10px">✕ Limpiar</button>
       </div>
-      <div id="hist-compras-summary" style="display:none;background:#F4F1EC;border-radius:8px;padding:9px 14px;margin-bottom:12px;font-size:13px;color:var(--charcoal)"></div>
+      <div id="hist-compras-summary" style="display:none;background:var(--surface-2);border-radius:8px;padding:9px 14px;margin-bottom:12px;font-size:13px;color:var(--charcoal)"></div>
       <div id="historial-compras-wrap" style="display:none"></div>
     </div>
   </div>
@@ -674,7 +674,7 @@
         </label>
         <button class="btn-secondary" onclick="clearCompraExtraFilters('jardineria')" style="font-size:12px;padding:5px 10px">✕ Limpiar filtros</button>
       </div>
-      <div id="cj-prov-summary" style="display:none;background:#F4F1EC;border-radius:8px;padding:9px 14px;margin-bottom:12px;font-size:13px;color:var(--charcoal)"></div>
+      <div id="cj-prov-summary" style="display:none;background:var(--surface-2);border-radius:8px;padding:9px 14px;margin-bottom:12px;font-size:13px;color:var(--charcoal)"></div>
       <div class="compras-hist-summary" id="compras-jard-summary"></div>
     </div>
     <div id="cj-ext-filters" style="margin-bottom:12px"></div>
@@ -693,7 +693,7 @@
         </select>
         <button class="btn-secondary" onclick="document.getElementById('hist-compras-jard-search').value='';document.getElementById('hist-compras-jard-prov').value='';renderHistorialCompras('jardineria')" style="font-size:12px;padding:5px 10px">✕ Limpiar</button>
       </div>
-      <div id="hist-compras-jard-summary" style="display:none;background:#F4F1EC;border-radius:8px;padding:9px 14px;margin-bottom:12px;font-size:13px;color:var(--charcoal)"></div>
+      <div id="hist-compras-jard-summary" style="display:none;background:var(--surface-2);border-radius:8px;padding:9px 14px;margin-bottom:12px;font-size:13px;color:var(--charcoal)"></div>
       <div id="historial-compras-jard-wrap" style="display:none"></div>
     </div>
   </div>
@@ -1016,7 +1016,7 @@
         <option value="Pendiente de Colocacion">Pendiente de Colocacion</option>
         <option value="Pendiente de Retiro">Pendiente de Retiro</option>
         <option value="Confirmado">Confirmado</option>
-        <option value="Pedidos Finalizados">✔️ Pedidos Finalizados</option>
+        <option value="Pedidos Finalizados">Pedidos finalizados</option>
       </select>
       <label class="form-label">Asignar a florista (armado)</label>
       <select class="form-input-modal" id="ev-asignado">
@@ -1170,7 +1170,7 @@
           <option value="">Con y sin precio</option>
           <option value="1">Solo sin precio</option>
         </select>
-        <button class="btn-secondary" onclick="exportHistorialEventosXLSX()" style="font-size:12px;padding:6px 14px">⬇ Exportar Excel</button>
+        <button class="btn-secondary" onclick="exportHistorialEventosXLSX()" style="font-size:12px;padding:6px 14px"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5"/><path d="M5 20h14"/></svg>Exportar Excel</button>
       </div>
     </div>
 
@@ -1470,7 +1470,7 @@
         <div class="modal-row">
           <div><label class="form-label">Estado</label>
             <select class="form-input-modal" id="sale-estado">
-              <option value="pendiente">⏳ Pendiente</option>
+              <option value="pendiente">Pendiente</option>
               <option value="confirmado">Confirmado</option>
               <option value="entregado">Entregado</option>
             </select>
@@ -1767,7 +1767,7 @@
       <div class="modal">
         <button class="modal-close" onclick="closeModal('ramo-modal')">✕</button>
         <div class="modal-title">Cargar ramo armado</div>
-        <div style="font-size:12.5px;color:#7A7A72;margin-bottom:14px">Elegí el producto de la Lista de Precios y agregá la foto del ramo que armaste.</div>
+        <div style="font-size:12.5px;color:var(--mid-gray);margin-bottom:14px">Elegí el producto de la Lista de Precios y agregá la foto del ramo que armaste.</div>
         <label class="form-label">Categoría</label>
         <select class="form-input-modal" id="ramo-cat-sel" onchange="ramoOnCatChange()">
           <option value="">— Seleccionar categoría —</option>
@@ -1776,7 +1776,7 @@
         <select class="form-input-modal" id="ramo-prod-sel" onchange="ramoOnProdChange()">
           <option value="">— Elegí primero una categoría —</option>
         </select>
-        <div id="ramo-prod-info" style="display:none;background:#F4F1EC;border-radius:10px;padding:11px 14px;margin:4px 0 14px;font-size:13px;color:#1A1A1A"></div>
+        <div id="ramo-prod-info" style="display:none;background:var(--surface-2);border-radius:10px;padding:11px 14px;margin:4px 0 14px;font-size:13px;color:var(--charcoal)"></div>
         <label class="form-label">Foto del ramo armado</label>
         <input type="file" accept="image/*" id="ramo-foto" class="form-input-modal" style="padding:8px">
         <div class="modal-actions">
@@ -1792,7 +1792,7 @@
         <button class="modal-close" onclick="closeModal('ramo-sell-modal')">✕</button>
         <div class="modal-title">Vender ramo</div>
         <input type="hidden" id="ramo-sell-idx">
-        <div id="ramo-sell-info" style="background:#F4F1EC;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:#1A1A1A"></div>
+        <div id="ramo-sell-info" style="background:var(--surface-2);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:var(--charcoal)"></div>
         <div class="modal-row">
           <div><label class="form-label">Cliente</label><input class="form-input-modal" id="ramo-sell-cliente" placeholder="Quien abona"></div>
           <div><label class="form-label">Forma de pago</label>
@@ -1905,7 +1905,7 @@
         <div id="ph-items-list"></div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;flex-wrap:wrap;gap:8px">
           <button type="button" class="btn-secondary" style="font-size:12px" onclick="phAddItemRow()">+ Agregar arreglo</button>
-          <div id="ph-items-total" style="font-size:13px;font-weight:600;color:#1A1A1A"></div>
+          <div id="ph-items-total" style="font-size:13px;font-weight:600;color:var(--charcoal)"></div>
         </div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-bottom:12px">
@@ -2141,7 +2141,7 @@
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn-add" style="background:var(--red-alert);border-color:var(--red-alert)" onclick="openAlertaJardinModal()">Alerta urgente</button>
         <button class="btn-secondary gerencia-only" onclick="openGestionTareasJard()">Editar zonas y tareas</button>
-        <button class="btn-add" onclick="exportCtrlCSV()">↓ Exportar CSV</button>
+        <button class="btn-add" onclick="exportCtrlCSV()"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5"/><path d="M5 20h14"/></svg>Exportar CSV</button>
       </div>
     </div>
     <div id="ctrl-jard-alertas"></div>
@@ -2173,7 +2173,7 @@
     </div>
     <div style="margin-top:32px">
       <div class="section-title toggle-section-header" onclick="toggleCtrlSection('jard-prod-wrap','jard-prod-chev')" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none">
-        <span>⏱ Productividad del equipo · Jardinería</span>
+        <span>Productividad del equipo · Jardinería</span>
         <span id="jard-prod-chev" style="font-size:13px;transition:transform .2s;display:inline-block">▶</span>
       </div>
       <div id="jard-prod-wrap" style="display:none">
@@ -2219,7 +2219,7 @@
         <div class="page-title">Habitaciones con Plantas</div>
         <div class="page-subtitle">Control de ingreso por habitación</div>
       </div>
-      <button class="btn-add" onclick="exportHabCSV()">↓ Exportar CSV</button>
+      <button class="btn-add" onclick="exportHabCSV()"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5"/><path d="M5 20h14"/></svg>Exportar CSV</button>
     </div>
     <div class="ctrl-summary-cards" id="ctrl-hab-kpis"></div>
     <div class="ctrl-filter-bar">
@@ -2615,7 +2615,7 @@
       <select class="form-input" id="rep-eq-empleado" onchange="renderReportesEquipo()" style="width:160px;padding:6px 10px;font-size:13px">
         <option value="">— Todos —</option>
       </select>
-      <button class="btn-secondary" onclick="exportReporteEquipo()" style="font-size:12px;padding:6px 14px">⬇ Exportar CSV</button>
+      <button class="btn-secondary" onclick="exportReporteEquipo()" style="font-size:12px;padding:6px 14px"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5"/><path d="M5 20h14"/></svg>Exportar CSV</button>
       <button class="btn-secondary" onclick="mostrarResumenSemanal(0,true)" style="font-size:12px;padding:6px 14px">Resumen semanal</button>
       <button class="btn-print" onclick="exportPDF('Reportes · Equipo')">Imprimir / PDF</button>
     </div>
@@ -2675,7 +2675,7 @@
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;align-items:center">
       <select class="form-input" id="rep-vt-mes" onchange="renderReportesVentas()" style="width:160px;padding:6px 10px;font-size:13px"></select>
-      <button class="btn-secondary" onclick="exportReporteVentas()" style="font-size:12px;padding:6px 14px">⬇ Exportar CSV</button>
+      <button class="btn-secondary" onclick="exportReporteVentas()" style="font-size:12px;padding:6px 14px"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5"/><path d="M5 20h14"/></svg>Exportar CSV</button>
       <button class="btn-secondary" onclick="exportVentasXLSX()" style="font-size:12px;padding:6px 14px">Exportar Excel</button>
       <button class="btn-print" onclick="exportPDF('Reportes · Ventas')">Imprimir / PDF</button>
     </div>
@@ -2701,7 +2701,7 @@
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;align-items:center">
       <select class="form-input" id="hotel-mes" onchange="renderCostoHotel()" style="width:160px;padding:6px 10px;font-size:13px"></select>
-      <button class="btn-secondary" onclick="exportCostoHotel()" style="font-size:12px;padding:6px 14px">⬇ Exportar CSV</button>
+      <button class="btn-secondary" onclick="exportCostoHotel()" style="font-size:12px;padding:6px 14px"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5"/><path d="M5 20h14"/></svg>Exportar CSV</button>
       <button class="btn-print" onclick="exportPDF('Costo del Hotel')">Imprimir / PDF</button>
     </div>
     <div id="hotel-kpis" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:24px"></div>
@@ -3091,7 +3091,7 @@
         <button class="btn-secondary" onclick="cvReset()" style="font-size:12px">✕ Limpiar</button>
       </div>
     </div>
-    <div style="background:#F4F1EC;border:1px solid var(--light-gray);border-radius:12px;padding:18px 20px;margin-bottom:18px"><div id="cv-total"></div></div>
+    <div style="background:var(--surface-2);border:1px solid var(--light-gray);border-radius:12px;padding:18px 20px;margin-bottom:18px"><div id="cv-total"></div></div>
     <div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;padding:18px 20px;margin-bottom:18px">
       <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);font-weight:600;margin-bottom:6px">Tabla por tamaños</div>
       <div style="font-size:12px;color:var(--mid-gray);margin-bottom:8px">Copiá la tabla de Excel (con los títulos Small, Medium, etc.) y pegala acá. Te muestra el costo de cada tamaño. Admite decimales como 0,3.</div>
@@ -3099,7 +3099,7 @@
       <button class="btn-primary" onclick="cvTCargar()" style="margin-top:8px">Calcular costos</button>
       <div id="cv-tabla-out" style="margin-top:14px"></div>
     </div>
-    <div id="cv-revisar" style="background:#FDF3E3;border:1px solid #EBD3A8;border-radius:12px;padding:14px 20px;margin-bottom:18px;display:none"></div>
+    <div id="cv-revisar" style="background:var(--amber-soft);border:1px solid #EBD3A8;border-radius:12px;padding:14px 20px;margin-bottom:18px;display:none"></div>
     <details style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;padding:14px 20px;margin-bottom:30px">
       <summary style="cursor:pointer;font-size:13px;font-weight:600">Pegar un listado de una vez</summary>
       <div style="font-size:12px;color:var(--mid-gray);margin:8px 0">Una flor por renglón, con la cantidad adelante o atrás. Ej.: <em>20 rosas</em>, <em>hortensias 10</em>, <em>1/2 fresias</em>.</div>
@@ -3153,7 +3153,7 @@
     </div>
 
     <!-- Totales -->
-    <div style="background:#F4F1EC;border:1px solid var(--light-gray);border-radius:12px;padding:18px 20px;margin-bottom:18px">
+    <div style="background:var(--surface-2);border:1px solid var(--light-gray);border-radius:12px;padding:18px 20px;margin-bottom:18px">
       <div id="cp-totales"></div>
     </div>
 
