@@ -176,3 +176,45 @@
 @media print {
   .section-tabs, .user-menu-wrap { display: none !important; }
 }
+
+/* ── Paleta: colores de estado (usar estas variables en lugar de hex sueltos) ── */
+:root {
+  --info: #2C5A80;
+  --info-soft: #E9F0F7;
+  --ok-soft: #EBF3E8;
+  --alert-soft: #FBEDEA;
+  --amber-soft: #FBF3E4;
+  --surface-1: #FAF8F4;   /* fondo de bloque suave */
+  --surface-2: #F3F0EA;   /* fondo de bloque destacado */
+}
+
+/* ── Íconos de línea (src/modules/iconos.js) ── */
+.ic {
+  width: 1.1em; height: 1.1em; flex: 0 0 auto; vertical-align: -0.18em; margin-right: .38em;
+  fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+}
+button .ic:only-child, label .ic:only-child { margin-right: 0; }
+
+/* ── Estado de carga de una página ── */
+.content.fd-cargando > :not(.fd-loader):not(.section-tabs) { opacity: .25; pointer-events: none; transition: opacity .2s; }
+.fd-loader {
+  display: flex; align-items: center; gap: var(--sp-3);
+  margin: 0 0 var(--sp-4); padding: var(--sp-3) var(--sp-4);
+  background: var(--surface-1); border: 1px solid var(--light-gray); border-radius: var(--radius-md);
+  font-size: var(--fs-sm); color: var(--mid-gray);
+}
+.fd-loader.lento { background: var(--amber-soft); border-color: #EAD9B5; color: var(--amber); }
+.fd-spinner {
+  width: 16px; height: 16px; flex: 0 0 auto; border-radius: 50%;
+  border: 2px solid var(--light-gray); border-top-color: var(--accent);
+  animation: fd-giro .8s linear infinite;
+}
+.fd-loader.lento .fd-spinner { border-top-color: var(--amber); }
+@keyframes fd-giro { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .fd-spinner { animation-duration: 2.4s; } }
+
+/* ── Tabla sin filas ── */
+tr.fd-empty-row td {
+  padding: 22px 12px !important; text-align: center; color: var(--mid-gray);
+  font-size: var(--fs-sm); background: transparent !important; border: 0 !important;
+}

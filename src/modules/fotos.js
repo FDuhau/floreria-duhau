@@ -201,7 +201,7 @@ export async function migrarFotos(){
     }catch(e){ fallas++; }
   }
   if(fallas){
-    _migrarFotosUI(`⚠️ ${fallas} foto${fallas!==1?'s':''} no se pudieron verificar. <strong>No se reemplazó nada</strong> en los registros. Probá de nuevo con buena conexión (las ya copiadas no se vuelven a copiar).<br><br><button class="btn-secondary" onclick="closeModal('migrar-fotos-ov')">Cerrar</button>`);
+    _migrarFotosUI(`${fallas} foto${fallas!==1?'s':''} no se pudieron verificar. <strong>No se reemplazó nada</strong> en los registros. Probá de nuevo con buena conexión (las ya copiadas no se vuelven a copiar).<br><br><button class="btn-secondary" onclick="closeModal('migrar-fotos-ov')">Cerrar</button>`);
     return;
   }
   document.getElementById('migrar-fotos-ov')?.remove();
@@ -231,5 +231,5 @@ export async function migrarFotos(){
     }
   }
   window.fbSetPath('fotosConfig', { activo:true, fecha:new Date().toISOString(), fotos:unicas.size });
-  _migrarFotosUI(`✅ Listo. ${hechas} foto${hechas!==1?'s':''} movida${hechas!==1?'s':''}${saltadas?` · ${saltadas} no se pudieron mover ahora (cambiaron durante la migración o se cortó la conexión): volvé a tocar el botón para completarlas`:''}.<br><br>Desde ahora las fotos nuevas se guardan aparte y cada dispositivo descarga cada foto una sola vez.<br><br><button class="btn-add" onclick="closeModal('migrar-fotos-ov')">Cerrar</button>`);
+  _migrarFotosUI(`Listo. ${hechas} foto${hechas!==1?'s':''} movida${hechas!==1?'s':''}${saltadas?` · ${saltadas} no se pudieron mover ahora (cambiaron durante la migración o se cortó la conexión): volvé a tocar el botón para completarlas`:''}.<br><br>Desde ahora las fotos nuevas se guardan aparte y cada dispositivo descarga cada foto una sola vez.<br><br><button class="btn-add" onclick="closeModal('migrar-fotos-ov')">Cerrar</button>`);
 }

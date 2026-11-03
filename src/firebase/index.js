@@ -69,7 +69,7 @@
     function fbListen(path, cb){
       onValue(ref(db, path), snap => {
         const val = snap.val();
-        _fbRemember(path, val);
+        _fbRemember(path, val); window._fbLlego?.(path);
         if(val !== null) cb(val);
       });
     }
@@ -130,7 +130,7 @@
     // hay que reflejar en memoria — p. ej. marcar un store como "ya cargado"
     // aunque todavía no tenga datos, para no bloquear la primera escritura.
     function fbListenNullable(path, cb){
-      onValue(ref(db, path), snap => { const val = snap.val(); _fbRemember(path, val); cb(val); });
+      onValue(ref(db, path), snap => { const val = snap.val(); _fbRemember(path, val); window._fbLlego?.(path); cb(val); });
     }
 
     // Nodos que solo se descargan al entrar a la pantalla que los usa (y
