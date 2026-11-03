@@ -73,7 +73,17 @@ try {
 // ════════════════════════════════════════
 // FIREBASE SYNC HELPERS (called after fbReady)
 // ════════════════════════════════════════
+// Nodos que solo gerencia descarga (ver fbStartSensibles). Si la copia local
+// todavía no llegó de la base, guardarla pisaría el nodo entero con lo poco
+// que haya en memoria: por eso se bloquea la escritura hasta que cargue.
+const NODOS_SENSIBLES = ['cajaData','cierresCaja','cierresMensualesData','legajoData','faltasData','evaluacionesData','liquidacionConfig'];
+function sensibleCargado(key){ return !!window._fbCargado?.[key]; }
 function fbSave(key, data){
+  if(NODOS_SENSIBLES.includes(key) && !sensibleCargado(key)){
+    console.warn('fbSave bloqueado: '+key+' todavía no se cargó desde la base');
+    showToast('Todavía no cargaron los datos de '+(key==='cajaData'?'la caja':key)+'. Esperá unos segundos y probá de nuevo.','error');
+    return;
+  }
   if(window.fbSet){
     const plain = _fotosParaGuardar(key, JSON.parse(JSON.stringify(data)));
     // Solo viaja lo que cambió (ver fbSaveSmart en firebase/index.js)
@@ -7012,6 +7022,13 @@ function sincronizarVentaCaja(i){
   if(!v) return;
   if(v.estado === 'entregado' && v.formaPago === 'Efectivo' && !v.cajaRegistrado){
     const monto = parseMoney(v.precio);
+    // En un dispositivo sin la caja cargada (florista, o gerencia recién
+    // entrando) no se toca la caja: la venta queda pendiente y la suma el
+    // próximo dispositivo de gerencia que tenga la caja cargada.
+    if(monto > 0 && !sensibleCargado('cajaData')){
+      if(!v.cajaPendiente){ v.cajaPendiente = true; fbSave('ventasData', ventasData); }
+      return;
+    }
     if(monto > 0){
       cajaData.push({
         fecha: v.fecha || TODAY_ISO,
@@ -7023,6 +7040,7 @@ function sincronizarVentaCaja(i){
         ventaAuto: true
       });
       v.cajaRegistrado = true;
+      delete v.cajaPendiente;
       fbSave('ventasData', ventasData);
       fbSave('cajaData', cajaData);
       if(document.getElementById('page-caja')?.classList.contains('active')) renderCaja();
@@ -7031,6 +7049,12 @@ function sincronizarVentaCaja(i){
   }
 }
 window.sincronizarVentaCaja = sincronizarVentaCaja;
+// Al cargar la caja (gerencia), sumar las ventas en efectivo que quedaron
+// pendientes porque se entregaron desde un dispositivo sin la caja.
+window._procesarCajaPendientes = () => {
+  if(!sensibleCargado('cajaData')) return;
+  ventasData.forEach((v, i) => { if(v?.cajaPendiente && !v.cajaRegistrado) sincronizarVentaCaja(i); });
+};
 function openSaleModal(){
   document.getElementById('sale-modal-title').textContent = 'Nueva Venta';
   document.getElementById('sale-edit-idx').value = '-1';

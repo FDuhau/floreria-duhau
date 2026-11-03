@@ -432,42 +432,54 @@
         if(val && typeof val === 'object') _syncRespFloristas(val);
       });
 
-      fbListen('cajaData', val => {
-        if(!val) return;
-        const arr = Array.isArray(val) ? val : Object.values(val||{});
+      // Cada nodo sensible marca cuándo llegó de verdad desde la base (aunque
+      // esté vacío). Hasta entonces fbSave se niega a escribirlo: guardar la
+      // copia local vacía pisaba el nodo entero (así se borró la caja).
+      const _cargado = key => { (window._fbCargado = window._fbCargado || {})[key] = true; };
+
+      fbListenNullable('cajaData', val => {
+        _cargado('cajaData');
+        const arr = !val ? [] : (Array.isArray(val) ? val : Object.values(val||{}));
         if(window._setCajaData) window._setCajaData(arr);
+        window._procesarCajaPendientes?.();
         if(document.getElementById('page-caja')?.classList.contains('active') && !window.estaEditando('page-caja')) window.renderCaja();
       });
 
-      fbListen('cierresCaja', val => {
+      fbListenNullable('cierresCaja', val => {
+        _cargado('cierresCaja');
         const arr = !val ? [] : (Array.isArray(val) ? val : Object.values(val||{}));
         if(window._setCierresCaja) window._setCierresCaja(arr);
       });
 
-      fbListen('legajoData', val => {
+      fbListenNullable('legajoData', val => {
+        _cargado('legajoData');
         const arr = !val ? [] : (Array.isArray(val) ? val : Object.values(val||{}));
         if(window._setLegajoData) window._setLegajoData(arr);
         if(document.getElementById('page-legajo')?.classList.contains('active')) window.renderLegajo?.();
       });
 
-      fbListen('faltasData', val => {
+      fbListenNullable('faltasData', val => {
+        _cargado('faltasData');
         const arr = !val ? [] : (Array.isArray(val) ? val : Object.values(val||{}));
         if(window._setFaltasData) window._setFaltasData(arr);
         if(document.getElementById('page-evaluaciones')?.classList.contains('active') && !window.estaEditando('page-evaluaciones')) window.renderEvaluaciones?.();
       });
 
-      fbListen('evaluacionesData', val => {
+      fbListenNullable('evaluacionesData', val => {
+        _cargado('evaluacionesData');
         const arr = !val ? [] : (Array.isArray(val) ? val : Object.values(val||{}));
         if(window._setEvaluacionesData) window._setEvaluacionesData(arr);
         if(document.getElementById('page-evaluaciones')?.classList.contains('active')) window.renderEvaluaciones?.();
       });
 
-      fbListen('liquidacionConfig', val => {
+      fbListenNullable('liquidacionConfig', val => {
+        _cargado('liquidacionConfig');
         if(window._setLiquidacionConfig) window._setLiquidacionConfig(val||{ horasEsperadas: 192, horas: {} });
         if(document.getElementById('page-liquidacion')?.classList.contains('active')) window.renderLiquidacion?.();
       });
 
-      fbListen('cierresMensualesData', val => {
+      fbListenNullable('cierresMensualesData', val => {
+        _cargado('cierresMensualesData');
         const arr = !val ? [] : (Array.isArray(val) ? val : Object.values(val||{}));
         if(window._setCierresMensuales) window._setCierresMensuales(arr);
       });
@@ -793,6 +805,7 @@
         if(!val) return;
         const arr = Array.isArray(val) ? val : Object.values(val||{});
         if(window._setVentasData) window._setVentasData(arr);
+        window._procesarCajaPendientes?.();
         if(document.getElementById('page-ventas-externas')?.classList.contains('active') && !window.estaEditando('page-ventas-externas')) window.renderVentas();
         if(document.getElementById('page-ramos-disponibles')?.classList.contains('active')) window.renderPedidosRamos?.();
         if(document.getElementById('page-checklist')?.classList.contains('active') && !window.estaEditando('page-checklist')) window.renderChecklistTable?.();
