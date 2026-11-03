@@ -1,3 +1,4 @@
+import { familiaDe } from './navegacion.js';
 // ── NAVEGACIÓN INFERIOR MOBILE ──────────────────────────────────────────────
 const BOTTOM_NAV_ITEMS = {
   gerencia:  [{icon:'',label:'Inicio',page:'home'},{icon:'',label:'Checklist',page:'checklist'},{icon:'',label:'Eventos',page:'eventos-maison'},{icon:'',label:'Caja',page:'caja'}],
@@ -47,20 +48,29 @@ export function renderBottomNav(role, esJardinero) {
       {icon:'',label:'Checklist',page:'checklist'},
       {icon:'',label:'Eventos',page:'eventos-maison'},
       {icon:'',label:'Jardín',page:'jardineria-ops'},
-      {icon:'',label:'Habitac.',page:'hab-ops'},
     ];
   }
+  const mas = role === 'housekeeping' ? '' :
+    `<div class="bottom-nav-item bottom-nav-more" onclick="openSidebar()" role="button" aria-label="Más secciones">
+      <span class="bottom-nav-icon"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></span>
+      <span class="bottom-nav-label">Más</span>
+    </div>`;
   nav.innerHTML = items.map(it =>
     `<div class="bottom-nav-item" data-page="${it.page}" onclick="navigate('${it.page}',null);updateBottomNav('${it.page}')">
       <span class="bottom-nav-icon">${_bottomIcon(it.page)}</span>
       <span class="bottom-nav-label">${it.label}</span>
     </div>`
-  ).join('');
+  ).join('') + mas;
 }
 
 export function updateBottomNav(pageId) {
-  document.querySelectorAll('.bottom-nav-item').forEach(el => {
-    el.classList.toggle('active', el.dataset.page === pageId);
+  // Activo si es la misma página o la misma familia (ej. pestañas de Eventos)
+  const fam = familiaDe(pageId);
+  const items = [...document.querySelectorAll('.bottom-nav-item[data-page]')];
+  const exacto = items.some(el => el.dataset.page === pageId);
+  items.forEach(el => {
+    const activo = el.dataset.page === pageId || (!exacto && !!fam && familiaDe(el.dataset.page) === fam);
+    el.classList.toggle('active', activo);
   });
 }
 

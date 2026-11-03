@@ -1,0 +1,178 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   CAPA "PROFESIONAL" — sistema visual común y ajustes de celular.
+   Se carga después de main.css. Variables de tipografía y espaciado para
+   usar en lugar de valores sueltos; navegación nueva (menú por familias,
+   pestañas de sección, menú de usuario) y correcciones responsive.
+   ══════════════════════════════════════════════════════════════════════════ */
+:root {
+  /* Escala tipográfica: usar SOLO estos tamaños en código nuevo */
+  --fs-xs: 12px;   /* etiquetas, ayudas */
+  --fs-sm: 13px;   /* tablas, botones secundarios */
+  --fs-md: 14px;   /* texto base */
+  --fs-lg: 16px;   /* destacados, inputs en celular */
+  --fs-xl: 20px;   /* títulos de tarjeta */
+  --fs-2xl: 28px;  /* títulos de página */
+  /* Espaciado */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px;
+  /* Alto mínimo de un control táctil */
+  --tap: 40px;
+  --topbar-h: 60px;
+}
+
+/* ── Menú lateral por familias ─────────────────────────────────────────── */
+.sidebar-nav .nav-section-label { font-size: 11px; letter-spacing: 1.4px; color: rgba(255,255,255,.32); padding: 20px 22px 8px; }
+.sidebar-nav .nav-item { font-size: 14px; padding: 10px 22px; gap: 12px; position: relative; }
+.sidebar-nav .nav-item .nav-alert-dot { margin-left: auto; }
+.sidebar-nav .nav-label { flex: 1; }
+
+/* ── Pestañas de sección (páginas de una misma familia) ────────────────── */
+.section-tabs {
+  display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none;
+  margin: -12px 0 24px; padding: 0 0 0; border-bottom: 1px solid var(--light-gray);
+  position: sticky; top: var(--topbar-h); z-index: 40; background: var(--cream);
+}
+.section-tabs::-webkit-scrollbar { display: none; }
+.section-tab {
+  flex: 0 0 auto; appearance: none; background: none; border: 0; border-bottom: 2px solid transparent;
+  padding: 12px 14px 10px; margin-bottom: -1px; cursor: pointer; white-space: nowrap;
+  font: 500 var(--fs-md)/1.2 'DM Sans', sans-serif; color: var(--mid-gray); transition: color .15s, border-color .15s;
+}
+.section-tab:hover { color: var(--charcoal); }
+.section-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.section-tab:focus-visible { outline: none; box-shadow: var(--ring); border-radius: var(--radius-sm); }
+
+/* ── Barra superior ────────────────────────────────────────────────────── */
+.topbar { min-height: var(--topbar-h); box-sizing: border-box; padding-top: 10px; padding-bottom: 10px; }
+.page-breadcrumb { font-size: var(--fs-md); color: var(--mid-gray); }
+.page-breadcrumb .bc-fam { font-style: normal; color: var(--mid-gray); }
+.page-breadcrumb .bc-sep { color: var(--sage-light); }
+.topbar-right { gap: 10px; font-size: var(--fs-sm); }
+.topbar .date-badge { display: none; }
+#app-version-label { font-size: inherit !important; color: inherit !important; margin: 0 !important; }
+
+/* Menú de usuario */
+.user-menu-wrap { position: relative; }
+.user-menu-btn {
+  width: 36px; height: 36px; border-radius: 50%; border: 0; cursor: pointer;
+  background: var(--accent); color: var(--accent-ink); font: 600 15px/1 'DM Sans', sans-serif;
+  display: flex; align-items: center; justify-content: center; transition: box-shadow .15s;
+}
+.user-menu-btn:hover, .user-menu-btn[aria-expanded="true"] { box-shadow: var(--ring); }
+.user-menu {
+  position: absolute; right: 0; top: calc(100% + 8px); width: 264px; z-index: 300;
+  background: var(--warm-white); border: 1px solid var(--light-gray); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg); padding: 6px; display: flex; flex-direction: column;
+}
+.user-menu[hidden] { display: none; }
+.user-menu-head { padding: 10px 12px 12px; border-bottom: 1px solid var(--light-gray); margin-bottom: 4px; }
+.user-menu-name { font-size: var(--fs-lg); font-weight: 600; color: var(--charcoal); }
+.user-menu-sub { font-size: var(--fs-xs); color: var(--mid-gray); margin-top: 2px; }
+.user-menu-sub::first-letter { text-transform: uppercase; }
+.user-menu [role="menuitem"] {
+  appearance: none; background: none; border: 0; text-align: left; cursor: pointer; border-radius: var(--radius-sm);
+  padding: 10px 12px; min-height: var(--tap); font: 400 var(--fs-md)/1.2 'DM Sans', sans-serif; color: var(--charcoal);
+}
+.user-menu [role="menuitem"]:hover, .user-menu [role="menuitem"]:focus-visible { background: var(--accent-soft); outline: none; }
+.user-menu-sep { height: 1px; background: var(--light-gray); margin: 4px 0; }
+.user-menu-group { font-size: var(--fs-xs); color: var(--mid-gray); padding: 8px 12px 4px; text-transform: uppercase; letter-spacing: .8px; }
+
+/* ── Indicador de conexión ─────────────────────────────────────────────── */
+/* "Sin conexión" queda como una franja fina debajo de la barra superior (no
+   tapa títulos); "Guardando…/Guardado" es una píldora chica abajo. */
+.fb-status { top: auto; bottom: 20px; font-size: var(--fs-xs); padding: 6px 14px; }
+.fb-status[data-state="offline"] {
+  top: auto; bottom: 0; left: 256px; right: 0; transform: none; max-width: none;
+  border-radius: 0; justify-content: center; padding: 6px 16px; box-shadow: none;
+}
+
+/* Panel de umbrales (gerencia) ocupa todo el ancho de la grilla de resumen */
+.ctrl-summary-cards > :not(.card):first-child { grid-column: 1 / -1; }
+
+/* ── Tablas, botones y formularios: proporción consistente ─────────────── */
+.page-subtitle { font-size: var(--fs-md); line-height: 1.45; }
+.btn-primary, .btn-secondary { min-height: 38px; }
+
+/* Barra de herramientas compacta con menú "Más" (Checklist, Compras…) */
+.tools-more { position: relative; display: inline-block; }
+.tools-more > summary { list-style: none; cursor: pointer; }
+.tools-more > summary::-webkit-details-marker { display: none; }
+.tools-more-panel {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 60; min-width: 220px;
+  background: var(--warm-white); border: 1px solid var(--light-gray); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg); padding: 6px; display: flex; flex-direction: column; gap: 2px;
+}
+.tools-more-panel > button, .tools-more-panel > label {
+  display: block; width: 100%; text-align: left; margin: 0 !important; border: 0 !important;
+  background: none !important; box-shadow: none !important; color: var(--charcoal) !important;
+  padding: 10px 12px !important; border-radius: var(--radius-sm) !important; font-size: var(--fs-md) !important;
+  min-height: var(--tap); cursor: pointer;
+}
+.tools-more-panel > button:hover, .tools-more-panel > label:hover { background: var(--accent-soft) !important; }
+
+/* ── Ventas externas en tarjetas (celular) ─────────────────────────────── */
+.ve-cards { display: none; }
+.ve-card {
+  background: var(--warm-white); border: 1px solid var(--light-gray); border-radius: var(--radius-lg);
+  padding: 14px 16px; display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; cursor: pointer;
+  box-shadow: var(--shadow-xs);
+}
+.ve-card + .ve-card { margin-top: 10px; }
+.ve-card-cli { font-size: var(--fs-lg); font-weight: 600; color: var(--charcoal); }
+.ve-card-precio { font-size: var(--fs-lg); font-weight: 600; color: var(--charcoal); text-align: right; }
+.ve-card-meta { font-size: var(--fs-sm); color: var(--mid-gray); }
+.ve-card-tags { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.ve-tag { font-size: var(--fs-xs); padding: 3px 8px; border-radius: 999px; background: var(--blush-light); color: var(--charcoal); }
+.ve-tag.warn { background: rgba(176,64,46,.1); color: var(--red-alert); }
+.ve-tag.ok { background: var(--accent-soft); color: var(--accent); }
+.ve-empty { text-align: center; padding: 40px 16px; color: var(--mid-gray); font-size: var(--fs-md); }
+.ve-filtros-toggle { display: none; }
+
+/* ── CELULAR ───────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  :root { --topbar-h: 56px; }
+  .topbar { padding: 8px 12px; gap: 8px; }
+  .topbar-right { gap: 4px; }
+  .topbar .topbar-date, .topbar .topbar-theme, .topbar #pwa-topbar-btn { display: none !important; }
+  .page-breadcrumb { flex: 1; min-width: 0; max-width: none; font-size: var(--fs-lg); }
+  .page-breadcrumb span { font-weight: 600; }
+  .page-breadcrumb .bc-fam, .page-breadcrumb .bc-sep { display: none; }
+  .fb-status[data-state="offline"] { left: 0; bottom: calc(64px + env(safe-area-inset-bottom, 0px)); padding: 4px 12px; }
+  .fb-status { bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
+
+  /* Pestañas a lo ancho, pegadas a los bordes */
+  .section-tabs { margin: -18px -14px 18px; padding: 0 6px; }
+  .section-tab { padding: 13px 12px 11px; }
+
+  /* El título ya está en la barra superior: el encabezado de página se achica */
+  .page-header { margin-bottom: 16px; gap: 10px !important; }
+  .page-title { font-size: 24px; }
+  .page-subtitle { font-size: var(--fs-sm); }
+  .page-header > div:last-child:not(:first-child) { width: 100%; }
+
+  /* Barra inferior: etiquetas legibles y sin mayúsculas forzadas */
+  .bottom-nav-item { min-width: 0; flex: 1; padding: 4px 2px; }
+  .bottom-nav-label { font-size: 11px; letter-spacing: 0; text-transform: none; }
+
+  /* Controles táctiles */
+  .content select, .content .btn-primary, .content .btn-secondary,
+  .content input[type="text"], .content input[type="number"], .content input[type="search"],
+  .content input[type="date"], .content input[type="time"], .content input[type="month"] { min-height: var(--tap); }
+  .content input[type="checkbox"], .content input[type="radio"] { width: 20px; height: 20px; }
+
+  /* Tarjetas de resumen: 2 por fila en vez de una debajo de otra */
+  .ctrl-summary-cards { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; }
+
+  /* Ventas externas: tarjetas en lugar de la planilla */
+  #page-ventas-externas .ve-cards { display: block; }
+  #page-ventas-externas .ve-table-wrap { display: none; }
+  #page-ventas-externas .ve-filtros-toggle { display: inline-flex; }
+  #page-ventas-externas .ve-filtros:not(.open) { display: none !important; }
+}
+
+/* ── Modo oscuro ───────────────────────────────────────────────────────── */
+[data-theme="dark"] .section-tabs { background: var(--cream); border-bottom-color: rgba(255,255,255,.08); }
+[data-theme="dark"] .user-menu { border-color: rgba(255,255,255,.1); }
+
+@media print {
+  .section-tabs, .user-menu-wrap { display: none !important; }
+}

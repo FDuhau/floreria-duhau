@@ -234,9 +234,9 @@ export function renderPedidosHab(){
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
         <div>
           <span style="font-size:15px;font-weight:600;color:#1A1A1A">${_phResumen(p)}</span>
-          <span style="background:${bg};padding:3px 10px;border-radius:10px;font-size:11px;font-weight:600;margin-left:8px">${icon} ${label}</span>
+          <span style="background:${bg};padding:3px 10px;border-radius:10px;font-size:12px;font-weight:600;margin-left:8px">${icon} ${label}</span>
         </div>
-        <div style="font-size:11px;color:var(--mid-gray)">${p.fecha ? fmtDate(p.fecha) : ''} ${p.hora||''}</div>
+        <div style="font-size:12px;color:var(--mid-gray)">${p.fecha ? fmtDate(p.fecha) : ''} ${p.hora||''}</div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:6px 16px;margin-top:10px;font-size:13px">
         <div><span style="color:var(--mid-gray)">Huésped:</span> <strong>${esc(p.cliente)}</strong></div>

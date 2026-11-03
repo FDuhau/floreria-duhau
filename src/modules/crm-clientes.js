@@ -67,16 +67,16 @@ export function abrirFichaCliente(idx){
       ${c.tipo?`<div><div class="form-label">Tipo</div><div style="font-size:14px">${esc(c.tipo)}</div></div>`:''}
     </div>
     <div style="display:flex;gap:16px;margin-bottom:20px">
-      <div class="kpi-card" style="flex:1;padding:14px"><div style="font-size:11px;color:var(--mid-gray);margin-bottom:4px">EVENTOS</div><div style="font-size:22px;font-weight:700">${eventos.length}</div></div>
-      <div class="kpi-card" style="flex:1;padding:14px"><div style="font-size:11px;color:var(--mid-gray);margin-bottom:4px">COMPRAS</div><div style="font-size:22px;font-weight:700">${compras.length}</div></div>
-      <div class="kpi-card" style="flex:1;padding:14px"><div style="font-size:11px;color:var(--mid-gray);margin-bottom:4px">TOTAL GASTADO</div><div style="font-size:20px;font-weight:700;color:var(--green-ok)">$${totalGastado.toLocaleString('es-AR')}</div></div>
+      <div class="kpi-card" style="flex:1;padding:14px"><div style="font-size:12px;color:var(--mid-gray);margin-bottom:4px">EVENTOS</div><div style="font-size:22px;font-weight:700">${eventos.length}</div></div>
+      <div class="kpi-card" style="flex:1;padding:14px"><div style="font-size:12px;color:var(--mid-gray);margin-bottom:4px">COMPRAS</div><div style="font-size:22px;font-weight:700">${compras.length}</div></div>
+      <div class="kpi-card" style="flex:1;padding:14px"><div style="font-size:12px;color:var(--mid-gray);margin-bottom:4px">TOTAL GASTADO</div><div style="font-size:20px;font-weight:700;color:var(--green-ok)">$${totalGastado.toLocaleString('es-AR')}</div></div>
     </div>
     ${c.notas?`<div style="margin-bottom:16px"><div class="form-label">Notas</div><div style="font-size:13px;color:var(--mid-gray);line-height:1.5">${esc(c.notas)}</div></div>`:''}
-    <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:12px;font-weight:500">Historial</div>
+    <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:12px;font-weight:500">Historial</div>
     ${historial.length?historial.map(h=>`<div style="display:flex;gap:12px;padding:9px 0;border-bottom:1px solid var(--light-gray)">
-      <span style="font-size:10px;background:var(--light-gray);padding:2px 7px;border-radius:8px;white-space:nowrap;align-self:flex-start">${h.tipo}</span>
-      <div style="flex:1;min-width:0"><div style="font-size:13px">${esc(h.desc)}</div>${h.extra?`<div style="font-size:11px;color:var(--mid-gray)">${esc(h.extra)}</div>`:''}</div>
-      <span style="font-size:11px;color:var(--mid-gray);white-space:nowrap">${fmtDate(h.fecha)}</span>
+      <span style="font-size:12px;background:var(--light-gray);padding:2px 7px;border-radius:8px;white-space:nowrap;align-self:flex-start">${h.tipo}</span>
+      <div style="flex:1;min-width:0"><div style="font-size:13px">${esc(h.desc)}</div>${h.extra?`<div style="font-size:12px;color:var(--mid-gray)">${esc(h.extra)}</div>`:''}</div>
+      <span style="font-size:12px;color:var(--mid-gray);white-space:nowrap">${fmtDate(h.fecha)}</span>
     </div>`).join(''):'<div style="color:var(--mid-gray);font-size:13px">Sin historial registrado.</div>'}
     <div class="modal-actions" style="margin-top:20px">
       <button class="btn-secondary" onclick="editarCliente(${idx})">Editar</button>
