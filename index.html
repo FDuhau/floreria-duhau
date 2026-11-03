@@ -1516,6 +1516,7 @@
       <div><div class="page-title">Control de Caja</div><div class="page-subtitle">Ingresos, egresos y saldo en tiempo real</div></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn-secondary gerencia-only" onclick="document.getElementById('restaurar-caja-file').click()" title="Recuperar movimientos desde un backup o archivo de caja (agrega solo los que faltan)">Restaurar movimientos</button>
+        <button class="btn-secondary gerencia-only" onclick="restaurarCajaDesdeResguardo()" title="Recuperar movimientos desde la copia automática de la caja (agrega solo los que faltan)">Recuperar del resguardo</button>
         <input type="file" id="restaurar-caja-file" accept=".json,application/json" style="display:none" onchange="restaurarCajaArchivo(this)">
         <button class="btn-add" onclick="openCajaModal()">+ Nuevo Movimiento</button>
       </div>
