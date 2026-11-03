@@ -17,6 +17,8 @@ import { configurarCalendario, getEventosView, initEventosToggle, renderCalendar
 import { configurarCostoHotel, renderCostoHotel, exportCostoHotel } from './costo-hotel.js';
 import { PAGE_LABELS, JARDINERIA_BASE, HABITACIONES_BASE, DIA_MADRE_ARREGLOS } from './datos-base.js';
 import { renderBottomNav, updateBottomNav, irAAtajoInicial } from './nav-inferior.js';
+import { renderSidebarNav, marcarNavegacion } from './navegacion.js';
+import { toggleUserMenu, closeUserMenu, setUserMenuInfo } from './menu-usuario.js';
 import { listaPreciosData, renderListaPrecios, lpUpdItem, lpDelItem, lpDelCat, openLpModal, saveLpItem, openLpCatModal, addLpCat, lpAddPhotos, lpRemovePhoto, lpOpenViewer } from './lista-precios.js';
 import { leerFotoComprimida, comprimirImagen } from './imagenes.js';
 import { toggleCfSplit, cfSplitAddRow, cfSplitRemoveRow, cfSplitUpdRow, getCfSplitRows, resetCfSplitRows } from './compras-reparto.js';
@@ -164,7 +166,7 @@ function badgeDiaRelativa(iso){
     'PASADO':'background:#9A8F7A;color:#fff',
     'AYER':'background:#B03020;color:#fff'
   };
-  return `<span style="${colores[t]};font-size:9px;font-weight:700;letter-spacing:.6px;padding:2px 7px;border-radius:5px;margin-left:6px;vertical-align:middle;white-space:nowrap">${t}</span>`;
+  return `<span style="${colores[t]};font-size:12px;font-weight:700;letter-spacing:.6px;padding:2px 7px;border-radius:5px;margin-left:6px;vertical-align:middle;white-space:nowrap">${t}</span>`;
 }
 function fmtMonth(ym){ const [y,m]=ym.split('-'); const n=MONTHS_ES[+m-1]; return n.charAt(0).toUpperCase()+n.slice(1)+' '+y; }
 function getMonthVisits(r, ym){ return (r.monthlyVisits||{})[ym||CURR_MONTH]||0; }
@@ -180,48 +182,6 @@ function getMonthLabel(iso){ if(!iso) return ''; const p=iso.split('-'); return 
 // esc / parseMoney → src/modules/utils.js
 
 
-// ── ACORDEÓN DE NAVEGACIÓN ──────────────────────────────────────────────────
-const navOpenGroups = new Set();
-
-function navExpandGroup(groupId) {
-  navOpenGroups.add(groupId);
-  document.querySelectorAll(`.nav-sub-item[data-group="${groupId}"]`).forEach(item => {
-    if(item.dataset.roleVisible !== '0') item.style.setProperty('display', 'block', 'important');
-  });
-  const hdr = document.querySelector(`[data-group-id="${groupId}"]`);
-  if(hdr) hdr.classList.add('nav-group-open');
-}
-
-function navCollapseGroup(groupId) {
-  navOpenGroups.delete(groupId);
-  document.querySelectorAll(`.nav-sub-item[data-group="${groupId}"]`).forEach(item => {
-    item.style.setProperty('display', 'none', 'important');
-  });
-  const hdr = document.querySelector(`[data-group-id="${groupId}"]`);
-  if(hdr) hdr.classList.remove('nav-group-open');
-}
-
-function navToggleGroup(groupId) {
-  if(navOpenGroups.has(groupId)) navCollapseGroup(groupId);
-  else navExpandGroup(groupId);
-}
-
-function finalizeNavGroups() {
-  // Snapshot visibility set by role code, then collapse all groups
-  document.querySelectorAll('.nav-sub-item[data-group]').forEach(item => {
-    // role code sets style.display='none' for hidden items; anything else = visible
-    item.dataset.roleVisible = item.style.display === 'none' ? '0' : '1';
-    item.style.setProperty('display', 'none', 'important');
-  });
-  // Reset all group headers
-  document.querySelectorAll('.nav-group-hdr').forEach(hdr => hdr.classList.remove('nav-group-open'));
-  navOpenGroups.clear();
-  // Expand active group if any
-  const active = document.querySelector('.nav-sub-item.active');
-  if(active?.dataset.group) navExpandGroup(active.dataset.group);
-}
-// ────────────────────────────────────────────────────────────────────────────
-
 function navigate(pageId, navEl){
   updateBottomNav(pageId);
   // Redirigir home según rol
@@ -229,14 +189,20 @@ function navigate(pageId, navEl){
   // Compras tiene acceso SOLO a Costo del Hotel dentro de Reportes: si intenta
   // abrir el hub de Reportes o cualquier otro reporte, se lo lleva a ese.
   if(userRole === 'compras' && ['reportes','reportes-equipo','cierre-dia','reportes-ventas'].includes(pageId)) pageId = 'reportes-hotel';
+  // Las antiguas páginas "índice" (grillas de accesos que repetían el menú)
+  // ya no se usan: se redirige a la primera sección real de cada área.
+  const HUBS = { operaciones:'checklist', comercial:'ventas-externas', control:'control-jardineria', compras:'compras-floreria', reportes:'reportes-ventas' };
+  if(HUBS[pageId]) pageId = userRole === 'compras' && pageId === 'reportes' ? 'reportes-hotel' : HUBS[pageId];
+  closeUserMenu();
   document.querySelectorAll('.content').forEach(p=>p.classList.remove('active'));
   const pg = document.getElementById('page-'+pageId);
   if(pg) pg.classList.add('active');
-  document.getElementById('breadcrumb').innerHTML = '<span>'+(PAGE_LABELS[pageId]||pageId)+'</span>';
-  document.querySelectorAll('.nav-item,.nav-sub-item').forEach(n=>n.classList.remove('active'));
-  if(navEl) navEl.classList.add('active');
-  // Auto-expandir el grupo del sub-item navegado programáticamente
-  if(navEl?.dataset?.group) navExpandGroup(navEl.dataset.group);
+  const nav = marcarNavegacion(pageId);
+  document.getElementById('breadcrumb').innerHTML = nav
+    ? (nav.pagina ? '<em class="bc-fam">'+esc(nav.familia)+'</em><span class="bc-sep"> › </span><span>'+esc(nav.pagina)+'</span>' : '<span>'+esc(nav.familia)+'</span>')
+    : '<span>'+esc(PAGE_LABELS[pageId]||pageId)+'</span>';
+  if(navEl && !navEl.closest('#sidebar-nav')) navEl.classList.add('active');
+  window.scrollTo?.(0, 0);
 
   if(pageId==='home')               renderHome();
   if(pageId==='checklist')          initChecklist();
@@ -592,7 +558,7 @@ function openGestionZonas(){
       const upDis = pos===0 ? 'disabled style="opacity:.25;cursor:default"' : '';
       const dnDis = pos===idxs.length-1 ? 'disabled style="opacity:.25;cursor:default"' : '';
       return `<div style="display:flex;align-items:center;gap:6px;padding:7px 12px;background:var(--warm-white)">
-        <div style="flex:1;min-width:0;font-size:13px;color:var(--charcoal)">${esc(t.zona)} <span style="font-size:10px;color:var(--mid-gray)">· ${esc(t.actividad)}</span></div>
+        <div style="flex:1;min-width:0;font-size:13px;color:var(--charcoal)">${esc(t.zona)} <span style="font-size:12px;color:var(--mid-gray)">· ${esc(t.actividad)}</span></div>
         <button class="btn-icon" title="Subir" ${upDis} onclick="clMoveZona(${i},-1)">▲</button>
         <button class="btn-icon" title="Bajar" ${dnDis} onclick="clMoveZona(${i},1)">▼</button>
         <button class="btn-icon" title="Renombrar" onclick="clRenameZona(${i})"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/></svg></button>
@@ -606,7 +572,7 @@ function openGestionZonas(){
         <button class="btn-icon" title="Renombrar sección" onclick="clRenameSeccion('${sec}')"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/></svg></button>
       </div>
       <div style="display:flex;flex-direction:column;gap:1px;background:var(--light-gray)">${zonasHTML || '<div style="padding:10px 12px;background:var(--warm-white);font-size:12px;color:var(--mid-gray)">Sin zonas todavía</div>'}</div>
-      <div style="padding:8px 12px;background:var(--warm-white)"><button class="btn-secondary" style="font-size:11.5px;padding:5px 12px" onclick="clAddZona('${sec}')">+ Agregar zona a ${esc(sh.label)}</button></div>
+      <div style="padding:8px 12px;background:var(--warm-white)"><button class="btn-secondary" style="font-size:12px;padding:5px 12px" onclick="clAddZona('${sec}')">+ Agregar zona a ${esc(sh.label)}</button></div>
     </div>`;
   }).join('');
 
@@ -641,7 +607,7 @@ function openTiemposEstimados(){
   if(!ov){ ov=document.createElement('div'); ov.id='cl-tiempos-modal'; ov.className='modal-overlay'; document.body.appendChild(ov); }
   let lastSec = null;
   const inpStyle = 'width:60px;padding:5px 6px;font-size:13px;text-align:center;border:1px solid var(--light-gray);border-radius:6px;background:var(--warm-white);color:var(--charcoal)';
-  const minLbl = '<span style="font-size:11px;color:var(--mid-gray)">min</span>';
+  const minLbl = '<span style="font-size:12px;color:var(--mid-gray)">min</span>';
   const filas = CL_TASKS.map((t,i)=>{
     let head = '';
     if(t.sec !== lastSec){
@@ -654,7 +620,7 @@ function openTiemposEstimados(){
     const inp = (act, val) => `<input type="number" min="0" value="${val||''}" placeholder="—" onchange="updTiempoRef(${i},this.value,'${act}')" style="${inpStyle}"> ${minLbl}`;
     // Zonas de riego: un único tiempo (Riego). El resto: Nuevo + Retoque.
     const celdas = esRiego
-      ? `<td colspan="2" style="padding:6px 12px;text-align:right;white-space:nowrap"><span class="badge badge-riego" style="font-size:9px;margin-right:8px">Riego</span>${inp('riego', o.riego)}</td>`
+      ? `<td colspan="2" style="padding:6px 12px;text-align:right;white-space:nowrap"><span class="badge badge-riego" style="font-size:12px;margin-right:8px">Riego</span>${inp('riego', o.riego)}</td>`
       : `<td style="padding:6px 12px;text-align:right;white-space:nowrap">${inp('nuevo', o.nuevo)}</td>
          <td style="padding:6px 12px;text-align:right;white-space:nowrap">${inp('retoque', o.retoque)}</td>`;
     return head + `<tr>
@@ -668,9 +634,9 @@ function openTiemposEstimados(){
     <div style="font-size:12px;color:var(--mid-gray);margin:-6px 0 12px">Cargá los minutos estimados de cada arreglo, por separado para cuando se hace <b>Nuevo</b> y para el <b>Retoque</b>. Queda fijo y sirve para medir cuánto se demora cada sección (marca en rojo las tareas que se pasan del tiempo).</div>
     <div style="overflow-y:auto;flex:1"><table style="width:100%;border-collapse:collapse">
       <thead><tr>
-        <th style="text-align:left;padding:6px 12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Zona</th>
-        <th style="text-align:right;padding:6px 12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Nuevo</th>
-        <th style="text-align:right;padding:6px 12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Retoque</th>
+        <th style="text-align:left;padding:6px 12px;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Zona</th>
+        <th style="text-align:right;padding:6px 12px;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Nuevo</th>
+        <th style="text-align:right;padding:6px 12px;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Retoque</th>
       </tr></thead>
       <tbody>${filas}</tbody>
     </table></div>
@@ -722,7 +688,7 @@ function openPromediosZona(){
     }
     filas += `<tr>
       <td style="padding:6px 12px;font-size:13px;font-weight:500">${esc(t.zona)}</td>
-      <td style="padding:6px 12px"><span class="badge ${getBadge(t.actividad)}" style="font-size:10px">${esc(t.actividad)}</span></td>
+      <td style="padding:6px 12px"><span class="badge ${getBadge(t.actividad)}" style="font-size:12px">${esc(t.actividad)}</span></td>
       <td style="padding:6px 12px;text-align:center;color:var(--mid-gray);font-size:12px" title="Cantidad de veces registradas">${a.n}</td>
       <td style="padding:6px 12px;text-align:right;font-weight:600">${fmtDur(prom)}</td>
       <td style="padding:6px 12px;text-align:right;color:var(--mid-gray)">${est?est+'m':'—'}</td>
@@ -739,12 +705,12 @@ function openPromediosZona(){
     ${conDatos
       ? `<div style="overflow-y:auto;flex:1"><table style="width:100%;border-collapse:collapse">
           <thead><tr>
-            <th style="text-align:left;padding:6px 12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Zona</th>
-            <th style="text-align:left;padding:6px 12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Act.</th>
-            <th style="text-align:center;padding:6px 12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)" title="Cuántas veces se registró">N</th>
-            <th style="text-align:right;padding:6px 12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Prom. real</th>
-            <th style="text-align:right;padding:6px 12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Estimado</th>
-            <th style="text-align:right;padding:6px 12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Desvío</th>
+            <th style="text-align:left;padding:6px 12px;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Zona</th>
+            <th style="text-align:left;padding:6px 12px;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Act.</th>
+            <th style="text-align:center;padding:6px 12px;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)" title="Cuántas veces se registró">N</th>
+            <th style="text-align:right;padding:6px 12px;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Prom. real</th>
+            <th style="text-align:right;padding:6px 12px;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Estimado</th>
+            <th style="text-align:right;padding:6px 12px;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Desvío</th>
           </tr></thead>
           <tbody>${filas}</tbody>
         </table></div>`
@@ -884,12 +850,12 @@ function renderVistaSemanal(){
   let lastSec = null;
   let html = `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;padding:10px 14px;background:#EEF3EC;border:1px solid #D8E3D4;border-radius:8px">
     <div style="font-size:12px;color:#3A4A34">✓ Esta planificación queda <strong>guardada fija</strong> y se aplica sola al empezar cada semana nueva. Editá cuando haga falta y se guarda solo.</div>
-    <button class="btn-secondary" style="font-size:11.5px;white-space:nowrap" onclick="aplicarPlantillaSemana()" title="Volver a aplicar la planificación fija a la semana actual">Aplicar a esta semana</button>
+    <button class="btn-secondary" style="font-size:12px;white-space:nowrap" onclick="aplicarPlantillaSemana()" title="Volver a aplicar la planificación fija a la semana actual">Aplicar a esta semana</button>
   </div>
   <table class="stock-table" style="min-width:900px">
     <thead><tr><th style="min-width:150px;position:sticky;left:0;background:var(--warm-white);z-index:1">Zona</th>${dias.map(d=>{
       const nuevos = CL_TASKS.reduce((s,_,i)=>s+(String(estados[d].actividad[i]||'').toLowerCase()==='nuevo'?1:0),0);
-      return `<th style="min-width:118px">${d===currentDay?'▸ ':''}${d.slice(0,3)}${nuevos?` <span style="font-size:9px;background:#B8602A;color:#fff;border-radius:8px;padding:1px 6px;vertical-align:middle">${nuevos} N</span>`:''}</th>`;
+      return `<th style="min-width:118px">${d===currentDay?'▸ ':''}${d.slice(0,3)}${nuevos?` <span style="font-size:12px;background:#B8602A;color:#fff;border-radius:8px;padding:1px 6px;vertical-align:middle">${nuevos} N</span>`:''}</th>`;
     }).join('')}</tr></thead><tbody>`;
   CL_TASKS.forEach((t,i)=>{
     if(t.sec !== lastSec){
@@ -903,11 +869,11 @@ function renderVistaSemanal(){
       const actL = String(ds.actividad[i]||t.actividad).toLowerCase();
       const resp = ds.responsable[i]||'';
       const chip = actL==='riego'
-        ? '<span class="badge badge-riego" style="font-size:9px">Riego</span>'
-        : `<span class="badge ${actL==='nuevo'?'badge-nuevo':'badge-retoque'}" style="font-size:9px;cursor:pointer" title="Tocar para alternar Retoque/Nuevo" onclick="vsToggleActividad('${d}',${i})">${actL==='nuevo'?'NUEVO':'Retoque'}</span>`;
+        ? '<span class="badge badge-riego" style="font-size:12px">Riego</span>'
+        : `<span class="badge ${actL==='nuevo'?'badge-nuevo':'badge-retoque'}" style="font-size:12px;cursor:pointer" title="Tocar para alternar Retoque/Nuevo" onclick="vsToggleActividad('${d}',${i})">${actL==='nuevo'?'NUEVO':'Retoque'}</span>`;
       html += `<td style="padding:5px 6px;vertical-align:top">
         <div style="margin-bottom:4px">${chip}</div>
-        <select class="cl-select" style="font-size:10.5px;padding:3px 4px;max-width:110px" onchange="vsSetResp('${d}',${i},this.value)">
+        <select class="cl-select" style="font-size:12px;padding:3px 4px;max-width:110px" onchange="vsSetResp('${d}',${i},this.value)">
           <option value="">—</option>
           ${CL_RESP_OPTS.map(o=>`<option${o===resp?' selected':''}>${esc(o)}</option>`).join('')}
         </select>
@@ -1070,9 +1036,9 @@ function initChecklist(){
       &nbsp;·&nbsp; ${totalDone} tarea${totalDone!==1?'s':''} completada${totalDone!==1?'s':''} esta semana
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn-secondary" style="font-size:11px;padding:5px 12px;color:var(--red-alert);border-color:var(--red-alert)"
+      <button class="btn-secondary" style="font-size:12px;padding:5px 12px;color:var(--red-alert);border-color:var(--red-alert)"
         onclick="resetDayState()">Limpiar día</button>
-      <button class="btn-secondary" style="font-size:11px;padding:5px 12px;color:var(--red-alert);border-color:var(--red-alert)"
+      <button class="btn-secondary" style="font-size:12px;padding:5px 12px;color:var(--red-alert);border-color:var(--red-alert)"
         onclick="resetWeekState()">Limpiar semana</button>
     </div>`;
 
@@ -1139,14 +1105,14 @@ function fmtDur(mins){
 }
 function durBadge(inicio, fin, ref){
   const mins = calcDuracion(inicio, fin);
-  if(!mins) return '<span style="font-size:11px;color:var(--mid-gray)">—</span>';
+  if(!mins) return '<span style="font-size:12px;color:var(--mid-gray)">—</span>';
   // Excedida: superó el tiempo promedio de referencia definido por gerencia
   if(ref && mins > ref){
-    return `<span title="Excedió la referencia de ${ref}m" style="font-size:11px;font-weight:600;color:var(--red-alert);background:#FDECEC;padding:2px 8px;border-radius:10px">${fmtDur(mins)}</span>`;
+    return `<span title="Excedió la referencia de ${ref}m" style="font-size:12px;font-weight:600;color:var(--red-alert);background:#FDECEC;padding:2px 8px;border-radius:10px">${fmtDur(mins)}</span>`;
   }
   const color = mins > 60 ? 'var(--amber)' : 'var(--green-ok)';
   const bg    = mins > 60 ? '#FDF8E8'      : '#EBF5E8';
-  return `<span style="font-size:11px;font-weight:600;color:${color};background:${bg};padding:2px 8px;border-radius:10px">${fmtDur(mins)}</span>`;
+  return `<span style="font-size:12px;font-weight:600;color:${color};background:${bg};padding:2px 8px;border-radius:10px">${fmtDur(mins)}</span>`;
 }
 
 // ── Último "Nuevo" por zona (contador de días, solo gerencia) ────────────────
@@ -1182,11 +1148,11 @@ function registrarUltimoNuevo(sec, zona, actividad, fecha){
 }
 
 function badgeUltimoNuevo(fecha){
-  if(!fecha) return '<div style="font-size:10px;color:var(--mid-gray);margin-top:2px;font-weight:400">Sin registro de Nuevo</div>';
+  if(!fecha) return '<div style="font-size:12px;color:var(--mid-gray);margin-top:2px;font-weight:400">Sin registro de Nuevo</div>';
   const dias = Math.max(0, Math.floor((new Date(TODAY_ISO)-new Date(fecha))/86400000));
   const color = dias>=7 ? 'var(--red-alert)' : dias>=5 ? '#A06A00' : 'var(--sage-dark)';
   const txt = dias===0 ? 'Nuevo hoy' : dias===1 ? 'Nuevo ayer' : `Nuevo hace ${dias} días`;
-  return `<div style="font-size:10px;font-weight:600;color:${color};margin-top:2px" title="Último Nuevo: ${fmtDate(fecha)}">${txt}</div>`;
+  return `<div style="font-size:12px;font-weight:600;color:${color};margin-top:2px" title="Último Nuevo: ${fmtDate(fecha)}">${txt}</div>`;
 }
 
 // ── Nuevos atrasados (solo gerencia) ─────────────────────────────────────────
@@ -1227,11 +1193,11 @@ function renderNuevosAtrasadosBanner(){
   if(!list.length){ el.innerHTML = ''; return; }
   const chips = list.map(z=>{
     const sh = SEC_HEADERS[z.sec];
-    return `<span style="display:inline-block;background:#fff;border:1px solid #F0C0C0;border-radius:10px;padding:3px 9px;margin:3px 4px 0 0;font-size:11.5px;white-space:nowrap" title="Último Nuevo: ${fmtDate(z.fecha)}">${sh?sh.icon:''} ${esc(z.zona)} · <strong>${z.dias} días</strong></span>`;
+    return `<span style="display:inline-block;background:#fff;border:1px solid #F0C0C0;border-radius:10px;padding:3px 9px;margin:3px 4px 0 0;font-size:12px;white-space:nowrap" title="Último Nuevo: ${fmtDate(z.fecha)}">${sh?sh.icon:''} ${esc(z.zona)} · <strong>${z.dias} días</strong></span>`;
   }).join('');
   el.innerHTML = `<div class="alert-banner" style="margin-bottom:14px">
     <div style="font-weight:600;margin-bottom:2px">${list.length} zona${list.length!==1?'s':''} con Nuevo atrasado (${UMBRAL_NUEVO_ATRASADO}+ días)</div>
-    <div style="font-size:11.5px;opacity:.85;margin-bottom:4px">Reprogramá un arreglo Nuevo desde la vista semanal antes de que se marchiten.</div>
+    <div style="font-size:12px;opacity:.85;margin-bottom:4px">Reprogramá un arreglo Nuevo desde la vista semanal antes de que se marchiten.</div>
     <div>${chips}</div>
   </div>`;
 }
@@ -1252,9 +1218,9 @@ function eventoFlorFase(ev, fase){
     : (ev.asignado||'');
 }
 function eventoFaseTag(fase){
-  if(fase === 'retiro') return '<span style="font-size:9px;font-weight:700;background:#7A5CB8;color:#fff;padding:2px 6px;border-radius:5px;margin-left:6px">RETIRO</span>';
-  if(fase === 'colocacion') return '<span style="font-size:9px;font-weight:700;background:#E65100;color:#fff;padding:2px 6px;border-radius:5px;margin-left:6px">COLOCACIÓN</span>';
-  return '<span style="font-size:9px;font-weight:700;background:#5A8C3A;color:#fff;padding:2px 6px;border-radius:5px;margin-left:6px">ARMADO</span>';
+  if(fase === 'retiro') return '<span style="font-size:12px;font-weight:700;background:#7A5CB8;color:#fff;padding:2px 6px;border-radius:5px;margin-left:6px">RETIRO</span>';
+  if(fase === 'colocacion') return '<span style="font-size:12px;font-weight:700;background:#E65100;color:#fff;padding:2px 6px;border-radius:5px;margin-left:6px">COLOCACIÓN</span>';
+  return '<span style="font-size:12px;font-weight:700;background:#5A8C3A;color:#fff;padding:2px 6px;border-radius:5px;margin-left:6px">ARMADO</span>';
 }
 // ¿Ya es momento de que el florista vea esta fase del evento?
 // Armado: siempre (lo ve para prepararlo). Colocación/Retiro: recién el día
@@ -1356,7 +1322,7 @@ function renderChecklistTable(){
     let badge = '';
     if(done>0 && !isActive){
       const col = pct===100?'var(--green-ok)':pct>50?'var(--sage)':'var(--amber)';
-      badge = `<span style="display:inline-block;margin-left:5px;background:${col};color:white;font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px;vertical-align:middle">${done}/${total}</span>`;
+      badge = `<span style="display:inline-block;margin-left:5px;background:${col};color:white;font-size:12px;font-weight:700;padding:1px 5px;border-radius:8px;vertical-align:middle">${done}/${total}</span>`;
     } else if(pct===100 && isActive){
       badge = ` `;
     }
@@ -1493,7 +1459,7 @@ function renderChecklistTable(){
       ? `<input type="number" min="0" value="${ref||''}" placeholder="min"
           style="width:52px;padding:4px 5px;font-size:12px;border:1px solid var(--light-gray);border-radius:4px;text-align:center;background:var(--warm-white);color:var(--charcoal)"
           onchange="updTiempoRef(${i},this.value,'${actLower}')">`
-      : (ref ? `<span style="font-size:11.5px;font-weight:600;color:var(--mid-gray);white-space:nowrap">⏱ ${ref}m</span>` : '<span style="font-size:11px;color:var(--mid-gray)">—</span>');
+      : (ref ? `<span style="font-size:12px;font-weight:600;color:var(--mid-gray);white-space:nowrap">⏱ ${ref}m</span>` : '<span style="font-size:12px;color:var(--mid-gray)">—</span>');
 
     const tr = document.createElement('tr');
     tr.className = sh.rowCls + (done ? ' task-row-done' : '');
@@ -1567,7 +1533,7 @@ function renderChecklistTable(){
           <td style="font-weight:600;font-size:12.5px;color:#B8602A">${esc(ev.nombre)}${badgeDiaRelativa(ev.fecha)}${faseTag}</td>
           <td style="font-size:12px">${esc(ev.tipo)} · ${esc(ev.salon||'')}</td>
           <td></td>
-          <td style="font-size:11px;color:var(--mid-gray)">${ev.pax?ev.pax+' pax':''} ${ev.hora?'· '+ev.hora:''}</td>
+          <td style="font-size:12px;color:var(--mid-gray)">${ev.pax?ev.pax+' pax':''} ${ev.hora?'· '+ev.hora:''}</td>
           <td style="width:90px;text-align:center;padding:4px 6px">${renderEvHoraCell(evIdx,'inicio',ev,fase)}</td>
           <td style="width:90px;text-align:center;padding:4px 6px">${renderEvHoraCell(evIdx,'fin',ev,fase)}</td>`;
       } else {
@@ -1576,7 +1542,7 @@ function renderChecklistTable(){
           <td style="font-weight:600;font-size:12.5px;color:#B8602A">${esc(ev.nombre)}${badgeDiaRelativa(ev.fecha)}${faseTag}</td>
           <td style="font-size:12px">${esc(ev.tipo)}</td>
           <td></td>
-          <td style="font-size:11px;color:var(--mid-gray)">${esc(ev.salon||'')} · ${ev.pax?ev.pax+' pax':''} ${ev.hora?'· '+ev.hora:''}</td>
+          <td style="font-size:12px;color:var(--mid-gray)">${esc(ev.salon||'')} · ${ev.pax?ev.pax+' pax':''} ${ev.hora?'· '+ev.hora:''}</td>
           <td style="width:90px;text-align:center;padding:4px 6px">${renderEvHoraCell(evIdx,'inicio',ev,fase)}</td>
           <td style="width:90px;text-align:center;padding:4px 6px">${renderEvHoraCell(evIdx,'fin',ev,fase)}</td>
           <td style="width:80px;text-align:center">${durBadge(iniVal, finVal)}</td>
@@ -1615,7 +1581,7 @@ function renderChecklistTable(){
           <td style="font-weight:600;font-size:12.5px;color:#2C5A80">${esc(v.prod)}${badgeDiaRelativa(v.fecha)}</td>
           <td style="font-size:12px">${esc(v.cliente||'')}</td>
           <td></td>
-          <td style="font-size:11px;color:var(--mid-gray);max-width:200px;overflow:hidden;text-overflow:ellipsis">${esc(detalle)}</td>
+          <td style="font-size:12px;color:var(--mid-gray);max-width:200px;overflow:hidden;text-overflow:ellipsis">${esc(detalle)}</td>
           <td style="width:90px;text-align:center;padding:4px 6px">${renderVentaHoraCell(vIdx,'inicio',v)}</td>
           <td style="width:90px;text-align:center;padding:4px 6px">${renderVentaHoraCell(vIdx,'fin',v)}</td>`;
       } else {
@@ -1624,7 +1590,7 @@ function renderChecklistTable(){
           <td style="font-weight:600;font-size:12.5px;color:#2C5A80">${esc(v.prod)}${badgeDiaRelativa(v.fecha)}</td>
           <td style="font-size:12px">${esc(v.cliente||'')}</td>
           <td></td>
-          <td style="font-size:11px;color:var(--mid-gray);max-width:200px">${esc(detalle)}</td>
+          <td style="font-size:12px;color:var(--mid-gray);max-width:200px">${esc(detalle)}</td>
           <td style="width:90px;text-align:center;padding:4px 6px">${renderVentaHoraCell(vIdx,'inicio',v)}</td>
           <td style="width:90px;text-align:center;padding:4px 6px">${renderVentaHoraCell(vIdx,'fin',v)}</td>
           <td style="width:80px;text-align:center">${durBadge(v.inicio, v.fin)}</td>
@@ -2202,7 +2168,7 @@ function podarHistorial(){
 function renderHistoryPanel(){
   const weeks = [...new Set(checklistHistory.map(r=>r.week))];
   const tabsEl = document.getElementById('history-week-tabs');
-  tabsEl.innerHTML = '<span style="font-size:11px;color:var(--mid-gray);margin-right:8px">Filtrar semana:</span>';
+  tabsEl.innerHTML = '<span style="font-size:12px;color:var(--mid-gray);margin-right:8px">Filtrar semana:</span>';
   if(weeks.length===0){ tabsEl.innerHTML+='<span style="font-size:12px;color:var(--mid-gray)">Sin registros aún</span>'; }
   weeks.forEach(w=>{
     const btn = document.createElement('button');
@@ -2223,7 +2189,7 @@ function renderHistoryPanel(){
     return `
     <tr>
       <td>${fmtDate(r.date)}</td>
-      <td style="font-size:11px;color:var(--mid-gray)">${esc(r.week)}</td>
+      <td style="font-size:12px;color:var(--mid-gray)">${esc(r.week)}</td>
       <td>${esc(r.day)}</td>
       <td style="font-weight:500">${esc(r.zona)}</td>
       <td><span class="badge ${getBadge(r.actividad)}">${esc(r.actividad)}</span></td>
@@ -2344,9 +2310,9 @@ function _stockPaqHtml(item){
   const vpp = _varasPorPaqResuelto(item.prod);
   if(vpp > 0){
     const paq = Math.round((item.actual / vpp) * 10) / 10;
-    return `<div style="font-size:11px;color:var(--mid-gray);margin-top:3px;text-align:center" title="${vpp} varas por paquete">≈ ${paq} paq</div>`;
+    return `<div style="font-size:12px;color:var(--mid-gray);margin-top:3px;text-align:center" title="${vpp} varas por paquete">≈ ${paq} paq</div>`;
   }
-  return `<div style="font-size:10px;color:var(--red-alert);margin-top:3px;text-align:center" title="Cargá las varas por paquete en Compras">sin dato de paq</div>`;
+  return `<div style="font-size:12px;color:var(--red-alert);margin-top:3px;text-align:center" title="Cargá las varas por paquete en Compras">sin dato de paq</div>`;
 }
 
 function renderStock(){
@@ -2394,7 +2360,7 @@ function renderStock(){
     // Columna "En Pedido" — pedidos aún no recibidos
     const enPedido = getStockEnPedido(item);
     const pedidoHtml = enPedido > 0
-      ? `<span style="color:var(--green-ok);font-weight:600">+${enPedido%1===0?enPedido:enPedido.toFixed(1)}</span><span style="font-size:10px;color:var(--sage);margin-left:3px">en camino</span>`
+      ? `<span style="color:var(--green-ok);font-weight:600">+${enPedido%1===0?enPedido:enPedido.toFixed(1)}</span><span style="font-size:12px;color:var(--sage);margin-left:3px">en camino</span>`
       : `<span style="color:var(--sage-light)">—</span>`;
 
     // Columna "Comprometido" — ingredientes de eventos pendientes
@@ -2409,15 +2375,15 @@ function renderStock(){
       const libreStr = libre%1===0 ? libre : libre.toFixed(1);
       const compStr  = comp%1===0  ? comp  : comp.toFixed(1);
       const warning  = needsBuy
-        ? `<div style="font-size:10px;color:var(--red-alert);margin-top:2px">Libre: ${libreStr} — comprar</div>`
-        : `<div style="font-size:10px;color:var(--mid-gray);margin-top:2px">Libre: ${libreStr}</div>`;
+        ? `<div style="font-size:12px;color:var(--red-alert);margin-top:2px">Libre: ${libreStr} — comprar</div>`
+        : `<div style="font-size:12px;color:var(--mid-gray);margin-top:2px">Libre: ${libreStr}</div>`;
       compHtml = `<span style="color:${color};font-weight:600">${icon}${compStr}</span>${warning}`;
     }
 
     const paqHtml = _stockPaqHtml(item);
 
     tbody.innerHTML += `<tr>
-      <td style="font-weight:500">${esc(item.prod)}${item.color?`<div style="font-size:11px;font-weight:400;color:var(--mid-gray)">${esc(item.color)}</div>`:''}</td>
+      <td style="font-weight:500">${esc(item.prod)}${item.color?`<div style="font-size:12px;font-weight:400;color:var(--mid-gray)">${esc(item.color)}</div>`:''}</td>
       <td style="font-size:12px;color:var(--mid-gray)">${esc(item.area)}</td>
       <td>${item.min}</td><td>${item.max}</td>
       <td><div style="display:flex;align-items:center;gap:4px">
@@ -2430,7 +2396,7 @@ function renderStock(){
       <td>${compHtml}</td>
       <td><div style="display:flex;align-items:center;gap:6px">
         <div class="stock-bar"><div class="stock-fill ${alClass}" style="width:${pct}%"></div></div>
-        <span style="font-size:11px;color:var(--mid-gray)">${pct}%</span>
+        <span style="font-size:12px;color:var(--mid-gray)">${pct}%</span>
       </div></td>
       <td><span class="alerta-badge ${alClass}">${alLabel}</span></td>
     </tr>`;
@@ -2550,7 +2516,7 @@ function renderStockAdmin(){
 
     const enPedido = getStockEnPedido(item);
     const pedidoHtml = enPedido > 0
-      ? `<span style="color:var(--green-ok);font-weight:600">+${enPedido%1===0?enPedido:enPedido.toFixed(1)}</span><span style="font-size:10px;color:var(--sage);margin-left:3px">en camino</span>`
+      ? `<span style="color:var(--green-ok);font-weight:600">+${enPedido%1===0?enPedido:enPedido.toFixed(1)}</span><span style="font-size:12px;color:var(--sage);margin-left:3px">en camino</span>`
       : `<span style="color:var(--sage-light)">—</span>`;
 
     let compHtml;
@@ -2564,13 +2530,13 @@ function renderStockAdmin(){
       const compStr = comp%1===0 ? comp : comp.toFixed(1);
       const libreStr = libre%1===0 ? libre : libre.toFixed(1);
       const sub = needsBuy
-        ? `<div style="font-size:10px;color:var(--red-alert);margin-top:2px">Libre: ${libreStr} — comprar</div>`
-        : `<div style="font-size:10px;color:var(--mid-gray);margin-top:2px">Libre: ${libreStr}</div>`;
+        ? `<div style="font-size:12px;color:var(--red-alert);margin-top:2px">Libre: ${libreStr} — comprar</div>`
+        : `<div style="font-size:12px;color:var(--mid-gray);margin-top:2px">Libre: ${libreStr}</div>`;
       compHtml = `<span style="color:${color};font-weight:600">${icon}${compStr}</span>${sub}`;
     }
 
     tbody.innerHTML += `<tr>
-      <td style="font-weight:500">${esc(item.prod)}${item.color?`<div style="font-size:11px;font-weight:400;color:var(--mid-gray)">${esc(item.color)}</div>`:''}</td>
+      <td style="font-weight:500">${esc(item.prod)}${item.color?`<div style="font-size:12px;font-weight:400;color:var(--mid-gray)">${esc(item.color)}</div>`:''}</td>
       <td style="font-size:12px;color:var(--mid-gray)">${esc(item.area)}</td>
       <td><input type="number" step="0.5" min="0" value="${item.min}"
         style="width:58px;border:1px solid var(--light-gray);border-radius:6px;padding:4px 6px;font-size:12px;font-family:'DM Sans',sans-serif"
@@ -2590,7 +2556,7 @@ function renderStockAdmin(){
       <td>${compHtml}</td>
       <td><div style="display:flex;align-items:center;gap:6px">
         <div class="stock-bar"><div class="stock-fill ${alClass}" style="width:${pct}%"></div></div>
-        <span style="font-size:11px;color:var(--mid-gray)">${pct}%</span>
+        <span style="font-size:12px;color:var(--mid-gray)">${pct}%</span>
       </div></td>
       <td><span class="alerta-badge ${alClass}">${alLabel}</span></td>
       <td><button class="btn-icon" style="color:var(--red-alert)" onclick="delStock(${i})" title="Eliminar del stock">✕</button></td>
@@ -3286,14 +3252,14 @@ function _compraEventosBtn(type, i, r){
   const chips = allocs.map(a=>{
     const ev = findEventoById(a.eventoId);
     const nom = ev ? (ev.nombre||'') : (a.evento||'evento');
-    return `<span style="display:inline-block;background:#FCEEF2;border:1px solid #E0B3C4;color:#7A3A2A;border-radius:6px;font-size:10px;font-weight:600;padding:2px 6px;margin:0 3px 3px 0;white-space:nowrap">${esc(nom)} · ${esc(a.qty)}</span>`;
+    return `<span style="display:inline-block;background:#FCEEF2;border:1px solid #E0B3C4;color:#7A3A2A;border-radius:6px;font-size:12px;font-weight:600;padding:2px 6px;margin:0 3px 3px 0;white-space:nowrap">${esc(nom)} · ${esc(a.qty)}</span>`;
   }).join('');
   const has = allocs.length>0;
   const label = has ? 'Editar evento(s)' : 'Asignar evento(s)';
   const btnStyle = has
     ? 'background:#FCEEF2;border:1px solid #E0B3C4;color:#7A3A2A;font-weight:600'
     : 'background:#fff;border:1px solid var(--light-gray);color:var(--mid-gray)';
-  return `<div style="margin-top:4px">${chips?`<div style="margin-bottom:3px">${chips}</div>`:''}<button type="button" onclick="openCompraEventos('${type}',${i})" style="${btnStyle};border-radius:6px;font-size:11px;padding:4px 8px;cursor:pointer;min-width:140px">${label}</button></div>`;
+  return `<div style="margin-top:4px">${chips?`<div style="margin-bottom:3px">${chips}</div>`:''}<button type="button" onclick="openCompraEventos('${type}',${i})" style="${btnStyle};border-radius:6px;font-size:12px;padding:4px 8px;cursor:pointer;min-width:140px">${label}</button></div>`;
 }
 
 function _cevTotalHtml(){
@@ -3324,7 +3290,7 @@ function _cevRender(){
   if(!cont) return;
   const refDate = _cevState.refDate || '';
   const pastNote = (refDate && refDate < TODAY_ISO)
-    ? `<div style="font-size:11px;color:var(--mid-gray);background:#FBF6EC;border:1px solid #E9DCAE;border-radius:6px;padding:6px 9px;margin-bottom:8px">Esta orden es del ${fmtDate(refDate)} (ya pasó): se muestran los eventos dentro de ±5 días de esa fecha, incluidos los finalizados.</div>`
+    ? `<div style="font-size:12px;color:var(--mid-gray);background:#FBF6EC;border:1px solid #E9DCAE;border-radius:6px;padding:6px 9px;margin-bottom:8px">Esta orden es del ${fmtDate(refDate)} (ya pasó): se muestran los eventos dentro de ±5 días de esa fecha, incluidos los finalizados.</div>`
     : '';
   cont.innerHTML = pastNote + _cevState.rows.map((row,ri)=>{
     return `<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
@@ -3631,9 +3597,9 @@ function renderCfImportPreview(colMap){
   el.style.display = '';
   el.innerHTML = `
     <div style="font-weight:600;margin-bottom:6px">Vista previa de importación — ${cfImportRows.length} pedido${cfImportRows.length!==1?'s':''}</div>
-    <div style="font-size:11px;color:var(--mid-gray);margin-bottom:10px">Columnas detectadas: ${esc(detectados)}. Los pedidos se cargan en estado "Pedido" (no tocan el stock) — el stock se actualiza recién cuando los controles/recepciones como a cualquier otro pedido.</div>
+    <div style="font-size:12px;color:var(--mid-gray);margin-bottom:10px">Columnas detectadas: ${esc(detectados)}. Los pedidos se cargan en estado "Pedido" (no tocan el stock) — el stock se actualiza recién cuando los controles/recepciones como a cualquier otro pedido.</div>
     <div style="max-height:320px;overflow:auto;border:1px solid var(--light-gray);border-radius:6px">
-      <table style="width:100%;font-size:11.5px;border-collapse:collapse">
+      <table style="width:100%;font-size:12px;border-collapse:collapse">
         <thead><tr style="background:#FAF8F4;position:sticky;top:0">
           <th style="padding:5px 8px;text-align:left">Fecha</th><th style="padding:5px 8px;text-align:left">Pedido por</th>
           <th style="padding:5px 8px;text-align:left">Producto</th><th style="padding:5px 8px;text-align:left">Desc.</th>
@@ -3788,24 +3754,24 @@ function renderEvImportPreview(){
   const m = evImportParsed.filter(e=>e.status==='modificado').length;
   const c = evImportParsed.filter(e=>e.status==='cargado').length;
   const BADGE = {
-    nuevo:      '<span style="background:#E6F2E6;color:#2E6B2E;font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px">NUEVO</span>',
-    modificado: '<span style="background:#FBF3D9;color:#8A6D00;font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px">MODIFICADO</span>',
-    cargado:    '<span style="background:#EFEDE8;color:#8A857A;font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px">YA CARGADO</span>'
+    nuevo:      '<span style="background:#E6F2E6;color:#2E6B2E;font-size:12px;font-weight:600;padding:2px 7px;border-radius:4px">NUEVO</span>',
+    modificado: '<span style="background:#FBF3D9;color:#8A6D00;font-size:12px;font-weight:600;padding:2px 7px;border-radius:4px">MODIFICADO</span>',
+    cargado:    '<span style="background:#EFEDE8;color:#8A857A;font-size:12px;font-weight:600;padding:2px 7px;border-radius:4px">YA CARGADO</span>'
   };
   const rows = evImportParsed.map((e,i)=>{
     const o=e.nuevo;
     const dis = e.status==='cargado';
-    const cambios = e.cambios.length ? `<div style="font-size:11px;color:#8A6D00;margin-top:3px">Cambió: ${esc(e.cambios.join(', '))}</div>` : '';
-    const arreglos = o.notas ? `<div style="font-size:11px;color:var(--mid-gray);margin-top:4px;white-space:pre-wrap">${esc(o.notas)}</div>` : '';
+    const cambios = e.cambios.length ? `<div style="font-size:12px;color:#8A6D00;margin-top:3px">Cambió: ${esc(e.cambios.join(', '))}</div>` : '';
+    const arreglos = o.notas ? `<div style="font-size:12px;color:var(--mid-gray);margin-top:4px;white-space:pre-wrap">${esc(o.notas)}</div>` : '';
     return `<div style="display:flex;gap:10px;padding:10px 4px;border-top:1px solid #F0EDE8;${dis?'opacity:.55':''}">
       <input type="checkbox" ${e._sel?'checked':''} ${dis?'disabled':''} onchange="evImportToggle(${i})" style="margin-top:3px;width:16px;height:16px;flex:0 0 auto">
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           ${BADGE[e.status]}
           <strong style="font-size:13px">${esc(o.nombre)}</strong>
-          <span style="font-size:11.5px;color:var(--mid-gray)">${o.fecha?fmtDate(o.fecha):'sin fecha'}${o.hora?' · '+esc(o.hora):''}${o.salon?' · '+esc(o.salon):''}${o.pax?' · '+o.pax+' pax':''}</span>
+          <span style="font-size:12px;color:var(--mid-gray)">${o.fecha?fmtDate(o.fecha):'sin fecha'}${o.hora?' · '+esc(o.hora):''}${o.salon?' · '+esc(o.salon):''}${o.pax?' · '+o.pax+' pax':''}</span>
         </div>
-        ${o.tipoEvento?`<div style="font-size:11.5px;color:var(--charcoal);margin-top:2px">${esc(o.tipoEvento)}${o.organizador?' · '+esc(o.organizador):''}</div>`:''}
+        ${o.tipoEvento?`<div style="font-size:12px;color:var(--charcoal);margin-top:2px">${esc(o.tipoEvento)}${o.organizador?' · '+esc(o.organizador):''}</div>`:''}
         ${cambios}${arreglos}
       </div>
     </div>`;
@@ -3869,7 +3835,7 @@ function renderPeriodTabs(type){
   const months = [...new Set(arr.map(r=>r.fecha?r.fecha.slice(0,7):''))].filter(Boolean).sort().reverse();
   const tabsEl = document.getElementById('compras-'+(type==='floreria'?'flore':'jard')+'-period-tabs');
   const f = compraFilter[type];
-  tabsEl.innerHTML = '<span style="font-size:11px;color:var(--mid-gray);margin-right:6px;white-space:nowrap">Acceso rápido:</span>';
+  tabsEl.innerHTML = '<span style="font-size:12px;color:var(--mid-gray);margin-right:6px;white-space:nowrap">Acceso rápido:</span>';
   const allBtn = document.createElement('button');
   allBtn.className = 'hist-filter-btn'+(!f?' active':'');
   allBtn.textContent = 'Todo';
@@ -3921,10 +3887,10 @@ function getStockBadge(prodName){
   if(al === 'ok'){
     return `<span class="stock-inline-badge sib-ok">${best.actual} uds</span>`;
   } else if(al === 'atencion'){
-    return `<span class="stock-inline-badge sib-low">${best.actual} uds</span><div style="font-size:10px;color:#A06A00;margin-top:2px">Mín: ${best.min}</div>`;
+    return `<span class="stock-inline-badge sib-low">${best.actual} uds</span><div style="font-size:12px;color:#A06A00;margin-top:2px">Mín: ${best.min}</div>`;
   } else {
     const label = best.actual <= 0 ? 'Sin stock' : best.actual+' uds';
-    return `<span class="stock-inline-badge sib-out">${label}</span><div style="font-size:10px;color:var(--red-alert);margin-top:2px">Mín: ${best.min}</div>`;
+    return `<span class="stock-inline-badge sib-out">${label}</span><div style="font-size:12px;color:var(--red-alert);margin-top:2px">Mín: ${best.min}</div>`;
   }
 }
 
@@ -4042,8 +4008,8 @@ function renderCompras(type){
           </div>
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
             <span style="font-weight:600;color:#1A1A1A;font-size:13px">${totalBloque ? '$'+totalBloque.toLocaleString('es-AR') : ''}</span>
-            ${controladosBloque>0 ? `<button class="btn-primary" style="font-size:11px;padding:4px 12px" onclick="recibirPedidoCompleto('${fecha}')" title="Recibir todos los ítems controlados de este pedido y subirlos al stock de una vez">✓ Recibir todo (${controladosBloque})</button>` : ''}
-            <button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="copiarBloquePedido('${type}','${fecha}')" title="Copiar este pedido con fecha de hoy para modificar">Copiar pedido</button>
+            ${controladosBloque>0 ? `<button class="btn-primary" style="font-size:12px;padding:4px 12px" onclick="recibirPedidoCompleto('${fecha}')" title="Recibir todos los ítems controlados de este pedido y subirlos al stock de una vez">✓ Recibir todo (${controladosBloque})</button>` : ''}
+            <button class="btn-secondary" style="font-size:12px;padding:4px 10px" onclick="copiarBloquePedido('${type}','${fecha}')" title="Copiar este pedido con fecha de hoy para modificar">Copiar pedido</button>
           </div>
         </div>
       </td>
@@ -4072,7 +4038,7 @@ function renderCompras(type){
         ${_compraEventosBtn(type,i,r)}</td>
       <td data-label="Estado">
         ${r.estado==='controlado'
-          ? `<span class="badge" style="background:#FBF3D9;color:#8A6D00;border:1px solid #E9D9A0;font-size:11px;padding:3px 8px;border-radius:4px;white-space:nowrap">Controlado · falta precio</span>`
+          ? `<span class="badge" style="background:#FBF3D9;color:#8A6D00;border:1px solid #E9D9A0;font-size:12px;padding:3px 8px;border-radius:4px;white-space:nowrap">Controlado · falta precio</span>`
           : `<select class="form-select" onchange="updC('${type}',${i},'estado',this.value);updateKpiCompras()" style="min-width:120px">
           <option value="pedido" ${r.estado!=='recibido'?'selected':''}>Pedido</option>
           <option value="recibido" ${r.estado==='recibido'?'selected':''}>Recibido</option>
@@ -4080,8 +4046,8 @@ function renderCompras(type){
       </td>
       <td data-label="Stock actual" style="vertical-align:middle">${getStockBadge(r.prod)}</td>
       <td class="compra-row-acciones" style="white-space:nowrap">
-        ${type==='floreria' && r.estado==='controlado' ? `<button class="btn-primary" style="font-size:10px;padding:3px 8px;margin-right:4px" onclick="recibirRenglonCompra(${i})" title="Recibir este ítem y subirlo al stock">✓ Recibir</button>` : ''}
-        <button class="btn-secondary" style="font-size:10px;padding:3px 7px;margin-right:4px" onclick="generarOrdenCompra(${i},'${type==='floreria'?'flore':'jard'}')" title="Generar Orden de Compra">OC</button>
+        ${type==='floreria' && r.estado==='controlado' ? `<button class="btn-primary" style="font-size:12px;padding:3px 8px;margin-right:4px" onclick="recibirRenglonCompra(${i})" title="Recibir este ítem y subirlo al stock">✓ Recibir</button>` : ''}
+        <button class="btn-secondary" style="font-size:12px;padding:3px 7px;margin-right:4px" onclick="generarOrdenCompra(${i},'${type==='floreria'?'flore':'jard'}')" title="Generar Orden de Compra">OC</button>
         <button class="btn-icon" style="color:var(--red-alert)" onclick="delC('${type}',${i})">✕</button>
       </td>
     </tr>`;
@@ -4203,7 +4169,7 @@ function renderHistorialCompras(type='floreria'){
       <div style="background:#F4F1EC;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;cursor:pointer"
         onclick="toggleHistPedido('${type}','${fecha}')" title="${abierto?'Ocultar':'Ver'} el detalle de este pedido">
         <div style="display:flex;align-items:center;gap:9px;min-width:0">
-          <span id="histcar-${type}-${fecha}" style="color:#7A7A72;font-size:11px;width:12px;flex-shrink:0">${abierto?'▾':'▸'}</span>
+          <span id="histcar-${type}-${fecha}" style="color:#7A7A72;font-size:12px;width:12px;flex-shrink:0">${abierto?'▾':'▸'}</span>
           <div style="min-width:0">
             <strong style="font-size:14px;color:#1A1A1A">Pedido del ${fecha!=='sin-fecha' ? fmtDate(fecha) : 'sin fecha'}</strong>
             <span style="color:#7A7A72;font-size:12px;margin-left:10px">${items.length} orden${items.length!==1?'es':''}${metaExtra}</span>
@@ -4211,8 +4177,8 @@ function renderHistorialCompras(type='floreria'){
         </div>
         <div style="display:flex;align-items:center;gap:10px">
           <span style="font-weight:700;color:#1A1A1A;font-size:14px">${totalBloque ? '$'+totalBloque.toLocaleString('es-AR') : ''}</span>
-          ${type==='floreria' ? `<button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="event.stopPropagation();exportarPedidoXLSX('${fecha}')" title="Descargar este pedido en Excel (mismo formato que el importador)">Exportar Excel</button>` : ''}
-          <button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="event.stopPropagation();copiarBloquePedido('${type}','${fecha}')" title="Copiar este pedido con fecha de hoy">Copiar pedido</button>
+          ${type==='floreria' ? `<button class="btn-secondary" style="font-size:12px;padding:4px 10px" onclick="event.stopPropagation();exportarPedidoXLSX('${fecha}')" title="Descargar este pedido en Excel (mismo formato que el importador)">Exportar Excel</button>` : ''}
+          <button class="btn-secondary" style="font-size:12px;padding:4px 10px" onclick="event.stopPropagation();copiarBloquePedido('${type}','${fecha}')" title="Copiar este pedido con fecha de hoy">Copiar pedido</button>
         </div>
       </div>
       ${abierto ? `<div id="histdet-${type}-${fecha}" style="overflow-x:auto;-webkit-overflow-scrolling:touch">${type==='floreria' ? _histTablaFloreria(items) : _histTablaJardineria(items)}</div>` : ''}
@@ -4268,30 +4234,30 @@ async function updHistSector(type, idx, val){
 function _histTablaFloreria(items){
   return `<table style="width:100%;min-width:900px;font-size:12px;border-collapse:collapse">
         <thead><tr style="background:#FAF8F4">
-          <th style="padding:6px 10px;text-align:left;color:var(--mid-gray);font-size:10px">Producto</th>
-          <th style="padding:6px 10px;text-align:left;color:var(--mid-gray);font-size:10px">Proveedor</th>
-          <th style="padding:6px 10px;text-align:left;color:var(--mid-gray);font-size:10px">Área</th>
-          <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:10px">Paq</th>
-          <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:10px">Varas/paq</th>
-          <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:10px">Total varas</th>
-          <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:10px">Control</th>
-          <th style="padding:6px 10px;text-align:right;color:var(--mid-gray);font-size:10px">Precio x paq</th>
-          <th style="padding:6px 10px;text-align:right;color:var(--mid-gray);font-size:10px">Importe</th>
-          <th style="padding:6px 10px;text-align:right;color:var(--mid-gray);font-size:10px">Costo/vara</th>
-          <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:10px"></th>
+          <th style="padding:6px 10px;text-align:left;color:var(--mid-gray);font-size:12px">Producto</th>
+          <th style="padding:6px 10px;text-align:left;color:var(--mid-gray);font-size:12px">Proveedor</th>
+          <th style="padding:6px 10px;text-align:left;color:var(--mid-gray);font-size:12px">Área</th>
+          <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:12px">Paq</th>
+          <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:12px">Varas/paq</th>
+          <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:12px">Total varas</th>
+          <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:12px">Control</th>
+          <th style="padding:6px 10px;text-align:right;color:var(--mid-gray);font-size:12px">Precio x paq</th>
+          <th style="padding:6px 10px;text-align:right;color:var(--mid-gray);font-size:12px">Importe</th>
+          <th style="padding:6px 10px;text-align:right;color:var(--mid-gray);font-size:12px">Costo/vara</th>
+          <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:12px"></th>
         </tr></thead>
         <tbody>${items.map(r => { const idx = comprasFlore.indexOf(r); const an = !!r.anulado; const rowStyle = an ? 'border-top:1px solid #F0EDE8;opacity:.5' : 'border-top:1px solid #F0EDE8'; const cvDiv = parseFloat(r.varasPorPaq)||parseFloat(r.totalVaras)||parseFloat(r.qty)||0; const cvVal = (parseMoney(r.costo)>0 && cvDiv>0) ? Math.round(parseMoney(r.costo)/cvDiv) : null; return `<tr style="${rowStyle};${_recepFlagStyle(r)}">
-          <td style="padding:6px 10px;font-weight:500;${an?'text-decoration:line-through':''}">${esc(r.prod)}${r.desc?`<div style="font-size:10px;color:var(--mid-gray);font-weight:400">${esc(r.desc)}</div>`:''}${_recepFlagBadge(r, idx)}</td>
+          <td style="padding:6px 10px;font-weight:500;${an?'text-decoration:line-through':''}">${esc(r.prod)}${r.desc?`<div style="font-size:12px;color:var(--mid-gray);font-weight:400">${esc(r.desc)}</div>`:''}${_recepFlagBadge(r, idx)}</td>
           <td style="padding:6px 10px;color:var(--mid-gray)">${esc(r.prov||'—')}</td>
           <td style="padding:6px 10px;color:var(--mid-gray)">${_histAreaCell('floreria',idx,r)}${_histEventoSelector('floreria',idx,r)}</td>
           <td style="padding:6px 10px;text-align:center"><input class="form-input" type="number" value="${esc(r.paqRecibidos ?? r.qty ?? '')}" onchange="updHistCantCompra('floreria',${idx},'paqRecibidos',this.value)" style="width:55px;text-align:center" ${an?'disabled':''}></td>
           <td style="padding:6px 10px;text-align:center"><input class="form-input" type="number" value="${esc(r.varasPorPaq ?? '')}" onchange="updHistCantCompra('floreria',${idx},'varasPorPaq',this.value)" style="width:55px;text-align:center" ${an?'disabled':''}></td>
           <td style="padding:6px 10px;text-align:center;font-weight:600">${r.totalVaras||r.qty||'—'}</td>
-          <td style="padding:6px 10px;text-align:center">${an ? '<span style="font-size:9px;font-weight:700;background:#7A7A72;color:#fff;padding:2px 7px;border-radius:5px;white-space:nowrap">Anulado</span>' : controlBadgeCompra(r)}</td>
+          <td style="padding:6px 10px;text-align:center">${an ? '<span style="font-size:12px;font-weight:700;background:#7A7A72;color:#fff;padding:2px 7px;border-radius:5px;white-space:nowrap">Anulado</span>' : controlBadgeCompra(r)}</td>
           <td style="padding:6px 10px;text-align:right"><input class="form-input" value="${esc(r.costo||'')}" placeholder="$" onchange="updHistCostoCompra('floreria',${idx},this.value)" style="width:90px;text-align:right" ${an?'disabled':''}></td>
           <td style="padding:6px 10px;text-align:right;font-weight:600">${parseMoney(r.costo)>0?'$'+_compraImporte(r).toLocaleString('es-AR'):'<span style="color:var(--mid-gray);font-weight:400">—</span>'}</td>
           <td style="padding:6px 10px;text-align:right;font-weight:700;color:var(--sage-dark)">${cvVal!=null?'$'+cvVal.toLocaleString('es-AR'):'<span style="color:var(--mid-gray);font-weight:400">—</span>'}</td>
-          <td style="padding:6px 10px;text-align:center;white-space:nowrap"><button class="btn-secondary" style="font-size:10px;padding:3px 8px" onclick="toggleAnularCompra('floreria',${idx})">${an?'↩️ Reactivar':'Anular'}</button></td>
+          <td style="padding:6px 10px;text-align:center;white-space:nowrap"><button class="btn-secondary" style="font-size:12px;padding:3px 8px" onclick="toggleAnularCompra('floreria',${idx})">${an?'↩️ Reactivar':'Anular'}</button></td>
         </tr>`; }).join('')}</tbody>
       </table>`;
 }
@@ -4300,15 +4266,15 @@ function _histTablaFloreria(items){
 function _histTablaJardineria(items){
   return `<table style="width:100%;min-width:720px;font-size:12px;border-collapse:collapse">
         <thead><tr style="background:#FAF8F4">
-          <th style="padding:6px 10px;text-align:left;color:var(--mid-gray);font-size:10px">Producto</th>
-          <th style="padding:6px 10px;text-align:left;color:var(--mid-gray);font-size:10px">Descripción</th>
-          <th style="padding:6px 10px;text-align:left;color:var(--mid-gray);font-size:10px">Proveedor</th>
-          <th style="padding:6px 10px;text-align:left;color:var(--mid-gray);font-size:10px">Área / Uso</th>
-          <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:10px">Cantidad</th>
-          <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:10px">Control</th>
-          <th style="padding:6px 10px;text-align:right;color:var(--mid-gray);font-size:10px">Precio unit.</th>
-          <th style="padding:6px 10px;text-align:right;color:var(--mid-gray);font-size:10px">Importe</th>
-          <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:10px"></th>
+          <th style="padding:6px 10px;text-align:left;color:var(--mid-gray);font-size:12px">Producto</th>
+          <th style="padding:6px 10px;text-align:left;color:var(--mid-gray);font-size:12px">Descripción</th>
+          <th style="padding:6px 10px;text-align:left;color:var(--mid-gray);font-size:12px">Proveedor</th>
+          <th style="padding:6px 10px;text-align:left;color:var(--mid-gray);font-size:12px">Área / Uso</th>
+          <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:12px">Cantidad</th>
+          <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:12px">Control</th>
+          <th style="padding:6px 10px;text-align:right;color:var(--mid-gray);font-size:12px">Precio unit.</th>
+          <th style="padding:6px 10px;text-align:right;color:var(--mid-gray);font-size:12px">Importe</th>
+          <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:12px"></th>
         </tr></thead>
         <tbody>${items.map(r => { const idx = comprasJard.indexOf(r); const an = !!r.anulado; const rowStyle = an ? 'border-top:1px solid #F0EDE8;opacity:.5' : 'border-top:1px solid #F0EDE8'; return `<tr style="${rowStyle}">
           <td style="padding:6px 10px;font-weight:500;${an?'text-decoration:line-through':''}">${esc(r.prod)}</td>
@@ -4316,10 +4282,10 @@ function _histTablaJardineria(items){
           <td style="padding:6px 10px;color:var(--mid-gray)">${esc(r.prov||'—')}</td>
           <td style="padding:6px 10px;color:var(--mid-gray)">${_histAreaCell('jardineria',idx,r)}${_histEventoSelector('jardineria',idx,r)}</td>
           <td style="padding:6px 10px;text-align:center"><input class="form-input" type="number" value="${esc(r.paqRecibidos ?? r.qty ?? '')}" onchange="updHistCantCompra('jardineria',${idx},'paqRecibidos',this.value)" style="width:60px;text-align:center" ${an?'disabled':''}></td>
-          <td style="padding:6px 10px;text-align:center">${an ? '<span style="font-size:9px;font-weight:700;background:#7A7A72;color:#fff;padding:2px 7px;border-radius:5px;white-space:nowrap">Anulado</span>' : controlBadgeCompra(r)}</td>
+          <td style="padding:6px 10px;text-align:center">${an ? '<span style="font-size:12px;font-weight:700;background:#7A7A72;color:#fff;padding:2px 7px;border-radius:5px;white-space:nowrap">Anulado</span>' : controlBadgeCompra(r)}</td>
           <td style="padding:6px 10px;text-align:right"><input class="form-input" value="${esc(r.costo||'')}" placeholder="$" onchange="updHistCostoCompra('jardineria',${idx},this.value)" style="width:90px;text-align:right" ${an?'disabled':''}></td>
           <td style="padding:6px 10px;text-align:right;font-weight:600">${parseMoney(r.costo)>0?'$'+_compraImporte(r).toLocaleString('es-AR'):'<span style="color:var(--mid-gray);font-weight:400">—</span>'}</td>
-          <td style="padding:6px 10px;text-align:center;white-space:nowrap"><button class="btn-secondary" style="font-size:10px;padding:3px 8px" onclick="toggleAnularCompra('jardineria',${idx})">${an?'↩️ Reactivar':'Anular'}</button></td>
+          <td style="padding:6px 10px;text-align:center;white-space:nowrap"><button class="btn-secondary" style="font-size:12px;padding:3px 8px" onclick="toggleAnularCompra('jardineria',${idx})">${an?'↩️ Reactivar':'Anular'}</button></td>
         </tr>`; }).join('')}</tbody>
       </table>`;
 }
@@ -4333,7 +4299,7 @@ function controlBadgeCompra(r){
   const recibido = (r.paqRecibidos != null && r.paqRecibidos !== '') ? (parseFloat(r.paqRecibidos) || 0) : qty; // recibidos
   const fn = n => n%1===0 ? n : (+n).toFixed(1);
   const diff = +(recibido - qty).toFixed(1);
-  const base = 'font-size:10px;font-weight:600;padding:3px 8px;border-radius:6px;display:inline-block;line-height:1.4;white-space:nowrap';
+  const base = 'font-size:12px;font-weight:600;padding:3px 8px;border-radius:6px;display:inline-block;line-height:1.4;white-space:nowrap';
   const info = `Pedí ${fn(qty)} · Llegó ${fn(recibido)}`;
   if(diff === 0){
     return `<span style="${base};background:#EBF5E8;color:#2C6B3A">${info}</span>`;
@@ -4598,9 +4564,9 @@ function renderPedidoAuto(){
         <input type="checkbox" ${sel?'checked':''} onchange="paToggleArea(${ai})" style="margin-top:3px;width:16px;height:16px;flex:0 0 auto">
         <div style="flex:1;min-width:0">
           <div style="font-weight:600;font-size:13px">${esc(area)} <span style="font-weight:400;color:var(--mid-gray)">· ${ings.length} flor${ings.length!==1?'es':''}</span></div>
-          <div style="font-size:11.5px;color:var(--mid-gray);margin-top:2px">${resumen}</div>
+          <div style="font-size:12px;color:var(--mid-gray);margin-top:2px">${resumen}</div>
         </div>
-        <select onchange="paSetAreaDia(${ai},this.value)" style="font-size:11px;border:1px solid #E4E2DC;border-radius:6px;padding:4px 6px;flex:0 0 auto" title="En qué pedido entra esta área">
+        <select onchange="paSetAreaDia(${ai},this.value)" style="font-size:12px;border:1px solid #E4E2DC;border-radius:6px;padding:4px 6px;flex:0 0 auto" title="En qué pedido entra esta área">
           <option value="ambos" ${dia==='ambos'?'selected':''}>Mié y Vie</option>
           <option value="mie" ${dia==='mie'?'selected':''}>Solo Mié</option>
           <option value="vie" ${dia==='vie'?'selected':''}>Solo Vie</option>
@@ -4621,7 +4587,7 @@ function renderPedidoAuto(){
         <input type="checkbox" ${sel?'checked':''} onchange="paToggleEvento(${i})" style="margin-top:3px;width:16px;height:16px;flex:0 0 auto">
         <div style="flex:1;min-width:0">
           <div style="font-weight:600;font-size:13px">${esc(ev.nombre||'(evento)')} <span style="font-weight:400;color:var(--mid-gray)">${ev.fecha?'· '+fmtDate(ev.fecha):''}</span></div>
-          <div style="font-size:11.5px;color:var(--mid-gray);margin-top:2px">${resumen}</div>
+          <div style="font-size:12px;color:var(--mid-gray);margin-top:2px">${resumen}</div>
         </div>
       </div>`;
     }).join('');
@@ -4633,9 +4599,9 @@ function renderPedidoAuto(){
       <span style="font-size:12px;color:var(--mid-gray)">Pedido de:</span>
       ${diaBtn('mie','Miércoles')} ${diaBtn('vie','Viernes')}
     </div>
-    <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);font-weight:600;margin-bottom:2px">Base fija del hotel</div>
+    <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);font-weight:600;margin-bottom:2px">Base fija del hotel</div>
     <div style="max-height:34vh;overflow:auto;margin-bottom:14px">${baseHTML}</div>
-    <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);font-weight:600;margin-bottom:2px">Flores de eventos pendientes</div>
+    <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);font-weight:600;margin-bottom:2px">Flores de eventos pendientes</div>
     <div style="max-height:24vh;overflow:auto;margin-bottom:14px">${evHTML}</div>
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px solid #E5E3DC;padding-top:12px">
       <div style="font-size:12.5px;color:var(--mid-gray)">Se van a cargar <strong style="color:#1A1A1A">${rows.length}</strong> ítem${rows.length!==1?'s':''} como "pedido", con el último precio conocido de cada flor.</div>
@@ -4761,7 +4727,7 @@ function ceRender(){
 
   out.innerHTML = `
     <div style="background:#EBF5E8;border:1px solid #C6E0BE;border-radius:12px;padding:16px 18px;margin-bottom:16px">
-      <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#2C6B3A;font-weight:600;margin-bottom:8px">Comprar</div>
+      <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#2C6B3A;font-weight:600;margin-bottom:8px">Comprar</div>
       ${compra.length
         ? `<div style="font-size:16px;color:#1A1A1A;line-height:1.7">${compra.map(c=>`<strong>${c.paquetes}</strong> ${esc(c.prod)}`).join(' &nbsp;·&nbsp; ')}</div>`
         : '<div style="font-size:13px;color:var(--mid-gray)">Ningún producto tiene varas por paquete cargadas en Compras todavía.</div>'}
@@ -4771,15 +4737,15 @@ function ceRender(){
     <div class="table-wrapper">
       <table style="width:100%;border-collapse:collapse;font-size:13px;background:var(--warm-white);border:1px solid var(--light-gray);border-radius:10px;overflow:hidden">
         <thead><tr style="background:#FAF8F4">
-          <th style="padding:9px 12px;text-align:left;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Producto</th>
-          <th style="padding:9px 12px;text-align:center;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Varas necesarias</th>
-          <th style="padding:9px 12px;text-align:center;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Varas x paquete</th>
-          <th style="padding:9px 12px;text-align:center;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Paquetes a comprar</th>
+          <th style="padding:9px 12px;text-align:left;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Producto</th>
+          <th style="padding:9px 12px;text-align:center;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Varas necesarias</th>
+          <th style="padding:9px 12px;text-align:center;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Varas x paquete</th>
+          <th style="padding:9px 12px;text-align:center;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Paquetes a comprar</th>
         </tr></thead>
         <tbody>${filas}</tbody>
       </table>
     </div>
-    <div style="font-size:11px;color:var(--mid-gray);margin-top:10px">Las varas necesarias salen de las composiciones (Comercial › Composiciones). Las varas por paquete se toman del último valor cargado en Compras Florería.</div>`;
+    <div style="font-size:12px;color:var(--mid-gray);margin-top:10px">Las varas necesarias salen de las composiciones (Comercial › Composiciones). Las varas por paquete se toman del último valor cargado en Compras Florería.</div>`;
   window._ceCompra = compra;
 }
 
@@ -5124,9 +5090,9 @@ function renderHistorialEventos(){
       <input value="${esc(t.nombre)}"${dis} onchange="histTarifaSet(${i},'nombre',this.value)" style="flex:1;min-width:200px;font-size:12px;padding:5px 7px;border:1px solid #E4E2DC;border-radius:6px">
       <span style="color:var(--mid-gray)">$</span>
       <input value="${t.valor}"${dis} inputmode="decimal" onchange="histTarifaSet(${i},'valor',this.value)" style="width:90px;font-size:12px;padding:5px 7px;text-align:right;border:1px solid #E4E2DC;border-radius:6px">
-      <span style="font-size:11px;color:var(--mid-gray)">por pax</span>
+      <span style="font-size:12px;color:var(--mid-gray)">por pax</span>
       ${edit?`<button class="btn-icon" style="color:var(--red-alert)" onclick="histTarifaDel(${i})" title="Quitar">✕</button>`:''}
-    </div>`).join('') + (edit?'<button class="btn-secondary" style="font-size:11px;padding:4px 10px;margin-top:6px" onclick="histTarifaAdd()">+ Agregar servicio</button>':'<div style="font-size:11px;color:var(--mid-gray);margin-top:6px">Solo gerencia puede editar las tarifas.</div>');
+    </div>`).join('') + (edit?'<button class="btn-secondary" style="font-size:12px;padding:4px 10px;margin-top:6px" onclick="histTarifaAdd()">+ Agregar servicio</button>':'<div style="font-size:12px;color:var(--mid-gray);margin-top:6px">Solo gerencia puede editar las tarifas.</div>');
   }
 
   // KPIs
@@ -5147,8 +5113,8 @@ function renderHistorialEventos(){
       <div class="card"><div class="card-label">${mesSel?.value?'Eventos de '+esc(fmtMonth(mesSel.value)):'Total eventos finalizados'}</div><div class="card-value" style="font-size:32px">${mesSel?.value?filtered.length:hechos.length}</div></div>
       <div class="card"><div class="card-label">Total pax acumulado</div><div class="card-value" style="font-size:32px">${totalPax}</div></div>
       <div class="card"><div class="card-label">Tipos de evento</div><div class="card-value" style="font-size:32px">${tiposUniq}</div></div>
-      <div class="card" style="${sinPrecio?'border:1px solid #E0B06A':''}"><div class="card-label">Falta cargar precio</div><div class="card-value" style="font-size:32px;color:${sinPrecio?'#A05A2C':'var(--green-ok)'}">${sinPrecio}</div><div style="font-size:11px;color:var(--mid-gray);margin-top:4px">${sinPrecio?'eventos "a confirmar" (USD): cargalos desde la tabla':'todos los eventos tienen precio'}</div></div>
-      <div class="card"><div class="card-label">Facturado (eventos con costo)</div><div class="card-value" style="font-size:26px">${money(factur)}</div><div style="font-size:11px;color:var(--mid-gray);margin-top:4px">${conDato} evento${conDato===1?'':'s'} con precio y composiciones cargadas</div></div>
+      <div class="card" style="${sinPrecio?'border:1px solid #E0B06A':''}"><div class="card-label">Falta cargar precio</div><div class="card-value" style="font-size:32px;color:${sinPrecio?'#A05A2C':'var(--green-ok)'}">${sinPrecio}</div><div style="font-size:12px;color:var(--mid-gray);margin-top:4px">${sinPrecio?'eventos "a confirmar" (USD): cargalos desde la tabla':'todos los eventos tienen precio'}</div></div>
+      <div class="card"><div class="card-label">Facturado (eventos con costo)</div><div class="card-value" style="font-size:26px">${money(factur)}</div><div style="font-size:12px;color:var(--mid-gray);margin-top:4px">${conDato} evento${conDato===1?'':'s'} con precio y composiciones cargadas</div></div>
       <div class="card"><div class="card-label">Costo aprox. de compra</div><div class="card-value" style="font-size:26px">${money(costo)}</div></div>
       <div class="card"><div class="card-label">Margen aproximado</div><div class="card-value" style="font-size:26px;color:${margenTot>=0?'var(--green-ok)':'var(--red-alert)'}">${money(margenTot)}${factur>0?` <span style="font-size:14px">(${Math.round(margenTot/factur*100)}%)</span>`:''}</div></div>`;
   }
@@ -5175,19 +5141,19 @@ function renderHistorialEventos(){
     const pax = +ev.pax||0, esp = ingresoEsperado(ev);
     const money = n => '$'+Math.round(n).toLocaleString('es-AR');
     const costoTd = !(ev.arreglos?.length) ? dash
-      : (c.total>0 ? money(c.total)+(pax>0?`<div style="font-size:10px;color:var(--mid-gray)">${money(c.total/pax)}/pax</div>`:'') : dash)
-        + (c.sinCosto.length ? `<div style="font-size:10px;color:var(--red-alert)" title="${esc(c.sinCosto.join(', '))}">sin costo: ${c.sinCosto.length}</div>` : '');
+      : (c.total>0 ? money(c.total)+(pax>0?`<div style="font-size:12px;color:var(--mid-gray)">${money(c.total/pax)}/pax</div>`:'') : dash)
+        + (c.sinCosto.length ? `<div style="font-size:12px;color:var(--red-alert)" title="${esc(c.sinCosto.join(', '))}">sin costo: ${c.sinCosto.length}</div>` : '');
     // Margen sobre el precio real; si todavía no está cargado, sobre el esperado (pax × tarifa)
     const base = pr>0 ? pr : esp, estim = !(pr>0);
     let margenTd = dash;
     if(base>0 && c.total>0){
       const m = base - c.total, col = m>=0 ? 'var(--green-ok)' : 'var(--red-alert)';
-      margenTd = `<span style="color:${col};font-weight:600">${m<0?'-':''}${money(Math.abs(m))}</span><div style="font-size:10px;color:${col}">${Math.round(m/base*100)}%${estim?' (est.)':''}${c.sinCosto.length?' (parcial)':''}</div>`;
+      margenTd = `<span style="color:${col};font-weight:600">${m<0?'-':''}${money(Math.abs(m))}</span><div style="font-size:12px;color:${col}">${Math.round(m/base*100)}%${estim?' (est.)':''}${c.sinCosto.length?' (parcial)':''}</div>`;
     }
     const tarifas = tarifasPaxLista();
-    const tarifaTd = `<div onclick="event.stopPropagation()"><select onchange="histEventoSetTarifa(${realIdx},this.value)" style="max-width:130px;font-size:11px;padding:3px">
+    const tarifaTd = `<div onclick="event.stopPropagation()"><select onchange="histEventoSetTarifa(${realIdx},this.value)" style="max-width:130px;font-size:12px;padding:3px">
       <option value="">—</option>${tarifas.map(t=>`<option value="${esc(t.nombre)}"${t.nombre===ev.tarifaPax?' selected':''}>${esc(t.nombre.split(' · ')[0])} (${money(t.valor)})</option>`).join('')}</select>
-      ${esp>0?`<div style="font-size:10px;color:var(--mid-gray)">esperado ${money(esp)}</div>`:''}</div>`;
+      ${esp>0?`<div style="font-size:12px;color:var(--mid-gray)">esperado ${money(esp)}</div>`:''}</div>`;
     return `<tr style="cursor:pointer${pr>0?'':';background:#FFFAF2'}" onclick="openEventoDetail(${realIdx})">
       <td style="font-weight:600;font-size:13px">${esc(ev.nombre||'')}</td>
       <td style="font-size:13px">${ev.organizador?esc(ev.organizador):'<span style="color:var(--mid-gray)">—</span>'}</td>
@@ -5197,7 +5163,7 @@ function renderHistorialEventos(){
       <td style="text-align:center;font-size:13px">${ev.pax||'—'}</td>
       <td style="font-size:12px;color:var(--charcoal)">${arreglosStr}</td>
       <td style="font-weight:600;font-size:13px;color:#2E7D32">${pr>0 ? esc(ev.precio) :
-        `<div onclick="event.stopPropagation()" style="display:flex;gap:4px;align-items:center"><span class="badge" style="background:#FDF0E8;color:#A05A2C;white-space:nowrap">Falta precio</span><input id="hist-ev-p-${realIdx}" placeholder="Precio" inputmode="decimal" style="width:90px;font-size:12px;padding:4px 6px;border:1px solid #E0B06A;border-radius:6px" onkeydown="if(event.key==='Enter')histEventoSetPrecio(${realIdx},this.value)"><button class="btn-secondary" style="font-size:11px;padding:4px 8px" onclick="histEventoSetPrecio(${realIdx},document.getElementById('hist-ev-p-${realIdx}').value)">Guardar</button></div>`}</td>
+        `<div onclick="event.stopPropagation()" style="display:flex;gap:4px;align-items:center"><span class="badge" style="background:#FDF0E8;color:#A05A2C;white-space:nowrap">Falta precio</span><input id="hist-ev-p-${realIdx}" placeholder="Precio" inputmode="decimal" style="width:90px;font-size:12px;padding:4px 6px;border:1px solid #E0B06A;border-radius:6px" onkeydown="if(event.key==='Enter')histEventoSetPrecio(${realIdx},this.value)"><button class="btn-secondary" style="font-size:12px;padding:4px 8px" onclick="histEventoSetPrecio(${realIdx},document.getElementById('hist-ev-p-${realIdx}').value)">Guardar</button></div>`}</td>
       <td style="font-size:12px">${tarifaTd}</td>
       <td style="font-size:13px;text-align:right">${costoTd}</td>
       <td style="font-size:13px;text-align:right">${margenTd}</td>
@@ -5271,12 +5237,12 @@ function renderCotizadorOps(){
     const pFinal     = Math.round(costo*(1+margen/100));
     const precioTxt  = pFinal > 0
       ? `<span style="color:var(--sage-dark);font-weight:600">$${pFinal.toLocaleString('es-AR')}/vara</span>`
-      : '<em style="color:var(--mid-gray);font-size:10px">sin precio</em>';
+      : '<em style="color:var(--mid-gray);font-size:12px">sin precio</em>';
     return `<div style="background:var(--cream);border-radius:8px;padding:9px 12px;display:flex;align-items:center;gap:8px">
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600;color:var(--charcoal);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(f.n)}</div>
         <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
-          <span style="font-size:10px;background:#EBF0E8;color:var(--green-ok);padding:1px 6px;border-radius:8px;font-weight:600">${f.actual} uds</span>
+          <span style="font-size:12px;background:#EBF0E8;color:var(--green-ok);padding:1px 6px;border-radius:8px;font-weight:600">${f.actual} uds</span>
           ${precioTxt}
         </div>
       </div>
@@ -5303,7 +5269,7 @@ function renderComposicionesCot(){
   const comps = search ? recetasData.filter(r => r.nombre.toLowerCase().includes(search)) : recetasData;
   if(!comps.length){ wrap.innerHTML = ''; return; }
 
-  wrap.innerHTML = `<div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:8px;font-weight:500">Composiciones</div>
+  wrap.innerHTML = `<div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:8px;font-weight:500">Composiciones</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px">${comps.map(r => {
       const ri = recetasData.indexOf(r);
       const costoBase = calcCostoComposicion(r);
@@ -5312,7 +5278,7 @@ function renderComposicionesCot(){
       return `<div style="background:var(--cream);border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:8px">
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;font-weight:600;color:var(--charcoal)">${emoji} ${esc(r.nombre)}</div>
-          <div style="font-size:10px;color:var(--mid-gray);margin-top:2px">${r.ings.map(g=>g.qty+' '+g.prod).join(', ')}</div>
+          <div style="font-size:12px;color:var(--mid-gray);margin-top:2px">${r.ings.map(g=>g.qty+' '+g.prod).join(', ')}</div>
           <div style="font-size:12px;color:var(--sage-dark);font-weight:600;margin-top:3px">${pFinal > 0 ? '$'+pFinal.toLocaleString('es-AR') : 'sin precio'}</div>
         </div>
         <input type="number" id="cotops_comp_${ri}" value="1" min="1"
@@ -5377,7 +5343,7 @@ function renderLPenCotizador(){
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;font-weight:600;color:var(--charcoal);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(it.nombre)}</div>
           <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
-            ${it.desc ? `<span style="font-size:10px;color:var(--mid-gray)">${esc(it.desc)}</span>` : ''}
+            ${it.desc ? `<span style="font-size:12px;color:var(--mid-gray)">${esc(it.desc)}</span>` : ''}
             <span style="font-size:12px;color:var(--sage-dark);font-weight:600">${precio > 0 ? '$'+precio.toLocaleString('es-AR') : ''}</span>
           </div>
         </div>
@@ -5390,7 +5356,7 @@ function renderLPenCotizador(){
       </div>`;
     }).join('');
     return `<div style="margin-bottom:16px">
-      <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:8px;font-weight:500">${cat.emoji||''} ${esc(cat.cat)}</div>
+      <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:8px;font-weight:500">${cat.emoji||''} ${esc(cat.cat)}</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px">${items}</div>
     </div>`;
   }).join('');
@@ -5442,7 +5408,7 @@ function renderCarritoOps(){
     return `<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--light-gray)">
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600;color:var(--charcoal)">${esc(c.nombre)}</div>
-        <div style="font-size:11px;color:var(--mid-gray)">$${c.precio.toLocaleString('es-AR')}/vara</div>
+        <div style="font-size:12px;color:var(--mid-gray)">$${c.precio.toLocaleString('es-AR')}/vara</div>
       </div>
       <input type="number" min="1" value="${c.qty}"
         style="width:52px;padding:3px 6px;border:1px solid var(--light-gray);border-radius:4px;font-size:13px;text-align:center;font-family:inherit"
@@ -5495,6 +5461,8 @@ function setCotTab(tab){
   else renderPreciosList();
 }
 
+const COT_MOBILE_MAX = 12;
+let cotVerTodo = false;
 function renderCotizador(){
   const search = (document.getElementById('cot-search')?.value||'').toLowerCase();
   const list = search ? COT_ALL.filter(f=>f.n.toLowerCase().includes(search)) : COT_ALL;
@@ -5504,20 +5472,24 @@ function renderCotizador(){
     grid.innerHTML = '<div style="color:var(--mid-gray);font-size:13px;padding:8px 0">Sin resultados</div>';
     return;
   }
-  grid.innerHTML = list.map(f => {
+  // En el celular, sin búsqueda, se muestran las primeras flores y un botón
+  // para ver el resto: así el presupuesto (que va debajo) queda a mano.
+  const corto = !search && !cotVerTodo && window.innerWidth <= 768 && list.length > COT_MOBILE_MAX;
+  const visibles = corto ? list.slice(0, COT_MOBILE_MAX) : list;
+  grid.innerHTML = visibles.map(f => {
     const idx = COT_ALL.findIndex(x=>x.n===f.n);
     const precio = cotizadorPrecios[f.n] || 0;
     const badgeBg    = f.c==='flores' ? '#EBF5E8' : '#EEF0F8';
     const badgeColor = f.c==='flores' ? 'var(--green-ok)' : '#4A5FA6';
     const precioTxt  = precio > 0
       ? `$${precio.toLocaleString('es-AR')}/vara`
-      : '<em style="color:var(--mid-gray);font-size:10px">sin precio</em>';
+      : '<em style="color:var(--mid-gray);font-size:12px">sin precio</em>';
     return `<div style="background:var(--cream);border-radius:8px;padding:9px 12px;display:flex;align-items:center;gap:8px">
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600;color:var(--charcoal);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(f.n)}</div>
         <div style="display:flex;align-items:center;gap:6px;margin-top:2px;flex-wrap:wrap">
-          <span style="font-size:10px;background:${badgeBg};color:${badgeColor};padding:1px 6px;border-radius:8px;font-weight:600;white-space:nowrap">${f.c}</span>
-          <span style="font-size:11px">${precioTxt}</span>
+          <span style="font-size:12px;background:${badgeBg};color:${badgeColor};padding:1px 6px;border-radius:8px;font-weight:600;white-space:nowrap">${f.c}</span>
+          <span style="font-size:12px">${precioTxt}</span>
         </div>
       </div>
       <input type="number" id="cot_${idx}" value="1" min="1"
@@ -5527,8 +5499,10 @@ function renderCotizador(){
         + Agregar
       </button>
     </div>`;
-  }).join('');
+  }).join('') + (corto
+    ? `<button class="btn-secondary" style="width:100%;margin-top:4px" onclick="cotVerTodas()">Ver las ${list.length} flores y follajes · o buscá arriba</button>` : '');
 }
+function cotVerTodas(){ cotVerTodo = true; renderCotizador(); }
 
 function cotAgregar(cotIdx){
   const f = COT_ALL[cotIdx];
@@ -5576,7 +5550,7 @@ function renderCarrito(){
     return `<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--light-gray)">
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600;color:var(--charcoal)">${esc(c.nombre)}</div>
-        <div style="font-size:11px;color:var(--mid-gray)">$${c.precio.toLocaleString('es-AR')}/vara</div>
+        <div style="font-size:12px;color:var(--mid-gray)">$${c.precio.toLocaleString('es-AR')}/vara</div>
       </div>
       <input type="number" min="1" value="${c.qty}"
         style="width:52px;padding:3px 6px;border:1px solid var(--light-gray);border-radius:4px;font-size:13px;text-align:center;font-family:inherit"
@@ -5625,21 +5599,21 @@ function renderEvTipos(){
       const reglas = t.reglas || [];
       const reglasHtml = reglas.map((r,ri) => `<div style="display:flex;align-items:center;gap:6px;padding:4px 0">
         <span style="font-size:12px;flex:1">${arregloEmoji(r.arreglo)} <strong>${esc(r.arreglo)}</strong> — 1 cada <strong>${r.cadaPax}</strong> personas</span>
-        <button class="btn-icon" style="color:var(--red-alert);font-size:10px" onclick="delReglaTipo(${i},${ri})">✕</button>
+        <button class="btn-icon" style="color:var(--red-alert);font-size:12px" onclick="delReglaTipo(${i},${ri})">✕</button>
       </div>`).join('');
       return `<div style="border:1px solid var(--light-gray);border-radius:8px;padding:12px;margin-bottom:8px;background:var(--warm-white)">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
           <input class="form-input" value="${esc(t.nombre)}" onchange="updTipoEvento(${i},'nombre',this.value)" style="flex:1;padding:5px 8px;font-size:13px;font-weight:600" placeholder="Nombre del tipo">
           <div style="display:flex;align-items:center;gap:4px">
-            <span style="font-size:10px;color:var(--mid-gray)">Margen:</span>
+            <span style="font-size:12px;color:var(--mid-gray)">Margen:</span>
             <input class="form-input" type="number" value="${t.margen}" min="0" max="500" onchange="updTipoEvento(${i},'margen',+this.value)" style="width:60px;padding:5px;font-size:12px;text-align:center">
-            <span style="font-size:11px;color:var(--mid-gray)">%</span>
+            <span style="font-size:12px;color:var(--mid-gray)">%</span>
           </div>
           <button class="btn-icon" style="color:var(--red-alert)" onclick="delTipoEvento(${i})">✕</button>
         </div>
-        <div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:4px">Arreglos por evento:</div>
-        ${reglasHtml || '<div style="font-size:11px;color:var(--mid-gray);padding:4px 0">Sin arreglos configurados</div>'}
-        <button class="btn-secondary" onclick="addReglaTipo(${i})" style="font-size:10px;padding:3px 10px;margin-top:4px">+ Agregar arreglo</button>
+        <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:4px">Arreglos por evento:</div>
+        ${reglasHtml || '<div style="font-size:12px;color:var(--mid-gray);padding:4px 0">Sin arreglos configurados</div>'}
+        <button class="btn-secondary" onclick="addReglaTipo(${i})" style="font-size:12px;padding:3px 10px;margin-top:4px">+ Agregar arreglo</button>
       </div>`;
     }).join('');
   }
@@ -5775,7 +5749,7 @@ function renderCotEventos(){
   // ── COMPOSICIONES ──
   const comps = recetasData.filter(r => !search || r.nombre.toLowerCase().includes(search) || r.ings.some(g=>g.prod.toLowerCase().includes(search)));
   if(comps.length){
-    html += `<div style="grid-column:1/-1;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);font-weight:500;margin-bottom:-4px">Composiciones</div>`;
+    html += `<div style="grid-column:1/-1;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);font-weight:500;margin-bottom:-4px">Composiciones</div>`;
     html += comps.map(r => {
       const ri = recetasData.indexOf(r);
       const costoBase = calcCostoComposicion(r);
@@ -5786,11 +5760,11 @@ function renderCotEventos(){
       return `<div style="background:var(--cream);border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:8px">
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;font-weight:600;color:var(--charcoal)">${emoji} ${esc(r.nombre)}</div>
-          <div style="font-size:10px;color:var(--mid-gray);margin-top:2px;line-height:1.4">${esc(ingsList)}</div>
+          <div style="font-size:12px;color:var(--mid-gray);margin-top:2px;line-height:1.4">${esc(ingsList)}</div>
           <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
-            <span style="font-size:11px;color:var(--mid-gray)">costo: $${costoBase.toLocaleString('es-AR')}</span>
+            <span style="font-size:12px;color:var(--mid-gray)">costo: $${costoBase.toLocaleString('es-AR')}</span>
             <span style="font-size:12px;color:var(--sage-dark);font-weight:600">→ $${pFinal.toLocaleString('es-AR')}</span>
-            ${sinCosto ? '<span style="font-size:9px;color:var(--amber)">falta precio</span>' : ''}
+            ${sinCosto ? '<span style="font-size:12px;color:var(--amber)">falta precio</span>' : ''}
           </div>
         </div>
         <input type="number" id="evcot_comp_${ri}" value="1" min="1"
@@ -5809,7 +5783,7 @@ function renderCotEventos(){
     .filter(s => s.actual > 0);
   const flores = search ? enStock.filter(f=>f.n.toLowerCase().includes(search)) : enStock;
   if(flores.length){
-    html += `<div style="grid-column:1/-1;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);font-weight:500;margin-top:12px;margin-bottom:-4px">Flores sueltas · upgrades</div>`;
+    html += `<div style="grid-column:1/-1;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);font-weight:500;margin-top:12px;margin-bottom:-4px">Flores sueltas · upgrades</div>`;
     html += flores.map(f => {
       const costo = cotizadorPrecios[f.n] || 0;
       const pFinal = Math.round(costo*(1+margen/100));
@@ -5817,8 +5791,8 @@ function renderCotEventos(){
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;font-weight:600;color:var(--charcoal)">${esc(f.n)}</div>
           <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
-            <span style="font-size:10px;background:#EBF0E8;color:var(--green-ok);padding:1px 6px;border-radius:8px;font-weight:600">${f.actual} uds</span>
-            <span style="font-size:11px;color:var(--mid-gray)">$${costo.toLocaleString('es-AR')}</span>
+            <span style="font-size:12px;background:#EBF0E8;color:var(--green-ok);padding:1px 6px;border-radius:8px;font-weight:600">${f.actual} uds</span>
+            <span style="font-size:12px;color:var(--mid-gray)">$${costo.toLocaleString('es-AR')}</span>
             <span style="font-size:12px;color:var(--sage-dark);font-weight:600">→ $${pFinal.toLocaleString('es-AR')}</span>
           </div>
         </div>
@@ -5899,7 +5873,7 @@ function renderEvCarrito(){
     return `<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--light-gray)">
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600;color:var(--charcoal)">${esc(c.nombre)}</div>
-        <div style="font-size:11px;color:var(--mid-gray)">$${c.precio.toLocaleString('es-AR')}/vara × ${c.qty}</div>
+        <div style="font-size:12px;color:var(--mid-gray)">$${c.precio.toLocaleString('es-AR')}/vara × ${c.qty}</div>
       </div>
       <span style="font-size:13px;font-weight:600;min-width:80px;text-align:right">$${sub.toLocaleString('es-AR')}</span>
       <button onclick="evCarrito.splice(${i},1);renderEvCarrito()" style="background:none;border:none;cursor:pointer;color:var(--red-alert);font-size:14px;padding:2px 6px">✕</button>
@@ -5943,12 +5917,12 @@ function renderPreciosList(){
             style="width:90px;padding:5px 8px;border:1px solid var(--light-gray);border-radius:4px;font-size:13px;text-align:right;font-family:inherit"
             onblur="cotGuardarPrecio(${allIdx},this.value)"
             onkeydown="if(event.key==='Enter')this.blur()">
-          <span style="font-size:11px;color:var(--mid-gray)">/vara</span>
+          <span style="font-size:12px;color:var(--mid-gray)">/vara</span>
         </div>
       </div>`;
     }).join('');
     return `<div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;overflow:hidden;margin-bottom:16px">
-      <div style="padding:9px 12px;background:var(--cream);font-size:11px;letter-spacing:1.5px;text-transform:uppercase;font-weight:600;color:var(--mid-gray)">${emoji} ${label}</div>
+      <div style="padding:9px 12px;background:var(--cream);font-size:12px;letter-spacing:1px;text-transform:uppercase;font-weight:600;color:var(--mid-gray)">${emoji} ${label}</div>
       ${rows}
     </div>`;
   };
@@ -5986,11 +5960,11 @@ function renderEventos(){
     const i = eventosData.indexOf(ev);
     const stStyle=ESTADO_COLORS[ev.estado]||'';
     const stOpts=['Pedidos Pendientes','En Proceso','Pendiente de Colocacion','Confirmado','Pedidos Finalizados'].map(o=>`<option value="${o}"${ev.estado===o?' selected':''}>${o}</option>`).join('');
-    const fromOpsTag = ev.fromKanban ? '<span style="font-size:10px;background:#E8F0F8;color:#2C5A80;padding:2px 7px;border-radius:4px;font-weight:600;letter-spacing:.5px">DESDE OPERACIONES</span>' : '';
+    const fromOpsTag = ev.fromKanban ? '<span style="font-size:12px;background:#E8F0F8;color:#2C5A80;padding:2px 7px;border-radius:4px;font-weight:600;letter-spacing:.5px">DESDE OPERACIONES</span>' : '';
     const arreglosResumen = (ev.arreglos && ev.arreglos.length)
       ? `<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">
-          <span style="font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Arreglos</span>
-          ${ev.arreglos.map(a=>`<span style="background:var(--blush-light);color:#7A3A2A;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap">${a.qty}× ${esc(a.arreglo)}</span>`).join('')}
+          <span style="font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Arreglos</span>
+          ${ev.arreglos.map(a=>`<span style="background:var(--blush-light);color:#7A3A2A;font-size:12px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap">${a.qty}× ${esc(a.arreglo)}</span>`).join('')}
         </div>`
       : '';
     return `<div class="event-card"${ev.fromKanban?' style="border-left:3px solid #2C5A80"':''}>
@@ -6384,7 +6358,7 @@ function renderCierreDia(){
     const ventasN = data.personas.reduce((s,p)=>s+p.ventas.length,0);
     const kpi = (val,lbl)=>`<div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;padding:14px 16px">
       <div style="font-size:24px;font-weight:700;color:var(--charcoal)">${val}</div>
-      <div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);margin-top:2px">${lbl}</div></div>`;
+      <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);margin-top:2px">${lbl}</div></div>`;
     kpisEl.innerHTML = [
       kpi(totalPers, 'Asistieron'),
       kpi(fmtMin(totalHoras), 'Horas trabajadas'),
@@ -6402,32 +6376,32 @@ function renderCierreDia(){
     return;
   }
 
-  const genLbl = data.generadoTs ? `<div style="font-size:11px;color:var(--mid-gray);margin-bottom:14px">Generado ${new Date(data.generadoTs).toLocaleString('es-AR')}${resumenesDiarios[fecha]?.generadoTs===data.generadoTs?' · snapshot guardado':' · vista en vivo'}</div>` : '';
+  const genLbl = data.generadoTs ? `<div style="font-size:12px;color:var(--mid-gray);margin-bottom:14px">Generado ${new Date(data.generadoTs).toLocaleString('es-AR')}${resumenesDiarios[fecha]?.generadoTs===data.generadoTs?' · snapshot guardado':' · vista en vivo'}</div>` : '';
 
   cont.innerHTML = genLbl + data.personas.map(p=>{
     const turnoStr = p.desde ? `${p.desde}${p.hasta?' – '+p.hasta:' (en curso)'}` : 'Sin turno fichado';
     const horasStr = p.horasMin ? ` · ${fmtMin(p.horasMin)}` : '';
     const asistTag = p.ficho
-      ? '<span style="font-size:10px;font-weight:700;background:#EBF5E8;color:#2C6B3A;padding:2px 8px;border-radius:5px">✓ Fichó</span>'
-      : '<span style="font-size:10px;font-weight:700;background:#FDF0E8;color:#B4772A;padding:2px 8px;border-radius:5px">Planificado</span>';
+      ? '<span style="font-size:12px;font-weight:700;background:#EBF5E8;color:#2C6B3A;padding:2px 8px;border-radius:5px">✓ Fichó</span>'
+      : '<span style="font-size:12px;font-weight:700;background:#FDF0E8;color:#B4772A;padding:2px 8px;border-radius:5px">Planificado</span>';
 
     const checklistHtml = p.checklist.length
-      ? `<div style="margin-top:10px"><div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:6px">Checklist · ${p.tareasHechas}/${p.tareasTotal}</div>
+      ? `<div style="margin-top:10px"><div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:6px">Checklist · ${p.tareasHechas}/${p.tareasTotal}</div>
           ${p.checklist.map(t=>`<div style="font-size:12.5px;padding:3px 0;color:${t.done?'var(--charcoal)':'#B4772A'}">${t.done?'✓':'○'} <strong>${esc(t.zona||t.sec)}</strong>${t.actividad?' · '+esc(t.actividad):''}${t.dur?` <span style="color:var(--mid-gray)">· ${fmtDur(t.dur)}</span>`:''}${t.obs?` <span style="color:var(--mid-gray)">— ${esc(t.obs)}</span>`:''}</div>`).join('')}</div>`
       : '';
 
     const jardHtml = p.jardineria.length
-      ? `<div style="margin-top:10px"><div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:6px">Jardinería</div>
+      ? `<div style="margin-top:10px"><div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:6px">Jardinería</div>
           ${p.jardineria.map(t=>`<div style="font-size:12.5px;padding:3px 0;color:${t.done?'var(--charcoal)':'#B4772A'}">${t.done?'✓':'○'} ${esc(t.task||'Tarea')}${(t.horaInicio||t.horaFin)?` <span style="color:var(--mid-gray)">(${esc(t.horaInicio||'—')}${t.horaFin?' – '+esc(t.horaFin):''})</span>`:''}${t.obs?` — ${esc(t.obs)}`:''}</div>`).join('')}</div>`
       : '';
 
     const eventosHtml = p.eventos.length
-      ? `<div style="margin-top:10px"><div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:6px">Eventos</div>
+      ? `<div style="margin-top:10px"><div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:6px">Eventos</div>
           ${p.eventos.map(e=>`<div style="font-size:12.5px;padding:3px 0"><strong>${esc(e.nombre)}</strong> <span style="color:var(--mid-gray)">· ${e.roles.join(', ')}</span></div>`).join('')}</div>`
       : '';
 
     const ventasHtml = p.ventas.length
-      ? `<div style="margin-top:10px"><div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:6px">Ventas</div>
+      ? `<div style="margin-top:10px"><div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:6px">Ventas</div>
           ${p.ventas.map(v=>`<div style="font-size:12.5px;padding:3px 0">${esc(v.prod)}${v.cliente?' · '+esc(v.cliente):''} <span style="color:var(--mid-gray)">(${esc(v.estado)})</span></div>`).join('')}</div>`
       : '';
 
@@ -6438,7 +6412,7 @@ function renderCierreDia(){
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
           <strong style="font-size:15px;color:var(--charcoal)">${esc(p.nombre)}</strong>
-          <span style="font-size:11px;color:var(--mid-gray)">${esc(p.area)}</span>
+          <span style="font-size:12px;color:var(--mid-gray)">${esc(p.area)}</span>
           ${asistTag}
         </div>
         <div style="font-size:12.5px;color:var(--mid-gray)">⏱ ${turnoStr}${horasStr}</div>
@@ -6633,7 +6607,7 @@ function renderHome(){
     <div class="home-dash-card">
       <div class="home-dash-card-hdr">
         <div class="home-dash-title">Próximos Eventos</div>
-        <button class="btn-secondary" style="padding:5px 12px;font-size:11px" onclick="navigate('eventos-maison')">Ver kanban →</button>
+        <button class="btn-secondary" style="padding:5px 12px;font-size:12px" onclick="navigate('eventos-maison')">Ver kanban →</button>
       </div>
       ${proximos.length ? proximos.map(ev => {
         const esHoy = ev.fecha === hoy;
@@ -6661,7 +6635,7 @@ function renderHome(){
     <div class="home-dash-card" style="margin-bottom:16px">
       <div class="home-dash-card-hdr">
         <div class="home-dash-title">Ventas · ${mesActual.split('-').reverse().join('/')}</div>
-        <button class="btn-secondary" style="padding:5px 12px;font-size:11px" onclick="navigate('ventas-externas')">Ver →</button>
+        <button class="btn-secondary" style="padding:5px 12px;font-size:12px" onclick="navigate('ventas-externas')">Ver →</button>
       </div>
       <div class="home-ventas-stats">
         <div class="home-ventas-stat"><span class="home-ventas-stat-label">Confirmadas</span><span class="home-ventas-stat-val green">${fmtARS(confirmadas.reduce((s,v)=>s+parseMoney(v.precio),0))}</span></div>
@@ -6682,7 +6656,7 @@ function renderHome(){
     <div class="home-dash-card">
       <div class="home-dash-card-hdr">
         <div class="home-dash-title">Checklist de Hoy</div>
-        <button class="btn-secondary" style="padding:5px 12px;font-size:11px" onclick="navigate('checklist')">Ver →</button>
+        <button class="btn-secondary" style="padding:5px 12px;font-size:12px" onclick="navigate('checklist')">Ver →</button>
       </div>
       <div class="home-cl-bar-wrap">
         <div class="home-cl-bar"><div class="home-cl-fill" style="width:${pct}%"></div></div>
@@ -6749,7 +6723,7 @@ function margenVenta(v){
 // Celda <td> de margen para la tabla de ventas. Muestra "—" cuando no hay costo.
 function margenCell(v){
   const m = margenVenta(v);
-  if(m==null) return '<td style="white-space:nowrap;text-align:center"><span style="color:var(--mid-gray);font-size:11px" title="No hay composición cargada para estimar el costo de este producto">—</span></td>';
+  if(m==null) return '<td style="white-space:nowrap;text-align:center"><span style="color:var(--mid-gray);font-size:12px" title="No hay composición cargada para estimar el costo de este producto">—</span></td>';
   const col = m>=0 ? 'var(--green-ok)' : 'var(--red-alert)';
   return `<td style="white-space:nowrap;text-align:right"><span style="color:${col};font-weight:600;font-size:12px" title="Precio − costo estimado − envío">$${Math.round(m).toLocaleString('es-AR')}</span></td>`;
 }
@@ -6840,7 +6814,7 @@ function renderVentas(){
     const pend = lista.filter(o=>o.v.facturado!=='Sí' && parseMoney(o.v.precio)>0);
     const totalPend = pend.reduce((s,o)=>s+parseMoney(o.v.precio),0);
     const pillPend = pend.length
-      ? `<span style="background:#FDECEC;color:var(--red-alert);border:1px solid #F0C0C0;border-radius:10px;padding:2px 9px;font-weight:600;font-size:11.5px;white-space:nowrap">Sin facturar: ${pend.length} · $${totalPend.toLocaleString('es-AR')}</span>`
+      ? `<span style="background:#FDECEC;color:var(--red-alert);border:1px solid #F0C0C0;border-radius:10px;padding:2px 9px;font-weight:600;font-size:12px;white-space:nowrap">Sin facturar: ${pend.length} · $${totalPend.toLocaleString('es-AR')}</span>`
       : '';
     if(fMes||fPago||fTipo||fFact){
       const total = lista.reduce((s,o)=>s+parseMoney(o.v.precio),0);
@@ -6880,7 +6854,7 @@ function renderVentas(){
       </select>
     </td>
     <td>
-      <select class="form-select" style="${VENTA_ESTADO_COLOR[v.estado]||''};min-width:130px;font-size:11px;font-weight:600" onchange="updV(${i},'estado',this.value)">
+      <select class="form-select" style="${VENTA_ESTADO_COLOR[v.estado]||''};min-width:130px;font-size:12px;font-weight:600" onchange="updV(${i},'estado',this.value)">
         ${VENTA_ESTADOS.map(s=>`<option value="${s}"${v.estado===s?' selected':''}>${VENTA_ESTADO_LABEL[s]}</option>`).join('')}
       </select>
     </td>
@@ -6891,7 +6865,7 @@ function renderVentas(){
         <option value="Taxi" ${v.taxiFlete==='Taxi'?'selected':''}>Taxi</option>
         <option value="Flete" ${v.taxiFlete==='Flete'?'selected':''}>Flete</option>
       </select>
-      <input class="form-input" value="${esc(v.envioCosto||'')}" onchange="updV(${i},'envioCosto',this.value)" placeholder="$ costo envío" style="width:100px;margin-top:4px;font-size:11px" title="Costo del taxi/flete (para el cierre de mes)">
+      <input class="form-input" value="${esc(v.envioCosto||'')}" onchange="updV(${i},'envioCosto',this.value)" placeholder="$ costo envío" style="width:100px;margin-top:4px;font-size:12px" title="Costo del taxi/flete (para el cierre de mes)">
     </td>
     <td style="white-space:nowrap">
       ${fotoRamoBtn(i, v)}
@@ -6899,6 +6873,34 @@ function renderVentas(){
       <button class="btn-icon" style="color:var(--red-alert)" onclick="delVenta(${i})">✕</button>
     </td>
   </tr>`).join('') + _ventasMoreRow(lista.length);
+  _renderVentasCards(lista);
+}
+
+// Vista de tarjetas (celular): solo lectura, se toca para editar en el modal.
+function _renderVentasCards(lista){
+  const cont = document.getElementById('ve-cards');
+  if(!cont) return;
+  if(!lista.length){
+    cont.innerHTML = `<div class="ve-empty">No hay ventas con estos filtros.</div>`;
+    return;
+  }
+  cont.innerHTML = lista.slice(0, ventasShown).map(({v,i})=>{
+    const precio = parseMoney(v.precio);
+    const tags = [
+      `<span class="ve-tag${v.estado==='pendiente'?' warn':' ok'}">${esc((VENTA_ESTADO_LABEL[v.estado]||v.estado||'').replace(/^\W+\s*/,''))}</span>`,
+      v.facturado==='Sí' ? '<span class="ve-tag ok">Facturada</span>' : (precio>0 ? '<span class="ve-tag warn">Sin facturar</span>' : ''),
+      v.formaPago ? `<span class="ve-tag">${esc(v.formaPago)}</span>` : '',
+      v.asignado ? `<span class="ve-tag">${esc(v.asignado)}</span>` : '',
+    ].join('');
+    return `<div class="ve-card" role="button" tabindex="0" onclick="openEditSaleModal(${i})" onkeydown="if(event.key==='Enter')this.click()">
+      <div class="ve-card-cli">${esc(v.cliente||v.destinatario||'Sin cliente')}</div>
+      <div class="ve-card-precio">${precio>0 ? '$'+precio.toLocaleString('es-AR') : '—'}</div>
+      <div class="ve-card-meta">${esc(v.prod||'')} · ${fmtDate(v.fecha)}${v.destinatario && v.cliente ? ' · para '+esc(v.destinatario) : ''}</div>
+      <div onclick="event.stopPropagation()">${fotoRamoBtn(i, v)}</div>
+      <div class="ve-card-tags">${tags}</div>
+    </div>`;
+  }).join('') + (lista.length > ventasShown
+    ? `<div style="text-align:center;padding:14px"><button class="btn-secondary" onclick="ventasShowMore()">Mostrar más · quedan ${lista.length-ventasShown}</button></div>` : '');
 }
 
 function ventasClearFilters(){
@@ -6944,18 +6946,18 @@ function ventasCierreMes(){
 
   const filasHTML = claves.map(g=>`
     <div style="display:flex;justify-content:space-between;align-items:baseline;padding:9px 0;border-bottom:1px solid var(--light-gray)">
-      <span>Ventas <strong>${esc(g)}</strong> <span style="color:var(--mid-gray);font-size:11px">· ${grupos[g].count} venta${grupos[g].count!==1?'s':''}</span></span>
+      <span>Ventas <strong>${esc(g)}</strong> <span style="color:var(--mid-gray);font-size:12px">· ${grupos[g].count} venta${grupos[g].count!==1?'s':''}</span></span>
       <strong style="white-space:nowrap">Cobrar $${grupos[g].total.toLocaleString('es-AR')}</strong>
     </div>`).join('');
 
   // Bloque de facturación + envíos (solo se muestra lo que tenga datos).
   const factHTML = `
     <div style="margin-top:14px;padding:12px 14px;background:#FBFAF8;border:1px solid var(--light-gray);border-radius:8px;font-size:13px">
-      <div style="display:flex;justify-content:space-between;padding:4px 0"><span>Facturado <span style="color:var(--mid-gray);font-size:11px">· ${factList.length}</span></span><strong>$${factTotal.toLocaleString('es-AR')}</strong></div>
-      <div style="display:flex;justify-content:space-between;padding:4px 0;color:${pendTotal>0?'var(--red-alert)':'inherit'}"><span>Sin facturar <span style="font-size:11px;opacity:.8">· ${pendList.length}</span></span><strong>$${pendTotal.toLocaleString('es-AR')}</strong></div>
-      ${enviosTotal>0 ? `<div style="display:flex;justify-content:space-between;padding:4px 0;border-top:1px dashed var(--light-gray);margin-top:4px"><span>Envíos (taxi/flete) <span style="color:var(--mid-gray);font-size:11px">· ${enviosCount}</span></span><strong style="color:var(--red-alert)">− $${enviosTotal.toLocaleString('es-AR')}</strong></div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0"><span>Facturado <span style="color:var(--mid-gray);font-size:12px">· ${factList.length}</span></span><strong>$${factTotal.toLocaleString('es-AR')}</strong></div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0;color:${pendTotal>0?'var(--red-alert)':'inherit'}"><span>Sin facturar <span style="font-size:12px;opacity:.8">· ${pendList.length}</span></span><strong>$${pendTotal.toLocaleString('es-AR')}</strong></div>
+      ${enviosTotal>0 ? `<div style="display:flex;justify-content:space-between;padding:4px 0;border-top:1px dashed var(--light-gray);margin-top:4px"><span>Envíos (taxi/flete) <span style="color:var(--mid-gray);font-size:12px">· ${enviosCount}</span></span><strong style="color:var(--red-alert)">− $${enviosTotal.toLocaleString('es-AR')}</strong></div>
       <div style="display:flex;justify-content:space-between;padding:4px 0"><span>Neto (ventas − envíos)</span><strong>$${(totalGen-enviosTotal).toLocaleString('es-AR')}</strong></div>` : ''}
-      ${conMargen.length ? `<div style="display:flex;justify-content:space-between;padding:4px 0;border-top:1px dashed var(--light-gray);margin-top:4px"><span>Ganancia estimada <span style="color:var(--mid-gray);font-size:11px">· ${conMargen.length} c/composición</span></span><strong style="color:var(--green-ok)">$${Math.round(gananciaTotal).toLocaleString('es-AR')}</strong></div>` : ''}
+      ${conMargen.length ? `<div style="display:flex;justify-content:space-between;padding:4px 0;border-top:1px dashed var(--light-gray);margin-top:4px"><span>Ganancia estimada <span style="color:var(--mid-gray);font-size:12px">· ${conMargen.length} c/composición</span></span><strong style="color:var(--green-ok)">$${Math.round(gananciaTotal).toLocaleString('es-AR')}</strong></div>` : ''}
     </div>`;
 
   window._ventasCierreTexto = `Cierre ${fmtMonth(mes)}\n`
@@ -7036,8 +7038,19 @@ function openSaleModal(){
   ['sale-desc','sale-cliente','sale-destinatario','sale-dedicatoria','sale-precio','sale-dir'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('sale-estado').value='pendiente';
   document.getElementById('sale-pago').value='';
+  ['sale-facturado','sale-taxi','sale-envio'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('sale-del-btn').style.display='none';
+  document.getElementById('sale-save-btn').textContent='Agregar';
   populateSaleSelects('', '');
   document.getElementById('sale-modal').classList.add('open');
+}
+
+async function delVentaDesdeModal(){
+  const i = +document.getElementById('sale-edit-idx').value;
+  if(i < 0) return;
+  const antes = ventasData.length;
+  await delVenta(i);
+  if(ventasData.length < antes) closeModal('sale-modal');
 }
 
 function openEditSaleModal(i){
@@ -7055,6 +7068,11 @@ function openEditSaleModal(i){
   document.getElementById('sale-pago').value = v.formaPago || '';
   document.getElementById('sale-estado').value = v.estado || 'pendiente';
   document.getElementById('sale-dir').value = v.dir || '';
+  document.getElementById('sale-facturado').value = v.facturado || '';
+  document.getElementById('sale-taxi').value = v.taxiFlete || '';
+  document.getElementById('sale-envio').value = v.envioCosto || '';
+  document.getElementById('sale-del-btn').style.display = '';
+  document.getElementById('sale-save-btn').textContent = 'Guardar';
   document.getElementById('sale-modal').classList.add('open');
 }
 
@@ -7137,6 +7155,9 @@ function addSale(){
     formaPago:document.getElementById('sale-pago').value,
     estado,
     dir:document.getElementById('sale-dir').value||'',
+    facturado:document.getElementById('sale-facturado')?.value||'',
+    taxiFlete:document.getElementById('sale-taxi')?.value||'',
+    envioCosto:document.getElementById('sale-envio')?.value||'',
     asignado,
     sucursal: getSucursalId(),
   };
@@ -7147,11 +7168,10 @@ function addSale(){
     venta.inicio = ventasData[editIdx].inicio || '';
     venta.fin = ventasData[editIdx].fin || '';
     venta.cajaRegistrado = ventasData[editIdx].cajaRegistrado || false;
-    // Preservar campos que se editan inline en la planilla (no están en el modal).
-    venta.facturado = ventasData[editIdx].facturado || '';
-    venta.taxiFlete = ventasData[editIdx].taxiFlete || '';
-    venta.envioCosto = ventasData[editIdx].envioCosto || '';
-    ventasData[editIdx] = venta;
+    // Facturado, taxi/flete y costo de envío ahora también se editan en el
+    // modal (en el celular no hay planilla). Se conservan los demás campos
+    // de la venta que el modal no muestra (id, foto, origen kanban…).
+    ventasData[editIdx] = { ...ventasData[editIdx], ...venta };
     fbSave('ventasData', ventasData);
     sincronizarVentaCaja(editIdx);
     showToast('Venta actualizada');
@@ -7214,7 +7234,7 @@ function cajaRowHTML(r, i, running){
     <td><input class="form-input" value="${esc(r.desc)}" onchange="updCaja(${i},'desc',this.value)" style="min-width:180px;padding:5px 7px;font-size:12px"></td>
     <td><input class="form-input" value="${esc(r.ticket||'')}" onchange="updCaja(${i},'ticket',this.value)" placeholder="—" style="width:75px;padding:5px 7px;font-size:12px"></td>
     <td>
-      <select class="form-select" onchange="updCajaTipo(${i},this.value)" style="font-size:11px;font-weight:600;padding:4px 6px;${r.tipo==='ingreso'?'background:#EBF5E8;color:var(--green-ok)':'background:#FBE8E8;color:var(--red-alert)'}">
+      <select class="form-select" onchange="updCajaTipo(${i},this.value)" style="font-size:12px;font-weight:600;padding:4px 6px;${r.tipo==='ingreso'?'background:#EBF5E8;color:var(--green-ok)':'background:#FBE8E8;color:var(--red-alert)'}">
         <option value="ingreso" ${r.tipo==='ingreso'?'selected':''}>Ingreso</option>
         <option value="egreso"  ${r.tipo==='egreso' ?'selected':''}>Egreso</option>
       </select>
@@ -7376,11 +7396,11 @@ function renderCierreCajaHistorial(){
   if(!sorted.length){ el.innerHTML = '<div style="color:var(--mid-gray);font-size:13px;padding:16px">Sin cierres registrados aún.</div>'; return; }
   el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px">
     <thead><tr style="background:var(--cream)">
-      <th style="padding:8px 12px;text-align:left;font-size:10px;letter-spacing:1px;color:var(--mid-gray);text-transform:uppercase">Fecha</th>
-      <th style="padding:8px 12px;text-align:right;font-size:10px;letter-spacing:1px;color:var(--mid-gray);text-transform:uppercase">Ingresos</th>
-      <th style="padding:8px 12px;text-align:right;font-size:10px;letter-spacing:1px;color:var(--mid-gray);text-transform:uppercase">Egresos</th>
-      <th style="padding:8px 12px;text-align:right;font-size:10px;letter-spacing:1px;color:var(--mid-gray);text-transform:uppercase">Saldo</th>
-      <th style="padding:8px 12px;text-align:left;font-size:10px;letter-spacing:1px;color:var(--mid-gray);text-transform:uppercase">Cerrado por</th>
+      <th style="padding:8px 12px;text-align:left;font-size:12px;letter-spacing:1px;color:var(--mid-gray);text-transform:uppercase">Fecha</th>
+      <th style="padding:8px 12px;text-align:right;font-size:12px;letter-spacing:1px;color:var(--mid-gray);text-transform:uppercase">Ingresos</th>
+      <th style="padding:8px 12px;text-align:right;font-size:12px;letter-spacing:1px;color:var(--mid-gray);text-transform:uppercase">Egresos</th>
+      <th style="padding:8px 12px;text-align:right;font-size:12px;letter-spacing:1px;color:var(--mid-gray);text-transform:uppercase">Saldo</th>
+      <th style="padding:8px 12px;text-align:left;font-size:12px;letter-spacing:1px;color:var(--mid-gray);text-transform:uppercase">Cerrado por</th>
     </tr></thead>
     <tbody>
     ${sorted.map(c => `<tr style="border-top:1px solid var(--light-gray)" onclick="toggleCierreDetalle(${c.ts})" style="cursor:pointer">
@@ -7495,10 +7515,10 @@ function renderGaleria(){
       const chips = galMateriaPrima(g).length ? galMateriaPrima(g) : flores;
       const _sd = galSecDe(g);
       const secBadge = _sd==='hotel'
-        ? `<span style="background:#E8EEF4;color:#2C5A80;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600">Hotel</span>`
+        ? `<span style="background:#E8EEF4;color:#2C5A80;padding:2px 8px;border-radius:20px;font-size:12px;font-weight:600">Hotel</span>`
         : _sd==='ramos'
-        ? `<span style="background:var(--sage-light);color:#3A5A3A;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600">Ramo</span>`
-        : `<span style="background:var(--blush-light);color:#7A3A2A;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600">Evento</span>`;
+        ? `<span style="background:var(--sage-light);color:#3A5A3A;padding:2px 8px;border-radius:20px;font-size:12px;font-weight:600">Ramo</span>`
+        : `<span style="background:var(--blush-light);color:#7A3A2A;padding:2px 8px;border-radius:20px;font-size:12px;font-weight:600">Evento</span>`;
       return `<div style="break-inside:avoid;margin-bottom:16px;border-radius:var(--radius-md);overflow:hidden;background:var(--warm-white);border:1px solid var(--light-gray);box-shadow:var(--shadow-sm);cursor:pointer;transition:var(--transition)" onclick="openFichaGaleria(${realIdx})" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='var(--shadow-md)'" onmouseout="this.style.transform='';this.style.boxShadow='var(--shadow-sm)'">
         ${foto
           ? `<img src="${foto}" style="width:100%;display:block;object-fit:cover;max-height:380px" loading="lazy">`
@@ -7508,15 +7528,15 @@ function renderGaleria(){
           <div style="font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:500;color:var(--charcoal);margin-bottom:6px">${esc(g.titulo||'Sin título')}</div>
           <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px">
             ${secBadge}
-            ${g.sector?`<span style="background:var(--cream);color:var(--mid-gray);padding:2px 8px;border-radius:20px;font-size:10px">${esc(g.sector)}</span>`:''}
-            ${g.tamano?`<span style="background:var(--cream);color:var(--mid-gray);padding:2px 8px;border-radius:20px;font-size:10px">${esc(g.tamano)}</span>`:''}
-            ${g.temporada?`<span style="background:var(--cream);color:var(--mid-gray);padding:2px 8px;border-radius:20px;font-size:10px">${TEMP_ICON[g.temporada]||''} ${esc(g.temporada)}</span>`:''}
-            ${chips.slice(0,3).map(f=>`<span style="background:var(--light-gray);color:var(--charcoal);padding:2px 8px;border-radius:20px;font-size:10px">${esc(f)}</span>`).join('')}
+            ${g.sector?`<span style="background:var(--cream);color:var(--mid-gray);padding:2px 8px;border-radius:20px;font-size:12px">${esc(g.sector)}</span>`:''}
+            ${g.tamano?`<span style="background:var(--cream);color:var(--mid-gray);padding:2px 8px;border-radius:20px;font-size:12px">${esc(g.tamano)}</span>`:''}
+            ${g.temporada?`<span style="background:var(--cream);color:var(--mid-gray);padding:2px 8px;border-radius:20px;font-size:12px">${TEMP_ICON[g.temporada]||''} ${esc(g.temporada)}</span>`:''}
+            ${chips.slice(0,3).map(f=>`<span style="background:var(--light-gray);color:var(--charcoal);padding:2px 8px;border-radius:20px;font-size:12px">${esc(f)}</span>`).join('')}
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center">
-            <span style="font-size:11px;color:var(--mid-gray)">${g.precio?esc(g.precio):(g.fecha?fmtDate(g.fecha):'')}</span>
+            <span style="font-size:12px;color:var(--mid-gray)">${g.precio?esc(g.precio):(g.fecha?fmtDate(g.fecha):'')}</span>
             <div style="display:flex;gap:4px" onclick="event.stopPropagation()">
-              ${(g.fotos&&g.fotos.length>1)?`<span style="font-size:10px;color:var(--mid-gray);padding:2px 6px">${g.fotos.length}</span>`:''}
+              ${(g.fotos&&g.fotos.length>1)?`<span style="font-size:12px;color:var(--mid-gray);padding:2px 6px">${g.fotos.length}</span>`:''}
               <button class="btn-icon" onclick="editarGaleria(${realIdx})" title="Editar"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/></svg></button>
               <button class="btn-icon" style="color:var(--red-alert)" onclick="eliminarGaleria(${realIdx})" title="Eliminar"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg></button>
             </div>
@@ -7638,11 +7658,11 @@ function abrirLightbox(idx){
       <div style="margin-top:16px;text-align:center;max-width:600px;padding:0 20px">
         <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:white;margin-bottom:6px">${esc(g.titulo||'Sin título')}</div>
         <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:8px">
-          ${g.tipoEvento?`<span style="background:rgba(196,147,122,.3);color:#EDE8E2;padding:3px 10px;border-radius:20px;font-size:11px">${esc(g.tipoEvento)}</span>`:''}
-          ${flores.map(f=>`<span style="background:rgba(255,255,255,.12);color:rgba(255,255,255,.8);padding:3px 10px;border-radius:20px;font-size:11px">${esc(f)}</span>`).join('')}
+          ${g.tipoEvento?`<span style="background:rgba(196,147,122,.3);color:#EDE8E2;padding:3px 10px;border-radius:20px;font-size:12px">${esc(g.tipoEvento)}</span>`:''}
+          ${flores.map(f=>`<span style="background:rgba(255,255,255,.12);color:rgba(255,255,255,.8);padding:3px 10px;border-radius:20px;font-size:12px">${esc(f)}</span>`).join('')}
         </div>
         ${g.notas?`<div style="font-size:12px;color:rgba(255,255,255,.5);line-height:1.6">${esc(g.notas)}</div>`:''}
-        ${fotos.length>1?`<div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:6px">${fotoIdx+1} / ${fotos.length}</div>`:''}
+        ${fotos.length>1?`<div style="font-size:12px;color:rgba(255,255,255,.4);margin-top:6px">${fotoIdx+1} / ${fotos.length}</div>`:''}
       </div>`;
   }
   showFoto();
@@ -7705,7 +7725,7 @@ function openGaleriaModal(idx){
 
     ${fld('Categoría','gal-categoria', g.categoria||g.tipoEvento, 'ej. Ambientación Hotelera')}
 
-    <div class="form-group"><label class="form-label">Materia prima <span style="color:var(--mid-gray);font-size:10px;font-weight:400">(elegí de la base o escribí una nueva)</span></label>
+    <div class="form-group"><label class="form-label">Materia prima <span style="color:var(--mid-gray);font-size:12px;font-weight:400">(elegí de la base o escribí una nueva)</span></label>
       <div id="gal-ings-list">${ings.map(i=>galIngRowHTML(i.prod,i.qty)).join('')}</div>
       <datalist id="gal-insumos-list">${getAllInsumos().map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
       <button type="button" class="btn-secondary" style="margin-top:4px;font-size:12px" onclick="addGalIngRow()">+ Agregar materia prima</button>
@@ -7745,7 +7765,7 @@ function openGaleriaModal(idx){
       <div id="gal-fotos-preview" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px">
         ${(g.fotos||[]).map((f,fi)=>`<div style="position:relative;width:80px;height:80px;border-radius:6px;overflow:hidden;border:1px solid var(--light-gray)">
           <img src="${f}" style="width:100%;height:100%;object-fit:cover">
-          <button onclick="galeriaQuitarFoto(${idx!=null?idx:'null'},${fi})" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:white;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;cursor:pointer;line-height:1">✕</button>
+          <button onclick="galeriaQuitarFoto(${idx!=null?idx:'null'},${fi})" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:white;border:none;border-radius:50%;width:18px;height:18px;font-size:12px;cursor:pointer;line-height:1">✕</button>
         </div>`).join('')}
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -7812,7 +7832,7 @@ function _refreshGalModalFotos(fotosData, idx){
   if(!preview) return;
   preview.innerHTML = fotosData.map((f,fi)=>`<div style="position:relative;width:80px;height:80px;border-radius:6px;overflow:hidden;border:1px solid var(--light-gray)">
     <img src="${f}" style="width:100%;height:100%;object-fit:cover">
-    <button onclick="galeriaQuitarFoto(${idx!=null?idx:'null'},${fi})" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:white;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;cursor:pointer;line-height:1">✕</button>
+    <button onclick="galeriaQuitarFoto(${idx!=null?idx:'null'},${fi})" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:white;border:none;border-radius:50%;width:18px;height:18px;font-size:12px;cursor:pointer;line-height:1">✕</button>
   </div>`).join('');
 }
 
@@ -7968,7 +7988,7 @@ function renderRecepcionPedidos(){
           <td><strong>${esc(g.prod)}</strong></td>
           <td style="text-align:center">${g.n}</td>
           <td style="text-align:center"><strong style="font-size:15px;color:var(--sage-dark)">${g.qty}</strong></td>
-          <td style="font-size:11.5px;color:var(--mid-gray)">${esc([...g.sectores].join(', ')||'—')}</td>
+          <td style="font-size:12px;color:var(--mid-gray)">${esc([...g.sectores].join(', ')||'—')}</td>
         </tr>`).join('')}</tbody>
       </table></div>`;
     const actionBar = document.getElementById('recep-action-bar');
@@ -7998,7 +8018,7 @@ function renderRecepcionPedidos(){
     // Migrar estado viejo (cantRecibida) al nuevo formato
     if(st.cantRecibida && !st.paqRecibidos){ st.paqRecibidos = st.cantRecibida; st.varasPorPaq = 1; }
     const totalVaras = (parseFloat(st.paqRecibidos)||0) * (parseFloat(st.varasPorPaq)||1);
-    const estadoBadge = '<span style="background:#EBF0E8;color:#3A5230;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700">PEDIDO</span>';
+    const estadoBadge = '<span style="background:#EBF0E8;color:#3A5230;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:700">PEDIDO</span>';
     const paqOk = parseFloat(st.paqRecibidos) >= parseFloat(order.qty);
     const rowClass = st.checked ? (paqOk ? 'recep-ok' : 'recep-parcial') : '';
 
@@ -8009,7 +8029,7 @@ function renderRecepcionPedidos(){
           <div class="recep-pedido-meta">${esc(order.fecha)} · ${esc(order.prov||'Sin proveedor')} · ${esc(order.sector||'')} ${estadoBadge}</div>
         </div>
         <div style="text-align:right">
-          <div style="font-size:11px;opacity:.6">Pedido</div>
+          <div style="font-size:12px;opacity:.6">Pedido</div>
           <div style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:400">${order.qty} paq</div>
         </div>
       </div>
@@ -8019,38 +8039,38 @@ function renderRecepcionPedidos(){
           onchange="recepToggle(${globalIdx}, this.checked)">
         <div style="flex:1;min-width:120px">
           <div style="font-weight:500">${esc(order.prod)}</div>
-          ${order.desc ? `<div style="font-size:11px;color:var(--mid-gray)">${esc(order.desc)}</div>` : ''}
+          ${order.desc ? `<div style="font-size:12px;color:var(--mid-gray)">${esc(order.desc)}</div>` : ''}
         </div>
         <div style="text-align:center">
-          <div style="font-size:10px;color:var(--mid-gray)">Pedido</div>
+          <div style="font-size:12px;color:var(--mid-gray)">Pedido</div>
           <strong style="font-size:15px">${order.qty}</strong>
-          <div style="font-size:9px;color:var(--mid-gray)">paquetes</div>
+          <div style="font-size:12px;color:var(--mid-gray)">paquetes</div>
         </div>
         <div style="text-align:center">
-          <div style="font-size:10px;color:var(--mid-gray)">Recibidos</div>
+          <div style="font-size:12px;color:var(--mid-gray)">Recibidos</div>
           <input type="number" class="recep-qty-input" id="recep-paq-${globalIdx}"
             value="${st.paqRecibidos}" min="0"
             onchange="recepUpdPaq(${globalIdx}, this.value)"
             ${!st.checked ? 'disabled style="opacity:.5"' : ''}>
-          <div style="font-size:9px;color:var(--mid-gray)">paquetes</div>
+          <div style="font-size:12px;color:var(--mid-gray)">paquetes</div>
         </div>
         <div style="text-align:center">
-          <div style="font-size:10px;color:var(--mid-gray)">Varas/paq</div>
+          <div style="font-size:12px;color:var(--mid-gray)">Varas/paq</div>
           <input type="number" class="recep-qty-input" id="recep-varas-${globalIdx}"
             value="${st.varasPorPaq}" min="1"
             onchange="recepUpdVaras(${globalIdx}, this.value)"
             ${!st.checked ? 'disabled style="opacity:.5"' : ''}>
-          <div style="font-size:9px;color:var(--mid-gray)">unidades</div>
+          <div style="font-size:12px;color:var(--mid-gray)">unidades</div>
         </div>
         <div style="text-align:center;min-width:70px">
-          <div style="font-size:10px;color:var(--mid-gray)">Total varas</div>
+          <div style="font-size:12px;color:var(--mid-gray)">Total varas</div>
           <strong style="font-size:18px;color:${st.checked?'var(--sage-dark)':'var(--mid-gray)'}" id="recep-total-${globalIdx}">${st.checked ? totalVaras : '—'}</strong>
         </div>
         <div style="text-align:center;width:36px">
           ${st.checked
             ? (paqOk
               ? '<span style="font-size:18px"></span>'
-              : '<span style="font-size:18px"></span><div style="font-size:9px;color:var(--amber)">Faltante</div>')
+              : '<span style="font-size:18px"></span><div style="font-size:12px;color:var(--amber)">Faltante</div>')
             : '<span style="font-size:18px;opacity:.3"></span>'
           }
         </div>
@@ -8074,8 +8094,8 @@ function renderRecepcionPedidos(){
         </label>
         <input class="form-input" value="${esc(order.recepObs||'')}" placeholder="Aclaración (ej: vino golpeado, marchito, faltante…)" onchange="recepUpdObs(${globalIdx}, this.value)" style="flex:1;min-width:160px;font-size:12px">
         ${order.recepFoto
-          ? `<button class="btn-secondary" style="font-size:11px;padding:5px 9px" onclick="verFotoRecep(${globalIdx})">Ver</button><button class="btn-icon" style="color:var(--red-alert)" onclick="recepQuitarFoto(${globalIdx})" title="Quitar foto">✕</button>`
-          : `<label class="btn-secondary" style="font-size:11px;padding:5px 9px;cursor:pointer;white-space:nowrap">Foto<input type="file" accept="image/*" capture="environment" style="display:none" onchange="recepFotoInput(${globalIdx}, this)"></label>`}
+          ? `<button class="btn-secondary" style="font-size:12px;padding:5px 9px" onclick="verFotoRecep(${globalIdx})">Ver</button><button class="btn-icon" style="color:var(--red-alert)" onclick="recepQuitarFoto(${globalIdx})" title="Quitar foto">✕</button>`
+          : `<label class="btn-secondary" style="font-size:12px;padding:5px 9px;cursor:pointer;white-space:nowrap">Foto<input type="file" accept="image/*" capture="environment" style="display:none" onchange="recepFotoInput(${globalIdx}, this)"></label>`}
       </div>
     </div>`;
   }).join('');
@@ -8268,11 +8288,11 @@ function _renderRevisionRecep(controlados){
           const idx = o._idx;
           return `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;background:${o.recepAlerta?'rgba(200,60,60,.08)':'var(--warm-white)'};border:1px solid var(--light-gray);border-radius:8px;padding:8px 12px">
             <div style="flex:1;min-width:160px">
-              <div style="font-weight:600">${esc(o.prod)}${o.recepAlerta?' <span style="color:var(--red-alert);font-size:11px">mal estado</span>':''}</div>
-              <div style="font-size:11px;color:var(--mid-gray)">${o.paqRecibidos||0} paq × ${o.varasPorPaq||1} = <strong>${o.totalVaras||0} varas</strong>${o.prov?' · '+esc(o.prov):''}${o.sector?' · '+esc(o.sector):''}</div>
+              <div style="font-weight:600">${esc(o.prod)}${o.recepAlerta?' <span style="color:var(--red-alert);font-size:12px">mal estado</span>':''}</div>
+              <div style="font-size:12px;color:var(--mid-gray)">${o.paqRecibidos||0} paq × ${o.varasPorPaq||1} = <strong>${o.totalVaras||0} varas</strong>${o.prov?' · '+esc(o.prov):''}${o.sector?' · '+esc(o.sector):''}</div>
               ${_recepFlagBadge(o, idx)}
             </div>
-            <button class="btn-secondary" style="font-size:11px;padding:5px 10px;white-space:nowrap" onclick="recepVolverAControl(${idx})" title="Volver a control para corregir">↩️ Corregir</button>
+            <button class="btn-secondary" style="font-size:12px;padding:5px 10px;white-space:nowrap" onclick="recepVolverAControl(${idx})" title="Volver a control para corregir">↩️ Corregir</button>
           </div>`;
         }).join('')}
       </div>
@@ -8367,7 +8387,7 @@ function _recepFlagBadge(r, idx){
   const lbl = r.recepAlerta ? 'Recibido en mal estado' : 'Obs. recepción';
   const foto = r.recepFoto ? ` · <a onclick="verFotoRecep(${idx})" style="cursor:pointer;text-decoration:underline">ver foto</a>` : '';
   const txt = r.recepObs ? ': '+esc(r.recepObs) : '';
-  return `<div style="margin-top:3px;font-size:11px;font-weight:600;color:${col}">${lbl}${txt}${foto}</div>`;
+  return `<div style="margin-top:3px;font-size:12px;font-weight:600;color:${col}">${lbl}${txt}${foto}</div>`;
 }
 
 // Fase 1: controlar un ítem (NO va al stock todavía; pasa a Revisión).
@@ -8742,9 +8762,9 @@ function renderLlamadosEval(){
         ${items.map(l=>`<div style="display:flex;gap:10px;align-items:center;padding:9px 14px;border-top:1px solid #F0EDE8">
           ${l.foto?`<img src="${l.foto}" onclick="verFotoLlamado(${l.id})" style="width:52px;height:52px;object-fit:cover;border-radius:6px;cursor:pointer;flex-shrink:0" alt="">`:'<div style="width:52px;height:52px;border-radius:6px;background:#F0EDE8;display:flex;align-items:center;justify-content:center;flex-shrink:0"></div>'}
           <div style="flex:1;min-width:0">
-            <div style="font-size:13px;font-weight:600;color:var(--charcoal)">${esc(l.zona||'Arreglo')} ${l.resuelto?'<span style="font-size:10px;color:var(--green-ok)">✓ visto</span>':'<span style="font-size:10px;color:var(--amber)">pendiente</span>'}</div>
+            <div style="font-size:13px;font-weight:600;color:var(--charcoal)">${esc(l.zona||'Arreglo')} ${l.resuelto?'<span style="font-size:12px;color:var(--green-ok)">✓ visto</span>':'<span style="font-size:12px;color:var(--amber)">pendiente</span>'}</div>
             ${l.nota?`<div style="font-size:12px;color:#7A7A72">${esc(l.nota)}</div>`:''}
-            <div style="font-size:11px;color:var(--mid-gray)">${fmtDate(l.fecha)} · por ${esc(l.por||'gerencia')}</div>
+            <div style="font-size:12px;color:var(--mid-gray)">${fmtDate(l.fecha)} · por ${esc(l.por||'gerencia')}</div>
           </div>
           <button class="btn-icon" style="color:var(--red-alert)" title="Eliminar del registro" onclick="eliminarLlamado(${l.id})">✕</button>
         </div>`).join('')}
@@ -8854,7 +8874,7 @@ function renderRecordatoriosJard(){
             const color=est==='vencido'?'color:var(--red-alert);font-weight:600':est==='proximo'?'color:#A06A00;font-weight:600':'';
             return `<tr>
               <td><strong>${esc(r.task)}</strong></td>
-              <td style="font-size:11.5px;color:var(--mid-gray)">${esc(r.group)}</td>
+              <td style="font-size:12px;color:var(--mid-gray)">${esc(r.group)}</td>
               <td><span class="jrec-tipo-badge" style="${JARD_TIPO_STYLE[r.tipo]||''}">${JARD_TIPOS_ICON[r.tipo]||''} ${esc(r.tipo)}</span></td>
               <td>${r.frecuencia} días</td>
               <td>${r.ultimaVez?fmtDate(r.ultimaVez):'—'}</td>
@@ -8928,7 +8948,7 @@ function renderPlagasJard(){
   const atrasadas = sem.filter(s=>s.orden===0).length;
   const proximas  = sem.filter(s=>s.orden===1).length;
   const activas   = jardPlagas.filter(r=>r.estado!=='Resuelta').length;
-  const chip = (n,label,color) => `<div style="flex:1;min-width:120px;padding:10px 14px;border:1px solid var(--light-gray);border-left:3px solid ${color};border-radius:6px;background:#fff"><div style="font-size:22px;font-weight:600">${n}</div><div style="font-size:11.5px;color:var(--mid-gray)">${label}</div></div>`;
+  const chip = (n,label,color) => `<div style="flex:1;min-width:120px;padding:10px 14px;border:1px solid var(--light-gray);border-left:3px solid ${color};border-radius:6px;background:#fff"><div style="font-size:22px;font-weight:600">${n}</div><div style="font-size:12px;color:var(--mid-gray)">${label}</div></div>`;
   const q = plagasFiltroTexto;
   const items = jardPlagas.map((r,i)=>({r,i,s:sem[i]}))
     .filter(x=>!plagasFiltroEstado || (x.r.estado||'Detectada')===plagasFiltroEstado)
@@ -8940,16 +8960,16 @@ function renderPlagasJard(){
     const hist = (r.historial||[]);
     const proxFecha = (r.estado!=='Resuelta' && r.ultimo) ? fmtDate(addDaysISO(r.ultimo, parseInt(r.cada)||7)) : '—';
     return `<tr>
-      <td><strong>${esc(r.planta)}</strong>${r.zona?`<div style="font-size:11px;color:var(--mid-gray)">${esc(r.zona)}</div>`:''}</td>
-      <td>${esc(r.enfermedad)}${r.gravedad?`<div style="font-size:11px;color:${gravColor[r.gravedad]||''}">Gravedad ${esc(r.gravedad)}</div>`:''}</td>
+      <td><strong>${esc(r.planta)}</strong>${r.zona?`<div style="font-size:12px;color:var(--mid-gray)">${esc(r.zona)}</div>`:''}</td>
+      <td>${esc(r.enfermedad)}${r.gravedad?`<div style="font-size:12px;color:${gravColor[r.gravedad]||''}">Gravedad ${esc(r.gravedad)}</div>`:''}</td>
       <td>${esc(r.tratamiento)}</td>
       <td>${esc(r.dosis)}</td>
-      <td><span style="padding:2px 8px;border-radius:10px;font-size:11.5px;white-space:nowrap;${PLAGAS_ESTADOS[est]||''}">${esc(est)}</span></td>
+      <td><span style="padding:2px 8px;border-radius:10px;font-size:12px;white-space:nowrap;${PLAGAS_ESTADOS[est]||''}">${esc(est)}</span></td>
       <td>${r.ultimo?fmtDate(r.ultimo):'—'}</td>
-      <td><span style="${s.st}">${esc(s.txt)}</span><div style="font-size:11px;color:var(--mid-gray)">${proxFecha}${r.cada?` · cada ${parseInt(r.cada)} d`:''}</div></td>
+      <td><span style="${s.st}">${esc(s.txt)}</span><div style="font-size:12px;color:var(--mid-gray)">${proxFecha}${r.cada?` · cada ${parseInt(r.cada)} d`:''}</div></td>
       <td>${esc(r.quien)}</td>
-      <td style="max-width:240px;white-space:pre-wrap">${esc(r.obs)}${hist.length?`<div><a href="#" style="font-size:11.5px" onclick="verHistorialPlaga(${i});return false">Ver historial (${hist.length})</a></div>`:''}</td>
-      <td style="white-space:nowrap">${puedeEditar?`<button class="btn-add" style="padding:4px 10px;font-size:11.5px" onclick="openControlPlaga(${i})">✓ Control</button> <button class="btn-icon" onclick="openPlagaJardModal(${i})" title="Editar"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/></svg></button>`:''}${puedeBorrar?`<button class="btn-icon" style="color:var(--red-alert)" onclick="deletePlagaJard(${i})" title="Eliminar">✕</button>`:''}</td>
+      <td style="max-width:240px;white-space:pre-wrap">${esc(r.obs)}${hist.length?`<div><a href="#" style="font-size:12px" onclick="verHistorialPlaga(${i});return false">Ver historial (${hist.length})</a></div>`:''}</td>
+      <td style="white-space:nowrap">${puedeEditar?`<button class="btn-add" style="padding:4px 10px;font-size:12px" onclick="openControlPlaga(${i})">✓ Control</button> <button class="btn-icon" onclick="openPlagaJardModal(${i})" title="Editar"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/></svg></button>`:''}${puedeBorrar?`<button class="btn-icon" style="color:var(--red-alert)" onclick="deletePlagaJard(${i})" title="Eliminar">✕</button>`:''}</td>
     </tr>`;
   }).join('') : `<tr><td colspan="10" style="text-align:center;color:var(--mid-gray);padding:24px">${jardPlagas.length?'Ningún control coincide con el filtro':'Todavía no hay controles cargados'}</td></tr>`;
   box.innerHTML = `
@@ -9136,7 +9156,7 @@ function renderStockJard(){
       : ['Producto','Tipo','Cantidad','Mínimo','Vencimiento','Observación'];
     const filas = items.length ? items.map(({r,i})=>{
       const rojo = bajo(r) ? 'background:#fdecea' : '';
-      const cant = `<strong style="${bajo(r)?'color:var(--red-alert)':''}">${esc(String(r.cantidad??''))}${t==='productos'&&r.unidad?' '+esc(r.unidad):''}</strong>${bajo(r)?'<div style="font-size:11px;color:var(--red-alert)">Hay que reponer</div>':''}`;
+      const cant = `<strong style="${bajo(r)?'color:var(--red-alert)':''}">${esc(String(r.cantidad??''))}${t==='productos'&&r.unidad?' '+esc(r.unidad):''}</strong>${bajo(r)?'<div style="font-size:12px;color:var(--red-alert)">Hay que reponer</div>':''}`;
       const min = r.minimo!==''&&r.minimo!=null ? esc(String(r.minimo)) : '—';
       const celdas = t==='plantas'
         ? `<td><strong>${esc(r.nombre)}</strong></td><td>${esc(r.ubicacion)}</td><td>${esc(r.tamano)}</td><td>${cant}</td><td>${min}</td>`
@@ -9363,22 +9383,22 @@ function urgenciaPanelHTML(scope){
         Umbrales de urgencia <span style="font-weight:400;color:#7A7A72">· ajustá según la estación (en verano se riega más seguido)</span>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <button class="btn-secondary" style="font-size:11px;padding:5px 10px" onclick="setUrgenciaPreset('verano')">Verano</button>
-        <button class="btn-secondary" style="font-size:11px;padding:5px 10px" onclick="setUrgenciaPreset('primavera')">Primavera</button>
-        <button class="btn-secondary" style="font-size:11px;padding:5px 10px" onclick="setUrgenciaPreset('otono')">Otoño</button>
-        <button class="btn-secondary" style="font-size:11px;padding:5px 10px" onclick="setUrgenciaPreset('invierno')">Invierno</button>
+        <button class="btn-secondary" style="font-size:12px;padding:5px 10px" onclick="setUrgenciaPreset('verano')">Verano</button>
+        <button class="btn-secondary" style="font-size:12px;padding:5px 10px" onclick="setUrgenciaPreset('primavera')">Primavera</button>
+        <button class="btn-secondary" style="font-size:12px;padding:5px 10px" onclick="setUrgenciaPreset('otono')">Otoño</button>
+        <button class="btn-secondary" style="font-size:12px;padding:5px 10px" onclick="setUrgenciaPreset('invierno')">Invierno</button>
       </div>
     </div>
     <div style="display:flex;gap:18px;align-items:flex-end;flex-wrap:wrap;margin-top:12px">
-      <label style="font-size:11.5px;color:#7A7A72">Al día hasta (días)
+      <label style="font-size:12px;color:#7A7A72">Al día hasta (días)
         <input type="number" min="1" max="60" id="urg-ok-${scope}" value="${ok}"
           class="form-input" style="width:90px;padding:6px 8px;font-size:13px;margin-top:4px;display:block">
       </label>
-      <label style="font-size:11.5px;color:#7A7A72">Próxima hasta (días)
+      <label style="font-size:12px;color:#7A7A72">Próxima hasta (días)
         <input type="number" min="2" max="90" id="urg-warn-${scope}" value="${warn}"
           class="form-input" style="width:90px;padding:6px 8px;font-size:13px;margin-top:4px;display:block">
       </label>
-      <div style="font-size:11.5px;color:#B0AFA5;padding-bottom:8px">Urgente: más de <strong id="urg-preview-${scope}">${warn}</strong> días</div>
+      <div style="font-size:12px;color:#B0AFA5;padding-bottom:8px">Urgente: más de <strong id="urg-preview-${scope}">${warn}</strong> días</div>
       <button class="btn-add" style="padding:7px 14px" onclick="saveUrgenciaConfig('${scope}')">Guardar umbrales</button>
     </div>
   </div>`;
@@ -9688,7 +9708,7 @@ function openGestionTareasJard(){
           <button class="btn-icon" style="color:var(--red-alert)" title="Eliminar grupo" onclick="jardDeleteGrupo('${secEsc}','${grpEsc}')">✕</button>
         </div>
         <div style="display:flex;flex-direction:column;gap:1px;background:var(--light-gray)">${tareasHTML}</div>
-        <div style="padding:6px 12px;background:var(--warm-white)"><button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="jardAddTarea('${secEsc}','${grpEsc}')">+ Agregar tarea</button></div>
+        <div style="padding:6px 12px;background:var(--warm-white)"><button class="btn-secondary" style="font-size:12px;padding:4px 10px" onclick="jardAddTarea('${secEsc}','${grpEsc}')">+ Agregar tarea</button></div>
       </div>`;
     }).join('');
     return `<div style="margin-bottom:14px;border:1px solid var(--light-gray);border-radius:10px;overflow:hidden">
@@ -9698,7 +9718,7 @@ function openGestionTareasJard(){
         <button class="btn-icon" style="color:var(--red-alert)" title="Eliminar sección" onclick="jardDeleteSeccion('${secEsc}')">✕</button>
       </div>
       <div style="padding:8px 10px">${gruposHTML}
-        <button class="btn-secondary" style="font-size:11px;padding:4px 10px;margin-top:4px" onclick="jardAddGrupo('${secEsc}')">+ Agregar grupo</button>
+        <button class="btn-secondary" style="font-size:12px;padding:4px 10px;margin-top:4px" onclick="jardAddGrupo('${secEsc}')">+ Agregar grupo</button>
       </div>
     </div>`;
   }).join('');
@@ -9780,12 +9800,12 @@ function renderJardOps(){
         <span style="font-size:20px">${getSectionEmoji(z.section)}</span>
         <div style="flex:1;min-width:0">
           <div style="font-size:14px;font-weight:700;color:var(--charcoal)">${esc(z.group)}</div>
-          <div style="font-size:11px;color:var(--mid-gray);margin-top:1px">${esc(z.section)} · ${z.items.length} tarea${z.items.length!==1?'s':''}</div>
+          <div style="font-size:12px;color:var(--mid-gray);margin-top:1px">${esc(z.section)} · ${z.items.length} tarea${z.items.length!==1?'s':''}</div>
         </div>
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
-          ${z.alertCount?`<span style="background:#FDECEA;color:#C62828;padding:3px 9px;border-radius:12px;font-size:11px;font-weight:700">${z.alertCount} urgente${z.alertCount!==1?'s':''}</span>`:''}
-          ${z.warnCount ?`<span style="background:#FFF8E1;color:#E65100;padding:3px 9px;border-radius:12px;font-size:11px;font-weight:700">${z.warnCount} pronto</span>`:''}
-          ${z.okCount   ?`<span style="background:#E8F5E9;color:#2E7D32;padding:3px 9px;border-radius:12px;font-size:11px;font-weight:700">${z.okCount} al día</span>`:''}
+          ${z.alertCount?`<span style="background:#FDECEA;color:#C62828;padding:3px 9px;border-radius:12px;font-size:12px;font-weight:700">${z.alertCount} urgente${z.alertCount!==1?'s':''}</span>`:''}
+          ${z.warnCount ?`<span style="background:#FFF8E1;color:#E65100;padding:3px 9px;border-radius:12px;font-size:12px;font-weight:700">${z.warnCount} pronto</span>`:''}
+          ${z.okCount   ?`<span style="background:#E8F5E9;color:#2E7D32;padding:3px 9px;border-radius:12px;font-size:12px;font-weight:700">${z.okCount} al día</span>`:''}
           <span id="${chevId}" style="font-size:14px;color:var(--mid-gray);transition:transform .2s;display:inline-block">▼</span>
         </div>
       </div>`;
@@ -9808,16 +9828,16 @@ function renderJardOps(){
           ${planCtrl}
           <span style="flex-shrink:0;font-size:15px" title="Estado">${badge.status==='ok'?'':badge.status==='warn'?'':badge.status==='alert'?'':''}</span>
         </div>
-        <div style="font-size:11px;color:var(--mid-gray)">${r.last?fmtDate(r.last):'<em>Sin registro</em>'} · ${getMonthVisits(r)} este mes</div>
+        <div style="font-size:12px;color:var(--mid-gray)">${r.last?fmtDate(r.last):'<em>Sin registro</em>'} · ${getMonthVisits(r)} este mes</div>
         <textarea id="jops-obs-${i}" class="cl-obs-input" placeholder="Observaciones..." style="width:100%;font-size:12px;resize:vertical;min-height:44px;padding:5px 7px;border-radius:4px;border:1px solid var(--light-gray);font-family:inherit;background:var(--warm-white)"
           onchange="jardineriaData[${i}].obs=this.value">${esc(r.obs||'')}</textarea>
         <div style="display:flex;gap:8px;align-items:center">
           <div style="flex:1;text-align:center">
-            <div style="font-size:9px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Inicio</div>
+            <div style="font-size:12px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Inicio</div>
             ${jopsHoraCell(i,'horaInicio',r)}
           </div>
           <div style="flex:1;text-align:center">
-            <div style="font-size:9px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Fin</div>
+            <div style="font-size:12px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Fin</div>
             ${jopsHoraCell(i,'horaFin',r)}
           </div>
         </div>
@@ -9973,20 +9993,20 @@ function renderJardTurnoCard(){
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
       <span style="font-size:20px"></span>
       <div style="flex:1;min-width:0">
-        <div style="font-size:11px;color:var(--mid-gray);margin-bottom:2px">Mi jornada de hoy</div>
+        <div style="font-size:12px;color:var(--mid-gray);margin-bottom:2px">Mi jornada de hoy</div>
         <div style="font-size:17px;font-weight:700;color:var(--charcoal)">${esc(nombre||'—')}</div>
       </div>
       ${nombre && tareasHoy > 0 ? `<div style="text-align:center;min-width:60px">
-        <div style="font-size:10px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">Tareas hoy</div>
+        <div style="font-size:12px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">Tareas hoy</div>
         <div style="font-size:26px;font-weight:700;color:var(--charcoal)">${tareasHoy}</div>
       </div>` : ''}
       ${dur > 0 ? `<div style="text-align:center;min-width:70px">
-        <div style="font-size:10px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">${fin?'Horas':'Transcurrido'}</div>
+        <div style="font-size:12px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">${fin?'Horas':'Transcurrido'}</div>
         <div style="font-size:22px;font-weight:700;color:${fin?'var(--charcoal)':'#2C6B3A'}">${fmtDur(dur)}</div>
       </div>` : ''}
     </div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding-top:10px;border-top:1px solid var(--light-gray)">
-      <span style="font-size:11px;color:var(--mid-gray);font-weight:600">⏱ Jornada:</span>
+      <span style="font-size:12px;color:var(--mid-gray);font-weight:600">⏱ Jornada:</span>
       ${inicio
         ? `<span onclick="jardResetHoraTurno('inicio')" title="Tocar para borrar" style="font-size:13px;font-weight:700;color:#2C4A3E;background:#EBF5E8;padding:4px 12px;border-radius:8px;cursor:pointer">▶ ${inicio}</span>`
         : `<button class="btn-hora-inicio" onclick="jardRegistrarHoraTurno('inicio')">▶&nbsp;Inicio de jornada</button>`}
@@ -10060,20 +10080,20 @@ function renderFlorTurnoCard(){
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
       <span style="font-size:20px"></span>
       <div style="flex:1;min-width:0">
-        <div style="font-size:11px;color:var(--mid-gray);margin-bottom:2px">Mi jornada de hoy</div>
+        <div style="font-size:12px;color:var(--mid-gray);margin-bottom:2px">Mi jornada de hoy</div>
         <div style="font-size:17px;font-weight:700;color:var(--charcoal)">${esc(floristaNombre)}</div>
       </div>
       ${myTotal > 0 ? `<div style="text-align:center;min-width:60px">
-        <div style="font-size:10px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">Tareas</div>
+        <div style="font-size:12px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">Tareas</div>
         <div style="font-size:26px;font-weight:700;color:${taskColor}">${myDone}/${myTotal}</div>
       </div>` : ''}
       ${dur > 0 ? `<div style="text-align:center;min-width:70px">
-        <div style="font-size:10px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">${fin?'Horas':'Transcurrido'}</div>
+        <div style="font-size:12px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">${fin?'Horas':'Transcurrido'}</div>
         <div style="font-size:22px;font-weight:700;color:${fin?'var(--charcoal)':'#2C6B3A'}">${fmtDur(dur)}</div>
       </div>` : ''}
     </div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding-top:10px;border-top:1px solid var(--light-gray)">
-      <span style="font-size:11px;color:var(--mid-gray);font-weight:600">⏱ Jornada:</span>
+      <span style="font-size:12px;color:var(--mid-gray);font-weight:600">⏱ Jornada:</span>
       ${inicio
         ? `<span onclick="florResetTurno('inicio')" title="Tocar para borrar" style="font-size:13px;font-weight:700;color:#2C4A3E;background:#EBF5E8;padding:4px 12px;border-radius:8px;cursor:pointer">▶ ${inicio}</span>`
         : `<button class="btn-hora-inicio" onclick="florRegistrarTurno('inicio')">▶&nbsp;Inicio de jornada</button>`}
@@ -10128,7 +10148,7 @@ function renderJardProdEquipo(){
 
     // Calendario
     const startDow = new Date(y, m, 1).getDay();
-    let calHtml = `<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:12px;font-size:11px">`;
+    let calHtml = `<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:12px;font-size:12px">`;
     DIAS_CAL.forEach(d => { calHtml += `<div style="text-align:center;color:var(--mid-gray);font-weight:600;padding:3px 0">${d}</div>`; });
     for(let i=0;i<startDow;i++) calHtml += `<div></div>`;
     for(let d=1; d<=diasEnMes; d++){
@@ -10154,7 +10174,7 @@ function renderJardProdEquipo(){
     let actividadHtml = '';
     if(diasConActividad.length){
       actividadHtml = `<div style="margin-top:16px;border-top:1px solid var(--light-gray);padding-top:14px">
-        <div style="font-size:11px;font-weight:600;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Últimos días trabajados</div>
+        <div style="font-size:12px;font-weight:600;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Últimos días trabajados</div>
         <div id="jard-prod-act-${nombre.replace(/\s/g,'_')}" style="display:flex;flex-direction:column;gap:8px">
           ${diasConActividad.map(([fecha, dd]) => _jardDiaHTML(nombre, fecha, dd)).join('')}
         </div>
@@ -10168,13 +10188,13 @@ function renderJardProdEquipo(){
           <span style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:500;color:var(--charcoal)">${esc(nombre)}</span>
         </div>
         <div style="display:flex;gap:20px;flex-wrap:wrap">
-          <div style="text-align:center"><div style="font-size:10px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">Horas mes</div><div style="font-size:22px;font-weight:700;color:var(--charcoal)">${fmtDur(totalMin)}</div></div>
-          <div style="text-align:center"><div style="font-size:10px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">Días</div><div style="font-size:22px;font-weight:700;color:var(--charcoal)">${diasTrabajados}</div></div>
-          <div style="text-align:center"><div style="font-size:10px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">Prom. diario</div><div style="font-size:22px;font-weight:700;color:#2C6B3A">${avgHoras>0?fmtDur(avgHoras):'—'}</div></div>
-          <div style="text-align:center"><div style="font-size:10px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">Tareas mes</div><div style="font-size:22px;font-weight:700;color:var(--charcoal)">${tareasTotal}</div></div>
+          <div style="text-align:center"><div style="font-size:12px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">Horas mes</div><div style="font-size:22px;font-weight:700;color:var(--charcoal)">${fmtDur(totalMin)}</div></div>
+          <div style="text-align:center"><div style="font-size:12px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">Días</div><div style="font-size:22px;font-weight:700;color:var(--charcoal)">${diasTrabajados}</div></div>
+          <div style="text-align:center"><div style="font-size:12px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">Prom. diario</div><div style="font-size:22px;font-weight:700;color:#2C6B3A">${avgHoras>0?fmtDur(avgHoras):'—'}</div></div>
+          <div style="text-align:center"><div style="font-size:12px;color:var(--mid-gray);text-transform:uppercase;letter-spacing:1px">Tareas mes</div><div style="font-size:22px;font-weight:700;color:var(--charcoal)">${tareasTotal}</div></div>
         </div>
       </div>
-      <div style="font-size:10px;color:var(--mid-gray)">≥6h &nbsp;2-6h &nbsp;&lt;2h &nbsp;· Tocá un día para ver el detalle</div>
+      <div style="font-size:12px;color:var(--mid-gray)">≥6h &nbsp;2-6h &nbsp;&lt;2h &nbsp;· Tocá un día para ver el detalle</div>
       ${calHtml}
       ${actividadHtml}
     </div>`;
@@ -10187,10 +10207,10 @@ function _jardDiaHTML(nombre, fecha, dd){
     <div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid #F0EEE8">
       <div style="flex:1;min-width:0">
         <div style="font-size:12px;font-weight:600;color:var(--charcoal)">${esc(t.task)}</div>
-        <div style="font-size:11px;color:var(--mid-gray)">${esc(t.group)} · ${esc(t.section)}</div>
-        ${t.obs ? `<div style="font-size:11px;color:#5A5A50;margin-top:2px;font-style:italic">"${esc(t.obs)}"</div>` : ''}
+        <div style="font-size:12px;color:var(--mid-gray)">${esc(t.group)} · ${esc(t.section)}</div>
+        ${t.obs ? `<div style="font-size:12px;color:#5A5A50;margin-top:2px;font-style:italic">"${esc(t.obs)}"</div>` : ''}
       </div>
-      ${t.horaInicio||t.horaFin ? `<div style="text-align:right;white-space:nowrap;font-size:11px;color:var(--mid-gray)">
+      ${t.horaInicio||t.horaFin ? `<div style="text-align:right;white-space:nowrap;font-size:12px;color:var(--mid-gray)">
         ${t.horaInicio?'▶ '+t.horaInicio:''}${t.horaFin?' · ⏹ '+t.horaFin:''}
         ${t.horaInicio&&t.horaFin?'<br><span style="color:#2C6B3A;font-weight:600">'+fmtDur(calcDuracion(t.horaInicio,t.horaFin))+'</span>':''}
       </div>` : ''}
@@ -10201,12 +10221,12 @@ function _jardDiaHTML(nombre, fecha, dd){
          onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
       <div style="display:flex;align-items:center;gap:10px">
         <span style="font-size:12px;font-weight:700;color:var(--charcoal)">${fmtDate(fecha)}</span>
-        ${dd.inicio ? `<span style="font-size:11px;color:var(--mid-gray)">▶ ${dd.inicio}${dd.fin?' · ⏹ '+dd.fin:' · en curso'}</span>` : ''}
+        ${dd.inicio ? `<span style="font-size:12px;color:var(--mid-gray)">▶ ${dd.inicio}${dd.fin?' · ⏹ '+dd.fin:' · en curso'}</span>` : ''}
       </div>
       <div style="display:flex;gap:12px;align-items:center">
         ${dd.dur>0 ? `<span style="font-size:12px;font-weight:700;color:#2C6B3A">${fmtDur(dd.dur)}</span>` : ''}
-        <span style="font-size:11px;color:var(--mid-gray)">${dd.tareas.length} tarea${dd.tareas.length!==1?'s':''}</span>
-        <span style="font-size:11px;color:var(--mid-gray)">▾</span>
+        <span style="font-size:12px;color:var(--mid-gray)">${dd.tareas.length} tarea${dd.tareas.length!==1?'s':''}</span>
+        <span style="font-size:12px;color:var(--mid-gray)">▾</span>
       </div>
     </div>
     <div style="padding:4px 12px 8px;${dd.tareas.length>2?'display:none':''}">
@@ -10292,12 +10312,12 @@ function renderCtrlJard(){
                onchange="gerenciaSetFecha('jard',${i},this.value)"
                title="Editar fecha de última visita"
                style="font-size:12px;padding:4px 6px;border:1px solid #E5E3DC;border-radius:6px;color:#1A1A1A">`
-          : (r.last ? fmtDate(r.last) : '<em style="color:#B0AFA5;font-size:11px">Sin registro</em>') }
-        ${ r.last ? `<div style="font-size:11px;color:#B0AFA5;margin-top:3px">${_diasDesdeTxt(r.last)}</div>` : '' }
+          : (r.last ? fmtDate(r.last) : '<em style="color:#B0AFA5;font-size:12px">Sin registro</em>') }
+        ${ r.last ? `<div style="font-size:12px;color:#B0AFA5;margin-top:3px">${_diasDesdeTxt(r.last)}</div>` : '' }
       </td>
       <td>
         <span class="alerta-badge ${alCls}"
-          style="font-size:11px;padding:3px 10px;${badge.status==='none'?'background:#ECEAE4;color:#7A7A72':''}">
+          style="font-size:12px;padding:3px 10px;${badge.status==='none'?'background:#ECEAE4;color:#7A7A72':''}">
           ${alLbl}
         </span>
       </td>
@@ -10446,7 +10466,7 @@ function renderHabOps(){
       ${r.comentarioHK ? `<div style="background:#FDF3E3;border:1px solid #E9D8B0;border-radius:6px;padding:8px 11px;font-size:12.5px;color:#8A5A16;line-height:1.4"><strong>Housekeeping:</strong> ${esc(r.comentarioHK)}</div>` : ''}
       <div style="display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--mid-gray)">
         <span>Última visita: ${r.last ? fmtDate(r.last) : '<em>Sin registro</em>'}</span>
-        <span style="font-family:'Cormorant Garamond',serif;font-size:16px;color:var(--charcoal)" title="Visitas este mes">${monthVisits} <span style="font-size:10px;color:var(--mid-gray)">este mes</span></span>
+        <span style="font-family:'Cormorant Garamond',serif;font-size:16px;color:var(--charcoal)" title="Visitas este mes">${monthVisits} <span style="font-size:12px;color:var(--mid-gray)">este mes</span></span>
       </div>
       <textarea id="hops-obs-${i}" class="cl-obs-input" placeholder="Observaciones..." style="width:100%;font-size:12px;resize:vertical;min-height:44px;padding:5px 7px;border-radius:4px;border:1px solid var(--light-gray);font-family:inherit;background:var(--warm-white)"
         onchange="habitacionesData[${i}].notas=this.value">${esc(r.notas||'')}</textarea>
@@ -10561,10 +10581,10 @@ function renderCtrlHab(){
                title="Editar fecha de última visita"
                style="font-size:12px;padding:4px 6px;border:1px solid #E5E3DC;border-radius:6px;color:#1A1A1A">`
           : (r.last ? fmtDate(r.last) : '<em style="color:#B0AFA5">—</em>') }
-        ${ r.last ? `<div style="font-size:11px;color:#B0AFA5;margin-top:3px">${_diasDesdeTxt(r.last)}</div>` : '' }
+        ${ r.last ? `<div style="font-size:12px;color:#B0AFA5;margin-top:3px">${_diasDesdeTxt(r.last)}</div>` : '' }
       </td>
       <td>
-        <span class="alerta-badge ${alCls}" style="font-size:11px;padding:3px 10px">${alLbl}</span>
+        <span class="alerta-badge ${alCls}" style="font-size:12px;padding:3px 10px">${alLbl}</span>
       </td>
       <td style="text-align:center;font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400;color:#1A1A1A">
         ${monthVisits}
@@ -10683,13 +10703,13 @@ function renderJardReporte(){
   const rows = jardineriaData.filter(r=>getMonthVisits(r,ym)>0).sort((a,b)=>getMonthVisits(b,ym)-getMonthVisits(a,ym));
   const tableHtml = rows.length
     ? `<table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr>
-        <th style="text-align:left;padding:8px 12px;border-bottom:2px solid var(--light-gray);color:var(--mid-gray);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;background:var(--cream)">Secci&oacute;n</th>
-        <th style="text-align:left;padding:8px 12px;border-bottom:2px solid var(--light-gray);color:var(--mid-gray);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;background:var(--cream)">Zona</th>
-        <th style="text-align:left;padding:8px 12px;border-bottom:2px solid var(--light-gray);color:var(--mid-gray);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;background:var(--cream)">Tarea</th>
-        <th style="text-align:center;padding:8px 12px;border-bottom:2px solid var(--light-gray);color:var(--mid-gray);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;background:var(--cream)">Visitas</th>
+        <th style="text-align:left;padding:8px 12px;border-bottom:2px solid var(--light-gray);color:var(--mid-gray);font-size:12px;letter-spacing:1px;text-transform:uppercase;background:var(--cream)">Secci&oacute;n</th>
+        <th style="text-align:left;padding:8px 12px;border-bottom:2px solid var(--light-gray);color:var(--mid-gray);font-size:12px;letter-spacing:1px;text-transform:uppercase;background:var(--cream)">Zona</th>
+        <th style="text-align:left;padding:8px 12px;border-bottom:2px solid var(--light-gray);color:var(--mid-gray);font-size:12px;letter-spacing:1px;text-transform:uppercase;background:var(--cream)">Tarea</th>
+        <th style="text-align:center;padding:8px 12px;border-bottom:2px solid var(--light-gray);color:var(--mid-gray);font-size:12px;letter-spacing:1px;text-transform:uppercase;background:var(--cream)">Visitas</th>
       </tr></thead><tbody>
       ${rows.map(r=>`<tr>
-        <td style="padding:8px 12px;border-bottom:1px solid var(--light-gray);font-size:11px;color:var(--mid-gray)">${esc(r.section)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid var(--light-gray);font-size:12px;color:var(--mid-gray)">${esc(r.section)}</td>
         <td style="padding:8px 12px;border-bottom:1px solid var(--light-gray);color:var(--mid-gray);font-size:12px">${esc(r.group)}</td>
         <td style="padding:8px 12px;border-bottom:1px solid var(--light-gray);font-weight:500">${esc(r.task)}</td>
         <td style="padding:8px 12px;border-bottom:1px solid var(--light-gray);text-align:center;font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;color:var(--charcoal)">${getMonthVisits(r,ym)}</td>
@@ -10697,11 +10717,11 @@ function renderJardReporte(){
     : `<div style="padding:20px;text-align:center;color:var(--mid-gray)">Sin visitas registradas para ${fmtMonth(ym)}.</div>`;
   el.innerHTML = `
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center">
-      <span style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);font-weight:500">Mes:</span>${pills}
+      <span style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);font-weight:500">Mes:</span>${pills}
     </div>
     <div style="background:var(--cream);border-radius:8px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
       <div>
-        <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);font-weight:500;margin-bottom:4px">${fmtMonth(ym)}</div>
+        <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);font-weight:500;margin-bottom:4px">${fmtMonth(ym)}</div>
         <div style="font-family:'Cormorant Garamond',serif;font-size:38px;font-weight:400;color:var(--charcoal);line-height:1">${monthTotal} <span style="font-size:15px;color:var(--mid-gray)">visitas registradas</span></div>
       </div>
       <button class="btn-secondary" onclick="exportMesJard('${ym}')">&#8595; Exportar este mes</button>
@@ -10725,8 +10745,8 @@ function renderHabReporte(){
   const rows = habitacionesData.filter(r=>getMonthVisits(r,ym)>0).sort((a,b)=>getMonthVisits(b,ym)-getMonthVisits(a,ym));
   const tableHtml = rows.length
     ? `<table style="width:100%;border-collapse:collapse;font-size:12.5px;max-width:400px"><thead><tr>
-        <th style="text-align:left;padding:8px 12px;border-bottom:2px solid var(--light-gray);color:var(--mid-gray);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;background:var(--cream)">Habitaci&oacute;n</th>
-        <th style="text-align:center;padding:8px 12px;border-bottom:2px solid var(--light-gray);color:var(--mid-gray);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;background:var(--cream)">Visitas</th>
+        <th style="text-align:left;padding:8px 12px;border-bottom:2px solid var(--light-gray);color:var(--mid-gray);font-size:12px;letter-spacing:1px;text-transform:uppercase;background:var(--cream)">Habitaci&oacute;n</th>
+        <th style="text-align:center;padding:8px 12px;border-bottom:2px solid var(--light-gray);color:var(--mid-gray);font-size:12px;letter-spacing:1px;text-transform:uppercase;background:var(--cream)">Visitas</th>
       </tr></thead><tbody>
       ${rows.map(r=>`<tr>
         <td style="padding:8px 12px;border-bottom:1px solid var(--light-gray);font-weight:600;font-family:'Cormorant Garamond',serif;font-size:16px">Hab. ${esc(r.hab)}</td>
@@ -10735,11 +10755,11 @@ function renderHabReporte(){
     : `<div style="padding:20px;text-align:center;color:var(--mid-gray)">Sin visitas registradas para ${fmtMonth(ym)}.</div>`;
   el.innerHTML = `
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center">
-      <span style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);font-weight:500">Mes:</span>${pills}
+      <span style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);font-weight:500">Mes:</span>${pills}
     </div>
     <div style="background:var(--cream);border-radius:8px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
       <div>
-        <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);font-weight:500;margin-bottom:4px">${fmtMonth(ym)}</div>
+        <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);font-weight:500;margin-bottom:4px">${fmtMonth(ym)}</div>
         <div style="font-family:'Cormorant Garamond',serif;font-size:38px;font-weight:400;color:var(--charcoal);line-height:1">${monthTotal} <span style="font-size:15px;color:var(--mid-gray)">visitas registradas</span></div>
       </div>
       <button class="btn-secondary" onclick="exportMesHab('${ym}')">&#8595; Exportar este mes</button>
@@ -10774,10 +10794,10 @@ function renderJardLog(){
   const sorted = [...jardineriaLog].reverse().slice(0,100);
   const rows = sorted.map(r=>`<tr>
     <td style="white-space:nowrap;font-size:12px">${r.fecha||''}</td>
-    <td style="font-size:11px;color:var(--mid-gray)">${esc(r.section||'')}</td>
+    <td style="font-size:12px;color:var(--mid-gray)">${esc(r.section||'')}</td>
     <td style="font-size:12px">${esc(r.group||'')}</td>
     <td style="font-size:12px;font-weight:500">${esc(r.task||'')}</td>
-    <td><span class="responsable-tag" style="font-size:11px">${esc(r.quien||'—')}</span></td>
+    <td><span class="responsable-tag" style="font-size:12px">${esc(r.quien||'—')}</span></td>
     <td style="font-size:12px;color:var(--mid-gray)">${esc(r.obs||'—')}</td>
   </tr>`).join('');
   el.innerHTML = `<div class="table-wrapper"><table class="ctrl-table"><thead><tr>
@@ -10796,7 +10816,7 @@ function renderHabLog(){
   const rows = sorted.map(r=>`<tr>
     <td style="white-space:nowrap;font-size:12px">${r.fecha||''}</td>
     <td><span class="hab-num">Hab. ${esc(r.hab||'')}</span></td>
-    <td><span class="responsable-tag" style="font-size:11px">${esc(r.quien||'—')}</span></td>
+    <td><span class="responsable-tag" style="font-size:12px">${esc(r.quien||'—')}</span></td>
     <td style="font-size:12px;color:var(--mid-gray)">${esc(r.obs||'—')}</td>
   </tr>`).join('');
   el.innerHTML = `<div class="table-wrapper"><table class="ctrl-table"><thead><tr>
@@ -11043,10 +11063,10 @@ function renderFloreros(){
           <button class="btn-icon" style="border:1px solid var(--light-gray);border-radius:6px;width:30px;height:30px;font-size:18px" onclick="florAjustar(${i},-1)">−</button>
           <span style="min-width:44px;text-align:center;font-size:22px;font-weight:700;color:${cant>0?'var(--charcoal)':'var(--red-alert)'}">${cant}</span>
           <button class="btn-icon" style="border:1px solid var(--light-gray);border-radius:6px;width:30px;height:30px;font-size:18px" onclick="florAjustar(${i},1)">+</button>
-          <span style="font-size:11px;color:var(--mid-gray)">en stock</span>
+          <span style="font-size:12px;color:var(--mid-gray)">en stock</span>
         </div>
         <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
-          <button class="btn-secondary" style="font-size:11px" onclick="openFloreroModal(${i})">Editar</button>
+          <button class="btn-secondary" style="font-size:12px" onclick="openFloreroModal(${i})">Editar</button>
           <button class="btn-icon" onclick="cambiarFotoFlorero(${i})" title="Cambiar foto"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><rect x="3" y="7" width="18" height="13" rx="2"/><circle cx="12" cy="13" r="3.5"/><path d="M8 7l1.5-2h5L16 7"/></svg></button>
           <button class="btn-icon" style="color:var(--red-alert)" onclick="delFlorero(${i})" title="Eliminar">✕</button>
         </div>
@@ -11262,9 +11282,9 @@ function _repMeses(selectId, mesesCount=12){
 
 function _kpiCard(label, value, sub='', color='var(--sage-dark)'){
   return `<div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:10px;padding:14px 16px">
-    <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:6px;font-weight:500">${label}</div>
+    <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:6px;font-weight:500">${label}</div>
     <div style="font-size:26px;font-weight:700;color:${color};line-height:1">${value}</div>
-    ${sub ? `<div style="font-size:11px;color:var(--mid-gray);margin-top:4px">${sub}</div>` : ''}
+    ${sub ? `<div style="font-size:12px;color:var(--mid-gray);margin-top:4px">${sub}</div>` : ''}
   </div>`;
 }
 
@@ -11343,9 +11363,9 @@ function openFichaEmpleado(nombre, mesISO){
   if(!ov){ ov=document.createElement('div'); ov.id='ficha-empleado-modal'; ov.className='modal-overlay'; document.body.appendChild(ov); }
   const trend = (cur,prv)=>{ if(cur==null||prv==null) return ''; const dd=cur-prv; if(Math.abs(dd)<1) return ' <span style="color:var(--mid-gray);font-size:12px">→</span>'; return dd>0?` <span style="color:var(--green-ok);font-size:12px">▲${dd}</span>`:` <span style="color:var(--red-alert);font-size:12px">▼${Math.abs(dd)}</span>`; };
   const card = (label, value, sub, color) => `<div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:10px;padding:12px 14px">
-    <div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:6px">${label}</div>
+    <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:6px">${label}</div>
     <div style="font-size:23px;font-weight:700;color:${color||'var(--charcoal)'};line-height:1.1">${value}</div>
-    <div style="font-size:11px;color:var(--mid-gray);margin-top:4px">${sub||''}</div>
+    <div style="font-size:12px;color:var(--mid-gray);margin-top:4px">${sub||''}</div>
   </div>`;
   const cumplCol = m.cumplimiento==null?'var(--mid-gray)':m.cumplimiento>=80?'var(--green-ok)':m.cumplimiento>=50?'#D4A820':'var(--red-alert)';
   const asisCol  = m.asistencia==null?'var(--mid-gray)':m.asistencia>=90?'var(--green-ok)':m.asistencia>=70?'#D4A820':'var(--red-alert)';
@@ -11362,7 +11382,7 @@ function openFichaEmpleado(nombre, mesISO){
       ${card('Evaluación', stars, m.evalCount?`prom ${m.evalProm.toFixed(1)} · ${m.evalCount} eval`:'sin evaluar', 'var(--charcoal)')}
       ${card('Llamados de atención', m.llamados, 'este mes', m.llamados?'var(--red-alert)':'var(--green-ok)')}
     </div>
-    ${m.llamadosList.length?`<div style="margin-top:18px"><div class="card-label">Llamados de atención del mes</div>${m.llamadosList.map(l=>`<div style="display:flex;gap:8px;align-items:center;padding:7px 0;border-top:1px solid #F0EDE8;font-size:12px">${l.foto?`<img src="${l.foto}" onclick="verFotoLlamado(${l.id})" style="width:34px;height:34px;object-fit:cover;border-radius:5px;cursor:pointer">`:'<span style="color:var(--amber)"></span>'}<span style="flex:1">${esc(l.zona||'Arreglo')}${l.nota?' — '+esc(l.nota):''}</span><span style="color:var(--mid-gray);font-size:11px">${fmtDate(l.fecha)}</span></div>`).join('')}</div>`:''}
+    ${m.llamadosList.length?`<div style="margin-top:18px"><div class="card-label">Llamados de atención del mes</div>${m.llamadosList.map(l=>`<div style="display:flex;gap:8px;align-items:center;padding:7px 0;border-top:1px solid #F0EDE8;font-size:12px">${l.foto?`<img src="${l.foto}" onclick="verFotoLlamado(${l.id})" style="width:34px;height:34px;object-fit:cover;border-radius:5px;cursor:pointer">`:'<span style="color:var(--amber)"></span>'}<span style="flex:1">${esc(l.zona||'Arreglo')}${l.nota?' — '+esc(l.nota):''}</span><span style="color:var(--mid-gray);font-size:12px">${fmtDate(l.fecha)}</span></div>`).join('')}</div>`:''}
   </div>`;
   ov.classList.add('open');
 }
@@ -11496,7 +11516,7 @@ function renderPerfEmpleado(){
       .filter(e=>_enRangoFecha(e.date, desde, hasta))
       .map(e=>String(e.who||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));
     const hint = nombresHist.length
-      ? `<div style="font-size:11px;color:var(--mid-gray);margin-top:10px">En el checklist de este período figuran: ${nombresHist.map(esc).join(' · ')}</div>`
+      ? `<div style="font-size:12px;color:var(--mid-gray);margin-top:10px">En el checklist de este período figuran: ${nombresHist.map(esc).join(' · ')}</div>`
       : '';
     body.innerHTML = `<div style="padding:22px;text-align:center;color:var(--mid-gray);font-size:13px">Sin tareas registradas para ${esc(nombre)} en este período.${hint}</div>` + _prodResumenHTML(nombre, desde, hasta, m);
     return;
@@ -11611,7 +11631,7 @@ function _prodPct(num, den){ return den>0 ? Math.round(num/den*100) : null; }
 
 function _prodResumenHTML(nombre, desde, hasta, m){
   const P = _prodDatos(nombre, desde, hasta, m.detalle);
-  const th = (txt,align)=>`<th style="text-align:${align||'left'};padding:6px 10px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);white-space:nowrap">${txt}</th>`;
+  const th = (txt,align)=>`<th style="text-align:${align||'left'};padding:6px 10px;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);white-space:nowrap">${txt}</th>`;
   const td = (txt,align,extra)=>`<td style="padding:6px 10px;font-size:12.5px;text-align:${align||'left'};white-space:nowrap;${extra||''}">${txt}</td>`;
   const pctCell = p => td(p==null?'—':p+'%','right',`font-weight:600;color:${_prodPctColor(p)}`);
   const hs = h => (Math.round(h*10)/10)+'h';
@@ -11631,7 +11651,7 @@ function _prodResumenHTML(nombre, desde, hasta, m){
     ${td(R.hsRef?hs(R.hsRef):'—','right','color:var(--mid-gray)')}
     ${pctCell(_prodPct(R.hsTrab, R.hsRef))}
     ${pctCell(_prodPct(R.minTareas/60, R.hsRef))}
-    ${td(R.faltas ? `${R.faltas}${R.faltasInj?` <span style="color:var(--red-alert);font-size:11px">(${R.faltasInj} sin just.)</span>`:' <span style="color:var(--green-ok);font-size:11px">(just.)</span>'}` : '0','center')}
+    ${td(R.faltas ? `${R.faltas}${R.faltasInj?` <span style="color:var(--red-alert);font-size:12px">(${R.faltasInj} sin just.)</span>`:' <span style="color:var(--green-ok);font-size:12px">(just.)</span>'}` : '0','center')}
   </tr>`).join('');
   const resumenHead = `<thead><tr>${th('Período')}${th('Días trab.','center')}${th('Tareas','center')}${th('Tareas/día','center')}${th('Tiempo en tareas','right')}${th('Hs trabajadas','right')}${th('Hs contrato','right')}${th('Cumplimiento','right')}${th('Productividad','right')}${th('Faltas','center')}</tr></thead>`;
   const tabla = (titulo, rows) => `<div style="margin-bottom:20px">
@@ -11641,7 +11661,7 @@ function _prodResumenHTML(nombre, desde, hasta, m){
 
   const diaRows = P.dias.map(D=>{
     const ocup = D.real ? _prodPct(D.minTareas/60, D.real.horas) : null;
-    const tareasTxt = D.tareas.map(t=>`<div style="display:flex;gap:8px;padding:3px 0;border-top:1px solid #F0EDE8;font-size:11.5px">
+    const tareasTxt = D.tareas.map(t=>`<div style="display:flex;gap:8px;padding:3px 0;border-top:1px solid #F0EDE8;font-size:12px">
         <span style="color:var(--mid-gray);min-width:84px">${t.inicio&&t.fin?esc(t.inicio)+'–'+esc(t.fin):'sin horario'}</span>
         <span style="color:var(--mid-gray);min-width:78px">${esc(t.area)}</span>
         <span style="flex:1">${esc(t.desc)}</span>
@@ -11654,19 +11674,19 @@ function _prodResumenHTML(nombre, desde, hasta, m){
         <span style="min-width:70px">${D.tareas.length} tarea${D.tareas.length!==1?'s':''}</span>
         <span style="min-width:90px;color:var(--mid-gray)">${D.minTareas?fmtDur(D.minTareas)+' en tareas':'sin tiempos'}</span>
         <span style="min-width:120px;color:var(--mid-gray)">${D.real?`jornada ${esc(D.real.inicio)}–${esc(D.real.fin)} (${hs(D.real.horas)})`:'sin fichar'}</span>
-        ${D.faltas.map(f=>`<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;${f.justificada?'background:#EBF5E8;color:var(--green-ok)':'background:#FDECEC;color:var(--red-alert)'}">Falta ${f.justificada?'justificada':'sin justificar'} · ${esc(f.motivo||'')}</span>`).join('')}
+        ${D.faltas.map(f=>`<span style="font-size:12px;font-weight:600;padding:2px 8px;border-radius:10px;${f.justificada?'background:#EBF5E8;color:var(--green-ok)':'background:#FDECEC;color:var(--red-alert)'}">Falta ${f.justificada?'justificada':'sin justificar'} · ${esc(f.motivo||'')}</span>`).join('')}
         <span style="margin-left:auto;font-weight:600;color:${_prodPctColor(ocup)}" title="Tiempo en tareas sobre la jornada fichada">${ocup==null?'':ocup+'% ocupado'}</span>
       </summary>
-      <div style="padding:2px 8px 10px">${tareasTxt || `<div style="font-size:11.5px;color:var(--mid-gray)">${D.real?'Fichó la jornada pero no registró tareas.':D.faltas.map(f=>esc(f.obs||'Sin observación')).join(' · ')}</div>`}</div>
+      <div style="padding:2px 8px 10px">${tareasTxt || `<div style="font-size:12px;color:var(--mid-gray)">${D.real?'Fichó la jornada pero no registró tareas.':D.faltas.map(f=>esc(f.obs||'Sin observación')).join(' · ')}</div>`}</div>
     </details>`;
   }).join('');
 
-  return `<div style="font-size:11.5px;color:var(--mid-gray);margin-bottom:12px;padding:8px 12px;background:#F7F5F0;border-radius:8px">${fuente}
+  return `<div style="font-size:12px;color:var(--mid-gray);margin-bottom:12px;padding:8px 12px;background:#F7F5F0;border-radius:8px">${fuente}
       <br><strong>Cumplimiento</strong> = hs trabajadas (fichadas) / hs contrato · <strong>Productividad</strong> = tiempo en tareas / hs contrato.</div>
     ${tabla('Resumen mensual', P.meses)}
     ${tabla('Resumen trimestral', P.trims)}
     <div style="margin-bottom:20px">
-      <div style="font-size:13px;font-weight:600;color:var(--charcoal);margin-bottom:6px">Historial por día (${P.dias.length} día${P.dias.length!==1?'s':''}) <span style="font-weight:400;font-size:11px;color:var(--mid-gray)">— tocá un día para ver sus tareas</span></div>
+      <div style="font-size:13px;font-weight:600;color:var(--charcoal);margin-bottom:6px">Historial por día (${P.dias.length} día${P.dias.length!==1?'s':''}) <span style="font-weight:400;font-size:12px;color:var(--mid-gray)">— tocá un día para ver sus tareas</span></div>
       <div style="max-height:420px;overflow-y:auto;border:1px solid var(--light-gray);border-radius:8px;background:var(--warm-white)">${diaRows || '<div style="padding:14px;font-size:12px;color:var(--mid-gray)">Sin actividad en el período.</div>'}</div>
     </div>`;
 }
@@ -11685,9 +11705,9 @@ function legVerProductividad(){
 // por tarea + detalle). Reutilizado por Evaluaciones y por Cierre del Día.
 function _metricasHTML(m){
   const card = (label, value, sub, color) => `<div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:10px;padding:12px 14px">
-    <div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:6px">${label}</div>
+    <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:6px">${label}</div>
     <div style="font-size:23px;font-weight:700;color:${color||'var(--charcoal)'};line-height:1.1">${value}</div>
-    <div style="font-size:11px;color:var(--mid-gray);margin-top:4px">${sub||''}</div>
+    <div style="font-size:12px;color:var(--mid-gray);margin-top:4px">${sub||''}</div>
   </div>`;
   const promTotal = m.total.conTiempo ? Math.round(m.total.min/m.total.conTiempo) : null;
   const cards = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:18px">
@@ -11707,7 +11727,7 @@ function _metricasHTML(m){
       <td style="padding:6px 12px;text-align:right;color:var(--mid-gray)">${fmtDur(a.min)}</td>
     </tr>`;
   }).join('');
-  const th = (txt,align)=>`<th style="text-align:${align||'left'};padding:6px 12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">${txt}</th>`;
+  const th = (txt,align)=>`<th style="text-align:${align||'left'};padding:6px 12px;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">${txt}</th>`;
   const desgloseArea = `<div style="margin-bottom:20px">
     <div style="font-size:13px;font-weight:600;color:var(--charcoal);margin-bottom:6px">Por área</div>
     <div class="table-wrapper"><table style="width:100%;border-collapse:collapse">
@@ -11721,7 +11741,7 @@ function _metricasHTML(m){
     const prom = t.conTiempo ? Math.round(t.min/t.conTiempo)+' min' : '—';
     return `<tr>
       <td style="padding:6px 12px;font-size:12.5px;font-weight:500">${esc(t.desc)}</td>
-      <td style="padding:6px 12px;font-size:11px;color:var(--mid-gray)">${esc(t.area)}</td>
+      <td style="padding:6px 12px;font-size:12px;color:var(--mid-gray)">${esc(t.area)}</td>
       <td style="padding:6px 12px;text-align:center">${t.n}</td>
       <td style="padding:6px 12px;text-align:right">${prom}</td>
     </tr>`;
@@ -11737,7 +11757,7 @@ function _metricasHTML(m){
   // Detalle tarea por tarea
   const detRows = m.detalle.map(d=>`<tr>
     <td style="padding:5px 12px;font-size:12px;white-space:nowrap">${fmtDate(d.fecha)}</td>
-    <td style="padding:5px 12px;font-size:11px;color:var(--mid-gray)">${esc(d.area)}</td>
+    <td style="padding:5px 12px;font-size:12px;color:var(--mid-gray)">${esc(d.area)}</td>
     <td style="padding:5px 12px;font-size:12px">${esc(d.desc)}</td>
     <td style="padding:5px 12px;text-align:right;font-size:12px;${d.excedida?'color:var(--red-alert);font-weight:600':''}">${d.dur?fmtDur(d.dur):'—'}</td>
   </tr>`).join('');
@@ -11818,7 +11838,7 @@ function renderReportesEquipo(){
   }
 
   // Tabla ranking (ordenada por cumplimiento) — clic en la fila abre la ficha 360
-  document.getElementById('rep-eq-tabla').innerHTML = `<div style="font-size:11px;color:var(--mid-gray);margin-bottom:8px">Ranking del mes — tocá una fila para ver la ficha completa de la persona</div>
+  document.getElementById('rep-eq-tabla').innerHTML = `<div style="font-size:12px;color:var(--mid-gray);margin-bottom:8px">Ranking del mes — tocá una fila para ver la ficha completa de la persona</div>
   <div class="table-wrapper"><table class="stock-table">
     <thead><tr><th>#</th><th>Empleado</th><th>Área</th><th>Asist.</th><th>Puntualidad</th><th>Hs prog</th><th>Hs reg</th><th>Cumplimiento</th><th>Llamados</th><th></th></tr></thead>
     <tbody>${datosEmpleado.map((d,rank)=>{
@@ -11826,7 +11846,7 @@ function renderReportesEquipo(){
       const pct = m.cumplimiento;
       const col = pct==null?'var(--mid-gray)':pct>=80?'var(--green-ok)':pct>=50?'#D4A820':'var(--red-alert)';
       const trend = (pct!=null && d.cumplPrev!=null && Math.abs(pct-d.cumplPrev)>=1)
-        ? (pct-d.cumplPrev>0?' <span style="color:var(--green-ok);font-size:10px">▲</span>':' <span style="color:var(--red-alert);font-size:10px">▼</span>') : '';
+        ? (pct-d.cumplPrev>0?' <span style="color:var(--green-ok);font-size:12px">▲</span>':' <span style="color:var(--red-alert);font-size:12px">▼</span>') : '';
       const asisCol = m.asistencia==null?'var(--mid-gray)':m.asistencia>=90?'var(--green-ok)':m.asistencia>=70?'#D4A820':'var(--red-alert)';
       const nEsc = esc(d.nombre).replace(/'/g,"\\'");
       return `<tr style="cursor:pointer" onclick="openFichaEmpleado('${nEsc}')">
@@ -11839,7 +11859,7 @@ function renderReportesEquipo(){
         <td>${d.hsTrab}h</td>
         <td style="color:${col};font-weight:600">${pct!=null?pct+'%'+trend:'—'}</td>
         <td>${m.llamados?`<span style="color:var(--red-alert);font-weight:600">${m.llamados}</span>`:'—'}</td>
-        <td><button class="btn-secondary" style="font-size:11px;padding:3px 10px" onclick="event.stopPropagation();openFichaEmpleado('${nEsc}')">Ficha</button></td>
+        <td><button class="btn-secondary" style="font-size:12px;padding:3px 10px" onclick="event.stopPropagation();openFichaEmpleado('${nEsc}')">Ficha</button></td>
       </tr>`;
     }).join('')}</tbody>
   </table></div>`;
@@ -12046,18 +12066,6 @@ function exportReporteVentas(){
 // MOBILE SIDEBAR
 // ════════════════════════════
 
-// Close sidebar on nav item click (mobile).
-// Los encabezados de grupo (acordeón) NO cierran el sidebar: solo despliegan
-// su submenú, así el usuario puede ver las áreas y elegir una sin que se
-// cierre el listado. Solo los ítems que navegan a una página lo cierran.
-document.querySelectorAll('.nav-item, .nav-sub-item').forEach(el => {
-  el.addEventListener('click', () => {
-    if(el.classList.contains('nav-group-hdr')) return;
-    if(window.innerWidth <= 768) closeSidebar();
-  });
-});
-
-
 // ── BACKUP DE DATOS ───────────────────────────────────────────────────────────
 // Exporta todos los datos principales a un JSON descargable (solo gerencia).
 // Cada fuente está envuelta en función para tolerar variables que cambien de
@@ -12262,7 +12270,7 @@ function renderRestaurarComprasPreview(){
     <div style="background:#F4F1EC;border-radius:8px;padding:12px 14px;margin-bottom:14px">
       <div style="font-size:14px;font-weight:600;margin-bottom:4px">Se van a recuperar ${total} registro${total!==1?'s':''}</div>
       <div style="font-size:12.5px;color:var(--mid-gray)">Compras florería: <strong>${addF.length}</strong> · Jardinería: <strong>${addJ.length}</strong> · Eventos: <strong>${addE.length}</strong> — solo los que faltan; no se pisa ni duplica nada de lo actual.</div>
-      ${meses?`<div style="font-size:11.5px;color:var(--mid-gray);margin-top:6px">Compras florería por mes → ${esc(meses)}</div>`:''}
+      ${meses?`<div style="font-size:12px;color:var(--mid-gray);margin-top:6px">Compras florería por mes → ${esc(meses)}</div>`:''}
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
       <button class="btn-secondary" onclick="closeModal('restaurar-compras-modal')">Cancelar</button>
@@ -12391,284 +12399,22 @@ function applyRole(role){
   const searchBtn = document.querySelector('[onclick="openGlobalSearch()"]');
   if(searchBtn) searchBtn.style.display = role === 'gerencia' ? '' : 'none';
 
-  // Para gerencia: sub-items visibles excepto los exclusivos de otros roles
-  if(role === 'gerencia'){
-    document.querySelectorAll('.nav-sub-item[data-group]').forEach(el => {
-      if(!el.classList.contains('nav-floreria-only') && !el.classList.contains('nav-ventas-only') && !el.classList.contains('nav-jard-only'))
-        el.style.display = '';
-    });
-    const GER_OPS_HIDE = ['Stock Florería','Cotizador','Recordatorios'];
-    document.querySelectorAll('.nav-sub-item[data-group="grp-ops"]').forEach(el => {
-      if(GER_OPS_HIDE.some(t => el.textContent.trim().includes(t))) el.style.display = 'none';
-    });
-    // Mostrar sección Reportes (solo gerencia)
-    document.querySelectorAll('.nav-gerencia-only').forEach(el => el.style.display = '');
-    document.querySelector('[data-group-id="grp-rep"]')?.style && (document.querySelector('[data-group-id="grp-rep"]').style.display = '');
-  }
+  // Menú lateral: se arma según las páginas que puede ver el rol (navegacion.js)
+  renderSidebarNav(role, !!jardineroNombre);
+  setUserMenuInfo(window.currentUserLabel || floristaNombre || jardineroNombre || role);
 
-  if(role === 'operario'){
-    // Ocultar TODO el sidebar
-    document.querySelectorAll('.nav-section-label, .nav-item, .nav-sub-item').forEach(el => {
-      el.style.display = 'none';
-    });
-    // Mostrar Inicio
-    document.querySelectorAll('.nav-section-label').forEach(label => {
-      if(label.textContent.trim() === 'Principal'){
-        label.style.display = '';
-        let sib = label.nextElementSibling;
-        while(sib && !sib.classList.contains('nav-section-label')){
-          if(sib.textContent.trim() === 'Inicio') sib.style.display = '';
-          sib = sib.nextElementSibling;
-        }
-      }
-    });
-    // Mostrar bajo Operaciones: Eventos/Maison, Stock, Cotizador
-    document.querySelectorAll('.nav-section-label').forEach(label => {
-      if(label.textContent.trim() === 'Operaciones'){
-        label.style.display = '';
-        let sib = label.nextElementSibling;
-        while(sib && !sib.classList.contains('nav-section-label')){
-          const t = sib.textContent.trim();
-          if(['Eventos / Maison','Stock Florería','Cotizador','Stock de Floreros','Stock de Velas'].includes(t)){
-            sib.style.display = '';
-          }
-          sib = sib.nextElementSibling;
-        }
-      }
-    });
-    // Mostrar bajo Comercial: Lista de Precios
-    document.querySelectorAll('.nav-section-label').forEach(label => {
-      if(label.textContent.trim() === 'Comercial'){
-        label.style.display = '';
-        let sib = label.nextElementSibling;
-        while(sib && !sib.classList.contains('nav-section-label')){
-          if(sib.textContent.trim() === 'Lista de Precios') sib.style.display = '';
-          sib = sib.nextElementSibling;
-        }
-      }
-    });
-    // Ocultar quick-links no relevantes
-    document.querySelectorAll('.quick-link').forEach(ql => {
-      const title = ql.querySelector('.quick-link-title')?.textContent || '';
-      if(!['Eventos','Stock','Cotizador','Lista de Precios'].some(t => title.includes(t))){
-        ql.style.display = 'none';
-      }
-    });
-  }
-
-  if(role === 'florista'){
-    document.querySelectorAll('.nav-section-label, .nav-item, .nav-sub-item').forEach(el => { el.style.display = 'none'; });
-    // Florista que también es jardinero (ej. Ivan): además de lo de florería, ve jardinería
-    const alsoJardinero = !!jardineroNombre;
-    const OPS_ALLOW = ['Checklist Diaria','Stock Florería','Eventos / Maison','Cotizador','Recepción de Pedidos','Stock de Floreros','Stock de Velas'];
-    if(alsoJardinero) OPS_ALLOW.push('Tareas Jardinería','Habitaciones con Plantas','Recordatorios Jardín','Stock Plantas y Fertilizantes');
-    document.querySelectorAll('.nav-section-label').forEach(label => {
-      if(label.textContent.trim() === 'Principal'){
-        label.style.display = '';
-        let sib = label.nextElementSibling;
-        while(sib && !sib.classList.contains('nav-section-label')){
-          if(sib.textContent.trim() === 'Inicio') sib.style.display = '';
-          sib = sib.nextElementSibling;
-        }
-      }
-      if(label.textContent.trim() === 'Operaciones'){
-        label.style.display = '';
-        let sib = label.nextElementSibling;
-        while(sib && !sib.classList.contains('nav-section-label')){
-          if(OPS_ALLOW.some(t => sib.textContent.trim() === t)) sib.style.display = '';
-          sib = sib.nextElementSibling;
-        }
-      }
-      if(label.textContent.trim() === 'Comercial'){
-        label.style.display = '';
-        let sib = label.nextElementSibling;
-        while(sib && !sib.classList.contains('nav-section-label')){
-          const t = sib.textContent.trim();
-          if(t === 'Lista de Precios' || t === 'Ramos Disponibles' || t === 'Galería de Trabajos' || t === 'Composiciones') sib.style.display = '';
-          sib = sib.nextElementSibling;
-        }
-      }
-    });
-    document.querySelector('[data-group-id="grp-ops"]').style.display = '';
-    document.querySelector('[data-group-id="grp-com-vt"]').style.display = '';
-    document.querySelector('[data-group-id="grp-com-ev"]').style.display = '';
-    setTimeout(() => { navExpandGroup('grp-ops'); navExpandGroup('grp-com-vt'); navExpandGroup('grp-com-ev'); }, 50);
-    const FL_QL = ['Checklist','Stock','Eventos','Cotizador','Recepción','Ramos','Lista de Precios','Galería','Composiciones'];
-    if(alsoJardinero) FL_QL.push('Tareas Jardinería','Habitaciones con Plantas','Recordatorios Jardín','Stock Plantas y Fertilizantes');
-    document.querySelectorAll('.quick-link').forEach(ql => {
-      const title = ql.querySelector('.quick-link-title')?.textContent || '';
-      // Mostrar explícitamente los permitidos (revela también los nav-jard-only ocultos por defecto)
-      ql.style.display = FL_QL.some(t => title.includes(t)) ? '' : 'none';
-    });
-    showToast('Hola ' + floristaNombre + '!');
-  }
-
-  if(role === 'comercial'){
-    // Ocultar todo el sidebar
-    document.querySelectorAll('.nav-section-label, .nav-item, .nav-sub-item').forEach(el => {
-      el.style.display = 'none';
-    });
-    // Mostrar Inicio
-    document.querySelectorAll('.nav-section-label').forEach(label => {
-      if(label.textContent.trim() === 'Principal'){
-        label.style.display = '';
-        let sib = label.nextElementSibling;
-        while(sib && !sib.classList.contains('nav-section-label')){
-          if(sib.textContent.trim() === 'Inicio') sib.style.display = '';
-          sib = sib.nextElementSibling;
-        }
-      }
-    });
-    // Mostrar bajo Comercial: SOLO el grupo Ventas, completo (ni más ni menos)
-    document.querySelectorAll('.nav-section-label').forEach(label => {
-      if(label.textContent.trim() === 'Comercial') label.style.display = '';
-    });
-    document.querySelectorAll('.nav-sub-item[data-group="grp-com-vt"]').forEach(el => {
-      // Mostrar todos los ítems de Ventas salvo las variantes propias de otros roles
-      if(!el.classList.contains('nav-floreria-only') && !el.classList.contains('nav-ventas-only')) el.style.display = '';
-    });
-    // Ocultar quick-links
-    document.querySelectorAll('.quick-link').forEach(ql => ql.style.display = 'none');
-    const grpComC = document.querySelector('[data-group-id="grp-com-vt"]');
-    if(grpComC) grpComC.style.display = '';
-    setTimeout(() => navExpandGroup('grp-com-vt'), 50);
-    showToast('Hola Euge!');
-  }
-
+  if(role === 'florista') showToast('Hola ' + floristaNombre + '!');
+  if(role === 'comercial') showToast('Hola Euge!');
   if(role === 'ventas'){
-    // Ocultar TODO el sidebar
-    document.querySelectorAll('.nav-section-label, .nav-item, .nav-sub-item').forEach(el => {
-      el.style.display = 'none';
-    });
-    // Mostrar Inicio
-    document.querySelectorAll('.nav-section-label').forEach(label => {
-      if(label.textContent.trim() === 'Principal'){
-        label.style.display = '';
-        let sib = label.nextElementSibling;
-        while(sib && !sib.classList.contains('nav-section-label')){
-          if(sib.textContent.trim() === 'Inicio') sib.style.display = '';
-          sib = sib.nextElementSibling;
-        }
-      }
-    });
-    // Mostrar bajo Comercial: secciones permitidas
-    document.querySelectorAll('.nav-section-label').forEach(label => {
-      if(label.textContent.trim() === 'Comercial'){
-        label.style.display = '';
-        let sib = label.nextElementSibling;
-        while(sib && !sib.classList.contains('nav-section-label')){
-          const t = sib.textContent.trim();
-          if(['Ramos Disponibles','Lista de Precios','Pedidos de Habitación'].includes(t) || sib.classList.contains('nav-ventas-only')){
-            sib.style.display = '';
-          }
-          sib = sib.nextElementSibling;
-        }
-      }
-    });
-    // Quick links: ocultar todos
-    document.querySelectorAll('.quick-link').forEach(ql => ql.style.display = 'none');
-    const grpComV = document.querySelector('[data-group-id="grp-com-vt"]');
-    if(grpComV) grpComV.style.display = '';
-    setTimeout(() => navExpandGroup('grp-com-vt'), 50);
-    // Navegar al Panel Hyatt
     setTimeout(()=> navigate('home-hyatt'), 100);
     // Ocultar botón de cargar ramo (ventas solo ve y vende)
     const btnAddRamo = document.getElementById('btn-add-ramo');
     if(btnAddRamo) btnAddRamo.style.display = 'none';
   }
+  if(role === 'compras') setTimeout(()=> navigate('compras-floreria'), 100);
+  if(role === 'jardinero') setTimeout(()=>{ navigate('jardineria-ops'); if(jardineroNombre) showToast('Hola '+jardineroNombre+'!'); }, 100);
+  if(role === 'housekeeping') setTimeout(()=>{ navigate('control-habitaciones'); showToast('Housekeeping'); }, 100);
 
-  if(role === 'compras'){
-    // Ocultar TODO el sidebar
-    document.querySelectorAll('.nav-section-label, .nav-item, .nav-sub-item').forEach(el => {
-      el.style.display = 'none';
-    });
-    // Mostrar sección Compras completa (resumen + Florería + Jardinería + Gestión de Stock)
-    document.querySelectorAll('.nav-section-label').forEach(label => {
-      if(label.textContent.trim() === 'Compras'){
-        label.style.display = '';
-        let sib = label.nextElementSibling;
-        while(sib && !sib.classList.contains('nav-section-label')){
-          sib.style.display = '';
-          sib = sib.nextElementSibling;
-        }
-      }
-    });
-    // Mostrar SOLO "Recepción de Pedidos" dentro de Operaciones (sin el resto)
-    document.querySelectorAll('.nav-section-label').forEach(label => {
-      if(label.textContent.trim() === 'Operaciones'){
-        label.style.display = '';
-        let sib = label.nextElementSibling;
-        while(sib && !sib.classList.contains('nav-section-label')){
-          if(sib.textContent.trim().includes('Recepción de Pedidos')) sib.style.display = '';
-          sib = sib.nextElementSibling;
-        }
-      }
-    });
-    // Acceso puntual a Costo del Hotel (dentro de Reportes). Se revela SOLO ese
-    // sub-ítem del grupo Reportes, no el resto.
-    document.querySelectorAll('.nav-section-label').forEach(label => {
-      if(label.textContent.trim() === 'Reportes') label.style.display = '';
-    });
-    const repHdr = document.querySelector('[data-group-id="grp-rep"]');
-    if(repHdr) repHdr.style.display = '';
-    document.querySelectorAll('.nav-sub-item[data-group="grp-rep"]').forEach(el => {
-      if(el.textContent.trim() === 'Costo del Hotel') el.style.display = '';
-    });
-    // Quick links: solo los relacionados a compras y recepción
-    document.querySelectorAll('.quick-link').forEach(ql => {
-      const title = ql.querySelector('.quick-link-title')?.textContent || '';
-      if(!['Compras','Gestión de Stock','Recepción de Pedidos'].some(t => title.includes(t))) ql.style.display = 'none';
-    });
-    document.querySelector('[data-group-id="grp-compras"]').style.display = '';
-    document.querySelector('[data-group-id="grp-ops"]').style.display = '';
-    setTimeout(()=>{ navigate('compras'); navExpandGroup('grp-compras'); navExpandGroup('grp-rep'); }, 100);
-  }
-
-  if(role === 'jardinero'){
-    document.querySelectorAll('.nav-section-label, .nav-item, .nav-sub-item').forEach(el => {
-      el.style.display = 'none';
-    });
-    // Operaciones: Tareas Jardinería, Habitaciones con Plantas, Stock Plantas y Fertilizantes, Recordatorios Jardín (nav-jard-only)
-    document.querySelectorAll('.nav-section-label').forEach(label => {
-      if(label.textContent.trim() === 'Operaciones'){
-        label.style.display = '';
-        let sib = label.nextElementSibling;
-        while(sib && !sib.classList.contains('nav-section-label')){
-          const t = sib.textContent.trim();
-          if(t === 'Tareas Jardinería' || t === 'Habitaciones con Plantas' || t === 'Stock Plantas y Fertilizantes' || sib.classList.contains('nav-jard-only'))
-            sib.style.display = '';
-          sib = sib.nextElementSibling;
-        }
-      }
-    });
-    document.querySelector('[data-group-id="grp-ops"]').style.display = '';
-    setTimeout(() => navExpandGroup('grp-ops'), 50);
-    document.querySelectorAll('.quick-link').forEach(ql => ql.style.display = 'none');
-    setTimeout(()=>{ navigate('jardineria-ops'); if(jardineroNombre) showToast('Hola '+jardineroNombre+'!'); }, 100);
-  }
-
-  if(role === 'housekeeping'){
-    // Solo puede ver Control de Habitaciones (y comentar). Se oculta todo lo demás.
-    document.querySelectorAll('.nav-section-label, .nav-item, .nav-sub-item').forEach(el => { el.style.display = 'none'; });
-    document.querySelectorAll('.nav-section-label').forEach(label => {
-      if(label.textContent.trim() === 'Control'){
-        label.style.display = '';
-        let sib = label.nextElementSibling;
-        while(sib && !sib.classList.contains('nav-section-label')){
-          if(sib.textContent.trim() === 'Habitaciones con Plantas') sib.style.display = '';
-          sib = sib.nextElementSibling;
-        }
-      }
-    });
-    const gCtrl = document.querySelector('[data-group-id="grp-ctrl"]');
-    if(gCtrl) gCtrl.style.display = '';
-    setTimeout(() => navExpandGroup('grp-ctrl'), 50);
-    document.querySelectorAll('.quick-link').forEach(ql => ql.style.display = 'none');
-    setTimeout(()=>{ navigate('control-habitaciones'); showToast('Housekeeping'); }, 100);
-  }
-
-  // Aplicar estado colapsado del acordeón según visibilidad de rol
-  finalizeNavGroups();
   // Renderizar barra de navegación inferior mobile
   renderBottomNav(role, !!jardineroNombre);
   // Aviso de recordatorios nuevos: badge + cartel al entrar, toast demorado
@@ -12805,7 +12551,7 @@ function renderPlantilla(){
   // Candidatos para agregar: empleados conocidos que aún no están en la lista
   const candidatos = getEmpleadosActivos().filter(n => !personas.includes(n));
   const addControl = `<div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-    <span style="font-size:11px;color:var(--mid-gray);font-weight:600">Agregar persona:</span>
+    <span style="font-size:12px;color:var(--mid-gray);font-weight:600">Agregar persona:</span>
     <select onchange="horariosAddPersonaFromSel(this)" style="padding:6px 8px;border:1px solid var(--light-gray);border-radius:6px;font-size:12px;font-family:inherit;background:white">
       <option value="">— Elegí quién agregar —</option>
       ${candidatos.length ? '<optgroup label="Empleados">'+candidatos.map(n=>`<option value="${esc(n)}">${esc(n)}${isJardinero(n)?' · Jardinería':''}</option>`).join('')+'</optgroup>' : ''}
@@ -12813,7 +12559,7 @@ function renderPlantilla(){
     </select>
   </div>`;
 
-  const tip = `<div style="font-size:11px;color:var(--mid-gray);margin-top:8px">Completá los horarios base y tocá <strong>"Aplicar al mes"</strong> para rellenar todo el calendario de ${['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][horMes]}. Podés incluir jardinería para coordinar los horarios de ambos equipos.</div>`;
+  const tip = `<div style="font-size:12px;color:var(--mid-gray);margin-top:8px">Completá los horarios base y tocá <strong>"Aplicar al mes"</strong> para rellenar todo el calendario de ${['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][horMes]}. Podés incluir jardinería para coordinar los horarios de ambos equipos.</div>`;
 
   if(!personas.length){
     container.innerHTML = '<div style="color:var(--mid-gray);padding:8px">No hay personas en la lista. Agregá una para empezar.</div>' + addControl + tip;
@@ -12831,7 +12577,7 @@ function renderPlantilla(){
         <td style="font-weight:600">
           <div style="display:flex;align-items:center;gap:6px">
             <span>${esc(nombre)}</span>
-            ${isJardinero(nombre) ? '<span style="font-size:9px;background:#EBF5E8;color:#2C6B3A;padding:1px 6px;border-radius:8px;font-weight:600;white-space:nowrap">Jard.</span>' : ''}
+            ${isJardinero(nombre) ? '<span style="font-size:12px;background:#EBF5E8;color:#2C6B3A;padding:1px 6px;border-radius:8px;font-weight:600;white-space:nowrap">Jard.</span>' : ''}
             <button class="btn-icon" title="Quitar de la lista de horarios" onclick="horariosRemovePersona('${esc(nombre)}')" style="color:var(--red-alert);font-size:12px;padding:0 4px;margin-left:auto">✕</button>
           </div>
         </td>
@@ -12841,12 +12587,12 @@ function renderPlantilla(){
           return `<td style="text-align:center;padding:4px">
             <div style="display:flex;gap:2px;justify-content:center;align-items:center">
               <input type="time" value="${h.desde||''}" onchange="setPlantilla('${esc(nombre)}','${dia}','desde',this.value)"
-                style="width:68px;padding:2px;border:1px solid var(--light-gray);border-radius:4px;font-size:11px;font-family:inherit">
-              <span style="font-size:9px;color:var(--mid-gray)">→</span>
+                style="width:68px;padding:2px;border:1px solid var(--light-gray);border-radius:4px;font-size:12px;font-family:inherit">
+              <span style="font-size:12px;color:var(--mid-gray)">→</span>
               <input type="time" value="${h.hasta||''}" onchange="setPlantilla('${esc(nombre)}','${dia}','hasta',this.value)"
-                style="width:68px;padding:2px;border:1px solid var(--light-gray);border-radius:4px;font-size:11px;font-family:inherit">
+                style="width:68px;padding:2px;border:1px solid var(--light-gray);border-radius:4px;font-size:12px;font-family:inherit">
             </div>
-            ${hs > 0 ? `<div style="font-size:9px;color:var(--sage-dark);font-weight:600;margin-top:1px">${hs}h</div>` : ''}
+            ${hs > 0 ? `<div style="font-size:12px;color:var(--sage-dark);font-weight:600;margin-top:1px">${hs}h</div>` : ''}
           </td>`;
         }).join('')}
       </tr>`;
@@ -12953,7 +12699,7 @@ function renderHorarios(){
 
   calHtml += `<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--light-gray);border-radius:8px;overflow:hidden">`;
   ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].forEach(d => {
-    calHtml += `<div style="background:#E5E3DC;padding:6px;text-align:center;font-size:10px;font-weight:600;color:var(--charcoal);letter-spacing:.5px">${d}</div>`;
+    calHtml += `<div style="background:#E5E3DC;padding:6px;text-align:center;font-size:12px;font-weight:600;color:var(--charcoal);letter-spacing:.5px">${d}</div>`;
   });
 
   // Celdas vacías antes del primer día
@@ -12986,8 +12732,8 @@ function renderHorarios(){
 
     calHtml += `<div style="background:${bgColor};padding:6px;min-height:60px;cursor:pointer;border:${border}" onclick="openDiaHorario('${iso}')">
       <div style="font-size:12px;font-weight:${isToday?'700':'500'};color:${isToday?'var(--green-ok)':'#1A1A1A'};margin-bottom:3px">${d}</div>
-      ${asignados > 0 ? `<div style="font-size:9px;color:var(--sage-dark);font-weight:600">${asignados} empleado${asignados>1?'s':''}</div>
-        <div style="font-size:9px;color:var(--mid-gray)">${totalHs}h total</div>` : ''}
+      ${asignados > 0 ? `<div style="font-size:12px;color:var(--sage-dark);font-weight:600">${asignados} empleado${asignados>1?'s':''}</div>
+        <div style="font-size:12px;color:var(--mid-gray)">${totalHs}h total</div>` : ''}
     </div>`;
   }
   calHtml += '</div>';
@@ -13022,17 +12768,17 @@ function openDiaHorario(iso){
         // Jornada REAL fichada en el checklist (florista y/o jardinería)
         const real = jornadaRealDia(nombre, iso);
         const fichado = real
-          ? `<div style="font-size:10px;color:var(--green-ok);font-weight:600;margin-top:2px">✓ Fichó ${real.inicio}–${real.fin} · ${real.horas}h reales</div>`
+          ? `<div style="font-size:12px;color:var(--green-ok);font-weight:600;margin-top:2px">✓ Fichó ${real.inicio}–${real.fin} · ${real.horas}h reales</div>`
           : '';
         return `<div style="padding:8px 0;border-bottom:1px solid var(--light-gray)">
           <div style="display:flex;align-items:center;gap:10px">
             <strong style="flex:1;font-size:13px;color:#1A1A1A;min-width:80px">${esc(nombre)}</strong>
             <input type="time" value="${h.desde||''}" id="hor_${nombre}_${iso}_desde"
               style="width:90px;padding:4px 6px;border:1px solid var(--light-gray);border-radius:4px;font-size:12px;font-family:inherit">
-            <span style="font-size:11px;color:var(--mid-gray)">→</span>
+            <span style="font-size:12px;color:var(--mid-gray)">→</span>
             <input type="time" value="${h.hasta||''}" id="hor_${nombre}_${iso}_hasta"
               style="width:90px;padding:4px 6px;border:1px solid var(--light-gray);border-radius:4px;font-size:12px;font-family:inherit">
-            <span style="font-size:11px;color:var(--sage-dark);font-weight:600;min-width:30px">${hs > 0 ? hs+'h' : ''}</span>
+            <span style="font-size:12px;color:var(--sage-dark);font-weight:600;min-width:30px">${hs > 0 ? hs+'h' : ''}</span>
           </div>
           ${fichado}
         </div>`;
@@ -13100,7 +12846,7 @@ function _detalleFichajesPersona(nombre){
   const q = {1:{dias:0,horas:0,prog:0}, 2:{dias:0,horas:0,prog:0}};
   // Fila de subtotal de una quincena
   const subtotalRow = (label, qq) => qq.dias ? `<tr style="background:var(--cream)">
-      <td style="padding:5px 12px;font-size:11px;font-weight:700;color:var(--charcoal)">${label} · ${qq.dias} día${qq.dias!==1?'s':''}</td>
+      <td style="padding:5px 12px;font-size:12px;font-weight:700;color:var(--charcoal)">${label} · ${qq.dias} día${qq.dias!==1?'s':''}</td>
       <td></td><td></td>
       <td style="padding:5px 12px;text-align:right;font-weight:700;font-size:12px">${r1(qq.horas)}h</td>
       <td style="padding:5px 12px;text-align:right;color:var(--mid-gray);font-size:12px">${qq.prog?r1(qq.prog)+'h':'—'}</td>
@@ -13137,15 +12883,15 @@ function _detalleFichajesPersona(nombre){
   return `<div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:10px;padding:14px 16px">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
       <strong style="font-size:15px;color:var(--charcoal)">${esc(nombre)} · ${MESES[horMes]} ${horAnio}</strong>
-      <button class="btn-secondary" style="font-size:11px;padding:5px 10px" onclick="copiarDetalleFichajes()">Copiar</button>
+      <button class="btn-secondary" style="font-size:12px;padding:5px 10px" onclick="copiarDetalleFichajes()">Copiar</button>
     </div>
     <div class="table-wrapper"><table style="width:100%;border-collapse:collapse;font-size:13px">
       <thead><tr>
-        <th style="text-align:left;padding:6px 12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Día</th>
-        <th style="text-align:center;padding:6px 12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Ingreso</th>
-        <th style="text-align:center;padding:6px 12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Salida</th>
-        <th style="text-align:right;padding:6px 12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Horas</th>
-        <th style="text-align:right;padding:6px 12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Prog.</th>
+        <th style="text-align:left;padding:6px 12px;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Día</th>
+        <th style="text-align:center;padding:6px 12px;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Ingreso</th>
+        <th style="text-align:center;padding:6px 12px;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Salida</th>
+        <th style="text-align:right;padding:6px 12px;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Horas</th>
+        <th style="text-align:right;padding:6px 12px;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Prog.</th>
       </tr></thead>
       <tbody>${cuerpo}</tbody>
       <tfoot><tr style="border-top:2px solid var(--charcoal)">
@@ -13155,7 +12901,7 @@ function _detalleFichajesPersona(nombre){
         <td style="padding:8px 12px;text-align:right;color:var(--mid-gray)">${r1(totProg)}h prog</td>
       </tr></tfoot>
     </table></div>
-    <div style="font-size:11px;color:var(--mid-gray);margin-top:8px">Ingreso / Salida = fichaje real del día. «Prog.» = lo planificado en el calendario. Los subtotales por quincena (1–15 y 16–fin) sirven para cruzar la facturación quincenal de monotributistas. Cambiá el mes con ◀ ▶ de arriba.</div>
+    <div style="font-size:12px;color:var(--mid-gray);margin-top:8px">Ingreso / Salida = fichaje real del día. «Prog.» = lo planificado en el calendario. Los subtotales por quincena (1–15 y 16–fin) sirven para cruzar la facturación quincenal de monotributistas. Cambiá el mes con ◀ ▶ de arriba.</div>
   </div>`;
 }
 function copiarDetalleFichajes(){
@@ -13304,31 +13050,31 @@ function renderProductividadHorarios(empleados){
       </div>
       ${hayDatos ? `<div style="display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap">
         <div style="text-align:center;min-width:64px">
-          <div style="font-size:10px;color:var(--mid-gray)">Programado</div>
+          <div style="font-size:12px;color:var(--mid-gray)">Programado</div>
           <div style="font-size:19px;font-weight:700;color:var(--charcoal)">${hsProgramadas}h</div>
-          <div style="font-size:9px;color:var(--mid-gray)">${hor.desde||'—'} → ${hor.hasta||'—'}</div>
+          <div style="font-size:12px;color:var(--mid-gray)">${hor.desde||'—'} → ${hor.hasta||'—'}</div>
         </div>
         <div style="text-align:center;min-width:64px">
-          <div style="font-size:10px;color:var(--mid-gray)">Trabajado</div>
+          <div style="font-size:12px;color:var(--mid-gray)">Trabajado</div>
           <div style="font-size:19px;font-weight:700;color:${barColor}">${hsTrabajadas}h</div>
-          <div style="font-size:9px;color:var(--mid-gray)">${real ? real.inicio+' → '+real.fin : 'sin fichar'}</div>
+          <div style="font-size:12px;color:var(--mid-gray)">${real ? real.inicio+' → '+real.fin : 'sin fichar'}</div>
         </div>
         <div style="text-align:center;min-width:64px">
-          <div style="font-size:10px;color:var(--mid-gray)">En tareas</div>
+          <div style="font-size:12px;color:var(--mid-gray)">En tareas</div>
           <div style="font-size:19px;font-weight:700;color:var(--sage-dark)">${hsTareas}h</div>
-          <div style="font-size:9px;color:var(--mid-gray)">${tareasHechas} con horario</div>
+          <div style="font-size:12px;color:var(--mid-gray)">${tareasHechas} con horario</div>
         </div>
         <div style="flex:1;min-width:150px">
-          <div style="font-size:9px;color:var(--mid-gray);margin-bottom:2px">Tiempo de trabajo (jornada)</div>
+          <div style="font-size:12px;color:var(--mid-gray);margin-bottom:2px">Tiempo de trabajo (jornada)</div>
           <div style="height:8px;background:#E5E3DC;border-radius:4px;overflow:hidden">
             <div style="height:100%;width:${Math.min(100,pct)}%;background:${barColor};border-radius:4px;transition:width .5s"></div>
           </div>
-          <div style="font-size:10px;color:var(--mid-gray);margin:1px 0 8px;text-align:right">${pct}% de lo programado</div>
-          <div style="font-size:9px;color:var(--mid-gray);margin-bottom:2px">Tiempo en tareas asignadas</div>
+          <div style="font-size:12px;color:var(--mid-gray);margin:1px 0 8px;text-align:right">${pct}% de lo programado</div>
+          <div style="font-size:12px;color:var(--mid-gray);margin-bottom:2px">Tiempo en tareas asignadas</div>
           <div style="height:8px;background:#E5E3DC;border-radius:4px;overflow:hidden">
             <div style="height:100%;width:${Math.min(100,pctTareas)}%;background:var(--sage-dark);border-radius:4px;transition:width .5s"></div>
           </div>
-          <div style="font-size:10px;color:var(--mid-gray);margin-top:1px;text-align:right">${pctTareas}% ${minsJornada>0?'de la jornada':'de lo programado'}</div>
+          <div style="font-size:12px;color:var(--mid-gray);margin-top:1px;text-align:right">${pctTareas}% ${minsJornada>0?'de la jornada':'de lo programado'}</div>
         </div>
       </div>` : ''}
     </div>`;
@@ -13348,9 +13094,9 @@ function renderEvHoraCell(evIdx, campo, ev, fase){
     return `<span style="font-size:13px;font-weight:600;color:var(--green-ok)">${val}</span>`;
   }
   if(campo === 'inicio' || (campo === 'fin' && ev[iniField])){
-    return `<button onclick="registrarHoraEvento(${evIdx},'${campo}','${fase}')" style="background:${campo==='inicio'?'var(--green-ok)':'var(--amber)'};color:white;border:none;border-radius:4px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:inherit">${campo==='inicio'?'▶ Inicio':'⏹ Fin'}</button>`;
+    return `<button onclick="registrarHoraEvento(${evIdx},'${campo}','${fase}')" style="background:${campo==='inicio'?'var(--green-ok)':'var(--amber)'};color:white;border:none;border-radius:4px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:inherit">${campo==='inicio'?'▶ Inicio':'⏹ Fin'}</button>`;
   }
-  return '<span style="color:var(--mid-gray);font-size:11px">—</span>';
+  return '<span style="color:var(--mid-gray);font-size:12px">—</span>';
 }
 
 function registrarHoraEvento(evIdx, campo, fase){
@@ -13438,9 +13184,9 @@ function renderVentaHoraCell(vIdx, campo, v){
     return `<span style="font-size:13px;font-weight:600;color:var(--green-ok)">${val}</span>`;
   }
   if(campo === 'inicio' || (campo === 'fin' && v.inicio)){
-    return `<button onclick="registrarHoraVenta(${vIdx},'${campo}')" style="background:${campo==='inicio'?'var(--green-ok)':'var(--amber)'};color:white;border:none;border-radius:4px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:inherit">${campo==='inicio'?'▶ Inicio':'⏹ Fin'}</button>`;
+    return `<button onclick="registrarHoraVenta(${vIdx},'${campo}')" style="background:${campo==='inicio'?'var(--green-ok)':'var(--amber)'};color:white;border:none;border-radius:4px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:inherit">${campo==='inicio'?'▶ Inicio':'⏹ Fin'}</button>`;
   }
-  return '<span style="color:var(--mid-gray);font-size:11px">—</span>';
+  return '<span style="color:var(--mid-gray);font-size:12px">—</span>';
 }
 
 function registrarHoraVenta(vIdx, campo){
@@ -13934,16 +13680,16 @@ async function openGestionPasswords(){
     <button class="modal-close" onclick="document.getElementById('gestion-passwords-modal').classList.remove('open')">✕</button>
     <div class="modal-title">Gestión de Usuarios</div>
     <div style="font-size:12px;color:var(--mid-gray);margin-bottom:6px">Cambiá o reseteá la contraseña de cualquier usuario.</div>
-    <div style="font-size:11.5px;color:var(--sage-dark);background:#EBF5E8;border-radius:8px;padding:8px 12px;margin-bottom:16px">Las contraseñas se guardan cifradas — por seguridad no se pueden ver, solo cambiar.</div>
+    <div style="font-size:12px;color:var(--sage-dark);background:#EBF5E8;border-radius:8px;padding:8px 12px;margin-bottom:16px">Las contraseñas se guardan cifradas — por seguridad no se pueden ver, solo cambiar.</div>
     <div style="display:flex;flex-direction:column;gap:1px;background:var(--light-gray);border-radius:8px;overflow:hidden">
       ${entries.map(([id, e]) => `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--warm-white)">
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;font-weight:600;color:#1A1A1A">${esc(e.label || e.floristaNombre || id)}</div>
-          <div style="font-size:11px;color:var(--mid-gray)">${roleLabels[e.role]||e.role}</div>
+          <div style="font-size:12px;color:var(--mid-gray)">${roleLabels[e.role]||e.role}</div>
         </div>
         <div style="background:#F4F1EC;padding:4px 12px;border-radius:6px;font-size:12px;color:var(--mid-gray);min-width:70px;text-align:center">•••••</div>
-        <button onclick="resetearPassword('${esc(id)}')" style="background:none;border:1px solid var(--light-gray);border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:inherit;color:var(--charcoal);white-space:nowrap">Cambiar</button>
-        ${(e.role==='florista'||e.role==='housekeeping'||e.role==='jardinero') ? `<button onclick="eliminarUsuario('${esc(id)}')" style="background:none;border:1px solid #E8CECE;border-radius:6px;padding:5px 8px;font-size:11px;cursor:pointer;font-family:inherit;color:var(--red-alert);white-space:nowrap">✕</button>` : ''}
+        <button onclick="resetearPassword('${esc(id)}')" style="background:none;border:1px solid var(--light-gray);border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;font-family:inherit;color:var(--charcoal);white-space:nowrap">Cambiar</button>
+        ${(e.role==='florista'||e.role==='housekeeping'||e.role==='jardinero') ? `<button onclick="eliminarUsuario('${esc(id)}')" style="background:none;border:1px solid #E8CECE;border-radius:6px;padding:5px 8px;font-size:12px;cursor:pointer;font-family:inherit;color:var(--red-alert);white-space:nowrap">✕</button>` : ''}
       </div>`).join('')}
     </div>
     <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
@@ -14259,7 +14005,7 @@ function renderInsumosGrid(){
     const isCustom = insumosCustom.includes(nombre);
     return `<div class="insumo-row" id="row-${id}">
       <input type="checkbox" class="insumo-check" id="${id}" onchange="updateInsumoRow('${id}')">
-      <label class="insumo-label" for="${id}">${esc(nombre)}${isCustom?' <span style="font-size:9px;color:var(--sage);font-weight:600">NUEVO</span>':''}</label>
+      <label class="insumo-label" for="${id}">${esc(nombre)}${isCustom?' <span style="font-size:12px;color:var(--sage);font-weight:600">NUEVO</span>':''}</label>
       <input type="number" class="insumo-qty" id="qty-${id}" value="1" min="1" placeholder="Cant." style="display:none">
     </div>`;
   }).join('');
@@ -14481,7 +14227,7 @@ function renderRecetas(){
           <button class="btn-icon" style="color:var(--red-alert)" onclick="delReceta(${i})" title="Eliminar">✕</button>
         </div>
       </div>
-      <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:8px;font-weight:600">Ingredientes por unidad</div>
+      <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);margin-bottom:8px;font-weight:600">Ingredientes por unidad</div>
       <div class="receta-ingredientes">
         ${r.ings.map(ing=>`
           <div class="receta-ing-row">
@@ -14490,7 +14236,7 @@ function renderRecetas(){
             <span style="background:#F0EEE8;border-radius:4px;padding:2px 8px;font-size:12px;font-weight:600">${_fmtCant(ing.qty)} vara${(+ing.qty)===1?'':'s'}</span>
           </div>`).join('')}
       </div>
-      ${(()=>{ const c = calcCostoComposicion(r); return `<div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:10px;padding-top:8px;border-top:1px solid #E4E2DC;font-size:12px"><span style="color:var(--mid-gray);letter-spacing:1.5px;text-transform:uppercase;font-weight:600;font-size:11px">Costo por unidad</span><b style="font-size:14px">${c>0?'$'+Math.round(c).toLocaleString('es-AR'):'sin costo'}</b></div>`; })()}
+      ${(()=>{ const c = calcCostoComposicion(r); return `<div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:10px;padding-top:8px;border-top:1px solid #E4E2DC;font-size:12px"><span style="color:var(--mid-gray);letter-spacing:1px;text-transform:uppercase;font-weight:600;font-size:12px">Costo por unidad</span><b style="font-size:14px">${c>0?'$'+Math.round(c).toLocaleString('es-AR'):'sin costo'}</b></div>`; })()}
     </div>`).join('');
 }
 
@@ -14556,7 +14302,7 @@ function renderComposicionesHotel(){
           <button class="btn-icon" style="color:var(--red-alert)" onclick="delArregloComposicion('${zEsc}')" title="Eliminar composición">✕</button>
         </div>
       </div>
-      <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);margin:8px 0;font-weight:600">Ingredientes por unidad</div>
+      <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);margin:8px 0;font-weight:600">Ingredientes por unidad</div>
       <div class="receta-ingredientes">
         ${ings.map(ing=>{
           const eqVaras = ing.unidad==='paq' ? _ingVaras(ing) : 0;
@@ -14567,7 +14313,7 @@ function renderComposicionesHotel(){
         </div>`;
         }).join('')}
       </div>
-      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:10px;padding-top:8px;border-top:1px solid #E4E2DC;font-size:12px"><span style="color:var(--mid-gray);letter-spacing:1.5px;text-transform:uppercase;font-weight:600;font-size:11px">Costo por unidad</span><b style="font-size:14px">${costo>0?'$'+costo.toLocaleString('es-AR'):'sin costo'}</b></div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:10px;padding-top:8px;border-top:1px solid #E4E2DC;font-size:12px"><span style="color:var(--mid-gray);letter-spacing:1px;text-transform:uppercase;font-weight:600;font-size:12px">Costo por unidad</span><b style="font-size:14px">${costo>0?'$'+costo.toLocaleString('es-AR'):'sin costo'}</b></div>
     </div>`;
   }).join('');
 }
@@ -14855,7 +14601,7 @@ function openEventoDetail(i){
   };
   const estadoEl = document.getElementById('evento-detail-estado');
   estadoEl.textContent = ev.estado || '';
-  estadoEl.style.cssText = (estadoColors[ev.estado]||'background:#eee;color:#666') + ';padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.5px';
+  estadoEl.style.cssText = (estadoColors[ev.estado]||'background:#eee;color:#666') + ';padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;letter-spacing:.5px';
 
   // Body grid fields
   const armadoTxt = ev.asignado ? ev.asignado + (ev.inicio && ev.fin ? ` (${ev.inicio}–${ev.fin})` : ev.inicio ? ` (desde ${ev.inicio})` : '') : null;
@@ -14897,9 +14643,9 @@ function openEventoDetail(i){
       const ingsHTML = ings.length
         ? `<div style="margin-top:8px;background:var(--cream);border-radius:6px;padding:10px 12px">
             <div style="display:grid;grid-template-columns:1fr auto auto;gap:4px 12px;align-items:center">
-              <div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);font-weight:600">Ingrediente</div>
-              <div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);font-weight:600;text-align:center">× unidad</div>
-              <div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#2E7D32;font-weight:600;text-align:center">Total cámara</div>
+              <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);font-weight:600">Ingrediente</div>
+              <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);font-weight:600;text-align:center">× unidad</div>
+              <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#2E7D32;font-weight:600;text-align:center">Total cámara</div>
               ${ings.map(ing=>`
                 <div style="font-size:12px;color:var(--charcoal)">${esc(ing.prod)}</div>
                 <div style="font-size:12px;text-align:center;color:var(--mid-gray)">${ing.qty} ud${ing.qty>1?'s':''}</div>
@@ -14907,7 +14653,7 @@ function openEventoDetail(i){
               `).join('')}
             </div>
           </div>`
-        : '<div style="font-size:11px;color:var(--mid-gray);margin-top:4px;font-style:italic">Sin receta cargada</div>';
+        : '<div style="font-size:12px;color:var(--mid-gray);margin-top:4px;font-style:italic">Sin receta cargada</div>';
       return `<div style="padding:10px 0;border-bottom:1px solid var(--light-gray)">
         <div style="display:flex;align-items:center;gap:10px">
           <span style="font-size:16px"></span>
@@ -14968,7 +14714,7 @@ function mostrarEventosDelDia(retry = 0){
       'Pendiente de Colocacion':'background:#FFF3E0;color:#E65100',
       'Confirmado':'background:#E8F5E9;color:#2E7D32'
     };
-    return `<span style="${map[est]||'background:#eee;color:#666'};padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;white-space:nowrap">${esc(est||'')}</span>`;
+    return `<span style="${map[est]||'background:#eee;color:#666'};padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;white-space:nowrap">${esc(est||'')}</span>`;
   };
 
   const sorted = [...hoy].sort((a,b)=>(a.hora||'').localeCompare(b.hora||''));
@@ -15228,9 +14974,9 @@ function renderJordProd(){
           <span style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:500;color:var(--charcoal)">${esc(who)}</span>
         </div>
         <div style="display:flex;gap:16px;flex-wrap:wrap">
-          <div style="text-align:center"><div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray)">Tareas</div><div style="font-size:22px;font-weight:700;color:var(--charcoal)">${d.tareas}</div></div>
-          <div style="text-align:center"><div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray)">Total</div><div style="font-size:22px;font-weight:700;color:${color}">${fmtDur(d.minutos)}</div></div>
-          <div style="text-align:center"><div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray)">Prom/tarea</div><div style="font-size:22px;font-weight:700;color:var(--sage)">${avg>0?fmtDur(avg):'—'}</div></div>
+          <div style="text-align:center"><div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Tareas</div><div style="font-size:22px;font-weight:700;color:var(--charcoal)">${d.tareas}</div></div>
+          <div style="text-align:center"><div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Total</div><div style="font-size:22px;font-weight:700;color:${color}">${fmtDur(d.minutos)}</div></div>
+          <div style="text-align:center"><div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Prom/tarea</div><div style="font-size:22px;font-weight:700;color:var(--sage)">${avg>0?fmtDur(avg):'—'}</div></div>
         </div>
       </div>
       <div style="height:8px;background:var(--light-gray);border-radius:4px;overflow:hidden;margin-bottom:12px">
@@ -15240,12 +14986,12 @@ function renderJordProd(){
         <div style="margin-top:10px;overflow-x:auto">
           <table style="width:100%;border-collapse:collapse;font-size:12px">
             <thead><tr style="background:var(--cream)">
-              <th style="padding:6px 10px;text-align:left;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Fecha</th>
-              <th style="padding:6px 10px;text-align:left;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Tarea</th>
-              <th style="padding:6px 10px;text-align:left;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Zona</th>
-              <th style="padding:6px 10px;text-align:center;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Inicio</th>
-              <th style="padding:6px 10px;text-align:center;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Fin</th>
-              <th style="padding:6px 10px;text-align:center;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Duración</th>
+              <th style="padding:6px 10px;text-align:left;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Fecha</th>
+              <th style="padding:6px 10px;text-align:left;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Tarea</th>
+              <th style="padding:6px 10px;text-align:left;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Zona</th>
+              <th style="padding:6px 10px;text-align:center;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Inicio</th>
+              <th style="padding:6px 10px;text-align:center;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Fin</th>
+              <th style="padding:6px 10px;text-align:center;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Duración</th>
             </tr></thead>
             <tbody>${d.detalle.map(t=>`<tr style="border-bottom:1px solid var(--light-gray)">
               <td style="padding:6px 10px;color:var(--mid-gray)">${fmtDate(t.date)}</td>
@@ -15390,23 +15136,23 @@ function renderProductividad(){
           </div>
           <div style="display:flex;gap:16px;flex-wrap:wrap">
             <div style="text-align:center">
-              <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray)">Tareas</div>
+              <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Tareas</div>
               <div style="font-size:22px;font-weight:700;color:var(--charcoal)">${d.tareas}</div>
             </div>
             <div style="text-align:center">
-              <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray)">Con horario</div>
+              <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Con horario</div>
               <div style="font-size:22px;font-weight:700;color:${color}">${d.conHorario}</div>
             </div>
             <div style="text-align:center">
-              <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray)">Total registrado</div>
+              <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Total registrado</div>
               <div style="font-size:22px;font-weight:700;color:${color}">${fmtDur(d.minutos)}</div>
             </div>
             <div style="text-align:center">
-              <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray)">Prom/tarea</div>
+              <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Prom/tarea</div>
               <div style="font-size:22px;font-weight:700;color:var(--sage)">${avgMin > 0 ? fmtDur(avgMin) : '—'}</div>
             </div>
             <div style="text-align:center" title="Tareas que superaron el tiempo de referencia">
-              <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray)">Se pasó</div>
+              <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Se pasó</div>
               <div style="font-size:22px;font-weight:700;color:${excColor}">${d.conRef > 0 ? d.excedidas + '/' + d.conRef : '—'}</div>
             </div>
           </div>
@@ -15420,13 +15166,13 @@ function renderProductividad(){
           <div style="margin-top:10px;overflow-x:auto">
             <table style="width:100%;border-collapse:collapse;font-size:12px">
               <thead><tr style="background:var(--cream)">
-                <th style="padding:6px 10px;text-align:left;color:var(--mid-gray);font-size:10px;letter-spacing:1px;text-transform:uppercase">Día</th>
-                <th style="padding:6px 10px;text-align:left;color:var(--mid-gray);font-size:10px;letter-spacing:1px;text-transform:uppercase">Zona</th>
-                <th style="padding:6px 10px;text-align:left;color:var(--mid-gray);font-size:10px;letter-spacing:1px;text-transform:uppercase">Actividad</th>
-                <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:10px;letter-spacing:1px;text-transform:uppercase">Inicio</th>
-                <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:10px;letter-spacing:1px;text-transform:uppercase">Fin</th>
-                <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:10px;letter-spacing:1px;text-transform:uppercase">Duración</th>
-                <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:10px;letter-spacing:1px;text-transform:uppercase">Ref.</th>
+                <th style="padding:6px 10px;text-align:left;color:var(--mid-gray);font-size:12px;letter-spacing:1px;text-transform:uppercase">Día</th>
+                <th style="padding:6px 10px;text-align:left;color:var(--mid-gray);font-size:12px;letter-spacing:1px;text-transform:uppercase">Zona</th>
+                <th style="padding:6px 10px;text-align:left;color:var(--mid-gray);font-size:12px;letter-spacing:1px;text-transform:uppercase">Actividad</th>
+                <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:12px;letter-spacing:1px;text-transform:uppercase">Inicio</th>
+                <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:12px;letter-spacing:1px;text-transform:uppercase">Fin</th>
+                <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:12px;letter-spacing:1px;text-transform:uppercase">Duración</th>
+                <th style="padding:6px 10px;text-align:center;color:var(--mid-gray);font-size:12px;letter-spacing:1px;text-transform:uppercase">Ref.</th>
               </tr></thead>
               <tbody>
                 ${d.detalle.map(t=>`<tr style="border-bottom:1px solid var(--light-gray)">
@@ -15435,7 +15181,7 @@ function renderProductividad(){
                   <td style="padding:6px 10px"><span class="badge ${getBadge(t.actividad)}">${esc(t.actividad)}</span></td>
                   <td style="padding:6px 10px;text-align:center;font-weight:600">${t.inicio||'—'}</td>
                   <td style="padding:6px 10px;text-align:center;font-weight:600">${t.fin||'—'}</td>
-                  <td style="padding:6px 10px;text-align:center">${t.inicio && t.fin ? durBadge(t.inicio,t.fin,t.ref) : '<span style="color:var(--mid-gray);font-size:11px">sin horario</span>'}</td>
+                  <td style="padding:6px 10px;text-align:center">${t.inicio && t.fin ? durBadge(t.inicio,t.fin,t.ref) : '<span style="color:var(--mid-gray);font-size:12px">sin horario</span>'}</td>
                   <td style="padding:6px 10px;text-align:center;color:var(--mid-gray)">${t.ref ? t.ref+'m' : '—'}</td>
                 </tr>`).join('')}
               </tbody>
@@ -15459,7 +15205,7 @@ function renderSucursalIndicador(){
   if(!el){
     el = document.createElement('span');
     el.id = 'sucursal-badge';
-    el.style.cssText = 'font-size:10px;background:var(--light-gray);color:var(--mid-gray);padding:3px 9px;border-radius:10px;letter-spacing:.5px;cursor:default';
+    el.style.cssText = 'font-size:12px;background:var(--light-gray);color:var(--mid-gray);padding:3px 9px;border-radius:10px;letter-spacing:.5px;cursor:default';
     document.querySelector('.topbar-right')?.insertBefore(el, document.querySelector('.theme-toggle-btn'));
   }
   const nombre = getSucursalNombre(currentSucursal);
@@ -15564,7 +15310,7 @@ function renderDashboardConsolidado(){
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
         <div style="width:10px;height:10px;border-radius:50%;background:${suc.activa?'var(--green-ok)':'var(--mid-gray)'}"></div>
         <div style="font-size:16px;font-weight:600;color:var(--charcoal)">${esc(suc.nombre)}</div>
-        <div style="font-size:11px;color:var(--mid-gray);margin-left:4px">${esc(suc.direccion||'')}</div>
+        <div style="font-size:12px;color:var(--mid-gray);margin-left:4px">${esc(suc.direccion||'')}</div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px">
         ${_kpiCard('Ventas Externas','$'+totalVentas.toLocaleString('es-AR'),ventas.length+' transacciones','var(--green-ok)')}
@@ -15757,13 +15503,13 @@ function openListaCompraHotel(){
   const { varas, paq, zonas } = listaCompraHotel();
   const fila = ({prod,qty}) => {
     const comprar = Math.ceil(qty - 1e-9);
-    const exacto = Math.abs(comprar - qty) > 0.01 ? ` <span style="color:var(--mid-gray);font-size:11px">(exacto ${_fmtCant(qty)})</span>` : '';
+    const exacto = Math.abs(comprar - qty) > 0.01 ? ` <span style="color:var(--mid-gray);font-size:12px">(exacto ${_fmtCant(qty)})</span>` : '';
     return `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:7px 0;border-bottom:1px solid var(--light-gray)">
       <span>${esc(prod)}${exacto}</span><strong style="white-space:nowrap;font-size:15px">${comprar}</strong></div>`;
   };
   const bloque = (titulo, list) => list.length ? `
     <div style="margin-bottom:16px">
-      <div style="font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid-gray);font-weight:600;margin-bottom:4px">${titulo}</div>
+      <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);font-weight:600;margin-bottom:4px">${titulo}</div>
       ${list.map(fila).join('')}
     </div>` : '';
 
@@ -15779,7 +15525,7 @@ function openListaCompraHotel(){
     <div style="font-size:12px;color:var(--mid-gray);margin:-6px 0 14px">Suma de las composiciones × la cantidad de cada arreglo · ${zonas} arreglo${zonas!==1?'s':''} con composición</div>
     ${vacio
       ? '<p style="color:var(--mid-gray);font-size:13px;padding:16px;text-align:center">No hay arreglos con composición cargada. Cargalos en <strong>Composiciones › Arreglos del hotel</strong> («Cargar catálogo base»).</p>'
-      : bloque('Varas', varas) + bloque('Paquetes', paq) + '<div style="font-size:11px;color:var(--mid-gray);margin-top:8px">Las flores con «/» son opciones: comprás esa cantidad de una de las dos. La cantidad de cada arreglo se ajusta en la tabla de abajo (columna «Cant.»).</div>'}
+      : bloque('Varas', varas) + bloque('Paquetes', paq) + '<div style="font-size:12px;color:var(--mid-gray);margin-top:8px">Las flores con «/» son opciones: comprás esa cantidad de una de las dos. La cantidad de cada arreglo se ajusta en la tabla de abajo (columna «Cant.»).</div>'}
     ${vacio ? '' : `<div class="modal-actions" style="margin-top:18px">
       <button class="btn-secondary" onclick="closeModal('lista-compra-hotel-modal')">Cerrar</button>
       <button class="btn-add" onclick="listaCompraHotelCopiar()">Copiar lista</button>
@@ -15863,13 +15609,13 @@ function renderRentabilidadHotel(){
     if(faltaPrecio) alertasSinCosto.push(zona);
     return `<tr>
       <td style="${th};font-weight:500;white-space:nowrap">${esc(zona)}</td>
-      <td style="${th};font-size:11px;color:var(--mid-gray);max-width:240px">${resumen}${faltaPrecio?' <span title="Falta el costo por vara de alguna flor (cargá su compra recibida)"></span>':''}</td>
+      <td style="${th};font-size:12px;color:var(--mid-gray);max-width:240px">${resumen}${faltaPrecio?' <span title="Falta el costo por vara de alguna flor (cargá su compra recibida)"></span>':''}</td>
       <td style="${th};text-align:center">
         <input type="number" min="1" value="${cantidad}" title="Cantidad de arreglos de este tipo"
           style="width:60px;text-align:center;border:1px solid var(--light-gray);border-radius:6px;padding:4px 6px;font-size:13px;outline:none;background:var(--warm-white);color:var(--charcoal)"
           onchange="saveArregloHotelConfig('${zEsc}','cantidad',this.value)">
       </td>
-      <td style="${th};text-align:right;color:var(--mid-gray)">$${costo.toLocaleString('es-AR')}${cantidad>1?`<div style="font-size:10px">$${costoUnit.toLocaleString('es-AR')} c/u</div>`:''}</td>
+      <td style="${th};text-align:right;color:var(--mid-gray)">$${costo.toLocaleString('es-AR')}${cantidad>1?`<div style="font-size:12px">$${costoUnit.toLocaleString('es-AR')} c/u</div>`:''}</td>
       <td style="${th};text-align:right;color:var(--charcoal)">${costoReal?'$'+costoReal.toLocaleString('es-AR'):'<span style="color:var(--mid-gray)">—</span>'}</td>
       <td style="${th};text-align:right">${desvioHTML}</td>
       <td style="${th};text-align:right">
@@ -15879,7 +15625,7 @@ function renderRentabilidadHotel(){
       </td>
       <td style="${th};text-align:right;font-weight:600;color:${precioHyatt? (margen>=0?'var(--green-ok)':'var(--red-alert)') : 'var(--mid-gray)'}">${precioHyatt ? '$'+margen.toLocaleString('es-AR') : '—'}</td>
       <td style="${th};text-align:right;font-weight:700;color:${mc}">${margenPct != null ? margenPct+'%' : '—'}</td>
-      <td style="${th};text-align:center;white-space:nowrap"><button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="openArregloComposicion('${zEsc}')">Composición</button></td>
+      <td style="${th};text-align:center;white-space:nowrap"><button class="btn-secondary" style="font-size:12px;padding:4px 10px" onclick="openArregloComposicion('${zEsc}')">Composición</button></td>
     </tr>`;
   }).join('') || `<tr><td colspan="10" style="padding:22px;text-align:center;color:var(--mid-gray)">No hay arreglos con composición cargada. Cargalos en <strong>Composiciones › Arreglos del hotel</strong> (botón «Cargar catálogo base») o con el selector de arriba.</td></tr>`;
 
@@ -15947,12 +15693,12 @@ function _renderCompModal(){
         style="flex:1;min-width:0;border:1px solid var(--light-gray);border-radius:6px;padding:5px 8px;font-size:12.5px;background:var(--warm-white);color:var(--charcoal)">
       <input type="number" min="0" value="${esc(r.qty)}" placeholder="cant." onchange="compUpdRow(${i},'qty',this.value)"
         style="width:52px;text-align:center;border:1px solid var(--light-gray);border-radius:6px;padding:5px 4px;font-size:12.5px;background:var(--warm-white);color:var(--charcoal)">
-      <select onchange="compUpdRow(${i},'unidad',this.value)" title="Unidad" style="width:62px;border:1px solid var(--light-gray);border-radius:6px;padding:5px 2px;font-size:11.5px;background:var(--warm-white);color:var(--charcoal)">
+      <select onchange="compUpdRow(${i},'unidad',this.value)" title="Unidad" style="width:62px;border:1px solid var(--light-gray);border-radius:6px;padding:5px 2px;font-size:12px;background:var(--warm-white);color:var(--charcoal)">
         <option value="vara"${!esPaq?' selected':''}>varas</option>
         <option value="paq"${esPaq?' selected':''}>paq</option>
       </select>
-      <span style="width:58px;text-align:right;font-size:11px;color:${sinCosto?'var(--amber)':'var(--mid-gray)'}"${opcion?` title="Costo tomado de la opción: ${esc(opcion)}"`:''}>${cv?(opcion?'≈':'')+'$'+cv.toLocaleString('es-AR')+'/v':(r.prod?'sin costo':'—')}</span>
-      <span style="width:82px;text-align:right;font-size:12.5px;font-weight:600">${sub?'$'+Math.round(sub).toLocaleString('es-AR'):(faltaVpp?'<span style="font-size:9px;color:var(--amber);font-weight:500">falta varas/paq</span>':'')}${esPaq&&vpp?`<div style="font-size:9px;color:var(--mid-gray);font-weight:500">${_fmtCant(varas)} varas</div>`:''}</span>
+      <span style="width:58px;text-align:right;font-size:12px;color:${sinCosto?'var(--amber)':'var(--mid-gray)'}"${opcion?` title="Costo tomado de la opción: ${esc(opcion)}"`:''}>${cv?(opcion?'≈':'')+'$'+cv.toLocaleString('es-AR')+'/v':(r.prod?'sin costo':'—')}</span>
+      <span style="width:82px;text-align:right;font-size:12.5px;font-weight:600">${sub?'$'+Math.round(sub).toLocaleString('es-AR'):(faltaVpp?'<span style="font-size:12px;color:var(--amber);font-weight:500">falta varas/paq</span>':'')}${esPaq&&vpp?`<div style="font-size:12px;color:var(--mid-gray);font-weight:500">${_fmtCant(varas)} varas</div>`:''}</span>
       <button class="btn-icon" style="color:var(--red-alert)" title="Quitar" onclick="compRemoveRow(${i})">✕</button>
     </div>`;
   }).join('');
@@ -15963,12 +15709,12 @@ function _renderCompModal(){
     <div class="modal-title">Composición · ${esc(_compEditZona)}</div>
     <div style="font-size:12px;color:var(--mid-gray);margin-bottom:14px">Cargá qué flores lleva y la cantidad. Si un producto va por <strong>paquete</strong> (ej. Monstera, Limonium), elegí «paq» y se convierte a varas con las varas por paquete de <strong>Compras</strong>. El costo por vara también sale de Compras.</div>
     <datalist id="comp-flor-list">${_floresDatalistOpts()}</datalist>
-    <div style="display:flex;gap:6px;font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--mid-gray);margin-bottom:5px">
+    <div style="display:flex;gap:6px;font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--mid-gray);margin-bottom:5px">
       <span style="flex:1">Flor / follaje</span><span style="width:52px;text-align:center">Cant.</span><span style="width:62px;text-align:center">Unidad</span><span style="width:58px;text-align:right">$/vara</span><span style="width:82px;text-align:right">Subtotal</span><span style="width:28px"></span>
     </div>
     ${rowsHTML}
-    <button class="btn-secondary" style="font-size:11px;margin-top:4px" onclick="compAddRow()">+ Agregar flor</button>
-    ${faltan.length?`<div style="font-size:11px;color:var(--amber);margin-top:10px">Sin costo por vara todavía: ${esc(faltan.join(', '))}. Cargá su compra recibida en Compras para que se calcule.</div>`:''}
+    <button class="btn-secondary" style="font-size:12px;margin-top:4px" onclick="compAddRow()">+ Agregar flor</button>
+    ${faltan.length?`<div style="font-size:12px;color:var(--amber);margin-top:10px">Sin costo por vara todavía: ${esc(faltan.join(', '))}. Cargá su compra recibida en Compras para que se calcule.</div>`:''}
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding-top:12px;border-top:1px solid var(--light-gray)">
       <div style="font-size:13px;color:var(--mid-gray)">Costo del arreglo: <strong style="font-size:17px;color:var(--charcoal)">$${Math.round(total).toLocaleString('es-AR')}</strong></div>
       <button class="btn-add" onclick="guardarArregloComposicion()">Guardar</button>
@@ -16033,7 +15779,7 @@ function _renderGuiaArreglo(){
   const compKeyEsc = compKey ? esc(compKey).replace(/'/g,"\\'") : '';
 
   const origen = (compKey && compKey !== zona)
-    ? `<div style="font-size:11px;color:var(--mid-gray);margin-bottom:8px">Tomada de <strong>${esc(compKey)}</strong>${resol.source==='auto'?' · emparejada automáticamente':''}</div>`
+    ? `<div style="font-size:12px;color:var(--mid-gray);margin-bottom:8px">Tomada de <strong>${esc(compKey)}</strong>${resol.source==='auto'?' · emparejada automáticamente':''}</div>`
     : '';
   const listaHTML = ings.length
     ? origen + `<ul style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px">
@@ -16052,13 +15798,13 @@ function _renderGuiaArreglo(){
     const cur = (resol.source==='link'||resol.source==='auto'||resol.source==='exact') ? compKey : '';
     linkHTML = `
       <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--light-gray)">
-        <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--mid-gray);font-weight:600;margin-bottom:6px">Composición del hotel vinculada</div>
+        <div style="font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--mid-gray);font-weight:600;margin-bottom:6px">Composición del hotel vinculada</div>
         <select onchange="guiaVincularComp('${zEsc}',this.value)" style="width:100%;border:1px solid var(--light-gray);border-radius:8px;padding:8px 10px;font-size:12.5px;background:var(--warm-white);color:var(--charcoal)">
           <option value="">— Elegí la composición correcta —</option>
           ${keys.map(k=>`<option value="${esc(k)}"${k===cur?' selected':''}>${esc(k)}</option>`).join('')}
         </select>
-        ${resol.source==='auto'?'<div style="font-size:11px;color:var(--mid-gray);margin-top:6px">Se emparejó sola por el nombre. Si no es la correcta, elegí la correcta arriba.</div>':''}
-        ${resol.source==='ambiguo'?'<div style="font-size:11px;color:var(--amber);margin-top:6px">Hay varias composiciones parecidas: elegí cuál corresponde.</div>':''}
+        ${resol.source==='auto'?'<div style="font-size:12px;color:var(--mid-gray);margin-top:6px">Se emparejó sola por el nombre. Si no es la correcta, elegí la correcta arriba.</div>':''}
+        ${resol.source==='ambiguo'?'<div style="font-size:12px;color:var(--amber);margin-top:6px">Hay varias composiciones parecidas: elegí cuál corresponde.</div>':''}
       </div>`;
   }
 
@@ -16069,7 +15815,7 @@ function _renderGuiaArreglo(){
     <button class="modal-close" onclick="closeModal('guia-arreglo-modal')">✕</button>
     <div class="modal-title">Guía · ${esc(zona)}</div>
     <div style="margin-bottom:16px">${fotoHTML}</div>
-    <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--mid-gray);font-weight:600;margin-bottom:8px">Composición</div>
+    <div style="font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--mid-gray);font-weight:600;margin-bottom:8px">Composición</div>
     ${listaHTML}
     ${linkHTML}
     ${puedeEditar ? `
@@ -16199,8 +15945,8 @@ function renderRentabilidad(){
       <td style="${td};text-align:right;font-weight:500">${precio?'$'+precio.toLocaleString('es-AR'):'<span style="color:var(--mid-gray)">—</span>'}</td>
       <td style="${td};text-align:right;color:var(--mid-gray)">${insumos?'$'+Math.round(insumos).toLocaleString('es-AR'):'<span style="color:var(--mid-gray)">—</span>'}</td>
       <td style="${td};text-align:center;color:var(--charcoal)"${minsArmado?` title="Armado${ev.asignado?' · '+esc(ev.asignado):''}: ${esc(ev.inicio||'')}–${esc(ev.fin||'')}"`:''}>${minsArmado?fmtDur(minsArmado):'<span style="color:var(--mid-gray)">—</span>'}</td>
-      <td style="${td};text-align:right;font-weight:700;color:${margenColor}">${margenPct!=null?margenPct+'%':'—'}${precio||insumos?`<div style="font-size:10px;color:var(--mid-gray);font-weight:500">$${Math.round(margenMonto).toLocaleString('es-AR')}</div>`:''}</td>
-      <td style="${td}"><span style="padding:2px 10px;border-radius:20px;font-size:11px;font-weight:500;${ESTADO_COLORS[ev.estado]||''}">${esc(ev.estado||'—')}</span></td>
+      <td style="${td};text-align:right;font-weight:700;color:${margenColor}">${margenPct!=null?margenPct+'%':'—'}${precio||insumos?`<div style="font-size:12px;color:var(--mid-gray);font-weight:500">$${Math.round(margenMonto).toLocaleString('es-AR')}</div>`:''}</td>
+      <td style="${td}"><span style="padding:2px 10px;border-radius:20px;font-size:12px;font-weight:500;${ESTADO_COLORS[ev.estado]||''}">${esc(ev.estado||'—')}</span></td>
     </tr>`;
   }).join('');
 
@@ -16234,7 +15980,7 @@ function _renderRentTiposSummary(eventos){
       return `<div class="card" style="padding:14px 16px">
         <div style="font-size:13px;font-weight:600;color:var(--charcoal);margin-bottom:6px">${esc(t)}</div>
         <div style="font-size:28px;font-weight:700;color:${col};line-height:1">${margen!=null?margen.toFixed(1)+'%':'—'}</div>
-        <div style="font-size:11px;color:var(--mid-gray);margin-top:5px">${o.n} evento${o.n!==1?'s':''} · factura $${Math.round(o.ppto).toLocaleString('es-AR')}</div>
+        <div style="font-size:12px;color:var(--mid-gray);margin-top:5px">${o.n} evento${o.n!==1?'s':''} · factura $${Math.round(o.ppto).toLocaleString('es-AR')}</div>
       </div>`;
     }).join('')}</div>`;
 }
@@ -16257,19 +16003,19 @@ function renderLegajo(){
     const vac = (e.vacacionesAnuales||14) - (e.vacacionesTomadas||0);
     const esMono = e.tipo==='monotributista';
     const tipoBadge = esMono
-      ? `<span style="background:#F3ECDD;color:#8A6D1F;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600">Monotributista · quincenal</span>`
-      : `<span style="background:#E8EEF4;color:#2C5A80;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600">Nómina · mensual</span>`;
+      ? `<span style="background:#F3ECDD;color:#8A6D1F;padding:2px 8px;border-radius:20px;font-size:12px;font-weight:600">Monotributista · quincenal</span>`
+      : `<span style="background:#E8EEF4;color:#2C5A80;padding:2px 8px;border-radius:20px;font-size:12px;font-weight:600">Nómina · mensual</span>`;
     return `<div class="card">
       <div style="font-size:16px;font-weight:600;margin-bottom:4px">${esc(e.nombre)} ${esc(e.apellido)}</div>
       <div style="font-size:12px;color:var(--mid-gray);margin-bottom:6px;text-transform:capitalize">${esc(e.cargo||'')}${e.sucursal?' · '+esc(e.sucursal):''}</div>
-      <div style="font-size:11.5px;color:var(--mid-gray);margin-bottom:6px">Usuario en la app: <strong>${esc(_nombreAppLegajo(e))}</strong></div>
+      <div style="font-size:12px;color:var(--mid-gray);margin-bottom:6px">Usuario en la app: <strong>${esc(_nombreAppLegajo(e))}</strong></div>
       <div style="margin-bottom:8px">${tipoBadge}</div>
       <div style="font-size:12px;margin-bottom:4px">Ingreso: <strong>${e.fechaIngreso ? fmtDate(e.fechaIngreso) : '—'}</strong></div>
       <div style="font-size:12px;margin-bottom:4px">⏱ ${esMono?'Horas ref.':'Horas contrato'}: <strong>${(+e.horasContrato||0)}h/mes</strong></div>
       <div style="font-size:12px;margin-bottom:12px">Vacaciones restantes: <strong>${vac}</strong> días</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <button class="btn-secondary" style="font-size:11px" onclick="verDetalleLegajo(${i})">Ver detalle</button>
-        <button class="btn-secondary" style="font-size:11px" onclick="openLegajoModal(${i})">Editar</button>
+        <button class="btn-secondary" style="font-size:12px" onclick="verDetalleLegajo(${i})">Ver detalle</button>
+        <button class="btn-secondary" style="font-size:12px" onclick="openLegajoModal(${i})">Editar</button>
         <button class="btn-icon" style="color:var(--red-alert)" onclick="eliminarLegajo(${i})">✕</button>
       </div>
     </div>`;
@@ -16398,19 +16144,19 @@ function _legDocSlot(e, idx, tipo, icon, label){
     return `<div class="leg-doc-row">
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600">${icon} ${esc(label)}</div>
-        <div style="font-size:11px;color:var(--mid-gray)">${esc(doc.nombre)}${doc.fecha?' · '+fmtDate(doc.fecha):''} · ${_legDocMimeLabel(doc)}</div>
+        <div style="font-size:12px;color:var(--mid-gray)">${esc(doc.nombre)}${doc.fecha?' · '+fmtDate(doc.fecha):''} · ${_legDocMimeLabel(doc)}</div>
       </div>
-      <button class="btn-secondary" style="font-size:11px" onclick="legVerDoc(${idx},${doc.id})">Ver</button>
-      <label class="btn-secondary" style="font-size:11px;cursor:pointer;margin:0">Reemplazar<input type="file" accept="image/*,application/pdf" style="display:none" onchange="legSubirDoc('${tipo}',this)"></label>
+      <button class="btn-secondary" style="font-size:12px" onclick="legVerDoc(${idx},${doc.id})">Ver</button>
+      <label class="btn-secondary" style="font-size:12px;cursor:pointer;margin:0">Reemplazar<input type="file" accept="image/*,application/pdf" style="display:none" onchange="legSubirDoc('${tipo}',this)"></label>
       <button class="btn-icon" style="color:var(--red-alert)" title="Eliminar" onclick="legEliminarDoc(${idx},${doc.id})">✕</button>
     </div>`;
   }
   return `<div class="leg-doc-row leg-doc-empty">
     <div style="flex:1;min-width:0">
       <div style="font-size:13px;font-weight:600;color:var(--mid-gray)">${icon} ${esc(label)}</div>
-      <div style="font-size:11px;color:var(--mid-gray)">Sin cargar</div>
+      <div style="font-size:12px;color:var(--mid-gray)">Sin cargar</div>
     </div>
-    <label class="btn-add" style="font-size:11px;cursor:pointer;margin:0">⬆ Subir<input type="file" accept="image/*,application/pdf" style="display:none" onchange="legSubirDoc('${tipo}',this)"></label>
+    <label class="btn-add" style="font-size:12px;cursor:pointer;margin:0">⬆ Subir<input type="file" accept="image/*,application/pdf" style="display:none" onchange="legSubirDoc('${tipo}',this)"></label>
   </div>`;
 }
 
@@ -16419,17 +16165,17 @@ function _legDocsHTML(e, idx){
   const otrosHTML = otros.map(d=>`<div class="leg-doc-row">
     <div style="flex:1;min-width:0">
       <div style="font-size:13px">${esc(d.nombre)}</div>
-      <div style="font-size:11px;color:var(--mid-gray)">${d.fecha?fmtDate(d.fecha):''} · ${_legDocMimeLabel(d)}</div>
+      <div style="font-size:12px;color:var(--mid-gray)">${d.fecha?fmtDate(d.fecha):''} · ${_legDocMimeLabel(d)}</div>
     </div>
-    <button class="btn-secondary" style="font-size:11px" onclick="legVerDoc(${idx},${d.id})">Ver</button>
+    <button class="btn-secondary" style="font-size:12px" onclick="legVerDoc(${idx},${d.id})">Ver</button>
     <button class="btn-icon" style="color:var(--red-alert)" title="Eliminar" onclick="legEliminarDoc(${idx},${d.id})">✕</button>
   </div>`).join('');
   return `<div class="card-label" style="margin-top:14px">Documentación</div>
     ${_legDocSlot(e, idx, 'contrato', '', 'Contrato de trabajo')}
     ${_legDocSlot(e, idx, 'arca', '', 'Alta de ARCA')}
     ${otrosHTML}
-    <label class="btn-secondary" style="font-size:11px;cursor:pointer;margin-top:4px;display:inline-block">+ Agregar otro documento<input type="file" accept="image/*,application/pdf" style="display:none" onchange="legSubirDoc('otro',this)"></label>
-    <div style="font-size:10.5px;color:var(--mid-gray);margin-top:6px">PDF o foto, hasta 5 MB por archivo. Se sincroniza con el equipo.</div>`;
+    <label class="btn-secondary" style="font-size:12px;cursor:pointer;margin-top:4px;display:inline-block">+ Agregar otro documento<input type="file" accept="image/*,application/pdf" style="display:none" onchange="legSubirDoc('otro',this)"></label>
+    <div style="font-size:12px;color:var(--mid-gray);margin-top:6px">PDF o foto, hasta 5 MB por archivo. Se sincroniza con el equipo.</div>`;
 }
 
 function legSubirDoc(tipo, input){
@@ -16621,7 +16367,7 @@ function renderEvaluaciones(){
       <td>${badge(prom)}</td>
       <td>${esc(e.evaluador||'')}</td>
       <td>
-        <button class="btn-secondary" style="font-size:11px" onclick="openEvaluacionModal(${realIdx})">Editar</button>
+        <button class="btn-secondary" style="font-size:12px" onclick="openEvaluacionModal(${realIdx})">Editar</button>
         <button class="btn-icon" style="color:var(--red-alert)" onclick="eliminarEvaluacion(${realIdx})">✕</button>
       </td>
     </tr>`;
@@ -16752,7 +16498,7 @@ function renderLiquidacion(){
     const d = liqFilaDatos(e, mes);
     totalExtra += d.hExtra;
     totalPesos += d.adicional;
-    const sinCal = d.calName ? '' : ' <span style="font-size:10px;color:var(--amber)" title="No se encontró su horario en el calendario; cargá las horas a mano"></span>';
+    const sinCal = d.calName ? '' : ' <span style="font-size:12px;color:var(--amber)" title="No se encontró su horario en el calendario; cargá las horas a mano"></span>';
     return `<tr>
       <td>${esc(e.nombre)} ${esc(e.apellido)}${sinCal}</td>
       <td style="text-transform:capitalize">${esc(e.cargo||'')}</td>
@@ -16888,7 +16634,7 @@ function buscarComparacion(query){
   res.innerHTML = `<div class="table-wrapper"><table class="stock-table">
     <thead><tr><th>Proveedor</th><th>Último Precio</th><th>Fecha</th><th>Precio Promedio</th><th>Veces Comprado</th></tr></thead>
     <tbody>${rows.map(r=>`<tr style="${r.ultimo===minPrecio?'background:rgba(100,160,100,0.1)':''}">
-      <td><strong>${esc(r.prov)}</strong>${r.ultimo===minPrecio?' <span style="color:var(--sage-dark);font-size:11px">✓ más barato</span>':''}</td>
+      <td><strong>${esc(r.prov)}</strong>${r.ultimo===minPrecio?' <span style="color:var(--sage-dark);font-size:12px">✓ más barato</span>':''}</td>
       <td><strong>$${r.ultimo.toLocaleString('es-AR')}</strong></td>
       <td>${r.ultimaFecha ? fmtDate(r.ultimaFecha) : '—'}</td>
       <td>$${r.promedio.toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:0})}</td>
@@ -16940,7 +16686,7 @@ function renderStockSugerencias(){
       <td>${r.minSugerido}</td>
       <td>${r.minActual}</td>
       <td><span class="${r.diff>0?'card-value amber':r.diff<0?'card-value green':''}" style="font-size:13px">${r.diff>0?'+':''}${r.diff}</span></td>
-      <td>${r.diff!==0?`<button class="btn-secondary" style="font-size:11px" onclick="aplicarSugerenciaStock(${r.idx},${r.minSugerido})">Actualizar</button>`:''}</td>
+      <td>${r.diff!==0?`<button class="btn-secondary" style="font-size:12px" onclick="aplicarSugerenciaStock(${r.idx},${r.minSugerido})">Actualizar</button>`:''}</td>
     </tr>`).join('')}</tbody>
   </table></div>`;
 }
@@ -16965,7 +16711,7 @@ function renderCompraFiltersPanel(type){
   const provs = [...new Set(arr.filter(r=>r.prov).map(r=>r.prov))].sort((a,b)=>a.localeCompare(b,'es'));
   const f = compraFilterExt[type]||{};
   const activeCount = [f.prov,f.estado,f.desde,f.hasta,f.montoMin,f.montoMax,f.producto].filter(Boolean).length;
-  const badge = activeCount > 0 ? `<span style="background:var(--sage);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:6px">${activeCount}</span>` : '';
+  const badge = activeCount > 0 ? `<span style="background:var(--sage);color:#fff;border-radius:10px;padding:1px 7px;font-size:12px;margin-left:6px">${activeCount}</span>` : '';
   wrap.innerHTML = `
     <div style="margin-bottom:12px">
       <button class="btn-secondary" style="font-size:12px" onclick="toggleCompraFilters('${type}')">Filtros avanzados${badge}</button>
@@ -17059,7 +16805,7 @@ function renderPresupuestos(){
     <td><strong>${esc(p.cliente||'—')}</strong></td>
     <td>${esc(p.concepto||'—')}</td>
     <td style="white-space:nowrap;font-weight:600">$${parseMoney(p.monto||0).toLocaleString('es-AR',{minimumFractionDigits:0})}</td>
-    <td><span style="background:${stBg[est]||'#eee'};color:${stColors[est]||'#333'};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap">${stLbl[est]||est}</span></td>
+    <td><span style="background:${stBg[est]||'#eee'};color:${stColors[est]||'#333'};padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;white-space:nowrap">${stLbl[est]||est}</span></td>
     <td style="white-space:nowrap">${p.vencimiento ? fmtDate(p.vencimiento) : '—'}</td>
     <td onclick="event.stopPropagation()">
       <div class="table-actions">
@@ -17164,21 +16910,21 @@ function verPresupuesto(idx){
     .sheet{max-width:760px;margin:0 auto;background:#FDFCFB;border-radius:16px;overflow:hidden;box-shadow:0 12px 44px rgba(0,0,0,.14)}
     .hero{background:#111110;color:#F7F5F2;padding:40px 48px;display:flex;align-items:center;justify-content:space-between;gap:20px}
     .hero .brand{font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:400;letter-spacing:.5px;line-height:1.1}
-    .hero .brand small{display:block;font-family:'DM Sans',sans-serif;font-size:9.5px;letter-spacing:3px;text-transform:uppercase;color:rgba(247,245,242,.55);margin-top:10px}
+    .hero .brand small{display:block;font-family:'DM Sans',sans-serif;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:rgba(247,245,242,.55);margin-top:10px}
     .hero img{width:62px;height:62px;opacity:.92;flex-shrink:0}
     .body{padding:40px 48px}
-    .doc-title{font-size:11px;letter-spacing:4px;text-transform:uppercase;color:#9A8F7A;margin-bottom:8px;font-weight:600}
+    .doc-title{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#9A8F7A;margin-bottom:8px;font-weight:600}
     .cliente{font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:500;margin-bottom:4px;line-height:1.1}
     .meta{font-size:12.5px;color:#7A7A72;margin-bottom:28px}
     .concepto-box{background:#F4F2ED;border:1px solid #E8E6E0;border-radius:12px;padding:22px 24px;margin-bottom:24px}
-    .concepto-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#9A8F7A;margin-bottom:9px;font-weight:600}
+    .concepto-label{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#9A8F7A;margin-bottom:9px;font-weight:600}
     .concepto-text{font-size:15px;line-height:1.7;color:#1A1A1A;white-space:pre-wrap}
     .total-row{display:flex;justify-content:space-between;align-items:flex-end;border-top:2px solid #1A1A1A;padding-top:18px;margin-bottom:10px}
-    .total-label{font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:#7A7A72;font-weight:600;padding-bottom:8px}
+    .total-label{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#7A7A72;font-weight:600;padding-bottom:8px}
     .total-val{font-family:'Cormorant Garamond',serif;font-size:42px;font-weight:600;color:#1A1A1A;line-height:1}
     .valid{font-size:12px;color:#7A7A72;margin-bottom:22px}
     .notas{font-size:13.5px;color:#5A5A52;line-height:1.7;border-left:3px solid #C8BEA8;padding-left:16px;white-space:pre-wrap}
-    .footer{border-top:1px solid #E8E6E0;padding:22px 48px;font-size:11px;color:#9A8F7A;text-align:center;letter-spacing:.3px;line-height:1.9}
+    .footer{border-top:1px solid #E8E6E0;padding:22px 48px;font-size:12px;color:#9A8F7A;text-align:center;letter-spacing:.3px;line-height:1.9}
     .actions{max-width:760px;margin:22px auto 0;display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
     .actions a,.actions button{font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;padding:13px 26px;border-radius:10px;cursor:pointer;border:none;text-decoration:none;display:inline-flex;align-items:center;gap:8px}
     .b-pdf{background:#1A1A1A;color:#fff}
@@ -17366,7 +17112,7 @@ function cpRenderFreeRows(){
       <input value="${esc(row.prod)}" list="cp-prod-list" onchange="cpSetFree(${i},'prod',this.value)" placeholder="Producto (ej. hortensias, paq fresias)" style="flex:2;min-width:150px;border:1px solid #E4E2DC;border-radius:6px;padding:7px 9px;font-size:13px">
       <span style="color:var(--mid-gray)">$</span>
       <input type="number" min="0" value="${esc(row.precio)}" onchange="cpSetFree(${i},'precio',this.value)" placeholder="Precio" title="Precio por unidad o por paquete" style="width:100px;border:1px solid #E4E2DC;border-radius:6px;padding:7px;text-align:right;font-size:13px">
-      <span style="font-size:10.5px;color:var(--sage-dark);white-space:nowrap;min-width:200px" title="Último costo de compra de este material: por paquete, su fecha y el costo por vara">${refLabel}</span>
+      <span style="font-size:12px;color:var(--sage-dark);white-space:nowrap;min-width:200px" title="Último costo de compra de este material: por paquete, su fecha y el costo por vara">${refLabel}</span>
       <button class="btn-icon" style="color:var(--red-alert)" onclick="cpRemoveFree(${i})" title="Quitar">✕</button>
     </div>`;
   }).join('');
@@ -17422,7 +17168,7 @@ function cpRender(){
           <span>${_cpMoney(costoArr)}</span>
         </div>
         <table style="width:100%;font-size:12px;border-collapse:collapse">
-          <thead><tr style="color:var(--mid-gray);font-size:10px;text-transform:uppercase">
+          <thead><tr style="color:var(--mid-gray);font-size:12px;text-transform:uppercase">
             <th style="text-align:left;padding:2px 4px">Ingrediente</th><th style="text-align:center">Varas</th><th style="text-align:right">Precio/vara</th><th style="text-align:right">Costo</th>
           </tr></thead>
           <tbody>${ings.map(x=>`<tr style="border-top:1px solid #F0EDE8">
@@ -17432,7 +17178,7 @@ function cpRender(){
             <td style="text-align:right;font-weight:600">${x.costo?_cpMoney(x.costo):'—'}</td>
           </tr>`).join('')}</tbody>
         </table>
-        ${faltan.length?`<div style="font-size:11px;color:var(--red-alert);margin-top:6px">Sin último precio cargado: ${faltan.map(esc).join(', ')}</div>`:''}
+        ${faltan.length?`<div style="font-size:12px;color:var(--red-alert);margin-top:6px">Sin último precio cargado: ${faltan.map(esc).join(', ')}</div>`:''}
       </div>`;
     }).join('');
   }
@@ -17443,7 +17189,7 @@ function cpRender(){
   freeValid.forEach(r=>{ totalFree += cpParseCant(r.cant) * (parseFloat(r.precio)||0); });
   if(freeOut){
     freeOut.innerHTML = !freeValid.length ? '' : `<table style="width:100%;font-size:12.5px;border-collapse:collapse">
-        <thead><tr style="color:var(--mid-gray);font-size:10px;text-transform:uppercase">
+        <thead><tr style="color:var(--mid-gray);font-size:12px;text-transform:uppercase">
           <th style="text-align:left;padding:3px 6px">Cant.</th><th style="text-align:left">Producto</th><th style="text-align:right">Precio</th><th style="text-align:right">Subtotal</th>
         </tr></thead>
         <tbody>${freeValid.map(r=>{ const c=cpParseCant(r.cant); const p=parseFloat(r.precio)||0; return `<tr style="border-top:1px solid #F0EDE8">
@@ -17663,7 +17409,7 @@ function renderPedidosRamos(){
       <td style="font-size:12px">${esc(v.colores||'—')}</td>
       <td>${asignCell}</td>
       <td style="white-space:nowrap;font-weight:600">${esc(v.precio||'—')}</td>
-      <td><span style="font-size:11px">${estLbl[v.estado]||esc(v.estado||'')}${v.fin?' · '+esc(v.fin):''}</span></td>
+      <td><span style="font-size:12px">${estLbl[v.estado]||esc(v.estado||'')}${v.fin?' · '+esc(v.fin):''}</span></td>
       <td style="white-space:nowrap"><button class="btn-icon" title="Eliminar" onclick="eliminarPedidoRamo(${i})"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg></button></td>
     </tr>`;
   }).join('');
@@ -17796,12 +17542,12 @@ function renderEventosSinFloreria(){
     const st = ESF_ESTADOS[ev.estado] || ESF_ESTADOS.pendiente;
     return `<tr style="cursor:pointer" onclick="openEsfModal(${realIdx})">
       <td style="white-space:nowrap">${ev.fecha?fmtDate(ev.fecha):'—'}</td>
-      <td><strong>${esc(ev.nombre||'—')}</strong>${ev.tipo?`<div style="font-size:11px;color:var(--mid-gray)">${esc(ev.tipo)}</div>`:''}</td>
+      <td><strong>${esc(ev.nombre||'—')}</strong>${ev.tipo?`<div style="font-size:12px;color:var(--mid-gray)">${esc(ev.tipo)}</div>`:''}</td>
       <td>${esc(ev.salon||'—')}</td>
       <td>${esc(ev.marca||'—')}</td>
       <td style="font-size:12px;color:var(--charcoal);max-width:220px">${esc(ev.arregloCorr||'—')}</td>
       <td style="white-space:nowrap;font-weight:600;color:#B03020">${ev.monto?('$'+parseMoney(ev.monto).toLocaleString('es-AR',{maximumFractionDigits:0})):'—'}</td>
-      <td><span style="background:${st.bg};color:${st.col};padding:2px 8px;border-radius:10px;font-size:11px;white-space:nowrap">${st.lbl}</span></td>
+      <td><span style="background:${st.bg};color:${st.col};padding:2px 8px;border-radius:10px;font-size:12px;white-space:nowrap">${st.lbl}</span></td>
       <td onclick="event.stopPropagation()" style="white-space:nowrap">
         <button class="btn-icon" title="Editar" onclick="openEsfModal(${realIdx})"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/></svg></button>
         <button class="btn-icon" title="Eliminar" onclick="eliminarEsf(${realIdx})"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg></button>
@@ -17905,15 +17651,15 @@ function exportEsfReclamo(){
     body{font-family:'Georgia','Times New Roman',serif;margin:48px;color:#1a1a1a;line-height:1.6}
     .head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #1a1a1a;padding-bottom:16px;margin-bottom:24px}
     .brand{font-size:24px;letter-spacing:.5px}
-    .brand small{display:block;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#777;margin-top:4px;font-family:Arial,sans-serif}
+    .brand small{display:block;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#777;margin-top:4px;font-family:Arial,sans-serif}
     .meta{text-align:right;font-size:12px;color:#555;font-family:Arial,sans-serif}
     h1{font-size:18px;margin:8px 0 4px}
     p.intro{font-size:13.5px;color:#333}
     table{width:100%;border-collapse:collapse;margin:22px 0;font-family:Arial,sans-serif}
     th,td{border:1px solid #ccc;padding:8px 10px;font-size:12px;vertical-align:top;text-align:left}
-    th{background:#f2f0eb;text-transform:uppercase;letter-spacing:.5px;font-size:10px;color:#444}
+    th{background:#f2f0eb;text-transform:uppercase;letter-spacing:.5px;font-size:12px;color:#444}
     td.num,th.num{text-align:right;white-space:nowrap}
-    .muted{color:#888;font-size:11px}
+    .muted{color:#888;font-size:12px}
     tfoot td{font-weight:bold;font-size:14px;background:#faf8f4}
     .firma{margin-top:48px;font-size:12px;color:#555;font-family:Arial,sans-serif}
     .firma .line{margin-top:40px;border-top:1px solid #999;width:240px;padding-top:6px}
@@ -18283,9 +18029,9 @@ function cvRender(){
     const sosp = cvSospechosos();
     rev.style.display = sosp.length ? '' : 'none';
     rev.innerHTML = !sosp.length ? '' : `<div style="font-size:13px;font-weight:600;margin-bottom:4px">Revisar varas por paquete (${sosp.length})</div>
-      <div style="font-size:11.5px;color:var(--mid-gray);margin-bottom:10px">A estas flores no les cargaron cuántas varas trae el paquete, así que el costo por vara sale igual al del paquete. Poné las varas por paquete y se corrige el costo.</div>
+      <div style="font-size:12px;color:var(--mid-gray);margin-bottom:10px">A estas flores no les cargaron cuántas varas trae el paquete, así que el costo por vara sale igual al del paquete. Poné las varas por paquete y se corrige el costo.</div>
       ${sosp.map(c=>`<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;flex-wrap:wrap">
-        <div style="flex:2;min-width:140px;font-size:13px">${esc(c.prod)}<span style="color:var(--mid-gray);font-size:11px"> · paquete ${_cpMoney(parseMoney(c.costo))}${c.fecha?' · '+_ddmm(c.fecha):''}</span></div>
+        <div style="flex:2;min-width:140px;font-size:13px">${esc(c.prod)}<span style="color:var(--mid-gray);font-size:12px"> · paquete ${_cpMoney(parseMoney(c.costo))}${c.fecha?' · '+_ddmm(c.fecha):''}</span></div>
         <input type="number" min="1" placeholder="varas/paq" value="${(parseFloat(c.varasPorPaq)||0)>0?esc(c.varasPorPaq):''}" onchange="cvFijarVarasPorPaq(${JSON.stringify(c.prod).replace(/"/g,'&quot;')},this.value)" style="width:90px;border:1px solid #E4E2DC;border-radius:6px;padding:7px;text-align:center;font-size:13px">
       </div>`).join('')}`;
   }
@@ -18299,7 +18045,7 @@ function cvRender(){
       if(costoVara>0) total += sub; else sinCosto++;
     }
     const costoTxt = !row.prod ? ''
-      : costoVara>0 ? `<strong>${_cpMoney(costoVara)}</strong><span style="color:var(--mid-gray)"> /vara</span>${ref&&ref.fecha?`<div style="font-size:10px;color:var(--mid-gray)">costo del ${_ddmm(ref.fecha)}</div>`:''}${ref&&!(vpp>1)?'<div style="font-size:10px;color:var(--red-alert)">revisar varas por paquete ↓</div>':''}`
+      : costoVara>0 ? `<strong>${_cpMoney(costoVara)}</strong><span style="color:var(--mid-gray)"> /vara</span>${ref&&ref.fecha?`<div style="font-size:12px;color:var(--mid-gray)">costo del ${_ddmm(ref.fecha)}</div>`:''}${ref&&!(vpp>1)?'<div style="font-size:12px;color:var(--red-alert)">revisar varas por paquete ↓</div>':''}`
       : '<span style="color:var(--red-alert);font-size:12px">sin costo cargado</span>';
     return `<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
       <input value="${esc(row.cant)}" inputmode="decimal" onchange="cvSet(${i},'cant',this.value)" title="Cantidad de varas — admite 1/2, 1/4" style="width:70px;border:1px solid #E4E2DC;border-radius:6px;padding:8px;text-align:center;font-size:14px">
@@ -18388,16 +18134,16 @@ function cvTRender(){
     const celdas = cols.map((_,c)=>{
       const cant = cpParseCant(r.cants[c]);
       if(!(cant>0)) return '<td style="text-align:right;padding:4px 8px;color:var(--mid-gray)">—</td>';
-      if(!(costoVara>0)) return `<td style="text-align:right;padding:4px 8px"><span style="color:var(--mid-gray);font-size:11px">${esc(r.cants[c])} ×</span> —</td>`;
+      if(!(costoVara>0)) return `<td style="text-align:right;padding:4px 8px"><span style="color:var(--mid-gray);font-size:12px">${esc(r.cants[c])} ×</span> —</td>`;
       tot[c] += cant*costoVara;
-      return `<td style="text-align:right;padding:4px 8px"><span style="color:var(--mid-gray);font-size:11px">${esc(r.cants[c])} ×</span> ${_cpMoney(cant*costoVara)}</td>`;
+      return `<td style="text-align:right;padding:4px 8px"><span style="color:var(--mid-gray);font-size:12px">${esc(r.cants[c])} ×</span> ${_cpMoney(cant*costoVara)}</td>`;
     }).join('');
     return `<tr style="border-top:1px solid #F0EDE8">
       <td style="padding:4px 8px;min-width:150px"><input value="${esc(r.prod)}" list="cv-prod-list" onchange="cvTSetProd(${i},this.value)" style="width:100%;border:1px solid ${costoVara>0?'#E4E2DC':'var(--red-alert)'};border-radius:6px;padding:5px 7px;font-size:12.5px"></td>
       <td style="text-align:right;padding:4px 8px;white-space:nowrap;font-size:12px">${costoVara>0?_cpMoney(costoVara)+'/vara':'<span style="color:var(--red-alert)">sin costo</span>'}</td>${celdas}</tr>`;
   }).join('');
   out.innerHTML = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
-    <thead><tr style="color:var(--mid-gray);font-size:10px;text-transform:uppercase"><th style="text-align:left;padding:4px 8px">Flor</th><th style="text-align:right;padding:4px 8px">Costo vara</th>${cols.map(c=>`<th style="text-align:right;padding:4px 8px">${esc(c)}</th>`).join('')}</tr></thead>
+    <thead><tr style="color:var(--mid-gray);font-size:12px;text-transform:uppercase"><th style="text-align:left;padding:4px 8px">Flor</th><th style="text-align:right;padding:4px 8px">Costo vara</th>${cols.map(c=>`<th style="text-align:right;padding:4px 8px">${esc(c)}</th>`).join('')}</tr></thead>
     <tbody>${filas}</tbody>
     <tfoot><tr style="border-top:2px solid var(--charcoal);font-weight:700;font-size:15px"><td style="padding:8px" colspan="2">Costo total</td>${tot.map(t=>`<td style="text-align:right;padding:8px">${_cpMoney(t)}</td>`).join('')}</tr></tfoot>
   </table></div>
@@ -18438,12 +18184,12 @@ Object.assign(window, {
   jopsDone, jopsHoraCell, jopsRegistrarHora, jopsResetHora, jopsUpdHora, limpiarCarrito,
   jardTogglePlanHoy, openGestionTareasJard, jardRenameGrupo, jardDeleteGrupo, jardRenameSeccion, jardDeleteSeccion, jardAddTarea, jardRenameTarea, jardDeleteTarea, jardAddGrupo, jardAddSeccion,
   limpiarCarritoOps, limpiarDiaHorario, loadWeekState, lpAddPhotos, lpDelCat, lpDelItem,
-  lpOpenViewer, lpRemovePhoto, lpUpdItem, markHabDone, markJardDone, marcarRecordatorioHecho, navToggleGroup, navExpandGroup, navCollapseGroup, finalizeNavGroups, navigate, openRecordatorioModal, renderBottomNav, renderRecordatoriosJard, renderPlagasJard, renderStockJard, stockJardFiltrar, openStockJardModal, saveStockJard, deleteStockJard, openPlagaJardModal, savePlagaJard, deletePlagaJard, plagaSugerir, plagaFiltrar, openControlPlaga, saveControlPlaga, verHistorialPlaga, saveRecordatorio, deleteRecordatorio, updateBottomNav, openCajaModal,
+  lpOpenViewer, lpRemovePhoto, lpUpdItem, markHabDone, markJardDone, marcarRecordatorioHecho, navigate, toggleUserMenu, closeUserMenu, openRecordatorioModal, renderBottomNav, renderRecordatoriosJard, renderPlagasJard, renderStockJard, stockJardFiltrar, openStockJardModal, saveStockJard, deleteStockJard, openPlagaJardModal, savePlagaJard, deletePlagaJard, plagaSugerir, plagaFiltrar, openControlPlaga, saveControlPlaga, verHistorialPlaga, saveRecordatorio, deleteRecordatorio, updateBottomNav, openCajaModal,
   openAlertaJardinModal, alertaJardFotoPreview, guardarAlertaJardin, resolverAlertaJardin, verFotoAlerta, renderAlertasUrgentesJard, toggleRecepAgrupado,
   openLlamadoModal, llamadoOnZonaChange, llamadoFotoPreview, guardarLlamado, renderLlamadosChecklist, verFotoLlamado, resolverLlamado, eliminarLlamado, renderLlamadosEval,
   openDiaHorario, openEditSaleModal, openEventModal, openEventoDetail, openGestionPasswords,
   openGaleriaModal, openLpCatModal, openLpModal, openRamoModal, openRamoPhoto,
-  openRecetaModal, openSaleModal, openSidebar, openTaskModal, openVentaRamo, parseMoney,
+  openRecetaModal, openSaleModal, delVentaDesdeModal, cotVerTodas, openSidebar, openTaskModal, openVentaRamo, parseMoney,
   populateFloreriaFormHelpers, populateProvSelects, populateSaleSelects,
   phAddItemRow, phSetItemTipo, phSetItemQty, phRemoveItemRow,
   previewEventImg, previewRecetaImg, previewStockImpact, ramoOnCatChange,

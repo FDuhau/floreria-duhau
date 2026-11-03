@@ -54,7 +54,7 @@ export function renderCalendario(){
 
   const days = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
   let html = `<div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px;margin-bottom:2px">
-    ${days.map(d=>`<div style="text-align:center;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);padding:8px 0;overflow:hidden;text-overflow:ellipsis">${d}</div>`).join('')}
+    ${days.map(d=>`<div style="text-align:center;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);padding:8px 0;overflow:hidden;text-overflow:ellipsis">${d}</div>`).join('')}
   </div>
   <div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px">`;
 
@@ -70,15 +70,15 @@ export function renderCalendario(){
         const arr = ev.arreglos||[];
         const totalArr = arr.reduce((s,a)=>s+(+a.qty||0),0);
         const arrDetalle = arr.length ? ' · Arreglos: '+arr.map(a=>`${a.qty}× ${a.arreglo}`).join(', ') : '';
-        const arrBadge = totalArr ? `<span style="background:var(--blush-light);color:#7A3A2A;border-radius:10px;padding:0 5px;font-size:9.5px;font-weight:700;margin-left:4px;flex-shrink:0">${totalArr}</span>` : '';
-        return `<div onclick="openEventoDetail(${D.eventos().indexOf(ev)})" style="background:${ESTADO_BG[ev.estado]||'#E8E4DC'};border-radius:4px;padding:3px 6px;margin-bottom:3px;font-size:11px;cursor:pointer;line-height:1.3;display:flex;align-items:center;overflow:hidden" title="${esc(ev.nombre)} · ${esc(ev.estado)}${esc(arrDetalle)}"><span style="overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${esc(ev.nombre)}</span>${arrBadge}</div>`;
+        const arrBadge = totalArr ? `<span style="background:var(--blush-light);color:#7A3A2A;border-radius:10px;padding:0 5px;font-size:12px;font-weight:700;margin-left:4px;flex-shrink:0">${totalArr}</span>` : '';
+        return `<div onclick="openEventoDetail(${D.eventos().indexOf(ev)})" style="background:${ESTADO_BG[ev.estado]||'#E8E4DC'};border-radius:4px;padding:3px 6px;margin-bottom:3px;font-size:12px;cursor:pointer;line-height:1.3;display:flex;align-items:center;overflow:hidden" title="${esc(ev.nombre)} · ${esc(ev.estado)}${esc(arrDetalle)}"><span style="overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${esc(ev.nombre)}</span>${arrBadge}</div>`;
       }).join('')}
     </div>`;
   }
   html += '</div>';
 
   html += `<div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap">
-    ${Object.entries(ESTADO_BG).map(([k,v])=>`<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--mid-gray)"><span style="width:12px;height:12px;border-radius:3px;background:${v};display:inline-block"></span>${k}</div>`).join('')}
+    ${Object.entries(ESTADO_BG).map(([k,v])=>`<div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mid-gray)"><span style="width:12px;height:12px;border-radius:3px;background:${v};display:inline-block"></span>${k}</div>`).join('')}
   </div>`;
 
   const el = document.getElementById('cal-grid');

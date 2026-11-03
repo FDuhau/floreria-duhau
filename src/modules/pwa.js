@@ -45,19 +45,21 @@ window.addEventListener('beforeinstallprompt', e => {
 window.addEventListener('appinstalled', () => {
   const top = document.getElementById('pwa-topbar-btn');
   if(top) top.style.display = 'none';
-  const fl = document.getElementById('pwa-install-btn');
-  if(fl) fl.style.display = 'none';
+  const mb = document.getElementById('pwa-menu-btn');
+  if(mb) mb.style.display = 'none';
   document.getElementById('pwa-ios-banner')?.remove();
   document.getElementById('pwa-android-banner')?.remove();
   showToast('App instalada correctamente');
 });
 
-// Muestra el botón de instalar: ícono en topbar + botón flotante prominente.
+// Muestra el botón de instalar: ícono en la barra superior (escritorio) y
+// opción "Instalar app" en el menú de usuario. Sin botón flotante: tapaba
+// contenido en el celular.
 function _showPWABtn(){
   const top = document.getElementById('pwa-topbar-btn');
   if(top) top.style.display = '';
-  const fl = document.getElementById('pwa-install-btn');
-  if(fl) fl.style.display = 'flex';
+  const mb = document.getElementById('pwa-menu-btn');
+  if(mb) mb.style.display = '';
 }
 
 function _initPWAPrompt(){
@@ -103,7 +105,7 @@ export function installPWA(){
   if(_pwaInstallEvent){
     _pwaInstallEvent.prompt();
     _pwaInstallEvent.userChoice.then(choice => {
-      if(choice.outcome==='accepted'){ showToast('App instalada'); document.getElementById('pwa-topbar-btn')?.style && (document.getElementById('pwa-topbar-btn').style.display='none'); document.getElementById('pwa-install-btn')?.style && (document.getElementById('pwa-install-btn').style.display='none'); }
+      if(choice.outcome==='accepted'){ showToast('App instalada'); document.getElementById('pwa-topbar-btn')?.style && (document.getElementById('pwa-topbar-btn').style.display='none'); document.getElementById('pwa-menu-btn')?.style && (document.getElementById('pwa-menu-btn').style.display='none'); }
       _pwaInstallEvent = null;
     });
     return;
@@ -116,7 +118,7 @@ export function installPWA(){
 
 // Mostrar el botón de instalar siempre que no esté ya instalada, tanto en iOS
 // como en Android (en Android beforeinstallprompt no siempre dispara).
-// Mostrar el botón "Instalar app" en el menú lateral si todavía no está
+// Mostrar la opción "Instalar app" en el menú de usuario si todavía no está
 // instalada (cualquier plataforma). No se auto-abre ningún banner: las
 // instrucciones aparecen solo cuando el usuario toca el botón.
 if(!_isInStandalone){

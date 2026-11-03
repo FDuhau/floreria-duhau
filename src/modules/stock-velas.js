@@ -47,10 +47,10 @@ export function renderVelas(){
           <button class="btn-icon" style="border:1px solid var(--light-gray);border-radius:6px;width:30px;height:30px;font-size:18px" onclick="velaAjustar(${i},-1)">−</button>
           <span style="min-width:44px;text-align:center;font-size:22px;font-weight:700;color:${cant>0?'var(--charcoal)':'var(--red-alert)'}">${cant}</span>
           <button class="btn-icon" style="border:1px solid var(--light-gray);border-radius:6px;width:30px;height:30px;font-size:18px" onclick="velaAjustar(${i},1)">+</button>
-          <span style="font-size:11px;color:var(--mid-gray)">en stock</span>
+          <span style="font-size:12px;color:var(--mid-gray)">en stock</span>
         </div>
         <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
-          <button class="btn-secondary" style="font-size:11px" onclick="openVelaModal(${i})">Editar</button>
+          <button class="btn-secondary" style="font-size:12px" onclick="openVelaModal(${i})">Editar</button>
           <button class="btn-icon" onclick="cambiarFotoVela(${i})" title="Cambiar foto"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><rect x="3" y="7" width="18" height="13" rx="2"/><circle cx="12" cy="13" r="3.5"/><path d="M8 7l1.5-2h5L16 7"/></svg></button>
           <button class="btn-icon" style="color:var(--red-alert)" onclick="delVela(${i})" title="Eliminar">✕</button>
         </div>

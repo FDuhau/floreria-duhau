@@ -51,7 +51,7 @@ export function calcularArreglosEvento(){
           <span style="font-size:12px;color:var(--mid-gray);margin-left:8px">1 cada ${r.cadaPax} personas</span>
         </div>
         <div style="text-align:right">
-          <div style="font-size:11px;color:var(--mid-gray)">Cantidad sugerida</div>
+          <div style="font-size:12px;color:var(--mid-gray)">Cantidad sugerida</div>
           <input type="number" id="ceh-qty-${ri}" value="${qty}" min="0"
             onchange="recalcTotalEvento()"
             style="width:60px;padding:4px;border:1px solid var(--light-gray);border-radius:4px;font-size:16px;font-weight:700;text-align:center;font-family:inherit">
@@ -60,7 +60,7 @@ export function calcularArreglosEvento(){
       ${precioUnit > 0 ? `<div style="display:flex;justify-content:space-between;margin-top:8px;font-size:13px">
         <span style="color:var(--mid-gray)">$${precioUnit.toLocaleString('es-AR')} c/u</span>
         <strong style="color:var(--charcoal)">$${subtotal.toLocaleString('es-AR')}</strong>
-      </div>` : '<div style="font-size:11px;color:var(--amber);margin-top:4px">Sin precio configurado — consultar a florería</div>'}
+      </div>` : '<div style="font-size:12px;color:var(--amber);margin-top:4px">Sin precio configurado — consultar a florería</div>'}
     </div>`;
   }).join('');
 

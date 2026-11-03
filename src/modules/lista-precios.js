@@ -96,7 +96,7 @@ export function renderListaPrecios(){
       <div class="lp-section-header">
         <div class="lp-section-title">${cat.emoji} ${esc(cat.cat)}</div>
         <div class="lp-section-actions">
-          <span style="font-size:11px;opacity:.6;margin-right:8px">${cat.items.length} ítem${cat.items.length!==1?'s':''}</span>
+          <span style="font-size:12px;opacity:.6;margin-right:8px">${cat.items.length} ítem${cat.items.length!==1?'s':''}</span>
           ${editable ? `<button class="btn-icon" style="color:#F7F5F2;font-size:18px" onclick="openLpModal(${ci},-1)" title="Agregar ítem">+</button>
           <button class="btn-icon" style="color:rgba(247,245,242,.5);font-size:13px" onclick="lpDelCat(${ci})" title="Eliminar categoría">✕</button>` : ''}
         </div>

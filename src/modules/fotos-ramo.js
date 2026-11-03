@@ -160,7 +160,7 @@ export async function abrirFotoRamo(i){
   const puedeCompartir = !!navigator.canShare;
   _modal(`${_titulo(v)}
     <img src="${data}" alt="Foto del ramo" style="width:100%;max-height:60vh;object-fit:contain;border-radius:10px;background:#F4F2EE;cursor:zoom-in" onclick="openRamoPhoto(this.src, '${esc((v.prod||'Ramo').replace(/'/g,''))}')">
-    <div style="font-size:11.5px;color:var(--mid-gray);margin-top:8px;text-align:center">${esc(_venceTexto(v.fotoRamoTs))}</div>
+    <div style="font-size:12px;color:var(--mid-gray);margin-top:8px;text-align:center">${esc(_venceTexto(v.fotoRamoTs))}</div>
     <div class="modal-actions" style="margin-top:14px;flex-wrap:wrap;gap:8px">
       <button class="btn-secondary" style="color:var(--red-alert)" onclick="eliminarFotoRamo(${i})">Eliminar</button>
       <button class="btn-secondary" onclick="elegirFotoRamo(${i})">Reemplazar</button>

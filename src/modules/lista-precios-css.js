@@ -29,7 +29,7 @@
       display: flex; flex-direction:column; align-items: center; justify-content: center;
       font-size: 36px; color: var(--mid-gray); gap: 6px; cursor:pointer;
     }
-    .lp-card-photo-placeholder span { font-size:11px; letter-spacing:1px; text-transform:uppercase; }
+    .lp-card-photo-placeholder span { font-size:12px; letter-spacing:1px; text-transform:uppercase; }
     .lp-card-body { padding: 14px 16px; }
     .lp-card-name {
       font-family: 'Cormorant Garamond', serif; font-size: 17px; font-weight: 500;
@@ -39,7 +39,7 @@
     }
     .lp-card-name:focus { border-bottom-color: var(--sage); }
     .lp-card-desc {
-      font-size: 11.5px; color: var(--mid-gray); margin-bottom: 10px; line-height: 1.5;
+      font-size: 12px; color: var(--mid-gray); margin-bottom: 10px; line-height: 1.5;
       border:none; background:transparent; width:100%; outline:none; resize:none;
       min-height:32px; font-family:'DM Sans',sans-serif; padding:2px 0;
       border-bottom:1px solid transparent; transition: border-color .2s;
@@ -61,13 +61,13 @@
     .lp-photo-thumb img { width:100%;height:100%;object-fit:cover;cursor:pointer; }
     .lp-photo-del {
       position:absolute;top:2px;right:2px;background:rgba(0,0,0,.55);color:white;
-      border:none;border-radius:50%;width:16px;height:16px;font-size:10px;cursor:pointer;
+      border:none;border-radius:50%;width:16px;height:16px;font-size:12px;cursor:pointer;
       display:flex;align-items:center;justify-content:center;line-height:1;
     }
     .lp-add-photo {
       width:60px;height:60px;border-radius:5px;border:2px dashed var(--light-gray);
       display:flex;flex-direction:column;align-items:center;justify-content:center;
-      cursor:pointer;font-size:10px;color:var(--mid-gray);gap:2px;flex-shrink:0;
+      cursor:pointer;font-size:12px;color:var(--mid-gray);gap:2px;flex-shrink:0;
     }
   `;
   document.head.appendChild(s);

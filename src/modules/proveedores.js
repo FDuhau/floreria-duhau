@@ -24,11 +24,11 @@ export function renderProveedores(){
   const RUBRO_ICON = {Flores:'',Insumos:'',Packaging:'',Otros:''};
   el.innerHTML = `<div class="table-wrapper"><table style="width:100%;border-collapse:collapse;font-size:13px">
     <thead><tr>
-      <th style="text-align:left;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Proveedor</th>
-      <th style="text-align:left;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Rubro</th>
-      <th style="text-align:left;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Contacto</th>
-      <th style="text-align:left;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Teléfono</th>
-      <th style="text-align:left;padding:10px 14px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Email</th>
+      <th style="text-align:left;padding:10px 14px;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Proveedor</th>
+      <th style="text-align:left;padding:10px 14px;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Rubro</th>
+      <th style="text-align:left;padding:10px 14px;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Contacto</th>
+      <th style="text-align:left;padding:10px 14px;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Teléfono</th>
+      <th style="text-align:left;padding:10px 14px;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);border-bottom:2px solid var(--light-gray);background:var(--warm-white)">Email</th>
       <th style="padding:10px 14px;border-bottom:2px solid var(--light-gray);background:var(--warm-white)"></th>
     </tr></thead>
     <tbody>${list.map((p)=>{
