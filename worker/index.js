@@ -4,6 +4,7 @@
 // y les envía la notificación cifrada vía Web Push.
 import { sendWebPush } from './webpush.js';
 import { handleLogin, handleEstado } from './login.js';
+import { limpiarFotosRamo } from './fotos-ramo.js';
 
 export default {
   async fetch(request, env){
@@ -18,6 +19,10 @@ export default {
       return handleEstado(env);
     }
     return env.ASSETS.fetch(request);
+  },
+  // Cron (ver "triggers" en wrangler.jsonc): borra las fotos de ramos con más de 48 hs.
+  async scheduled(event, env, ctx){
+    ctx.waitUntil(limpiarFotosRamo(env).catch((e) => console.warn('limpiarFotosRamo:', e)));
   },
 };
 

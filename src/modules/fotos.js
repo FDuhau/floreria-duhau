@@ -138,7 +138,7 @@ export async function migrarFotos(){
   if(window.userRole !== 'gerencia'){ showToast('Solo gerencia.','error'); return; }
   if(!window.fbGetOnce){ showToast('Firebase todavía no está listo.','error'); return; }
   if(!await confirmModal('Mover las fotos fuera de los datos\n\n1) Se descarga un respaldo completo de la base (archivo JSON de ~45 MB).\n2) Cada foto se copia a su propio lugar y se verifica.\n3) Te pido confirmación y recién entonces, en cada registro, la foto se reemplaza por una referencia.\n\nNo se borra ninguna foto. Conviene hacerlo cuando nadie esté usando la app (tarda unos minutos) y con todos los dispositivos ya actualizados.\n\n¿Empezar?')) return;
-  const SKIP = new Set(['fotos','fotosIndex','fotosConfig','safeMeta','loginAuth','loginPasswords','pushSubs','pushBroadcast','auditLog']);
+  const SKIP = new Set(['fotos','fotosIndex','fotosConfig','safeMeta','loginAuth','loginPasswords','pushSubs','pushBroadcast','auditLog','fotosRamo','fotosRamoMeta']);
   let root;
   try{
     _migrarFotosUI('Descargando la base para el respaldo…');

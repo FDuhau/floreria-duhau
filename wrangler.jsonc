@@ -14,6 +14,11 @@
     // devuelve la app en vez de la API).
     "run_worker_first": ["/api/*"]
   },
+  // Cada hora: borra las fotos de ramos terminados con más de 48 hs
+  // (worker/fotos-ramo.js). Usa el secret FIREBASE_DB_SECRET, el mismo del login.
+  "triggers": {
+    "crons": ["0 * * * *"]
+  },
   "compatibility_flags": [
     "nodejs_compat"
   ],

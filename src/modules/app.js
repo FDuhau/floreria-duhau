@@ -8,6 +8,7 @@ import { renderProveedores, openProveedorModal, guardarProveedor, eliminarProvee
 import { renderClientes, abrirFichaCliente, openNuevoClienteModal, editarCliente, guardarCliente, eliminarCliente, getClientesData } from './crm-clientes.js';
 import { installPWA } from './pwa.js';
 import { toggleSidebar, openSidebar, closeSidebar } from './sidebar.js';
+import { configurarFotosRamo, fotoRamoBtn, fotoRamoVigente, abrirFotoRamo, elegirFotoRamo, eliminarFotoRamo, compartirFotoRamo, ofrecerFotoRamo, limpiarFotosRamoVencidas } from './fotos-ramo.js';
 import { pedidosHabData, configurarPedidosHab, renderHomeHyatt, renderPedidosHab, enviarPedidoHab, updPedidoHabEstado, delPedidoHab, phAddItemRow, phSetItemTipo, phSetItemQty, phRemoveItemRow } from './pedidos-habitacion.js';
 import { alertasAutomaticas } from './alertas-automaticas.js';
 import { configurarCotizadorEventos, initCotizadorEventosHyatt, calcularArreglosEvento, recalcTotalEvento, generarTextoCotEvento, enviarCotizacionEvento, copiarCotizacionEvento } from './cotizador-eventos.js';
@@ -6893,6 +6894,7 @@ function renderVentas(){
       <input class="form-input" value="${esc(v.envioCosto||'')}" onchange="updV(${i},'envioCosto',this.value)" placeholder="$ costo envío" style="width:100px;margin-top:4px;font-size:11px" title="Costo del taxi/flete (para el cierre de mes)">
     </td>
     <td style="white-space:nowrap">
+      ${fotoRamoBtn(i, v)}
       <button class="btn-icon" onclick="openEditSaleModal(${i})" title="Editar" style="color:var(--sage-dark)"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/></svg></button>
       <button class="btn-icon" style="color:var(--red-alert)" onclick="delVenta(${i})">✕</button>
     </td>
@@ -12298,6 +12300,16 @@ configurarCotizadorEventos({
   recetas: ()=>recetasData, pricing: ()=>eventoPricing,
   renderEvTipos, calcCostoComposicion, arregloEmoji,
 });
+configurarFotosRamo({
+  getVentas: ()=>ventasData, genId: genEventoId, fbSave: (...a)=>fbSave(...a),
+  onCambio: ()=>{ if(document.getElementById('page-ventas-externas')?.classList.contains('active')) renderVentas(); },
+});
+// Borrar fotos de ramos con más de 48 hs (respaldo del cron del Worker).
+(function _limpiezaFotosRamo(){
+  const correr = () => { if(window.fbReady) limpiarFotosRamoVencidas(); else setTimeout(correr, 5000); };
+  setTimeout(correr, 15000);
+  setInterval(correr, 3600*1000);
+})();
 configurarPedidosHab({
   recetas: ()=>recetasData, ramos: ()=>ramosDispData, cotizador: ()=>cotizadorConfig,
   kanban: ()=>kanbanData, ventas: ()=>ventasData,
@@ -13443,6 +13455,8 @@ function registrarHoraVenta(vIdx, campo){
   if(campo === 'fin') sincronizarVentaCaja(vIdx);
   renderChecklistTable();
   showToast(`${campo==='inicio'?'▶':'⏹'} ${campo} registrado para "${ventasData[vIdx].prod}": ${hh}:${mm}`);
+  // Ramo terminado: ofrecer sacarle una foto para el cliente (se guarda 48 hs).
+  if(campo === 'fin') ofrecerFotoRamo(vIdx);
 }
 const LOGIN_DEFAULTS = {
   'alvear':     { role:'gerencia',  label:'Gerencia' },
@@ -17702,6 +17716,7 @@ function openVentaDetail(vIdx){
       ${v.dir ? `<div style="margin-top:14px"><div class="detail-field-label">Dirección de entrega</div><div class="detail-field-value">${esc(v.dir)}</div></div>` : ''}
       ${v.dedicatoria ? `<div style="margin-top:14px;background:var(--cream);border-radius:8px;padding:12px 14px"><div class="detail-field-label">Dedicatoria</div><div style="font-style:italic;font-size:14px;color:var(--charcoal);margin-top:4px">"${esc(v.dedicatoria)}"</div></div>` : ''}
       ${v.desc ? `<div style="margin-top:14px"><div class="detail-field-label">Detalle</div><div class="detail-field-value">${esc(v.desc)}</div></div>` : ''}
+      ${(v.fin || v.estado==='entregado' || fotoRamoVigente(v)) ? `<div style="margin-top:14px"><button class="btn-secondary" onclick="closeModal('venta-detail-modal');abrirFotoRamo(${vIdx})">${fotoRamoVigente(v) ? 'Ver foto del ramo' : 'Subir foto del ramo'}</button></div>` : ''}
     </div>
   </div>`;
   ov.classList.add('open');
@@ -18391,6 +18406,7 @@ function cvTRender(){
 }
 
 Object.assign(window, {
+  abrirFotoRamo, elegirFotoRamo, eliminarFotoRamo, compartirFotoRamo,
   renderInventario, addInvItem, updInv, invAdjust, delInvItem,
   _downloadCSV, addCajaMovimiento, addCompra, addEvArregloRow, addEvArregloRowWithData,
   evSetArreglo, evSetArregloQty, evRemoveArregloRow,
