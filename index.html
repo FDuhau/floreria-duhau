@@ -1514,7 +1514,11 @@
   <div id="page-caja" class="content">
     <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px">
       <div><div class="page-title">Control de Caja</div><div class="page-subtitle">Ingresos, egresos y saldo en tiempo real</div></div>
-      <button class="btn-add" onclick="openCajaModal()">+ Nuevo Movimiento</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-secondary gerencia-only" onclick="document.getElementById('restaurar-caja-file').click()" title="Recuperar movimientos desde un backup o archivo de caja (agrega solo los que faltan)">Restaurar movimientos</button>
+        <input type="file" id="restaurar-caja-file" accept=".json,application/json" style="display:none" onchange="restaurarCajaArchivo(this)">
+        <button class="btn-add" onclick="openCajaModal()">+ Nuevo Movimiento</button>
+      </div>
     </div>
     <div class="caja-summary" id="caja-summary"></div>
     <div id="caja-mes-titulo" style="font-size:13px;font-weight:600;color:var(--charcoal);margin:6px 2px 10px"></div>

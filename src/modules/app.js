@@ -7372,6 +7372,41 @@ function addCajaMovimiento(){
   closeModal('caja-modal');
   renderCaja();
 }
+// Restaurar movimientos de caja desde un archivo: acepta un backup completo
+// de la app (usa su cajaData) o una lista de movimientos. Agrega solo los que
+// faltan (misma fecha, descripción, tipo y monto) y nunca borra nada.
+function restaurarCajaArchivo(input){
+  const file = input.files?.[0]; input.value = '';
+  if(!file) return;
+  if(userRole !== 'gerencia'){ showToast('Solo gerencia.','error'); return; }
+  if(!sensibleCargado('cajaData')){ showToast('La caja todavía no terminó de cargar. Esperá unos segundos.','error'); return; }
+  const reader = new FileReader();
+  reader.onload = async e => {
+    let data;
+    try{ data = JSON.parse(e.target.result); }
+    catch(err){ showToast('No pude leer el archivo (JSON inválido).','error'); return; }
+    const lista = Array.isArray(data) ? data : (Array.isArray(data?.cajaData) ? data.cajaData : Object.values(data?.cajaData || {}));
+    const movs = lista.filter(m => m && m.fecha && (m.tipo === 'ingreso' || m.tipo === 'egreso') && +m.monto > 0);
+    if(!movs.length){ showToast('Ese archivo no tiene movimientos de caja.','error'); return; }
+    const clave = m => [m.fecha, (m.desc||'').trim(), m.tipo, +m.monto].join('|');
+    const existentes = new Set(cajaData.map(clave));
+    const nuevos = movs.filter(m => !existentes.has(clave(m)));
+    if(!nuevos.length){ showToast('Todos los movimientos de ese archivo ya están en la caja.'); return; }
+    const ing = nuevos.filter(m=>m.tipo==='ingreso').reduce((a,m)=>a + +m.monto, 0);
+    const egr = nuevos.filter(m=>m.tipo==='egreso').reduce((a,m)=>a + +m.monto, 0);
+    const ok = await confirmModal(`Se van a agregar ${nuevos.length} movimiento${nuevos.length!==1?'s':''} a la caja (de ${movs.length} en el archivo).\n\nIngresos: $${ing.toLocaleString('es-AR')}\nEgresos: $${egr.toLocaleString('es-AR')}\n\nNo se borra ni modifica ningún movimiento existente. ¿Continuar?`);
+    if(!ok) return;
+    nuevos.forEach(m => {
+      const { fecha, desc, ticket, tipo, monto, sucursal, ventaAuto } = m;
+      cajaData.push({ fecha, desc: desc||'', ticket: ticket||'', tipo, monto: +monto, sucursal: sucursal || getSucursalId(), ...(ventaAuto ? { ventaAuto: true } : {}), restaurado: true });
+    });
+    fbSave('cajaData', cajaData);
+    renderCaja();
+    showToast(`${nuevos.length} movimientos restaurados en la caja`);
+  };
+  reader.readAsText(file);
+}
+
 async function delCaja(i){ if(!await confirmModal('¿Eliminar este movimiento?')) return; cajaData.splice(i,1); fbSave('cajaData',cajaData); renderCaja(); }
 
 // ── CIERRE DE CAJA DIARIO ─────────────────────────────────────────────────────
@@ -18213,7 +18248,7 @@ Object.assign(window, {
   openLlamadoModal, llamadoOnZonaChange, llamadoFotoPreview, guardarLlamado, renderLlamadosChecklist, verFotoLlamado, resolverLlamado, eliminarLlamado, renderLlamadosEval,
   openDiaHorario, openEditSaleModal, openEventModal, openEventoDetail, openGestionPasswords,
   openGaleriaModal, openLpCatModal, openLpModal, openRamoModal, openRamoPhoto,
-  openRecetaModal, openSaleModal, delVentaDesdeModal, cotVerTodas, openSidebar, openTaskModal, openVentaRamo, parseMoney,
+  openRecetaModal, openSaleModal, delVentaDesdeModal, cotVerTodas, restaurarCajaArchivo, openSidebar, openTaskModal, openVentaRamo, parseMoney,
   populateFloreriaFormHelpers, populateProvSelects, populateSaleSelects,
   phAddItemRow, phSetItemTipo, phSetItemQty, phRemoveItemRow,
   previewEventImg, previewRecetaImg, previewStockImpact, ramoOnCatChange,
