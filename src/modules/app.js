@@ -90,6 +90,7 @@ function fbSave(key, data){
     // Solo viaja lo que cambió (ver fbSaveSmart en firebase/index.js)
     if(window.fbSaveSmart) window.fbSaveSmart(key, plain); else window.fbSet(key, plain);
     _auditarGuardado(key);
+    if(key === 'cajaData') window._maybeSnapshotCajaSafe?.();
   }
 }
 // Auditoría automática (excluir los propios logs y datos de sesión)
@@ -7373,39 +7374,94 @@ function addCajaMovimiento(){
   closeModal('caja-modal');
   renderCaja();
 }
+// ── RESGUARDO AUTOMÁTICO DE CAJA ──────────────────────────────────────────────
+// Cada movimiento que alguna vez estuvo en la caja se copia a `cajaSafe/<clave>`.
+// Ese nodo solo SUMA: la app nunca borra ni pisa una entrada (y las reglas
+// cerradas lo hacen de una sola escritura). Si la caja se vacía o se pisa por
+// error, "Recuperar del resguardo" la rearma sin depender de un backup manual.
+function _cajaClave(m){ return [m.fecha, (m.desc||'').trim(), m.tipo, +m.monto].join('|'); }
+function _cajaSafeId(m){
+  // Hash corto y estable (las claves de Firebase no admiten . $ # [ ] /)
+  const str = _cajaClave(m) + '|' + (m.ticket||'');
+  let h1 = 5381, h2 = 52711;
+  for(let i = 0; i < str.length; i++){ const c = str.charCodeAt(i); h1 = Math.imul(h1, 33) ^ c; h2 = Math.imul(h2, 31) ^ c; }
+  return String(m.fecha||'sinfecha').replace(/[.$#[\]/]/g, '-') + '_' + (h1 >>> 0).toString(36) + (h2 >>> 0).toString(36);
+}
+let _cajaSafeIds = null, _cajaSafeCargando = false;
+window._maybeSnapshotCajaSafe = async () => {
+  if(userRole !== 'gerencia' || !sensibleCargado('cajaData') || !cajaData.length || !window.fbGetOnce || !window.fbUpdate) return;
+  if(!_cajaSafeIds){
+    if(_cajaSafeCargando) return;
+    _cajaSafeCargando = true;
+    try{ _cajaSafeIds = new Set(Object.keys(await window.fbGetOnce('cajaSafe') || {})); }
+    catch(e){ return; }   // sin conexión: se reintenta en el próximo guardado
+    finally{ _cajaSafeCargando = false; }
+  }
+  const nuevos = {};
+  cajaData.forEach(m => {
+    if(!m || !m.fecha || !(+m.monto > 0)) return;
+    const id = _cajaSafeId(m);
+    if(_cajaSafeIds.has(id) || nuevos[id]) return;
+    const { fecha, desc, ticket, tipo, monto, sucursal, ventaAuto } = m;
+    nuevos[id] = { fecha, desc: desc||'', ticket: ticket||'', tipo, monto: +monto, sucursal: sucursal||'', ...(ventaAuto ? { ventaAuto: true } : {}), resguardadoTs: Date.now() };
+  });
+  const ids = Object.keys(nuevos);
+  if(!ids.length) return;
+  try{ await window.fbUpdate('cajaSafe', nuevos); ids.forEach(id => _cajaSafeIds.add(id)); }
+  catch(e){ console.warn('No se pudo actualizar el resguardo de caja', e); }
+};
+
+// Agrega a la caja solo los movimientos que faltan (misma fecha, descripción,
+// tipo y monto), previa confirmación. Nunca borra ni modifica nada existente.
+async function _restaurarCajaMovs(lista, fuente){
+  const movs = (lista||[]).filter(m => m && m.fecha && (m.tipo === 'ingreso' || m.tipo === 'egreso') && +m.monto > 0);
+  if(!movs.length){ showToast(`${fuente} no tiene movimientos de caja.`,'error'); return; }
+  const existentes = new Set(cajaData.map(_cajaClave));
+  const vistos = new Set();
+  const nuevos = movs.filter(m => { const k = _cajaClave(m); if(existentes.has(k) || vistos.has(k)) return false; vistos.add(k); return true; })
+    .sort((a,b) => (a.fecha||'').localeCompare(b.fecha||''));
+  if(!nuevos.length){ showToast(`Todos los movimientos de ${fuente} ya están en la caja.`); return; }
+  const ing = nuevos.filter(m=>m.tipo==='ingreso').reduce((a,m)=>a + +m.monto, 0);
+  const egr = nuevos.filter(m=>m.tipo==='egreso').reduce((a,m)=>a + +m.monto, 0);
+  const ok = await confirmModal(`Se van a agregar ${nuevos.length} movimiento${nuevos.length!==1?'s':''} a la caja desde ${fuente} (${movs.length} en total).\n\nIngresos: $${ing.toLocaleString('es-AR')}\nEgresos: $${egr.toLocaleString('es-AR')}\n\nNo se borra ni modifica ningún movimiento existente. ¿Continuar?`);
+  if(!ok) return;
+  nuevos.forEach(m => {
+    const { fecha, desc, ticket, tipo, monto, sucursal, ventaAuto } = m;
+    cajaData.push({ fecha, desc: desc||'', ticket: ticket||'', tipo, monto: +monto, sucursal: sucursal || getSucursalId(), ...(ventaAuto ? { ventaAuto: true } : {}), restaurado: true });
+  });
+  fbSave('cajaData', cajaData);
+  renderCaja();
+  showToast(`${nuevos.length} movimientos restaurados en la caja`);
+}
+
 // Restaurar movimientos de caja desde un archivo: acepta un backup completo
-// de la app (usa su cajaData) o una lista de movimientos. Agrega solo los que
-// faltan (misma fecha, descripción, tipo y monto) y nunca borra nada.
+// de la app (usa su cajaData) o una lista de movimientos.
 function restaurarCajaArchivo(input){
   const file = input.files?.[0]; input.value = '';
   if(!file) return;
   if(userRole !== 'gerencia'){ showToast('Solo gerencia.','error'); return; }
   if(!sensibleCargado('cajaData')){ showToast('La caja todavía no terminó de cargar. Esperá unos segundos.','error'); return; }
   const reader = new FileReader();
-  reader.onload = async e => {
+  reader.onload = e => {
     let data;
     try{ data = JSON.parse(e.target.result); }
     catch(err){ showToast('No pude leer el archivo (JSON inválido).','error'); return; }
     const lista = Array.isArray(data) ? data : (Array.isArray(data?.cajaData) ? data.cajaData : Object.values(data?.cajaData || {}));
-    const movs = lista.filter(m => m && m.fecha && (m.tipo === 'ingreso' || m.tipo === 'egreso') && +m.monto > 0);
-    if(!movs.length){ showToast('Ese archivo no tiene movimientos de caja.','error'); return; }
-    const clave = m => [m.fecha, (m.desc||'').trim(), m.tipo, +m.monto].join('|');
-    const existentes = new Set(cajaData.map(clave));
-    const nuevos = movs.filter(m => !existentes.has(clave(m)));
-    if(!nuevos.length){ showToast('Todos los movimientos de ese archivo ya están en la caja.'); return; }
-    const ing = nuevos.filter(m=>m.tipo==='ingreso').reduce((a,m)=>a + +m.monto, 0);
-    const egr = nuevos.filter(m=>m.tipo==='egreso').reduce((a,m)=>a + +m.monto, 0);
-    const ok = await confirmModal(`Se van a agregar ${nuevos.length} movimiento${nuevos.length!==1?'s':''} a la caja (de ${movs.length} en el archivo).\n\nIngresos: $${ing.toLocaleString('es-AR')}\nEgresos: $${egr.toLocaleString('es-AR')}\n\nNo se borra ni modifica ningún movimiento existente. ¿Continuar?`);
-    if(!ok) return;
-    nuevos.forEach(m => {
-      const { fecha, desc, ticket, tipo, monto, sucursal, ventaAuto } = m;
-      cajaData.push({ fecha, desc: desc||'', ticket: ticket||'', tipo, monto: +monto, sucursal: sucursal || getSucursalId(), ...(ventaAuto ? { ventaAuto: true } : {}), restaurado: true });
-    });
-    fbSave('cajaData', cajaData);
-    renderCaja();
-    showToast(`${nuevos.length} movimientos restaurados en la caja`);
+    _restaurarCajaMovs(lista, 'el archivo');
   };
   reader.readAsText(file);
+}
+
+// Recuperar desde el resguardo automático (cajaSafe)
+async function restaurarCajaDesdeResguardo(){
+  if(userRole !== 'gerencia'){ showToast('Solo gerencia.','error'); return; }
+  if(!sensibleCargado('cajaData')){ showToast('La caja todavía no terminó de cargar. Esperá unos segundos.','error'); return; }
+  let safe;
+  try{ showToast('Leyendo el resguardo automático…'); safe = await window.fbGetOnce('cajaSafe'); }
+  catch(e){ showToast('Sin conexión: no se pudo leer el resguardo.','error'); return; }
+  const lista = Object.values(safe || {});
+  if(!lista.length){ showToast('Todavía no hay resguardo automático de la caja.'); return; }
+  _restaurarCajaMovs(lista, 'el resguardo automático');
 }
 
 async function delCaja(i){ if(!await confirmModal('¿Eliminar este movimiento?')) return; cajaData.splice(i,1); fbSave('cajaData',cajaData); renderCaja(); }
@@ -18249,7 +18305,7 @@ Object.assign(window, {
   openLlamadoModal, llamadoOnZonaChange, llamadoFotoPreview, guardarLlamado, renderLlamadosChecklist, verFotoLlamado, resolverLlamado, eliminarLlamado, renderLlamadosEval,
   openDiaHorario, openEditSaleModal, openEventModal, openEventoDetail, openGestionPasswords,
   openGaleriaModal, openLpCatModal, openLpModal, openRamoModal, openRamoPhoto,
-  openRecetaModal, openSaleModal, delVentaDesdeModal, cotVerTodas, restaurarCajaArchivo, openSidebar, openTaskModal, openVentaRamo, parseMoney,
+  openRecetaModal, openSaleModal, delVentaDesdeModal, cotVerTodas, restaurarCajaArchivo, restaurarCajaDesdeResguardo, openSidebar, openTaskModal, openVentaRamo, parseMoney,
   populateFloreriaFormHelpers, populateProvSelects, populateSaleSelects,
   phAddItemRow, phSetItemTipo, phSetItemQty, phRemoveItemRow,
   previewEventImg, previewRecetaImg, previewStockImpact, ramoOnCatChange,

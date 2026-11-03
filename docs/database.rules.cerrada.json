@@ -7,6 +7,8 @@
     // gerencia = la cuenta de Firebase cuyo rol figura en userRoles/{uid}/role (lo escribe
     // únicamente el Worker, que usa el secreto de la base y no pasa por estas reglas).
     "cajaData":              { ".read": "root.child('userRoles').child(auth.uid).child('role').val() === 'gerencia'", ".write": "root.child('userRoles').child(auth.uid).child('role').val() === 'gerencia'" },
+    // Resguardo de caja: solo gerencia, y cada entrada se escribe UNA vez (no se puede borrar ni pisar desde la app).
+    "cajaSafe":              { ".read": "root.child('userRoles').child(auth.uid).child('role').val() === 'gerencia'", "$id": { ".write": "root.child('userRoles').child(auth.uid).child('role').val() === 'gerencia' && !data.exists() && newData.exists()" } },
     "cierresCaja":           { ".read": "root.child('userRoles').child(auth.uid).child('role').val() === 'gerencia'", ".write": "root.child('userRoles').child(auth.uid).child('role').val() === 'gerencia'" },
     "cierresMensualesData":  { ".read": "root.child('userRoles').child(auth.uid).child('role').val() === 'gerencia'", ".write": "root.child('userRoles').child(auth.uid).child('role').val() === 'gerencia'" },
     "liquidacionConfig":     { ".read": "root.child('userRoles').child(auth.uid).child('role').val() === 'gerencia'", ".write": "root.child('userRoles').child(auth.uid).child('role').val() === 'gerencia'" },
@@ -21,8 +23,8 @@
     // dado en un nivel superior no se puede quitar en los hijos, por eso la excepción va acá
     // (los nodos de arriba quedan fuera de este comodín).
     "$otro": {
-      ".read":  "auth != null && $otro !== 'cajaData' && $otro !== 'cierresCaja' && $otro !== 'cierresMensualesData' && $otro !== 'liquidacionConfig' && $otro !== 'legajoData' && $otro !== 'evaluacionesData' && $otro !== 'faltasData' && $otro !== 'loginAuth' && $otro !== 'loginPasswords' && $otro !== 'userRoles' && $otro !== 'loginDiag'",
-      ".write": "auth != null && $otro !== 'cajaData' && $otro !== 'cierresCaja' && $otro !== 'cierresMensualesData' && $otro !== 'liquidacionConfig' && $otro !== 'legajoData' && $otro !== 'evaluacionesData' && $otro !== 'faltasData' && $otro !== 'loginAuth' && $otro !== 'loginPasswords' && $otro !== 'userRoles' && $otro !== 'loginDiag'"
+      ".read":  "auth != null && $otro !== 'cajaData' && $otro !== 'cajaSafe' && $otro !== 'cierresCaja' && $otro !== 'cierresMensualesData' && $otro !== 'liquidacionConfig' && $otro !== 'legajoData' && $otro !== 'evaluacionesData' && $otro !== 'faltasData' && $otro !== 'loginAuth' && $otro !== 'loginPasswords' && $otro !== 'userRoles' && $otro !== 'loginDiag'",
+      ".write": "auth != null && $otro !== 'cajaData' && $otro !== 'cajaSafe' && $otro !== 'cierresCaja' && $otro !== 'cierresMensualesData' && $otro !== 'liquidacionConfig' && $otro !== 'legajoData' && $otro !== 'evaluacionesData' && $otro !== 'faltasData' && $otro !== 'loginAuth' && $otro !== 'loginPasswords' && $otro !== 'userRoles' && $otro !== 'loginDiag'"
     }
   }
 }

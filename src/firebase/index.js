@@ -442,6 +442,7 @@
         const arr = !val ? [] : (Array.isArray(val) ? val : Object.values(val||{}));
         if(window._setCajaData) window._setCajaData(arr);
         window._procesarCajaPendientes?.();
+        window._maybeSnapshotCajaSafe?.();
         if(document.getElementById('page-caja')?.classList.contains('active') && !window.estaEditando('page-caja')) window.renderCaja();
       });
 
