@@ -168,12 +168,12 @@ function _legDocNombre(tipo, fileName){
 
 function _legDocMimeLabel(d){ return (d.mime==='application/pdf') ? 'PDF' : 'Imagen'; }
 
-function _legDocSlot(e, idx, tipo, icon, label){
+function _legDocSlot(e, idx, tipo, icono, label){
   const doc = (e.documentos||[]).find(d=>d.tipo===tipo);
   if(doc){
     return `<div class="leg-doc-row">
       <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:600">${icon} ${esc(label)}</div>
+        <div style="font-size:13px;font-weight:600">${icono} ${esc(label)}</div>
         <div style="font-size:12px;color:var(--mid-gray)">${esc(doc.nombre)}${doc.fecha?' · '+fmtDate(doc.fecha):''} · ${_legDocMimeLabel(doc)}</div>
       </div>
       <button class="btn-secondary" style="font-size:12px" onclick="legVerDoc(${idx},${doc.id})">Ver</button>
@@ -183,7 +183,7 @@ function _legDocSlot(e, idx, tipo, icon, label){
   }
   return `<div class="leg-doc-row leg-doc-empty">
     <div style="flex:1;min-width:0">
-      <div style="font-size:13px;font-weight:600;color:var(--mid-gray)">${icon} ${esc(label)}</div>
+      <div style="font-size:13px;font-weight:600;color:var(--mid-gray)">${icono} ${esc(label)}</div>
       <div style="font-size:12px;color:var(--mid-gray)">Sin cargar</div>
     </div>
     <label class="btn-add" style="font-size:12px;cursor:pointer;margin:0">${icon('upload')}Subir<input type="file" accept="image/*,application/pdf" style="display:none" onchange="legSubirDoc('${tipo}',this)"></label>
