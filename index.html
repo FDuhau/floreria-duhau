@@ -879,6 +879,40 @@
     </div>
   </div>
 
+  <!-- ══════ TARJETA MANUAL DEL TABLERO (eventos-maison): openTaskModal / saveKanbanTask ══════ -->
+  <div class="modal-overlay" id="task-modal">
+    <div class="modal" style="max-width:460px">
+      <button class="modal-close" onclick="closeModal('task-modal')">✕</button>
+      <div class="modal-title" id="task-modal-title">Nueva Tarea</div>
+      <label class="form-label">Tarea *</label>
+      <input class="form-input-modal" id="task-title" placeholder="ej. Armar centros para el lobby">
+      <label class="form-label" style="margin-top:10px">Detalle (opcional)</label>
+      <textarea class="form-input-modal" id="task-desc" rows="3" placeholder="Notas, contexto..."></textarea>
+      <div class="modal-row" style="margin-top:10px">
+        <div><label class="form-label">Columna</label>
+          <select class="form-input-modal" id="task-col">
+            <option value="0">Pedidos Pendientes</option>
+            <option value="1">En Proceso</option>
+            <option value="2">Pendiente de Colocación</option>
+            <option value="3">Finalizados</option>
+          </select></div>
+        <div><label class="form-label">Etiqueta</label>
+          <select class="form-input-modal" id="task-tag">
+            <option value="tag-floreria">Florería</option>
+            <option value="tag-maison">Maison</option>
+            <option value="tag-evento">Evento</option>
+            <option value="tag-urgente">Urgente</option>
+            <option value="tag-garden">Jardinería</option>
+          </select></div>
+        <div><label class="form-label">Fecha</label><input class="form-input-modal" id="task-date" type="date"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="closeModal('task-modal')">Cancelar</button>
+        <button class="btn-add" id="task-save-btn" onclick="saveKanbanTask()">Agregar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ══════ RESTAURAR COMPRAS DESDE BACKUP (gerencia) ══════ -->
   <div class="modal-overlay" id="restaurar-compras-modal">
     <div class="modal" style="max-width:560px;width:96vw">
