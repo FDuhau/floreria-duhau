@@ -1,3 +1,4 @@
+import { validarCampos } from './validacion.js';
 import { esc, fmtDate } from './utils.js';
 import { confirmModal } from './modales.js';
 import { showToast } from './tema-toast.js';
@@ -100,7 +101,7 @@ export function editarCliente(idx){ closeModal('ficha-cliente-modal'); openNuevo
 
 export function guardarCliente(){
   const nombre = document.getElementById('crm-nombre')?.value?.trim();
-  if(!nombre){ showToast('El nombre es obligatorio'); return; }
+  if(!validarCampos([{ id:'crm-nombre', req:true, msg:'Escribí el nombre del cliente' }])) return;
   const idx = +document.getElementById('crm-idx').value;
   const entry = {
     id: idx>=0 ? (clientesData[idx]?.id||Date.now()) : Date.now(),

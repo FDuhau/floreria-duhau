@@ -1,5 +1,6 @@
 import { esc, parseMoney, fmtDate, fmtDateTime } from './utils.js';
 import { icon } from './iconos.js';
+import { validarCampos, marcarObligatorios } from './validacion.js';
 import { _evStripAcc, _evParseEvents, _evToEvento } from './daily-import.js';
 import { crearSync, aLista, aplicarOps, mismaLista } from './eventos-sync.js';
 import { confirmModal, alertModal, promptModal } from './modales.js';
@@ -3390,7 +3391,11 @@ function addCompra(type){
   }
   const p=type==='floreria'?'cf':'cj';
   const prod=document.getElementById(p+'-producto').value.trim();
-  if(!prod){showToast('Ingresá el producto.','error');return;}
+  if(!validarCampos([
+    { id:p+'-producto', req:true, msg:'Elegí o escribí el producto' },
+    { id:p+'-costo', tipo:'monto' },
+    { id:p+'-fecha', tipo:'fecha' },
+  ])) return;
 
   // Evento asociado (opcional) — se guarda el id estable + el nombre para mostrar
   const eventoId = document.getElementById(p+'-evento-link')?.value || '';
@@ -5659,7 +5664,8 @@ async function addReglaTipo(tipoIdx){
   renderEvTipos();
 }
 
-function delReglaTipo(tipoIdx, reglaIdx){
+async function delReglaTipo(tipoIdx, reglaIdx){
+  if(!await confirmModal('¿Eliminar esta regla?')) return;
   eventoPricing.tipos[tipoIdx].reglas.splice(reglaIdx, 1);
   fbSave('eventoPricing', eventoPricing);
   renderEvTipos();
@@ -7163,9 +7169,16 @@ async function saleAutoFillPrice(){
   }
 }
 
+// Campos obligatorios marcados con * (ver validacion.js)
+setTimeout(() => marcarObligatorios(['sale-prod','cj-desc-caja','cj-monto','cf-producto','cj-producto','ev-nombre','ev-fecha','leg-nombre','crm-nombre','prov-nombre']), 0);
+
 function addSale(){
   const prod=document.getElementById('sale-prod').value.trim();
-  if(!prod || prod === '__otro__') return;
+  if(!validarCampos([
+    { id:'sale-prod', req:true, msg:'Elegí el arreglo o ramo' },
+    { id:'sale-precio', tipo:'monto' },
+    { id:'sale-fecha', tipo:'fecha' },
+  ])) return;
   const estado = document.getElementById('sale-estado').value;
   const asignado = document.getElementById('sale-asignado')?.value || '';
   const editIdx = +document.getElementById('sale-edit-idx').value;
@@ -7363,7 +7376,11 @@ function openCajaModal(){
 function addCajaMovimiento(){
   const desc=document.getElementById('cj-desc-caja').value.trim();
   const monto=parseFloat(document.getElementById('cj-monto').value)||0;
-  if(!desc||!monto){showToast('Completá descripción y monto.','error');return;}
+  if(!validarCampos([
+    { id:'cj-desc-caja', req:true, msg:'Escribí de qué es el movimiento' },
+    { id:'cj-monto', req:true, tipo:'monto', msg:'Ingresá el monto' },
+    { id:'cj-fecha-caja', tipo:'fecha' },
+  ])) return;
   cajaData.push({
     fecha:document.getElementById('cj-fecha-caja').value||TODAY_ISO,
     desc, ticket:document.getElementById('cj-ticket').value,
@@ -9206,7 +9223,7 @@ function saveControlPlaga(){
 function verHistorialPlaga(idx){
   const r = jardPlagas[idx];
   const filas = (r.historial||[]).slice().reverse().map(h=>`${fmtDate(h.fecha)} · ${h.estado||''}${h.quien?' · '+h.quien:''}${h.obs?'\n   '+h.obs:''}`).join('\n');
-  alert(`Historial de ${r.planta}\n\n${filas}`);
+  alertModal(`Historial de ${r.planta}\n\n${filas}`);
 }
 
 async function deletePlagaJard(idx){
@@ -14857,7 +14874,10 @@ function mostrarEventosDelDia(retry = 0){
 function saveEvent(){
   if(!window._eventosLoaded){ showToast('Los eventos todavía se están cargando — esperá unos segundos e intentá de nuevo.','error'); return; }
   const nombre=document.getElementById('ev-nombre').value.trim();
-  if(!nombre) return;
+  if(!validarCampos([
+    { id:'ev-nombre', req:true, msg:'Poné un nombre al evento' },
+    { id:'ev-fecha', req:true, tipo:'fecha', msg:'Elegí la fecha del evento' },
+  ])) return;
   const ev={
     nombre,
     id: (eventosData[+document.getElementById('ev-idx').value]?.id) || genEventoId(),
@@ -16175,7 +16195,7 @@ function guardarLegajo(){
   const idx = +document.getElementById('leg-idx').value;
   const nombre = document.getElementById('leg-nombre').value.trim();
   const apellido = document.getElementById('leg-apellido').value.trim();
-  if(!nombre){ showToast('El nombre es requerido.','error'); return; }
+  if(!validarCampos([{ id:'leg-nombre', req:true, msg:'Escribí el nombre' }])) return;
   const obj = {
     id: idx >= 0 ? legajoData[idx].id : Date.now(),
     nombre, apellido,
@@ -16954,7 +16974,11 @@ function guardarPresupuesto(){
   const monto = document.getElementById('pres-monto').value;
   const vencimiento = document.getElementById('pres-vencimiento').value;
   const notas = document.getElementById('pres-notas').value.trim();
-  if(!cliente||!monto){ showToast('Completá cliente y monto'); return; }
+  if(!validarCampos([
+    { id:'pres-cliente', req:true, msg:'Escribí el nombre del cliente' },
+    { id:'pres-monto', req:true, tipo:'monto', msg:'Ingresá el monto' },
+    { id:'pres-vencimiento', tipo:'fecha' },
+  ])) return;
   presupuestosData.push({ id: Date.now(), fecha: TODAY_ISO, cliente, concepto, telefono, monto, vencimiento, notas, estado:'pendiente' });
   fbSave('presupuestosData', presupuestosData);
   closeModal('modal-presupuesto');
@@ -17087,7 +17111,7 @@ function verPresupuesto(idx){
             await new Promise(function(r){ setTimeout(r, 200); });
           }
           if(!window.html2canvas || !(window.jspdf && window.jspdf.jsPDF)){
-            alert('No se pudieron cargar los componentes del PDF (revisá la conexión a internet). Como alternativa podés usar "Imprimir".');
+            alertModal('No se pudieron cargar los componentes del PDF (revisá la conexión a internet). Como alternativa podés usar "Imprimir".');
             return;
           }
           if(document.fonts && document.fonts.ready){ try{ await document.fonts.ready; }catch(e){} }
@@ -17110,7 +17134,7 @@ function verPresupuesto(idx){
           }catch(e){ compartido = false; }
           if(!compartido) pdf.save(_pdfName);
         }catch(e){
-          alert('No se pudo generar el PDF: ' + (e && e.message ? e.message : e));
+          alertModal('No se pudo generar el PDF: ' + (e && e.message ? e.message : e));
         }finally{
           btn.disabled = false; btn.textContent = old;
         }
@@ -17464,8 +17488,11 @@ function guardarPedidoRamo(){
   const prod = document.getElementById('pr-arreglo').value.trim();
   const cliente = document.getElementById('pr-cliente').value.trim();
   const asignado = document.getElementById('pr-asignado').value;
-  if(!prod || prod==='__otro__'){ showToast('Elegí el arreglo'); return; }
-  if(!cliente){ showToast('Completá el cliente'); return; }
+  if(!validarCampos([
+    { id:'pr-arreglo', req:true, msg:'Elegí el arreglo' },
+    { id:'pr-cliente', req:true, msg:'Escribí el nombre del cliente' },
+    { id:'pr-precio', tipo:'monto' },
+  ])) return;
   // El florista NO es obligatorio: si queda sin asignar, lo asigna Gerencia.
   ventasData.push({
     prod,

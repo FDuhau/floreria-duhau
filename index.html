@@ -510,7 +510,7 @@
       </div>
       <div class="form-row" style="grid-template-columns:2fr 1fr 1fr 2fr 2fr auto">
         <div class="form-group"><label>Descripción adicional</label><input class="form-input" id="cf-desc" placeholder="color, variedad, tallo..."></div>
-        <div class="form-group"><label>Precio x paquete</label><input class="form-input" id="cf-costo" placeholder="$ por paquete"></div>
+        <div class="form-group"><label>Precio x paquete</label><input class="form-input" id="cf-costo" data-valida="monto" placeholder="$ por paquete"></div>
         <div class="form-group"><label>Proveedor</label>
         <select class="form-input" id="cf-proveedor">
           <option value="">— Seleccionar —</option>
@@ -628,7 +628,7 @@
       </div>
       <div class="form-row" style="grid-template-columns:2fr 1fr 1fr 2fr 2fr auto">
         <div class="form-group"><label>Descripción adicional</label><input class="form-input" id="cj-desc" placeholder="tamaño, tipo, detalle..."></div>
-        <div class="form-group"><label>Precio x unidad</label><input class="form-input" id="cj-costo" placeholder="$ por unidad"></div>
+        <div class="form-group"><label>Precio x unidad</label><input class="form-input" id="cj-costo" data-valida="monto" placeholder="$ por unidad"></div>
         <div class="form-group"><label>Proveedor</label>
         <select class="form-input" id="cj-proveedor">
           <option value="">— Seleccionar —</option>
@@ -1451,7 +1451,7 @@
         <label class="form-label">Dedicatoria</label>
         <textarea class="form-input-modal" id="sale-dedicatoria" placeholder="Texto de dedicatoria (opcional)" style="min-height:55px"></textarea>
         <div class="modal-row">
-          <div><label class="form-label">Precio</label><input class="form-input-modal" id="sale-precio" placeholder="$ 0"></div>
+          <div><label class="form-label">Precio</label><input class="form-input-modal" id="sale-precio" data-valida="monto" placeholder="$ 0"></div>
           <div><label class="form-label">Forma de pago</label>
             <select class="form-input-modal" id="sale-pago">
               <option value="">— Seleccionar —</option>
@@ -1564,7 +1564,7 @@
           <option value="egreso">Egreso</option>
         </select>
         <label class="form-label">Monto $</label>
-        <input class="form-input-modal" id="cj-monto" type="number" placeholder="0.00">
+        <input class="form-input-modal" id="cj-monto" data-valida="monto" type="number" placeholder="0.00">
         <div class="modal-actions">
           <button class="btn-secondary" onclick="closeModal('caja-modal')">Cancelar</button>
           <button class="btn-add" onclick="addCajaMovimiento()">Guardar</button>
@@ -3177,7 +3177,7 @@
             <div class="form-group"><label class="form-label">Fecha</label><input class="form-input" id="pres-fecha" type="date"></div>
           </div>
           <div class="form-row">
-            <div class="form-group"><label class="form-label">Monto ($) *</label><input class="form-input" id="pres-monto" type="number" min="0" step="0.01" required></div>
+            <div class="form-group"><label class="form-label">Monto ($) *</label><input class="form-input" id="pres-monto" data-valida="monto" type="number" min="0" step="0.01" required></div>
             <div class="form-group"><label class="form-label">Vencimiento</label><input class="form-input" id="pres-vencimiento" type="date"></div>
           </div>
           <div class="form-group"><label class="form-label">Notas</label><textarea class="form-input" id="pres-notas" rows="2" placeholder="Observaciones adicionales"></textarea></div>
@@ -3212,7 +3212,7 @@
             </div>
           </div>
           <div class="form-row">
-            <div class="form-group"><label class="form-label">Precio</label><input class="form-input" id="pr-precio" placeholder="$ (automático, editable)"></div>
+            <div class="form-group"><label class="form-label">Precio</label><input class="form-input" id="pr-precio" data-valida="monto" placeholder="$ (automático, editable)"></div>
             <div class="form-group"><label class="form-label">Para cuándo</label><input class="form-input" id="pr-fecha" type="date"></div>
           </div>
           <div class="form-group gerencia-only"><label class="form-label">Asignar a florista (opcional)</label>

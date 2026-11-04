@@ -1,3 +1,4 @@
+import { validarCampos } from './validacion.js';
 import { esc } from './utils.js';
 import { confirmModal } from './modales.js';
 import { showToast } from './tema-toast.js';
@@ -77,7 +78,7 @@ export function openProveedorModal(idx){
 
 export function guardarProveedor(idx){
   const nombre = document.getElementById('prov-nombre')?.value?.trim();
-  if(!nombre){ showToast('Ingresá el nombre del proveedor'); return; }
+  if(!validarCampos([{ id:'prov-nombre', req:true, msg:'Escribí el nombre del proveedor' }])) return;
   const p = {
     nombre,
     rubro: document.getElementById('prov-rubro-sel')?.value||'Otros',
