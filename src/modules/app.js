@@ -1,6 +1,7 @@
 import { esc, parseMoney, fmtDate, fmtDateTime } from './utils.js';
 import { icon } from './iconos.js';
 import { validarCampos, marcarObligatorios } from './validacion.js';
+import { abrirDocumento, MARCA, fmtPesos, kv } from './documento-marca.js';
 import { _evStripAcc, _evParseEvents, _evToEvento } from './daily-import.js';
 import { crearSync, aLista, aplicarOps, mismaLista } from './eventos-sync.js';
 import { confirmModal, alertModal, promptModal } from './modales.js';
@@ -7072,6 +7073,7 @@ function openSaleModal(){
   document.getElementById('sale-pago').value='';
   ['sale-facturado','sale-taxi','sale-envio'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   document.getElementById('sale-del-btn').style.display='none';
+  document.getElementById('sale-doc-btn').style.display='none';
   document.getElementById('sale-save-btn').textContent='Agregar';
   populateSaleSelects('', '');
   document.getElementById('sale-modal').classList.add('open');
@@ -7083,6 +7085,36 @@ async function delVentaDesdeModal(){
   const antes = ventasData.length;
   await delVenta(i);
   if(ventasData.length < antes) closeModal('sale-modal');
+}
+
+// Comprobante de venta para mandar al cliente (no es factura)
+function comprobanteVenta(i){
+  const v = ventasData[i];
+  if(!v) return;
+  const precio = parseMoney(v.precio);
+  const envio = parseMoney(v.envioCosto);
+  abrirDocumento({
+    tipo: 'Comprobante de pedido',
+    titulo: v.cliente || 'Cliente',
+    numero: 'Pedido ' + String(v.id || v.ts || i + 1).slice(-6),
+    meta: 'Fecha: ' + fmtDate(v.fecha || TODAY_ISO),
+    cuerpo: kv([
+        ['Arreglo', esc(v.prod || '—')],
+        v.desc ? ['Detalle', esc(v.desc)] : null,
+        v.destinatario ? ['Destinatario', esc(v.destinatario)] : null,
+        v.dir ? ['Entrega', esc(v.dir)] : null,
+        v.formaPago ? ['Forma de pago', esc(v.formaPago)] : null,
+        envio > 0 ? ['Envío', fmtPesos(envio)] : null,
+      ], { izq: true })
+      + (v.dedicatoria ? `<div class="box"><div class="box-label">Dedicatoria</div><div class="box-text">${esc(v.dedicatoria)}</div></div>` : '')
+      + (precio > 0 ? `<div class="total-row"><div class="total-label">Total</div><div class="total-val">${fmtPesos(precio + (envio > 0 ? envio : 0))}</div></div>` : '')
+      + `<p class="muted">Comprobante interno de pedido. No válido como factura.</p>`,
+    archivo: 'Pedido - ' + (v.cliente || v.prod || ''),
+  });
+}
+function comprobanteVentaDesdeModal(){
+  const i = +document.getElementById('sale-edit-idx').value;
+  if(i >= 0) comprobanteVenta(i);
 }
 
 function openEditSaleModal(i){
@@ -7104,6 +7136,7 @@ function openEditSaleModal(i){
   document.getElementById('sale-taxi').value = v.taxiFlete || '';
   document.getElementById('sale-envio').value = v.envioCosto || '';
   document.getElementById('sale-del-btn').style.display = '';
+  document.getElementById('sale-doc-btn').style.display = '';
   document.getElementById('sale-save-btn').textContent = 'Guardar';
   document.getElementById('sale-modal').classList.add('open');
 }
@@ -7548,11 +7581,25 @@ function renderCierreCajaHistorial(){
 }
 
 function toggleCierreDetalle(ts){
-  // Mostrar detalle de movimientos en un toast/alert simple
-  const cierre = cierresCajaData.find(c => c.ts === ts);
-  if(!cierre) return;
-  const lines = (cierre.movimientos||[]).map(m => `${m.tipo==='ingreso'?'':''} ${m.desc}: $${m.monto.toLocaleString('es-AR')}`).join('\n');
-  alertModal(`${lines}\n\nSaldo: $${cierre.saldo.toLocaleString('es-AR')}`, { title: 'Cierre ' + fmtDate(cierre.fecha) });
+  const c = cierresCajaData.find(x => x.ts === ts);
+  if(!c) return;
+  const movs = c.movimientos || [];
+  const filas = movs.map(m => `<tr><td>${esc(m.desc || '—')}${m.ticket ? `<br><span class="muted">Ticket ${esc(m.ticket)}</span>` : ''}</td>
+      <td>${m.tipo==='ingreso' ? 'Ingreso' : 'Egreso'}</td>
+      <td class="num">${m.tipo==='ingreso' ? '' : '−'}${fmtPesos(m.monto)}</td></tr>`).join('');
+  abrirDocumento({
+    tipo: 'Cierre de caja',
+    titulo: fmtDate(c.fecha),
+    meta: `Cerrado por ${esc(c.cerradoPor || '—')}${c.ts ? ' · ' + new Date(c.ts).toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit', hour12:false }) + ' hs' : ''}`,
+    cuerpo: (movs.length
+        ? `<table class="t"><thead><tr><th>Movimiento</th><th>Tipo</th><th class="num">Monto</th></tr></thead><tbody>${filas}</tbody></table>`
+        : `<p class="muted">Sin movimientos ese día.</p>`) + kv([
+        ['Ingresos', fmtPesos(c.totalIngresos)],
+        ['Egresos', fmtPesos(c.totalEgresos)],
+        ['Saldo del día', fmtPesos(c.saldo), true],
+      ]) + `<div class="firmas"><div>Firma responsable</div><div>Firma gerencia</div></div>`,
+    archivo: 'Cierre de caja - ' + fmtDate(c.fecha),
+  });
 }
 
 // ════════════════════════════════════════
@@ -7741,29 +7788,18 @@ function openFichaGaleria(idx){
 async function imprimirFicha(idx){
   const g = galeriaData[idx];
   if(!g) return;
+  // Abrir la ventana antes de esperar la foto (si no, el navegador la bloquea)
   const win = window.open('','_blank');
   // La ventana nueva no resuelve referencias fbimg: → traer la foto antes
   const foto = await resolverFoto((g.fotos&&g.fotos[0]) || g.foto || '');
-  win.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>${esc(g.titulo||'Ficha de arreglo')}</title><style>
-    body{font-family:Arial,sans-serif;margin:36px;color:#1a1a1a}
-    h1{font-size:22px;margin:0 0 18px}
-    .wrap{display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap}
-    .foto{flex:1;min-width:220px}
-    .foto img{width:100%;border-radius:8px;object-fit:cover}
-    table{flex:2;min-width:300px;border-collapse:collapse;font-size:13px}
-    td{border:1px solid #ccc;padding:8px 12px;vertical-align:top}
-    td.k{font-weight:bold;background:#f5f5f0;width:36%}
-    ul{margin:0;padding-left:18px}
-    @media print{button{display:none}}
-  </style></head><body>
-    <h1>${esc(g.titulo||'Ficha de arreglo')} — ${galSecDe(g)==='hotel'?'Standard Hotel':galSecDe(g)==='ramos'?'Ramos':'Eventos'}</h1>
-    <div class="wrap">
-      ${foto?`<div class="foto"><img src="${foto}"></div>`:''}
-      <table>${fichaRows(g).map(([l,v])=>`<tr><td class="k">${l}</td><td>${v}</td></tr>`).join('')}</table>
-    </div>
-    <button onclick="window.print()" style="margin-top:24px;padding:8px 20px;cursor:pointer">Imprimir</button>
-  </body></html>`);
-  win.document.close();
+  const sec = galSecDe(g)==='hotel' ? 'Standard Hotel' : galSecDe(g)==='ramos' ? 'Ramos' : 'Eventos';
+  abrirDocumento({
+    ventana: win,
+    tipo: 'Ficha de arreglo · ' + sec,
+    titulo: g.titulo || 'Ficha de arreglo',
+    cuerpo: (foto ? `<img class="foto" src="${foto}" alt="">` : '') + kv(fichaRows(g), { izq: true }),
+    archivo: 'Ficha - ' + (g.titulo || 'arreglo'),
+  });
 }
 
 function abrirLightbox(idx){
@@ -16692,51 +16728,26 @@ function generarOrdenCompra(idx, tipo='flore'){
   const data = tipo==='flore' ? comprasFlore : comprasJard;
   const c = data[idx];
   if(!c){ showToast('Orden no encontrada'); return; }
-  const win = window.open('','_blank');
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>OC #${idx+1}</title><style>
-    body{font-family:Arial,sans-serif;margin:40px;color:#1a1a1a}
-    h1{font-size:22px;margin-bottom:4px}
-    .sub{color:#7a7a72;font-size:13px;margin-bottom:24px}
-    table{width:100%;border-collapse:collapse;margin-bottom:20px}
-    th,td{border:1px solid #ccc;padding:8px 12px;text-align:left;font-size:13px}
-    th{background:#f5f5f0}
-    .total{font-size:16px;font-weight:bold;text-align:right;margin-bottom:32px}
-    .firma{margin-top:60px;display:flex;gap:60px}
-    .firma-box{border-top:1px solid #333;padding-top:8px;min-width:180px;font-size:12px}
-    @media print{button{display:none}}
-  </style></head><body>
-    <div style="display:flex;align-items:center;gap:16px;margin-bottom:8px">
-      <div style="font-size:32px"></div>
-      <div><h1>Florería Duhau · Park Hyatt Buenos Aires</h1><div class="sub">Orden de Compra #${idx+1} — Emitida el ${fmtDate(TODAY_ISO)}</div></div>
-    </div>
-    <div style="margin-bottom:20px;font-size:13px">
-      <strong>Fecha del pedido:</strong> ${c.fecha ? fmtDate(c.fecha) : '—'}<br>
-      <strong>Proveedor:</strong> ${esc(c.prov||'—')}<br>
-      <strong>Pedido por:</strong> ${esc(c.pedidopor||'—')}<br>
-      <strong>Área / Sector:</strong> ${esc(c.sector||'—')}
-    </div>
-    <table>
-      <thead><tr><th>Producto</th><th>Descripción</th><th>Cantidad</th><th>Precio Unit.</th><th>Subtotal</th></tr></thead>
-      <tbody>
-        <tr>
-          <td>${esc(c.prod||'—')}</td>
-          <td>${esc(c.desc||'—')}</td>
-          <td>${esc(String(c.qty||1))}</td>
-          <td>${c.costo ? '$'+parseMoney(c.costo).toLocaleString('es-AR') : '—'}</td>
-          <td>${c.costo ? '$'+_compraImporte(c).toLocaleString('es-AR') : '—'}</td>
-        </tr>
-      </tbody>
-    </table>
-    <div class="total">Total: ${c.costo ? '$'+_compraImporte(c).toLocaleString('es-AR') : '—'}</div>
-    ${c.notas ? `<div style="font-size:13px;margin-bottom:20px"><strong>Notas:</strong> ${esc(c.notas)}</div>` : ''}
-    <div class="firma">
-      <div class="firma-box">Firma Solicitante</div>
-      <div class="firma-box">Firma Aprobación</div>
-      <div class="firma-box">Firma Proveedor</div>
-    </div>
-    <button onclick="window.print()" style="margin-top:24px;padding:8px 20px;cursor:pointer">Imprimir</button>
-  </body></html>`);
-  win.document.close();
+  const precio = c.costo ? fmtPesos(parseMoney(c.costo)) : '—';
+  const importe = c.costo ? fmtPesos(_compraImporte(c)) : '—';
+  const nro = 'OC ' + String(idx + 1).padStart(4, '0');
+  abrirDocumento({
+    tipo: 'Orden de compra',
+    titulo: c.prov || 'Proveedor a definir',
+    numero: nro,
+    meta: `Emitida el ${fmtDate(TODAY_ISO)} · ${tipo==='flore' ? 'Florería' : 'Jardinería y general'}`,
+    cuerpo: kv([
+        ['Fecha del pedido', c.fecha ? fmtDate(c.fecha) : '—'],
+        ['Pedido por', esc(c.pedidopor || '—')],
+        ['Área / sector', esc(c.sector || '—')],
+      ]) + `
+      <table class="t"><thead><tr><th>Producto</th><th>Descripción</th><th class="num">Cant.</th><th class="num">Precio unit.</th><th class="num">Subtotal</th></tr></thead>
+        <tbody><tr><td>${esc(c.prod || '—')}</td><td>${esc(c.desc || '—')}</td><td class="num">${esc(String(c.qty || 1))}</td><td class="num">${precio}</td><td class="num">${importe}</td></tr></tbody></table>
+      <div class="total-row"><div class="total-label">Total</div><div class="total-val">${importe}</div></div>
+      ${c.notas ? `<div class="notas">${esc(c.notas)}</div>` : ''}
+      <div class="firmas"><div>Firma solicitante</div><div>Firma aprobación</div><div>Firma proveedor</div></div>`,
+    archivo: nro + ' - ' + (c.prov || c.prod || ''),
+  });
 }
 
 // ════════════════════════════════════════
@@ -17033,115 +17044,20 @@ function enviarPresupuestoWhatsApp(idx){
 function verPresupuesto(idx){
   const p = presupuestosData[idx];
   if(!p) return;
-  const monto = '$'+parseMoney(p.monto||0).toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:0});
   const fecha = p.fecha ? fmtDate(p.fecha) : fmtDate(TODAY_ISO);
   const vto = p.vencimiento ? fmtDate(p.vencimiento) : '';
-  const waURL = presupuestoWaURL(p);
-  const win = window.open('', '_blank');
-  win.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Presupuesto — ${esc(p.cliente||'')}</title>
-  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-  <style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'DM Sans',sans-serif;color:#1A1A1A;background:#EFEDE9;padding:32px 16px}
-    .sheet{max-width:760px;margin:0 auto;background:#FDFCFB;border-radius:16px;overflow:hidden;box-shadow:0 12px 44px rgba(0,0,0,.14)}
-    .hero{background:#111110;color:#F7F5F2;padding:40px 48px;display:flex;align-items:center;justify-content:space-between;gap:20px}
-    .hero .brand{font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:400;letter-spacing:.5px;line-height:1.1}
-    .hero .brand small{display:block;font-family:'DM Sans',sans-serif;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:rgba(247,245,242,.55);margin-top:10px}
-    .hero img{width:62px;height:62px;opacity:.92;flex-shrink:0}
-    .body{padding:40px 48px}
-    .doc-title{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#9A8F7A;margin-bottom:8px;font-weight:600}
-    .cliente{font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:500;margin-bottom:4px;line-height:1.1}
-    .meta{font-size:12.5px;color:#7A7A72;margin-bottom:28px}
-    .concepto-box{background:#F4F2ED;border:1px solid #E8E6E0;border-radius:12px;padding:22px 24px;margin-bottom:24px}
-    .concepto-label{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#9A8F7A;margin-bottom:9px;font-weight:600}
-    .concepto-text{font-size:15px;line-height:1.7;color:#1A1A1A;white-space:pre-wrap}
-    .total-row{display:flex;justify-content:space-between;align-items:flex-end;border-top:2px solid #1A1A1A;padding-top:18px;margin-bottom:10px}
-    .total-label{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#7A7A72;font-weight:600;padding-bottom:8px}
-    .total-val{font-family:'Cormorant Garamond',serif;font-size:42px;font-weight:600;color:#1A1A1A;line-height:1}
-    .valid{font-size:12px;color:#7A7A72;margin-bottom:22px}
-    .notas{font-size:13.5px;color:#5A5A52;line-height:1.7;border-left:3px solid #C8BEA8;padding-left:16px;white-space:pre-wrap}
-    .footer{border-top:1px solid #E8E6E0;padding:22px 48px;font-size:12px;color:#9A8F7A;text-align:center;letter-spacing:.3px;line-height:1.9}
-    .actions{max-width:760px;margin:22px auto 0;display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
-    .actions a,.actions button{font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;padding:13px 26px;border-radius:10px;cursor:pointer;border:none;text-decoration:none;display:inline-flex;align-items:center;gap:8px}
-    .b-pdf{background:#1A1A1A;color:#fff}
-    .b-pdf:disabled{opacity:.6;cursor:default}
-    .b-wa{background:#25D366;color:#fff}
-    .b-print{background:#EDEAE4;color:#1A1A1A}
-    /* Forzar impresión de fondos (Chrome los descarta por defecto) y sin márgenes */
-    .sheet,.hero,.concepto-box,.total-row{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    @page{size:A4;margin:0}
-    @media print{ html,body{background:#fff;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact} .sheet{box-shadow:none;border-radius:0;max-width:100%} .actions{display:none} }
-  </style></head><body>
-    <div class="sheet">
-      <div class="hero">
-        <div class="brand">Florería Duhau<small>Park Hyatt Buenos Aires</small></div>
-        <img src="/icon-512.png" alt="">
-      </div>
-      <div class="body">
-        <div class="doc-title">Presupuesto</div>
-        <div class="cliente">${esc(p.cliente||'')}</div>
-        <div class="meta">Fecha: ${fecha}${vto?' · Válido hasta '+vto:''}</div>
-        ${p.concepto?`<div class="concepto-box"><div class="concepto-label">Detalle</div><div class="concepto-text">${esc(p.concepto)}</div></div>`:''}
-        <div class="total-row"><div class="total-label">Total</div><div class="total-val">${monto}</div></div>
-        ${vto?`<div class="valid">Presupuesto válido hasta el ${vto}.</div>`:''}
-        ${p.notas?`<div class="notas">${esc(p.notas)}</div>`:''}
-      </div>
-      <div class="footer">Florería Duhau · Park Hyatt Buenos Aires · Av. Alvear 1661, CABA<br>Tel / WhatsApp: +54 9 11 7050-1615</div>
-    </div>
-    <div class="actions">
-      <button class="b-pdf" id="b-pdf" onclick="descargarPDF()">Descargar PDF</button>
-      <a class="b-wa" href="${waURL}" target="_blank" rel="noopener">Enviar por WhatsApp</a>
-      <button class="b-print" onclick="window.print()">Imprimir</button>
-    </div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"><\/script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"><\/script>
-    <script>
-      var _pdfName = ${JSON.stringify('Presupuesto - ' + String(p.cliente||'Florería Duhau').replace(/[\\/:*?"<>|]+/g,' ').trim() + '.pdf')};
-      async function descargarPDF(){
-        var btn = document.getElementById('b-pdf');
-        var old = btn.textContent; btn.disabled = true; btn.textContent = 'Generando…';
-        try{
-          // Esperar a que carguen las librerías desde el CDN (hasta ~12s)
-          var t0 = Date.now();
-          while((!window.html2canvas || !(window.jspdf && window.jspdf.jsPDF)) && Date.now()-t0 < 12000){
-            await new Promise(function(r){ setTimeout(r, 200); });
-          }
-          if(!window.html2canvas || !(window.jspdf && window.jspdf.jsPDF)){
-            alertModal('No se pudieron cargar los componentes del PDF (revisá la conexión a internet). Como alternativa podés usar "Imprimir".');
-            return;
-          }
-          if(document.fonts && document.fonts.ready){ try{ await document.fonts.ready; }catch(e){} }
-          var sheet = document.querySelector('.sheet');
-          var canvas = await html2canvas(sheet, { scale:2, useCORS:true, backgroundColor:'#FDFCFB' });
-          var img = canvas.toDataURL('image/jpeg', 0.95);
-          var jsPDF = window.jspdf.jsPDF;
-          var pw = 595.28, ph = pw * canvas.height / canvas.width;
-          var pdf = new jsPDF({ unit:'pt', format:[pw, ph] });
-          pdf.addImage(img, 'JPEG', 0, 0, pw, ph);
-          // En celular, si se puede compartir un archivo, abrir el menú nativo (WhatsApp, mail, etc.)
-          var compartido = false;
-          try{
-            var blob = pdf.output('blob');
-            var file = new File([blob], _pdfName, { type:'application/pdf' });
-            if(navigator.canShare && navigator.canShare({ files:[file] })){
-              await navigator.share({ files:[file], title:_pdfName });
-              compartido = true;
-            }
-          }catch(e){ compartido = false; }
-          if(!compartido) pdf.save(_pdfName);
-        }catch(e){
-          alertModal('No se pudo generar el PDF: ' + (e && e.message ? e.message : e));
-        }finally{
-          btn.disabled = false; btn.textContent = old;
-        }
-      }
-    <\/script>
-  </body></html>`);
-  win.document.close();
+  abrirDocumento({
+    tipo: 'Presupuesto',
+    titulo: p.cliente || '',
+    numero: p.id ? 'N° ' + String(p.id).slice(-6) : '',
+    meta: `Fecha: ${fecha}${vto ? ' · Válido hasta ' + vto : ''}`,
+    cuerpo: `${p.concepto ? `<div class="box"><div class="box-label">Detalle</div><div class="box-text">${esc(p.concepto)}</div></div>` : ''}
+      <div class="total-row"><div class="total-label">Total</div><div class="total-val">${fmtPesos(parseMoney(p.monto || 0))}</div></div>
+      ${vto ? `<div class="muted">Presupuesto válido hasta el ${vto}.</div>` : ''}
+      ${p.notas ? `<div class="notas">${esc(p.notas)}</div>` : ''}`,
+    archivo: 'Presupuesto - ' + (p.cliente || MARCA.nombre),
+    waURL: presupuestoWaURL(p),
+  });
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -17786,50 +17702,21 @@ function exportEsfReclamo(){
       <td class="num">${e.monto?fmtMon(e.monto):'—'}</td>
     </tr>`).join('');
 
-  const win = window.open('','_blank');
-  win.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
-  <title>Reclamo de eventos — Florería Duhau</title>
-  <style>
-    *{box-sizing:border-box}
-    body{font-family:'Georgia','Times New Roman',serif;margin:48px;color:#1a1a1a;line-height:1.6}
-    .head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #1a1a1a;padding-bottom:16px;margin-bottom:24px}
-    .brand{font-size:24px;letter-spacing:.5px}
-    .brand small{display:block;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#777;margin-top:4px;font-family:Arial,sans-serif}
-    .meta{text-align:right;font-size:12px;color:#555;font-family:Arial,sans-serif}
-    h1{font-size:18px;margin:8px 0 4px}
-    p.intro{font-size:13.5px;color:#333}
-    table{width:100%;border-collapse:collapse;margin:22px 0;font-family:Arial,sans-serif}
-    th,td{border:1px solid #ccc;padding:8px 10px;font-size:12px;vertical-align:top;text-align:left}
-    th{background:#f2f0eb;text-transform:uppercase;letter-spacing:.5px;font-size:12px;color:#444}
-    td.num,th.num{text-align:right;white-space:nowrap}
-    .muted{color:#888;font-size:12px}
-    tfoot td{font-weight:bold;font-size:14px;background:#faf8f4}
-    .firma{margin-top:48px;font-size:12px;color:#555;font-family:Arial,sans-serif}
-    .firma .line{margin-top:40px;border-top:1px solid #999;width:240px;padding-top:6px}
-    .actions{margin-top:32px}
-    button{padding:10px 22px;cursor:pointer;font-size:13px;border:1px solid #1a1a1a;background:#1a1a1a;color:#fff;border-radius:6px;font-family:Arial,sans-serif}
-    @media print{.actions{display:none}body{margin:0}}
-  </style></head><body>
-    <div class="head">
-      <div class="brand">Florería Duhau<small>Park Hyatt Buenos Aires</small></div>
-      <div class="meta">Fecha: ${hoy}<br>Detalle de reclamo</div>
-    </div>
-    <h1>Reclamo — Eventos sin asignación de servicio floral</h1>
-    <p class="intro">Por la presente dejamos constancia de los eventos detallados a continuación, en los cuales —conforme al acuerdo vigente— correspondía la asignación del servicio floral a Florería Duhau y la misma no fue otorgada, habiéndose contratado a un proveedor externo. Se solicita la regularización / compensación correspondiente.</p>
-    <table>
-      <thead><tr>
+  abrirDocumento({
+    tipo: 'Reclamo',
+    titulo: 'Eventos sin asignación de servicio floral',
+    meta: 'Fecha: ' + hoy,
+    cuerpo: `<p>Por la presente dejamos constancia de los eventos detallados a continuación, en los cuales —conforme al acuerdo vigente— correspondía la asignación del servicio floral a Florería Duhau y la misma no fue otorgada, habiéndose contratado a un proveedor externo. Se solicita la regularización / compensación correspondiente.</p>
+      <table class="t"><thead><tr>
         <th>Fecha</th><th>Evento</th><th>Salón / Zona</th><th>Marca externa</th><th>Arreglo que correspondía</th><th class="num">Monto</th>
       </tr></thead>
       <tbody>${rows}</tbody>
-      <tfoot><tr><td colspan="5" style="text-align:right">TOTAL A RECLAMAR</td><td class="num">${fmtMon(total)}</td></tr></tfoot>
-    </table>
-    <p class="intro" style="font-size:12px;color:#666">Cantidad de eventos incluidos: ${lista.length}.</p>
-    <div class="firma">
-      <div class="line">Florería Duhau</div>
-    </div>
-    <div class="actions"><button onclick="window.print()">Imprimir / Guardar PDF</button></div>
-  </body></html>`);
-  win.document.close();
+      <tfoot><tr><td colspan="5" style="text-align:right">Total a reclamar</td><td class="num">${fmtMon(total)}</td></tr></tfoot>
+      </table>
+      <p class="muted">Cantidad de eventos incluidos: ${lista.length}.</p>
+      <div class="firmas"><div>${MARCA.nombre}</div></div>`,
+    archivo: 'Reclamo eventos - ' + hoy,
+  });
 }
 
 // ════════════════════════════════════════
@@ -17898,25 +17785,26 @@ function verCierreMensual(idx){
   const sorted = [...cierresMensualesData].sort((a,b)=>(b.mes||'').localeCompare(a.mes||''));
   const c = sorted[idx];
   if(!c) return;
-  const win = window.open('','_blank');
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Cierre ${fmtMonth(c.mes)}</title>
-  <style>body{font-family:Arial,sans-serif;margin:40px;color:#1a1a1a}h1{font-size:22px}table{width:100%;border-collapse:collapse;margin:20px 0}th,td{border:1px solid #ccc;padding:8px 12px;font-size:13px}th{background:#f5f5f0}.total{font-weight:bold;font-size:16px}</style></head><body>
-  <h1>Cierre Mensual — ${fmtMonth(c.mes)}</h1>
-  <p style="color:#777">Generado el ${fmtDate(c.fechaCierre)}</p>
-  <table><tbody>
-    <tr><th>Ventas totales</th><td class="total">$${parseMoney(c.totalVentas).toLocaleString('es-AR',{minimumFractionDigits:2})}</td></tr>
-    <tr><th>Compras totales</th><td>$${parseMoney(c.totalCompras).toLocaleString('es-AR',{minimumFractionDigits:2})}</td></tr>
-    <tr><th>Margen bruto</th><td class="total">$${parseMoney(c.margenBruto).toLocaleString('es-AR',{minimumFractionDigits:2})}</td></tr>
-    <tr><th>Ingresos caja</th><td>$${parseMoney(c.ingresosCaja).toLocaleString('es-AR',{minimumFractionDigits:2})}</td></tr>
-    <tr><th>Egresos caja</th><td>$${parseMoney(c.egresosCaja).toLocaleString('es-AR',{minimumFractionDigits:2})}</td></tr>
-    <tr><th>Caja neta</th><td class="total">$${parseMoney(c.totalCaja).toLocaleString('es-AR',{minimumFractionDigits:2})}</td></tr>
-    <tr><th>Cantidad ventas</th><td>${c.cantVentas}</td></tr>
-    <tr><th>Cantidad compras</th><td>${c.cantCompras}</td></tr>
-    <tr><th>Eventos del mes</th><td>${c.cantEventos}</td></tr>
-  </tbody></table>
-  <button onclick="window.print()" style="padding:8px 20px;cursor:pointer">Imprimir</button>
-  </body></html>`);
-  win.document.close();
+  const $ = n => fmtPesos(parseMoney(n));
+  abrirDocumento({
+    tipo: 'Cierre mensual',
+    titulo: fmtMonth(c.mes),
+    meta: 'Generado el ' + fmtDate(c.fechaCierre),
+    cuerpo: `<h2>Resultado</h2>` + kv([
+        ['Ventas totales', $(c.totalVentas)],
+        ['Compras totales', $(c.totalCompras)],
+        ['Margen bruto', $(c.margenBruto), true],
+      ]) + `<h2>Caja</h2>` + kv([
+        ['Ingresos', $(c.ingresosCaja)],
+        ['Egresos', $(c.egresosCaja)],
+        ['Caja neta', $(c.totalCaja), true],
+      ]) + `<h2>Actividad</h2>` + kv([
+        ['Ventas', c.cantVentas ?? '—'],
+        ['Compras', c.cantCompras ?? '—'],
+        ['Eventos', c.cantEventos ?? '—'],
+      ]),
+    archivo: 'Cierre mensual - ' + fmtMonth(c.mes),
+  });
 }
 
 function exportCierrePDF(idx){ verCierreMensual(idx); }
@@ -18332,7 +18220,7 @@ Object.assign(window, {
   openLlamadoModal, llamadoOnZonaChange, llamadoFotoPreview, guardarLlamado, renderLlamadosChecklist, verFotoLlamado, resolverLlamado, eliminarLlamado, renderLlamadosEval,
   openDiaHorario, openEditSaleModal, openEventModal, openEventoDetail, openGestionPasswords,
   openGaleriaModal, openLpCatModal, openLpModal, openRamoModal, openRamoPhoto,
-  openRecetaModal, openSaleModal, delVentaDesdeModal, cotVerTodas, restaurarCajaArchivo, restaurarCajaDesdeResguardo, openSidebar, openTaskModal, openVentaRamo, parseMoney,
+  openRecetaModal, openSaleModal, delVentaDesdeModal, comprobanteVenta, comprobanteVentaDesdeModal, cotVerTodas, restaurarCajaArchivo, restaurarCajaDesdeResguardo, openSidebar, openTaskModal, openVentaRamo, parseMoney,
   populateFloreriaFormHelpers, populateProvSelects, populateSaleSelects,
   phAddItemRow, phSetItemTipo, phSetItemQty, phRemoveItemRow,
   previewEventImg, previewRecetaImg, previewStockImpact, ramoOnCatChange,
