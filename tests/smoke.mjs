@@ -72,6 +72,11 @@ try {
 
   await page.goto(BASE, { waitUntil: 'load', timeout: 20000 });
   await page.waitForTimeout(1500);
+  // Errores al cargar la app (antes de navegar) también cuentan, y si la app
+  // no llegó a arrancar (navigate no existe) el test tiene que fallar.
+  const alCargar = errors.filter((e) => !IGNORE.test(e));
+  if (alCargar.length) { failed = true; problems.push(`  ✗ (carga inicial)\n${alCargar.map((n) => '      ' + n).join('\n')}`); }
+  if (!(await page.evaluate(() => typeof window.navigate === 'function'))) { failed = true; problems.push('  ✗ la app no arrancó: window.navigate no existe'); }
   await page.evaluate(() => {
     const ls = document.getElementById('login-screen'); if (ls) ls.style.display = 'none';
     window.userRole = 'gerencia';
