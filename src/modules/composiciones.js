@@ -8,6 +8,7 @@ import { nombreArticulo } from './articulos-base.js';
 import { _ingVaras, calcCostoComposicion } from './cotizador.js';
 import { getAreaUsoZonas } from './compras.js';
 import { leerFotoComprimida } from './imagenes.js';
+import { badgeCategoriaVaraDe } from './categoria-vara.js';
 
 let D = {};
 export function configurarComposiciones(deps){ D = deps; }
@@ -154,7 +155,7 @@ export function renderRecetas(){
         ${r.ings.map(ing=>`
           <div class="receta-ing-row">
             <span style="font-size:18px;line-height:1"></span>
-            <span style="flex:1;font-weight:500">${esc(ing.prod)}</span>
+            <span style="flex:1;font-weight:500">${esc(ing.prod)} ${badgeCategoriaVaraDe(ing.prod)}</span>
             <span style="background:var(--surface-2);border-radius:4px;padding:2px 8px;font-size:12px;font-weight:600">${_fmtCant(ing.qty)} vara${(+ing.qty)===1?'':'s'}</span>
           </div>`).join('')}
       </div>
@@ -230,7 +231,7 @@ export function renderComposicionesHotel(){
           const eqVaras = ing.unidad==='paq' ? _ingVaras(ing) : 0;
           return `<div class="receta-ing-row">
           <span style="font-size:18px;line-height:1"></span>
-          <span style="flex:1;font-weight:500">${esc(ing.prod)}</span>
+          <span style="flex:1;font-weight:500">${esc(ing.prod)} ${badgeCategoriaVaraDe(ing.prod)}</span>
           <span style="background:var(--surface-2);border-radius:4px;padding:2px 8px;font-size:12px;font-weight:600" title="${ing.unidad==='paq'?(eqVaras?_fmtCant(eqVaras)+' varas':'cargá varas por paquete en Compras'):''}">${_fmtIngUnidad(ing)}${ing.unidad==='paq'&&eqVaras?` · ${_fmtCant(eqVaras)}v`:''}</span>
         </div>`;
         }).join('')}

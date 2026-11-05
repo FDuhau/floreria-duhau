@@ -10,6 +10,7 @@ import { cotizadorPrecios } from './cotizador.js';
 import { claveCostoPara } from './articulos-base.js';
 import { icon } from './iconos.js';
 import { comprimirImagen } from './imagenes.js';
+import { cartelCategoriaVara, historialCostoVara } from './categoria-vara.js';
 
 let D = {};
 export function configurarRecepcion(deps){ D = deps; }
@@ -190,6 +191,14 @@ export function renderRecepcionPedidos(){
           }
         </div>
       </div>
+      ${(()=>{
+        // Cómo entra hoy esta vara (estación / importada / premium) con el
+        // precio de la compra y las varas por paquete que se están cargando.
+        const precio = parseMoney(order.costo), vpp = parseFloat(st.varasPorPaq)||0;
+        if(!(precio>0) || !(vpp>1)) return '';
+        const previo = historialCostoVara(order.prod, D.comprasFlore, order)[0]?.costoVara || 0;
+        return `<div style="padding:0 14px 10px">${cartelCategoriaVara(precio/vpp, previo)}</div>`;
+      })()}
       <div class="recep-footer">
         <div class="recep-progress">
           ${st.checked

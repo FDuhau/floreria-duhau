@@ -14,6 +14,8 @@ import { compraCant, compraImporte, resumenCompras } from './dinero.js';
 import { icon } from './iconos.js';
 import { claveCostoPara, mismoArticulo, nombreArticulo } from './articulos-base.js';
 
+import { badgeCategoriaVara, cartelCategoriaVara, historialCostoVara } from './categoria-vara.js';
+
 let D = {};
 export function configurarCompras(deps){ D = deps; }
 
@@ -410,6 +412,7 @@ export function addCompra(type){
     const el=document.getElementById(p+'-'+id);
     if(el) el.value='';
   });
+  if(type==='floreria') cfCategoriaVaraPreview();
   renderCompras(type);
   if(document.getElementById('page-stock').classList.contains('active')) D.renderStock();
   updateKpiCompras();
@@ -983,7 +986,12 @@ export function renderCompras(type){
       const _imp = parseMoney(r.costo)>0 ? '$'+_compraImporte(r).toLocaleString('es-AR') : '<span style="color:var(--mid-gray)">—</span>';
       const _cvDiv = parseFloat(r.varasPorPaq)||parseFloat(r.totalVaras)||parseFloat(r.qty)||0;
       const _cvVal = (parseMoney(r.costo)>0 && _cvDiv>0) ? Math.round(parseMoney(r.costo)/_cvDiv) : null;
-      const _cv = _cvVal!=null ? '$'+_cvVal.toLocaleString('es-AR') : '<span style="color:var(--mid-gray)">—</span>';
+      // Categoría de la vara (estación / importada / premium) con el costo de
+      // ESTA compra: varas por paquete de la compra o, si todavía no se
+      // recibió, las últimas conocidas del producto.
+      const _catVpp = type==='floreria' ? ((parseFloat(r.varasPorPaq)||0)>1 ? parseFloat(r.varasPorPaq) : (getVarasPorPaq(r.prod)||0)) : 0;
+      const _catBadge = (_catVpp>1 && parseMoney(r.costo)>0) ? '<div>'+badgeCategoriaVara(parseMoney(r.costo)/_catVpp)+'</div>' : '';
+      const _cv = _cvVal!=null ? '$'+_cvVal.toLocaleString('es-AR')+_catBadge : '<span style="color:var(--mid-gray)">—</span>'+_catBadge;
       html += `<tr style="${D._recepFlagStyle(r)}">
       <td data-label="Fecha"><input class="form-input" type="date" value="${esc(r.fecha)}" onchange="updC('${type}',${i},'fecha',this.value)" style="min-width:130px"></td>
       <td data-label="Pedido por"><input class="form-input" value="${esc(r.pedidopor)}" onchange="updC('${type}',${i},'pedidopor',this.value)" style="min-width:100px"></td>
@@ -1218,7 +1226,7 @@ function _histTablaFloreria(items){
           <td style="padding:6px 10px;text-align:center">${an ? '<span style="font-size:12px;font-weight:700;background:var(--mid-gray);color:#fff;padding:2px 7px;border-radius:5px;white-space:nowrap">Anulado</span>' : controlBadgeCompra(r)}</td>
           <td style="padding:6px 10px;text-align:right"><input class="form-input" value="${esc(r.costo||'')}" placeholder="$" onchange="updHistCostoCompra('floreria',${idx},this.value)" style="width:90px;text-align:right" ${an?'disabled':''}></td>
           <td style="padding:6px 10px;text-align:right;font-weight:600">${parseMoney(r.costo)>0?'$'+_compraImporte(r).toLocaleString('es-AR'):'<span style="color:var(--mid-gray);font-weight:400">—</span>'}</td>
-          <td style="padding:6px 10px;text-align:right;font-weight:700;color:var(--sage-dark)">${cvVal!=null?'$'+cvVal.toLocaleString('es-AR'):'<span style="color:var(--mid-gray);font-weight:400">—</span>'}</td>
+          <td style="padding:6px 10px;text-align:right;font-weight:700;color:var(--sage-dark)">${cvVal!=null?'$'+cvVal.toLocaleString('es-AR')+((parseFloat(r.varasPorPaq)||0)>1?'<div>'+badgeCategoriaVara(cvVal)+'</div>':''):'<span style="color:var(--mid-gray);font-weight:400">—</span>'}</td>
           <td style="padding:6px 10px;text-align:center;white-space:nowrap"><button class="btn-secondary" style="font-size:12px;padding:3px 8px" onclick="toggleAnularCompra('floreria',${idx})">${an?icon('undo')+'Reactivar':'Anular'}</button></td>
         </tr>`; }).join('')}</tbody>
       </table>`;
@@ -1423,6 +1431,26 @@ export function getUltimoPrecioCompra(prod){
   });
   return best===null ? null : { precio: best, fecha: bestFecha };
 }
+
+// Cartel al costado del precio al cargar una compra de Florería: dice si la
+// vara entra hoy como de estación, importada o premium (según los límites de
+// gerencia) y avisa si cambió respecto de la compra anterior. El costo por vara
+// sale del precio por paquete ÷ las últimas varas por paquete conocidas.
+export function cfCategoriaVaraPreview(){
+  const out = document.getElementById('cf-cat-vara');
+  if(!out) return;
+  const prod = (document.getElementById('cf-producto')?.value||'').trim();
+  const precio = parseMoney(document.getElementById('cf-costo')?.value);
+  if(!prod || !(precio>0)){ out.innerHTML = ''; return; }
+  const vpp = getVarasPorPaq(prod) || 0;
+  if(!(vpp>1)){
+    out.innerHTML = `<div class="cat-vara-cartel">Todavía no sé cuántas varas trae el paquete de ${esc(prod)}, así que no puedo decir si entra como estación, importada o premium. Se calcula al recibir el pedido.</div>`;
+    return;
+  }
+  const previo = historialCostoVara(prod, D.comprasFlore)[0]?.costoVara || 0;
+  out.innerHTML = cartelCategoriaVara(precio/vpp, previo, { nota:`Calculado con ${vpp} varas por paquete (última compra).` });
+}
+window.cfCategoriaVaraPreview = cfCategoriaVaraPreview;
 
 // ════════════════════════════════════════════════════════════════════════
 //  PEDIDO AUTOMÁTICO (Compras Florería)

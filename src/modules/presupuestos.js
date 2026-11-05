@@ -1,6 +1,7 @@
 // Separado de app.js. Lo que necesita de app.js llega por configurarPresupuestos():
 //   TODAY_ISO, arregloEmoji, closeModal, comprasFlore, fbSave, navigate, recetasData, stockData
 
+import { badgeCategoriaVara, categoriaVara, guardarLimitesCategoriaVara, historialCostoVara, htmlLimitesCategoriaVara } from './categoria-vara.js';
 import { esc, fmtDate, parseMoney } from './utils.js';
 import { validarCampos } from './validacion.js';
 import { showToast } from './tema-toast.js';
@@ -253,7 +254,7 @@ function cpRenderFreeRows(){
     // costo por vara (precio por paquete ÷ varas por paquete).
     const { ref, costoVara } = cpCostoVara(row.prod);
     const refLabel = ref
-      ? `costo ${_cpMoney(ref.precio)}/paq${ref.fecha?' · '+_ddmm(ref.fecha):''}${costoVara>0?' · '+_cpMoney(Math.round(costoVara))+'/vara':''}`
+      ? `costo ${_cpMoney(ref.precio)}/paq${ref.fecha?' · '+_ddmm(ref.fecha):''}${costoVara>0?' · '+_cpMoney(Math.round(costoVara))+'/vara '+badgeCategoriaVara(costoVara):''}`
       : (row.prod ? '<span style="color:var(--mid-gray)">sin costo cargado</span>' : '');
     return `
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
@@ -475,7 +476,55 @@ export function renderCostoVaras(){
   const dl = document.getElementById('cv-prod-list');
   if(dl) dl.innerHTML = cvProductos().map(p=>`<option value="${esc(p)}">`).join('');
   cvRender();
+  cvCatRender();
 }
+
+// ── Categoría actual de cada vara (estación / importada / premium) ───────────
+// Tablero de referencia para gerencia y floristas: con el costo de HOY, cómo
+// entra cada flor. Marca las que cambiaron de categoría respecto de la compra
+// anterior, para no elegir una vara "por costumbre" cuando hoy está cara.
+let cvCatFiltro = '';
+export function cvCatBuscar(v){ cvCatFiltro = String(v||''); cvCatRender(); }
+
+function cvCatRender(){
+  const lim = document.getElementById('cv-cat-limites');
+  if(lim) lim.innerHTML = htmlLimitesCategoriaVara(window.userRole==='gerencia');
+  const out = document.getElementById('cv-cat-lista');
+  if(!out) return;
+  const norm = x => String(x||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  const f = norm(cvCatFiltro.trim());
+  const vistos = {};
+  (D.comprasFlore||[]).forEach(c=>{ if(c.prod && !c.anulado) vistos[String(c.prod).trim().toLowerCase()] = c.prod; });
+  const items = Object.values(vistos)
+    .filter(p => !/\b(flete|tax|taxi|envio|env[ií]o)\b/i.test(p))   // gastos cargados como compra, no son flores
+    .filter(p => !f || norm(p).includes(f))
+    .map(prod => {
+      const { costoVara, vpp } = cpCostoVara(prod);
+      if(!(costoVara>0) || !(vpp>1)) return null;   // sin varas por paquete el costo no es confiable
+      const previo = historialCostoVara(prod, D.comprasFlore)[1]?.costoVara || 0;
+      const cat = categoriaVara(costoVara), catPrev = categoriaVara(previo);
+      return { prod, costoVara, cat, catPrev: (catPrev && catPrev.id!==cat.id) ? catPrev : null };
+    })
+    .filter(Boolean);
+  if(!items.length){
+    out.innerHTML = `<div style="font-size:13px;color:var(--mid-gray)">${f?'Sin resultados.':'Todavía no hay flores con costo y varas por paquete cargados.'}</div>`;
+    return;
+  }
+  const titulos = { premium:'Premium', importada:'Importada', estacion:'De estación' };
+  out.innerHTML = ['premium','importada','estacion'].map(g=>{
+    const lista = items.filter(x=>x.cat.id===g).sort((a,b)=>b.costoVara-a.costoVara);
+    if(!lista.length) return '';
+    return `<div style="margin-bottom:12px">
+      <div style="margin-bottom:6px"><span class="cat-vara cat-vara-${g}">${titulos[g]}</span> <span style="font-size:12px;color:var(--mid-gray)">${lista.length}</span></div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">${lista.map(x=>`<span style="display:inline-flex;gap:6px;align-items:baseline;border:1px solid ${x.catPrev?'var(--amber)':'var(--light-gray)'};border-radius:8px;padding:4px 9px;font-size:13px;background:var(--warm-white)"${x.catPrev?` title="${esc('En la compra anterior figuraba como '+x.catPrev.nombre.toLowerCase())}"`:''}>${esc(x.prod)} <span style="color:var(--mid-gray);font-size:12px">${_cpMoney(x.costoVara)}</span>${x.catPrev?`<span style="font-size:11.5px;color:var(--amber);font-weight:600">antes ${x.catPrev.corto.toLowerCase()}</span>`:''}</span>`).join('')}</div>
+    </div>`;
+  }).join('');
+}
+
+export function guardarLimitesCatVara(campo, valor){
+  guardarLimitesCategoriaVara(campo, valor, { fbSave: D.fbSave, showToast, onGuardado: renderCostoVaras });
+}
+Object.assign(window, { cvCatBuscar, guardarLimitesCatVara });
 
 // Productos cuya última compra no tiene varas por paquete cargadas (o dice 1):
 // ahí el costo por vara sale igual al del paquete entero. Se corrigen desde acá.
@@ -529,7 +578,7 @@ function cvRender(){
       if(costoVara>0) total += sub; else sinCosto++;
     }
     const costoTxt = !row.prod ? ''
-      : costoVara>0 ? `<strong>${_cpMoney(costoVara)}</strong><span style="color:var(--mid-gray)"> /vara</span>${ref&&ref.fecha?`<div style="font-size:12px;color:var(--mid-gray)">costo del ${_ddmm(ref.fecha)}</div>`:''}${ref&&!(vpp>1)?'<div style="font-size:12px;color:var(--red-alert)">revisar varas por paquete ↓</div>':''}`
+      : costoVara>0 ? `<strong>${_cpMoney(costoVara)}</strong><span style="color:var(--mid-gray)"> /vara</span> ${badgeCategoriaVara(costoVara)}${ref&&ref.fecha?`<div style="font-size:12px;color:var(--mid-gray)">costo del ${_ddmm(ref.fecha)}</div>`:''}${ref&&!(vpp>1)?'<div style="font-size:12px;color:var(--red-alert)">revisar varas por paquete ↓</div>':''}`
       : '<span style="color:var(--red-alert);font-size:12px">sin costo cargado</span>';
     return `<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
       <input value="${esc(row.cant)}" inputmode="decimal" onchange="cvSet(${i},'cant',this.value)" title="Cantidad de varas — admite 1/2, 1/4" style="width:70px;border:1px solid var(--light-gray);border-radius:6px;padding:8px;text-align:center;font-size:14px">
@@ -624,7 +673,7 @@ function cvTRender(){
     }).join('');
     return `<tr style="border-top:1px solid var(--surface-2)">
       <td style="padding:4px 8px;min-width:150px"><input value="${esc(r.prod)}" list="cv-prod-list" onchange="cvTSetProd(${i},this.value)" style="width:100%;border:1px solid ${costoVara>0?'var(--light-gray)':'var(--red-alert)'};border-radius:6px;padding:5px 7px;font-size:12.5px"></td>
-      <td style="text-align:right;padding:4px 8px;white-space:nowrap;font-size:12px">${costoVara>0?_cpMoney(costoVara)+'/vara':'<span style="color:var(--red-alert)">sin costo</span>'}</td>${celdas}</tr>`;
+      <td style="text-align:right;padding:4px 8px;white-space:nowrap;font-size:12px">${costoVara>0?_cpMoney(costoVara)+'/vara<div>'+badgeCategoriaVara(costoVara)+'</div>':'<span style="color:var(--red-alert)">sin costo</span>'}</td>${celdas}</tr>`;
   }).join('');
   out.innerHTML = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
     <thead><tr style="color:var(--mid-gray);font-size:12px;text-transform:uppercase"><th style="text-align:left;padding:4px 8px">Flor</th><th style="text-align:right;padding:4px 8px">Costo vara</th>${cols.map(c=>`<th style="text-align:right;padding:4px 8px">${esc(c)}</th>`).join('')}</tr></thead>

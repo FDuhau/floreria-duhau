@@ -12,6 +12,7 @@ import { showToast } from './tema-toast.js';
 import { confirmModal } from './modales.js';
 import { getAreaUsoZonas } from './compras.js';
 import { ventasData } from './ventas.js';
+import { badgeCategoriaVaraDe } from './categoria-vara.js';
 
 let D = {};
 export function configurarStock(deps){ D = deps; }
@@ -195,7 +196,7 @@ export function renderStock(){
     const paqHtml = _stockPaqHtml(item);
 
     tbody.innerHTML += `<tr>
-      <td style="font-weight:500">${esc(item.prod)}${item.color?`<div style="font-size:12px;font-weight:400;color:var(--mid-gray)">${esc(item.color)}</div>`:''}</td>
+      <td style="font-weight:500">${esc(item.prod)} ${badgeCategoriaVaraDe(item.prod)}${item.color?`<div style="font-size:12px;font-weight:400;color:var(--mid-gray)">${esc(item.color)}</div>`:''}</td>
       <td style="font-size:12px;color:var(--mid-gray)">${esc(item.area)}</td>
       <td>${item.min}</td><td>${item.max}</td>
       <td><div style="display:flex;align-items:center;gap:4px">
@@ -348,7 +349,7 @@ export function renderStockAdmin(){
     }
 
     tbody.innerHTML += `<tr>
-      <td style="font-weight:500">${esc(item.prod)}${item.color?`<div style="font-size:12px;font-weight:400;color:var(--mid-gray)">${esc(item.color)}</div>`:''}</td>
+      <td style="font-weight:500">${esc(item.prod)} ${badgeCategoriaVaraDe(item.prod)}${item.color?`<div style="font-size:12px;font-weight:400;color:var(--mid-gray)">${esc(item.color)}</div>`:''}</td>
       <td style="font-size:12px;color:var(--mid-gray)">${esc(item.area)}</td>
       <td><input type="number" step="0.5" min="0" value="${item.min}"
         style="width:58px;border:1px solid var(--light-gray);border-radius:6px;padding:4px 6px;font-size:12px;font-family:'DM Sans',sans-serif"
