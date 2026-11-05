@@ -7,6 +7,7 @@ import { showToast } from './tema-toast.js';
 import { confirmModal } from './modales.js';
 import { _stockIngresar, renderStock } from './stock.js';
 import { cotizadorPrecios } from './cotizador.js';
+import { claveCostoPara } from './articulos-base.js';
 import { icon } from './iconos.js';
 import { comprimirImagen } from './imagenes.js';
 import { cartelCategoriaVara, historialCostoVara } from './categoria-vara.js';
@@ -328,7 +329,7 @@ export function _subirCompraAlStock(idx){
   o.estado = 'recibido';
   o.totalVaras = totalVaras;
   const costoTotal = parseMoney(o.costo);
-  if(costoTotal > 0 && varasPaq > 0) cotizadorPrecios[o.prod] = Math.round(costoTotal / varasPaq);
+  if(costoTotal > 0 && varasPaq > 0) cotizadorPrecios[claveCostoPara(cotizadorPrecios, o.prod)] = Math.round(costoTotal / varasPaq);
   return totalVaras;
 }
 

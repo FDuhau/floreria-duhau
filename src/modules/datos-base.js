@@ -42,6 +42,7 @@ export const PAGE_LABELS = {control:'Control','control-jardineria':'Control › 
   'presupuestos': 'Comercial › Presupuestos Enviados',
   'cotizar-presupuesto': 'Comercial › Armar cotización',
   'costo-varas': 'Comercial › Costo de varas',
+  'unificar-articulos': 'Compras › Unificar artículos',
   'cierre-mensual': 'Contable › Cierre Mensual',
   'cierre-dia': 'Reportes › Cierre del Día',
   'tareas-gerencia': 'Gerencia › Tareas Pendientes'

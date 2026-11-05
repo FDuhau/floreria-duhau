@@ -7,6 +7,7 @@
 import { calcStockImpact } from './eventos.js';
 import { _varasPorPaqResuelto } from './cotizador.js';
 import { esc } from './utils.js';
+import { claveArticulo, mismoArticulo, nombreArticulo } from './articulos-base.js';
 import { showToast } from './tema-toast.js';
 import { confirmModal } from './modales.js';
 import { getAreaUsoZonas } from './compras.js';
@@ -41,15 +42,15 @@ function _colorCoincide(color, desc){
 }
 // Renglones de stock de un producto por nombre exacto (todos sus colores)
 export function _stockFilasDe(prod){
-  const pl = String(prod||'').trim().toLowerCase();
-  return D.stockData.filter(s => String(s.prod||'').trim().toLowerCase() === pl);
+  return D.stockData.filter(s => mismoArticulo(s.prod, prod));
 }
 // Suma varas a un producto recibido. Si el pedido trae color en la descripción
 // va al renglón de ese color (se crea si no existe); si no, al renglón sin color.
 // Devuelve true si creó un renglón nuevo.
 export function _stockIngresar(prod, desc, sector, qty){
-  const prodLower = String(prod||'').toLowerCase();
-  const filas = D.stockData.filter(s => s.prod.toLowerCase().includes(prodLower) || prodLower.includes(s.prod.toLowerCase()));
+  // Mismo artículo (sin importar mayúsculas, tildes ni plural). Antes se
+  // comparaba "contiene": recibir "Pino" sumaba también a "Pino Thuja".
+  const filas = D.stockData.filter(s => mismoArticulo(s.prod, prod));
   const d = String(desc||'').trim();
   const sumar = f => { f.actual = +Math.max(0, f.actual + qty).toFixed(1); };
   if(d){
@@ -68,7 +69,7 @@ export function getStockEnPedido(item){
   // Pedidos en curso (pedidos aún no recibidos)
   const coloresDelProd = _stockFilasDe(item.prod).map(f=>f.color).filter(Boolean);
   const pending = [...D.comprasFlore,...D.comprasJard].filter(c=>
-    c.estado!=='recibido' && !c.anulado && c.prod && c.prod.toLowerCase().includes(item.prod.toLowerCase()) &&
+    c.estado!=='recibido' && !c.anulado && c.prod && mismoArticulo(c.prod, item.prod) &&
     (item.color ? _colorCoincide(item.color, c.desc) : !coloresDelProd.some(col => _colorCoincide(col, c.desc)))
   );
   return +(pending.reduce((s,c)=>s+parseFloat(c.qty||0),0).toFixed(1));
@@ -80,13 +81,12 @@ export function getStockComprometido(item){
   // Suma de ingredientes requeridos por eventos que aún no se confirmaron/realizaron
   const ACTIVE_ESTADOS = ['Pedidos Pendientes','En Proceso','Pendiente de Colocacion','Pendiente de Retiro'];
   let total = 0;
-  const prodLower = item.prod.toLowerCase();
   D.eventosData.forEach(ev=>{
     if(!ACTIVE_ESTADOS.includes(ev.estado)) return;
     if(!ev.arreglos?.length) return;
     const impact = calcStockImpact(ev.arreglos);
     Object.entries(impact).forEach(([prod,qty])=>{
-      if(prod.toLowerCase()===prodLower) total += qty;
+      if(mismoArticulo(prod, item.prod)) total += qty;
     });
   });
   return +(total.toFixed(1));
@@ -298,11 +298,11 @@ export function openAddStockModal(){
 }
 
 export function guardarStockManual(){
-  const prod = document.getElementById('as-prod').value.trim();
+  const prod = nombreArticulo(document.getElementById('as-prod').value);
   if(!prod){ showToast('Poné el nombre del producto','error'); return; }
   const color = document.getElementById('as-color').value.trim();
   const area = document.getElementById('as-area').value.trim() || 'Sin área';
-  const dup = D.stockData.find(s => (s.prod||'').trim().toLowerCase()===prod.toLowerCase() && _stockColor(s)===color.toLowerCase() && (s.area||'').trim().toLowerCase()===area.toLowerCase());
+  const dup = D.stockData.find(s => mismoArticulo(s.prod, prod) && _stockColor(s)===color.toLowerCase() && (s.area||'').trim().toLowerCase()===area.toLowerCase());
   if(dup){ showToast('Ya existe ese producto en esa área'); return; }
   const actual = Math.max(0, parseFloat(document.getElementById('as-actual').value)||0);
   const min = Math.max(0, parseFloat(document.getElementById('as-min').value)||0);
@@ -395,7 +395,7 @@ export function calcStockMinInteligente(){
   const consumo = {};
   const addConsumo = (prod, qty) => {
     if(!prod) return;
-    const k = prod.toLowerCase();
+    const k = claveArticulo(prod);
     consumo[k] = (consumo[k]||0) + (+qty||0);
   };
   (ventasData||[]).filter(v=>v.fecha>=cutoffISO).forEach(v=>{
@@ -406,7 +406,7 @@ export function calcStockMinInteligente(){
     Object.entries(impact).forEach(([prod,qty])=>addConsumo(prod,qty));
   });
   return D.stockData.map((s,i)=>{
-    const k = s.prod.toLowerCase();
+    const k = claveArticulo(s.prod);
     const totalUsado = consumo[k]||0;
     const promDia = totalUsado/DAYS;
     const minSugerido = +(promDia*7).toFixed(1);

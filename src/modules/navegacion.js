@@ -57,7 +57,7 @@ export const NAV_SECCIONES = [
     ] },
     { id: 'compras', label: 'Compras', icon: 'compras', pages: [
       ['compras-floreria', 'Florería'], ['compras-jardineria', 'Jardinería y general'], ['recepcion-pedidos', 'Recepción de pedidos'],
-      ['proveedores', 'Proveedores'], ['precio-comparacion', 'Comparar precios'],
+      ['proveedores', 'Proveedores'], ['precio-comparacion', 'Comparar precios'], ['unificar-articulos', 'Unificar artículos'],
     ] },
     { id: 'equipo', label: 'Equipo', icon: 'equipo', pages: [
       ['legajo', 'Legajos'], ['control-horarios', 'Horarios'], ['evaluaciones', 'Evaluaciones'], ['liquidacion', 'Horas extra'], ['reportes-equipo', 'Reporte del equipo'],

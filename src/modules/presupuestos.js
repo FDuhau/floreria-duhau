@@ -9,6 +9,7 @@ import { confirmModal } from './modales.js';
 import { MARCA, abrirDocumento, fmtPesos } from './documento-marca.js';
 import { calcCostoComposicion, cotizadorPrecios, resolveCotizadorPrecio } from './cotizador.js';
 import { getUltimoPrecioCompra, recalcCotizadorPrecio } from './compras.js';
+import { claveArticulo, costoGuardado, mismoArticulo, nombresPorArticulo } from './articulos-base.js';
 
 let D = {};
 export function configurarPresupuestos(deps){ D = deps; }
@@ -213,10 +214,9 @@ function _ddmm(f){ if(!f) return ''; const p=String(f).split('-'); return (p[2]&
 
 // Última compra válida (no anulada, con costo) de un producto de Florería.
 function _cpUltimaCompra(prod){
-  const pl = String(prod||'').trim().toLowerCase();
   let best = null;
   (D.comprasFlore||[]).forEach(c=>{
-    if(c.anulado || String(c.prod||'').trim().toLowerCase() !== pl) return;
+    if(c.anulado || !mismoArticulo(c.prod, prod)) return;
     if(!(parseMoney(c.costo)>0)) return;
     if(!best || (c.fecha||'') >= (best.fecha||'')) best = c;
   });
@@ -233,15 +233,14 @@ function cpCostoVara(prod){
   const ref = c ? { precio: parseMoney(c.costo), fecha: c.fecha||'' } : null;
   let vpp = c ? (parseFloat(c.varasPorPaq) || 0) : 0;
   if(c && !(vpp > 1)){
-    const pl = String(prod).trim().toLowerCase();
     let f = '';
     (D.comprasFlore||[]).forEach(x=>{
       const v = parseFloat(x.varasPorPaq) || 0;
-      if(x.anulado || v <= 1 || String(x.prod||'').trim().toLowerCase() !== pl) return;
+      if(x.anulado || v <= 1 || !mismoArticulo(x.prod, prod)) return;
       if((x.fecha||'') >= f){ f = x.fecha||''; vpp = v; }
     });
   }
-  const guardado = prod ? (+cotizadorPrecios[prod] || 0) : 0;
+  const guardado = prod ? costoGuardado(cotizadorPrecios, prod) : 0;
   const costoVara = (ref && vpp > 1) ? ref.precio / vpp : (guardado || (ref ? ref.precio / (vpp || 1) : 0));
   return { ref, vpp: vpp || null, costoVara };
 }
@@ -430,8 +429,17 @@ export function cpGuardar(){
 let cvRows = [];   // [{cant, prod}]  (cant como texto para admitir 1/2)
 
 function cvProductos(){
-  return [...new Set([...(D.stockData||[]).map(s=>s.prod), ...Object.keys(cotizadorPrecios||{}), ...(D.comprasFlore||[]).map(c=>c.prod)])]
-    .filter(Boolean).sort((a,b)=>a.localeCompare(b,'es'));
+  return _sinRepetidos([...(D.stockData||[]).map(s=>s.prod), ...Object.keys(cotizadorPrecios||{}), ...(D.comprasFlore||[]).map(c=>c.prod)]);
+}
+// Una sola forma por artículo (la primera que aparece: stock, costos, compras).
+function _sinRepetidos(nombres){
+  const vistos = new Set();
+  return nombres.filter(n => {
+    if(!n || !String(n).trim()) return false;
+    const k = claveArticulo(n);
+    if(vistos.has(k)) return false;
+    vistos.add(k); return true;
+  }).sort((a,b)=>a.localeCompare(b,'es'));
 }
 
 // Empareja lo escrito con un producto conocido: exacto (sin mayúsculas/tildes) y,
@@ -441,7 +449,7 @@ function cvResolverProd(txt){
   const t = norm(txt);
   if(!t) return '';
   const prods = cvProductos();
-  const exacto = prods.find(p=>norm(p)===t);
+  const exacto = prods.find(p=>claveArticulo(p)===claveArticulo(txt));
   if(exacto) return exacto;
   const parecidos = prods.filter(p=>norm(p).includes(t));
   if(parecidos.length===1) return parecidos[0];
@@ -485,9 +493,10 @@ function cvCatRender(){
   if(!out) return;
   const norm = x => String(x||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
   const f = norm(cvCatFiltro.trim());
-  const vistos = {};
-  (D.comprasFlore||[]).forEach(c=>{ if(c.prod && !c.anulado) vistos[String(c.prod).trim().toLowerCase()] = c.prod; });
-  const items = Object.values(vistos)
+  // Un renglón por artículo aunque esté cargado con varias formas (Anémonas /
+  // Anemonas / anémonas): agrupa por la misma clave que "Unificar artículos".
+  const nombres = nombresPorArticulo((D.comprasFlore||[]).filter(c=>c.prod && !c.anulado).map(c=>c.prod), Object.keys(cotizadorPrecios||{}));
+  const items = nombres
     .filter(p => !/\b(flete|tax|taxi|envio|env[ií]o)\b/i.test(p))   // gastos cargados como compra, no son flores
     .filter(p => !f || norm(p).includes(f))
     .map(prod => {
@@ -521,9 +530,7 @@ Object.assign(window, { cvCatBuscar, guardarLimitesCatVara });
 // Productos cuya última compra no tiene varas por paquete cargadas (o dice 1):
 // ahí el costo por vara sale igual al del paquete entero. Se corrigen desde acá.
 function cvSospechosos(){
-  const vistos = {};
-  (D.comprasFlore||[]).forEach(c=>{ if(c.prod) vistos[String(c.prod).trim().toLowerCase()] = c.prod; });
-  return Object.values(vistos)
+  return nombresPorArticulo((D.comprasFlore||[]).map(c=>c.prod), Object.keys(cotizadorPrecios||{}))
     .map(prod => ({ prod, c:_cpUltimaCompra(prod) }))
     .filter(o => o.c && !((cpCostoVara(o.prod).vpp||0) > 1))
     .map(o => o.c)

@@ -4,6 +4,7 @@
 import { showToast } from './tema-toast.js';
 import { confirmModal, promptModal } from './modales.js';
 import { esc } from './utils.js';
+import { nombreArticulo } from './articulos-base.js';
 import { _ingVaras, calcCostoComposicion } from './cotizador.js';
 import { getAreaUsoZonas } from './compras.js';
 import { leerFotoComprimida } from './imagenes.js';
@@ -342,7 +343,7 @@ export function saveReceta(){
   rows.forEach(row=>{
     const prodInp = row.querySelector('input[list]');
     const qtyInp  = row.querySelector('input[type=text]:not([list])');
-    const prod = prodInp?.value.trim();
+    const prod = nombreArticulo(prodInp?.value || '');
     if(prod) ings.push({ prod, qty: _parseCant(qtyInp?.value) || 1 });
   });
   if(ings.length===0){ showToast('Agregá al menos un ingrediente.','error'); return; }

@@ -10,6 +10,7 @@ import { confirmModal, promptModal } from './modales.js';
 import { showToast } from './tema-toast.js';
 import { getVarasPorPaq } from './compras.js';
 import { ingVaras } from './dinero.js';
+import { claveCostoPara, costoGuardado } from './articulos-base.js';
 
 import { badgeCategoriaVara, usarConfigCategoriaVara } from './categoria-vara.js';
 
@@ -81,7 +82,7 @@ export function renderCotizadorOps(){
     return;
   }
   grid.innerHTML = list.map(f => {
-    const costo      = cotizadorPrecios[f.n] || 0;
+    const costo      = cotizadorPrecioVara(f.n);
     const pFinal     = Math.round(costo*(1+margen/100));
     const precioTxt  = pFinal > 0
       ? `<span style="color:var(--sage-dark);font-weight:600">$${pFinal.toLocaleString('es-AR')}/vara</span>`
@@ -161,7 +162,7 @@ export function cotAgregarOpsStock(stockIdx){
   const s      = D.stockData[stockIdx];
   if(!s) return;
   const qty    = Math.max(1, +document.getElementById('cotops_'+stockIdx)?.value||1);
-  const costo  = cotizadorPrecios[s.prod] || 0;
+  const costo  = cotizadorPrecioVara(s.prod);
   const margen = cotizadorConfig?.margen ?? 30;
   const precio = Math.round(costo*(1+margen/100));
   const ex     = cotCarritoOps.find(c=>c.nombre===s.prod);
@@ -327,7 +328,7 @@ export function renderCotizador(){
   const visibles = corto ? list.slice(0, COT_MOBILE_MAX) : list;
   grid.innerHTML = visibles.map(f => {
     const idx = COT_ALL.findIndex(x=>x.n===f.n);
-    const precio = cotizadorPrecios[f.n] || 0;
+    const precio = cotizadorPrecioVara(f.n);
     const badgeBg    = f.c==='flores' ? '#EBF5E8' : '#EEF0F8';
     const badgeColor = f.c==='flores' ? 'var(--green-ok)' : '#4A5FA6';
     const precioTxt  = precio > 0
@@ -357,7 +358,7 @@ export function cotVerTodas(){ cotVerTodo = true; renderCotizador(); }
 export function cotAgregar(cotIdx){
   const f = COT_ALL[cotIdx];
   const qty = Math.max(1, +document.getElementById('cot_'+cotIdx)?.value||1);
-  const precio = cotizadorPrecios[f.n] || 0;
+  const precio = cotizadorPrecioVara(f.n);
   const existing = cotizadorCarrito.find(c=>c.nombre===f.n);
   if(existing){ existing.qty += qty; }
   else { cotizadorCarrito.push({nombre:f.n, precio, qty}); }
@@ -537,13 +538,13 @@ export async function delTipoEvento(i){
 export function resolveCotizadorPrecio(prodLabel){
   const label = (prodLabel||'').trim();
   if(!label) return { pu:0, fuente:'', opciones:[] };
-  const directo = +cotizadorPrecios[label] || 0;
+  const directo = costoGuardado(cotizadorPrecios, label);
   if(directo > 0) return { pu:directo, fuente:label, opciones:[label] };
   if(label.includes('/')){
     const opciones = label.split('/').map(s=>s.trim()).filter(Boolean);
     let mejor = null;
     opciones.forEach(op=>{
-      const p = +cotizadorPrecios[op] || 0;
+      const p = costoGuardado(cotizadorPrecios, op);
       if(p > 0 && (!mejor || p > mejor.pu)) mejor = { pu:p, fuente:op };
     });
     return mejor ? { pu:mejor.pu, fuente:mejor.fuente, opciones } : { pu:0, fuente:'', opciones };
@@ -636,7 +637,7 @@ export function renderCotEventos(){
   if(flores.length){
     html += `<div style="grid-column:1/-1;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);font-weight:500;margin-top:12px;margin-bottom:-4px">Flores sueltas · upgrades</div>`;
     html += flores.map(f => {
-      const costo = cotizadorPrecios[f.n] || 0;
+      const costo = cotizadorPrecioVara(f.n);
       const pFinal = Math.round(costo*(1+margen/100));
       return `<div style="background:var(--cream);border-radius:8px;padding:9px 12px;display:flex;align-items:center;gap:8px">
         <div style="flex:1;min-width:0">
@@ -687,7 +688,7 @@ export function evAgregarFlor(stockIdx){
   const tipo = eventoPricing.tipos[+tipoIdx];
   if(!tipo) return;
   const qty = Math.max(1, +document.getElementById('evcot_'+stockIdx)?.value||1);
-  const costo = cotizadorPrecios[s.prod] || 0;
+  const costo = cotizadorPrecioVara(s.prod);
   const precio = Math.round(costo*(1+tipo.margen/100));
   const ex = evCarrito.find(c=>c.nombre===s.prod);
   if(ex){ ex.qty += qty; }
@@ -759,7 +760,7 @@ export function renderPreciosList(){
     if(!items.length) return '';
     const rows = items.map(f=>{
       const allIdx = COT_ALL.findIndex(x=>x.n===f.n);
-      const precio = cotizadorPrecios[f.n]||0;
+      const precio = cotizadorPrecioVara(f.n);
       return `<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--light-gray)">
         <div style="flex:1;font-size:13px;color:var(--charcoal)">${esc(f.n)}</div>
         <div style="display:flex;align-items:center;gap:4px">
@@ -787,7 +788,9 @@ export function cotGuardarPrecio(cotIdx, val){
   const nombre = COT_ALL[cotIdx].n;
   const precio = Math.max(0, +val||0);
   if(!cotizadorPrecios) cotizadorPrecios = {};
-  cotizadorPrecios[nombre] = precio;
+  // Se guarda en el nombre que ya usa la app para ese artículo (ej. "San
+  // Vicentes" de esta lista → "San vicentes" si así quedó al unificar).
+  cotizadorPrecios[claveCostoPara(cotizadorPrecios, nombre)] = precio;
   D.fbSave('cotizadorPrecios', cotizadorPrecios);
   cotizadorCarrito.forEach(c=>{ if(c.nombre===nombre) c.precio=precio; });
   renderCarrito();

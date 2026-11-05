@@ -46,6 +46,8 @@ import { generarPresupuestoPDF } from './presupuesto-pdf.js';
 import { checkOnboarding, nextOnboardingStep, finishOnboarding } from './onboarding.js';
 import { showToast, toggleDarkMode, initDarkMode, exportPDF } from './tema-toast.js';
 import { _fotosParaGuardar, resolverFoto, migrarFotos, fotosActivo } from './fotos.js';
+import { configurarUnificarArticulos, renderUnificarArticulos, uaAgregarManual, uaDeshacer, uaMarcar, uaSet, uaUnir, uaVolverABuscar } from './unificar-articulos.js';
+import { aplicarAliasANodo, listaSinRepetidos, mismoArticulo, nombreArticulo, setArticulosAlias, setArticulosConocidos } from './articulos-base.js';
 
 // ════════════════════════════════════════
 // CONTROL DE VERSIÓN — auto-limpieza de datos locales viejos
@@ -95,7 +97,11 @@ try {
 // que haya en memoria: por eso se bloquea la escritura hasta que cargue.
 const NODOS_SENSIBLES = ['cajaData','cierresCaja','cierresMensualesData','legajoData','faltasData','evaluacionesData','liquidacionConfig'];
 function sensibleCargado(key){ return !!window._fbCargado?.[key]; }
+const NODOS_CON_ARTICULOS = ['comprasFlore','comprasJard','stockData','recetasData','arreglosComposicion','presupuestosData','insumosCustom','cotizadorPrecios'];
 function fbSave(key, data){
+  // Artículos ya unificados: lo que se haya escrito con una forma vieja
+  // ("naviza", "Astromelia") se guarda con el nombre que quedó.
+  if(NODOS_CON_ARTICULOS.includes(key)) aplicarAliasANodo(key, data);
   if(NODOS_SENSIBLES.includes(key) && !sensibleCargado(key)){
     console.warn('fbSave bloqueado: '+key+' todavía no se cargó desde la base');
     showToast('Todavía no cargaron los datos de '+(key==='cajaData'?'la caja':key)+'. Esperá unos segundos y probá de nuevo.','error');
@@ -283,6 +289,7 @@ function navigate(pageId, navEl){
   if(pageId==='presupuestos') renderPresupuestos();
   if(pageId==='cotizar-presupuesto') renderCotizarPresupuesto();
   if(pageId==='costo-varas') renderCostoVaras();
+  if(pageId==='unificar-articulos') renderUnificarArticulos();
   if(pageId==='cierre-mensual'){ const sel=document.getElementById('cierre-mes-sel'); if(sel&&!sel.value) sel.value=CURR_MONTH; renderCierreMensual(); }
   if(pageId==='tareas-gerencia') renderTareasGerencia();
 
@@ -358,6 +365,7 @@ function _setEventosData(v){ eventosData = v; }
 let eventosData = [];
 configurarEventos({ get CL_RESP_OPTS(){ return CL_RESP_OPTS; }, TODAY_ISO, _auditarGuardado, _setEventosData, _stockFilasDe, _stockNombre, _xlsxDownload, arregloEmoji, badgeDiaRelativa, calcCostoComposicion, closeModal, etiquetaDiaRelativa, get eventoPricing(){ return eventoPricing; }, get eventosData(){ return eventosData; }, fbSave, get floristaNombre(){ return floristaNombre; }, fmtMonth, getFloristasActivos, get kanbanData(){ return kanbanData; }, notificarAsignacion, get recetasData(){ return recetasData; }, renderHome, renderKanban, renderStock, syncEventosToKanban, get userRole(){ return userRole; } });
 configurarCotizador({ _fmtCant, arregloEmoji, fbSave, get recetasData(){ return recetasData; }, get stockData(){ return stockData; } });
+configurarUnificarArticulos({ get _arreglosComposicionLoaded(){ return _arreglosComposicionLoaded; }, _saveArreglosComposicion, get arreglosComposicion(){ return arreglosComposicion; }, get comprasFlore(){ return comprasFlore; }, get comprasJard(){ return comprasJard; }, fbSave, fotosParaGuardar: _fotosParaGuardar, get insumosCustom(){ return insumosCustom; }, get recetasData(){ return recetasData; }, saveInsumosCustom, get stockData(){ return stockData; }, get userRole(){ return userRole; } });
 
 
 // ── Productividad por operario ────────────────────────────────────────────────
@@ -5536,6 +5544,11 @@ let insumosBDBase = [
   'Zinnia'
 ];
 
+// Artículos: nombres ya cargados (para que lo nuevo use la forma existente) y
+// alias confirmados en "Unificar artículos" (nodo articulosAlias).
+setArticulosConocidos(() => [...Object.keys(cotizadorPrecios||{}), ...(stockData||[]).map(s=>s.prod)]);
+window._setArticulosAlias = v => setArticulosAlias(v);
+
 // Insumos personalizados agregados por el usuario (se guardan en localStorage)
 let insumosCustom = JSON.parse(localStorage.getItem('fl_insumos_custom')||'[]');
 
@@ -5545,6 +5558,7 @@ window._setInsumosCustom = (arr) => {
   const remotos = !arr ? [] : (Array.isArray(arr) ? arr : Object.values(arr||{}));
   const merged = [...new Set([...insumosCustom, ...remotos.map(String).map(s=>s.trim()).filter(Boolean)])];
   insumosCustom.splice(0, insumosCustom.length, ...merged);
+  aplicarAliasANodo('insumosCustom', insumosCustom); // formas viejas de artículos ya unificados
   localStorage.setItem('fl_insumos_custom', JSON.stringify(insumosCustom));
   // Refrescar el datalist de la galería si el modal está abierto
   const dl = document.getElementById('gal-insumos-list');
@@ -5553,8 +5567,7 @@ window._setInsumosCustom = (arr) => {
 };
 
 function getAllInsumos(){
-  const all = [...new Set([...insumosBDBase, ...insumosCustom])];
-  return all.sort((a,b)=>a.localeCompare(b,'es'));
+  return listaSinRepetidos([...Object.keys(cotizadorPrecios||{}), ...insumosBDBase, ...insumosCustom], Object.keys(cotizadorPrecios||{}));
 }
 
 function saveInsumosCustom(){
@@ -5564,9 +5577,9 @@ function saveInsumosCustom(){
 }
 
 function addInsumoToBase(nombre){
-  const n = nombre.trim();
+  const n = nombreArticulo(nombre);
   if(!n) return;
-  if(!insumosBDBase.includes(n) && !insumosCustom.includes(n)){
+  if(!insumosBDBase.some(x=>mismoArticulo(x,n)) && !insumosCustom.some(x=>mismoArticulo(x,n))){
     insumosCustom.push(n);
     saveInsumosCustom();
     populateFloreriaFormHelpers();
@@ -6426,8 +6439,8 @@ let _compEditZona = null;
 let _compEditRows = [];
 
 function _floresDatalistOpts(){
-  const all = [...new Set([...insumosBDBase, ...(typeof insumosCustom!=='undefined'?insumosCustom:[]), ...Object.keys(cotizadorPrecios||{})])]
-    .filter(Boolean).sort((a,b)=>a.localeCompare(b,'es'));
+  // Una sola forma por artículo (la del costo si la hay), para no sugerir duplicados.
+  const all = listaSinRepetidos([...Object.keys(cotizadorPrecios||{}), ...insumosBDBase, ...(typeof insumosCustom!=='undefined'?insumosCustom:[])], Object.keys(cotizadorPrecios||{}));
   return all.map(n=>`<option value="${esc(n)}">`).join('');
 }
 
@@ -6487,7 +6500,7 @@ function _renderCompModal(){
   ov.classList.add('open');
 }
 
-function compUpdRow(i, field, val){ if(_compEditRows[i]){ _compEditRows[i][field] = val; _renderCompModal(); } }
+function compUpdRow(i, field, val){ if(_compEditRows[i]){ _compEditRows[i][field] = field==='prod' ? nombreArticulo(val) : val; _renderCompModal(); } }
 function compAddRow(){ _compEditRows.push({prod:'', qty:''}); _renderCompModal(); }
 function compRemoveRow(i){ _compEditRows.splice(i,1); if(!_compEditRows.length) _compEditRows=[{prod:'',qty:''}]; _renderCompModal(); }
 
@@ -7014,6 +7027,7 @@ Object.assign(window, {
   installPWA,
   renderPresupuestos, openPresupuestoModal, guardarPresupuesto, cambiarEstadoPres, eliminarPresupuesto,
   verPresupuesto, enviarPresupuestoWhatsApp,
+  renderUnificarArticulos, uaAgregarManual, uaDeshacer, uaMarcar, uaSet, uaUnir, uaVolverABuscar,
   renderCostoVaras, cvTCargar, cvTSetProd, cvTLimpiar, cvFijarVarasPorPaq, cvSet, cvAdd, cvRemove, cvReset, cvCargarListado, cvCopiar,
   renderCotizarPresupuesto, cpAddArr, cpRemoveArr, cpSetArr, cpAddFree, cpRemoveFree, cpSetFree, cpReset, cpGuardar,
   renderEventosSinFloreria, openEsfModal, guardarEsf, eliminarEsf, exportEsfReclamo,
