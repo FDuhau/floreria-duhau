@@ -126,3 +126,10 @@ test('aplicarAliasANodo corrige lo que se guarda después con una forma vieja', 
 test('listaSinRepetidos sugiere una sola forma por artículo', () => {
   assert.deepEqual(listaSinRepetidos(['pino', 'Pino', 'Naviza', 'naviza'], ['Pino'], {}), ['Naviza', 'Pino']);
 });
+
+test('nombresPorArticulo: un nombre por artículo, con alias y preferidos', async () => {
+  const { nombresPorArticulo } = await import('../src/modules/articulos-base.js');
+  const r = nombresPorArticulo(['Anémonas', 'anemonas', 'Anemonas', 'Biznagas', 'biznaga', 'biznaga', 'navisa', 'Naviza'], ['Anémonas'],
+    { [claveArticulo('navisa')]: 'Naviza', [claveArticulo('Naviza')]: 'Naviza' });
+  assert.deepEqual(r.sort(), ['Anémonas', 'Naviza', 'biznaga'].sort());
+});

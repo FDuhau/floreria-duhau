@@ -39,7 +39,9 @@ export function claveArticulo(nombre){
   return t.split(' ').map(_singular).join(' ');
 }
 
-export const mismoArticulo = (a, b) => !!String(a ?? '').trim() && claveArticulo(a) === claveArticulo(b);
+// Clave teniendo en cuenta los alias confirmados (Astromelia → Alstroemerias).
+export const claveUnificada = (n, alias = articulosAlias) => claveArticulo(aplicarAlias(alias, String(n ?? '').trim()));
+export const mismoArticulo = (a, b) => !!String(a ?? '').trim() && claveUnificada(a) === claveUnificada(b);
 
 // ── Alias confirmados ───────────────────────────────────────
 // alias: { clave: 'Nombre que queda' }. Devuelve el nombre que queda o null.
@@ -382,4 +384,22 @@ export function nombreArticulo(nombre){
   let lista;
   try{ lista = _conocidos() || []; }catch(e){ lista = []; }
   return nombreCanonico(nombre, lista, articulosAlias);
+}
+
+// Agrupa nombres por artículo y devuelve un nombre por grupo: el alias si lo
+// hay; si no, el que figura en `preferidos` (ej. los del costo); si no, el más
+// repetido. Sirve para listas y tableros que no deben mostrar duplicados.
+export function nombresPorArticulo(nombres, preferidos = [], alias = articulosAlias){
+  const grupos = new Map(); // clave → Map(nombre → veces)
+  (nombres || []).forEach(n => {
+    if(typeof n !== 'string' || !n.trim()) return;
+    const nn = aplicarAlias(alias, n.replace(/\s+/g, ' ').trim());
+    const k = claveArticulo(nn);
+    if(!grupos.has(k)) grupos.set(k, new Map());
+    const m = grupos.get(k); m.set(nn, (m.get(nn) || 0) + 1);
+  });
+  const pref = new Set(preferidos || []);
+  const masters = new Set(Object.values(alias || {}));
+  return [...grupos.values()].map(m => [...m.entries()]
+    .sort((a, b) => (masters.has(b[0]) - masters.has(a[0])) || (pref.has(b[0]) - pref.has(a[0])) || (b[1] - a[1]))[0][0]);
 }

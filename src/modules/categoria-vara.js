@@ -11,6 +11,7 @@
 // Los límites se guardan en cotizadorConfig.categoriasVara (mismo nodo de
 // Firebase que el margen del cotizador, así se sincroniza solo).
 
+import { mismoArticulo } from './articulos-base.js';
 import { esc, parseMoney } from './utils.js';
 
 // cotizador.js registra acá cómo leer su cotizadorConfig (así este módulo no
@@ -70,10 +71,10 @@ export function badgeCategoriaVaraDe(prod, opts = {}){
 // hasta esa fecha. Más reciente primero. `excluir`: una compra a dejar afuera
 // (la que se está cargando, para comparar contra lo anterior).
 export function historialCostoVara(prod, compras, excluir = null){
-  const pl = String(prod||'').trim().toLowerCase();
-  if(!pl) return [];
+  if(!String(prod||'').trim()) return [];
+  // Mismo artículo aunque esté escrito distinto (Anémonas / anemonas).
   const propias = (compras||[])
-    .filter(c => c !== excluir && !c.anulado && String(c.prod||'').trim().toLowerCase() === pl && parseMoney(c.costo) > 0)
+    .filter(c => c !== excluir && !c.anulado && mismoArticulo(c.prod, prod) && parseMoney(c.costo) > 0)
     .sort((a,b) => String(a.fecha||'').localeCompare(String(b.fecha||'')));
   let vppConocido = 0;
   const out = [];

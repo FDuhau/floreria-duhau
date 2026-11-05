@@ -9,7 +9,7 @@ import { confirmModal } from './modales.js';
 import { MARCA, abrirDocumento, fmtPesos } from './documento-marca.js';
 import { calcCostoComposicion, cotizadorPrecios, resolveCotizadorPrecio } from './cotizador.js';
 import { getUltimoPrecioCompra, recalcCotizadorPrecio } from './compras.js';
-import { claveArticulo, costoGuardado, mismoArticulo } from './articulos-base.js';
+import { claveArticulo, costoGuardado, mismoArticulo, nombresPorArticulo } from './articulos-base.js';
 
 let D = {};
 export function configurarPresupuestos(deps){ D = deps; }
@@ -493,9 +493,10 @@ function cvCatRender(){
   if(!out) return;
   const norm = x => String(x||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
   const f = norm(cvCatFiltro.trim());
-  const vistos = {};
-  (D.comprasFlore||[]).forEach(c=>{ if(c.prod && !c.anulado) vistos[String(c.prod).trim().toLowerCase()] = c.prod; });
-  const items = Object.values(vistos)
+  // Un renglón por artículo aunque esté cargado con varias formas (Anémonas /
+  // Anemonas / anémonas): agrupa por la misma clave que "Unificar artículos".
+  const nombres = nombresPorArticulo((D.comprasFlore||[]).filter(c=>c.prod && !c.anulado).map(c=>c.prod), Object.keys(cotizadorPrecios||{}));
+  const items = nombres
     .filter(p => !/\b(flete|tax|taxi|envio|env[ií]o)\b/i.test(p))   // gastos cargados como compra, no son flores
     .filter(p => !f || norm(p).includes(f))
     .map(prod => {
@@ -529,9 +530,7 @@ Object.assign(window, { cvCatBuscar, guardarLimitesCatVara });
 // Productos cuya última compra no tiene varas por paquete cargadas (o dice 1):
 // ahí el costo por vara sale igual al del paquete entero. Se corrigen desde acá.
 function cvSospechosos(){
-  const vistos = {};
-  (D.comprasFlore||[]).forEach(c=>{ if(c.prod) vistos[String(c.prod).trim().toLowerCase()] = c.prod; });
-  return Object.values(vistos)
+  return nombresPorArticulo((D.comprasFlore||[]).map(c=>c.prod), Object.keys(cotizadorPrecios||{}))
     .map(prod => ({ prod, c:_cpUltimaCompra(prod) }))
     .filter(o => o.c && !((cpCostoVara(o.prod).vpp||0) > 1))
     .map(o => o.c)
