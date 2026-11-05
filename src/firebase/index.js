@@ -832,6 +832,9 @@
         if(window._setInsumosCustom) window._setInsumosCustom(val);
       });
 
+      // Artículos unificados por gerencia: { clave de la forma vieja: nombre que quedó }
+      fbListenNullable('articulosAlias', val => { window._setArticulosAlias?.(val || {}); });
+
       fbListen('arreglosHotelConfig', val => {
         if(!val) return;
         if(window._setArreglosHotelConfig) window._setArreglosHotelConfig(val);

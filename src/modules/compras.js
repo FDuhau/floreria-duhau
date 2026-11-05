@@ -12,6 +12,7 @@ import { getCfSplitRows, resetCfSplitRows } from './compras-reparto.js';
 import { _evParseEvents, _evStripAcc, _evToEvento } from './daily-import.js';
 import { compraCant, compraImporte, resumenCompras } from './dinero.js';
 import { icon } from './iconos.js';
+import { claveCostoPara, mismoArticulo, nombreArticulo } from './articulos-base.js';
 
 let D = {};
 export function configurarCompras(deps){ D = deps; }
@@ -337,7 +338,7 @@ export function addCompra(type){
     showToast('Las compras todavía se están cargando — esperá unos segundos e intentá de nuevo.','error'); return;
   }
   const p=type==='floreria'?'cf':'cj';
-  const prod=document.getElementById(p+'-producto').value.trim();
+  const prod=nombreArticulo(document.getElementById(p+'-producto').value);
   if(!validarCampos([
     { id:p+'-producto', req:true, msg:'Elegí o escribí el producto' },
     { id:p+'-costo', tipo:'monto' },
@@ -837,11 +838,8 @@ export function renderCompraSummary(type, filtered){
 // Returns HTML badge showing stock status for a given product name
 export function getStockBadge(prodName){
   if(!prodName) return '<span class="stock-inline-badge sib-none">—</span>';
-  const lower = prodName.toLowerCase();
-  // Find all matching stock items
-  const matches = D.stockData.filter(s =>
-    s.prod.toLowerCase().includes(lower) || lower.includes(s.prod.toLowerCase())
-  );
+  // Renglones del mismo artículo (sin importar mayúsculas, tildes ni plural)
+  const matches = D.stockData.filter(s => mismoArticulo(s.prod, prodName));
   if(matches.length === 0){
     return '<span class="stock-inline-badge sib-none">Sin datos</span>';
   }
@@ -1275,11 +1273,15 @@ function controlBadgeCompra(r){
 
 // Recalcula el costo por vara en el cotizador a partir del costo y el divisor
 // (varas por paquete, o cantidad si no aplica) de una orden ya controlada.
+// El costo de la compra es el precio de UN paquete: se divide por las varas por
+// paquete de esa compra o, si no las tiene, por las últimas cargadas para el
+// producto. Antes, sin ese dato se dividía por la cantidad de paquetes (o por 1)
+// y quedaba el precio del paquete entero como costo de una vara.
 export function recalcCotizadorPrecio(order){
   const costoTotal = parseMoney(order.costo);
-  const divisor = parseFloat(order.varasPorPaq) || parseFloat(order.qty) || 0;
+  const divisor = parseFloat(order.varasPorPaq) || getVarasPorPaq(order.prod) || 0;
   if(costoTotal > 0 && divisor > 0){
-    D.cotizadorPrecios[order.prod] = Math.round(costoTotal / divisor);
+    D.cotizadorPrecios[claveCostoPara(D.cotizadorPrecios, order.prod)] = Math.round(costoTotal / divisor);
     D.fbSave('cotizadorPrecios', D.cotizadorPrecios);
   }
 }
@@ -1397,10 +1399,9 @@ let ceRows = [];
 // Varas por paquete de un producto: se toma el valor más reciente cargado en
 // Compras Florería (varasPorPaq). Devuelve null si no hay dato.
 export function getVarasPorPaq(prod){
-  const pl = String(prod||'').trim().toLowerCase();
   let best = null, bestFecha = '';
   (D.comprasFlore||[]).forEach(c=>{
-    if(String(c.prod||'').trim().toLowerCase() !== pl) return;
+    if(!mismoArticulo(c.prod, prod)) return;
     const vpp = parseFloat(c.varasPorPaq);
     if(!vpp || vpp<=0) return;
     const f = c.fecha||'';
@@ -1412,10 +1413,9 @@ export function getVarasPorPaq(prod){
 // Último precio de compra (por paquete) de un producto, del pedido más reciente
 // cargado en Compras Florería. Devuelve {precio, fecha} o null si no hay dato.
 export function getUltimoPrecioCompra(prod){
-  const pl = String(prod||'').trim().toLowerCase();
   let best = null, bestFecha = '';
   (D.comprasFlore||[]).forEach(c=>{
-    if(String(c.prod||'').trim().toLowerCase() !== pl) return;
+    if(!mismoArticulo(c.prod, prod)) return;
     const m = parseMoney(c.costo);
     if(!m || m<=0) return;
     const f = c.fecha||'';
@@ -1772,6 +1772,7 @@ export function populateProvSelects(){
 export function updC(type,i,field,val){
   const order = getArr(type)[i];
   const prevEstado = order.estado;
+  if(field==='prod') val = nombreArticulo(val);
   order[field] = val;
 
   // AUTO-RECIBIR (florería): si el renglón ya está CONTROLADO (los floristas lo

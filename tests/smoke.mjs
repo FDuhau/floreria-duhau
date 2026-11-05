@@ -25,7 +25,7 @@ const PAGES = [
   'cotizador', 'presupuestos', 'crm-clientes', 'caja', 'rentabilidad-eventos',
   'cierre-mensual', 'reportes', 'reportes-ventas',
   'reportes-equipo', 'operaciones', 'checklist', 'inventario', 'eventos-maison',
-  'jardineria-ops', 'hab-ops', 'recepcion-pedidos', 'stock',
+  'jardineria-ops', 'hab-ops', 'recepcion-pedidos', 'stock', 'costo-varas', 'unificar-articulos',
 ];
 
 // Errores que NO son culpa de la app (red/Firebase/CDN externa bloqueada).
