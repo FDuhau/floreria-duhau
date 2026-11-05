@@ -305,3 +305,103 @@
   .cl-row-resp { width: 120px; }
 }
 @media (max-width: 760px) { .cl-row-resp { text-align: right; } }
+
+/* ══ Funciones: alertas, agrupado, selección, urgentes ═════════════════════ */
+.cl-progress-side { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.cl-alerta {
+  appearance: none; border: 1px solid transparent; font: 600 var(--fs-xs)/1 'DM Sans', sans-serif;
+  padding: 5px 9px; border-radius: 999px; white-space: nowrap; cursor: default;
+}
+button.cl-alerta { cursor: pointer; }
+.cl-alerta.is-run  { background: #EAF2EC; color: #2E6B47; }
+.cl-alerta.is-over { background: #FBE9E6; color: var(--red-alert); }
+.cl-alerta.is-sin  { background: #FCF3DF; color: #8A5A00; }
+button.cl-alerta:hover { border-color: currentColor; }
+
+.cl-toolbar-dyn { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.cl-acciones { display: flex; gap: 8px; align-items: center; }
+.cl-btn-tool {
+  appearance: none; min-height: 40px; box-sizing: border-box; padding: 0 14px; border-radius: var(--radius-md);
+  border: 1px solid var(--light-gray); background: var(--warm-white); color: var(--charcoal);
+  font: 500 var(--fs-sm)/1 'DM Sans', sans-serif; cursor: pointer; transition: border-color .15s, background .15s;
+}
+.cl-btn-tool:hover { border-color: var(--accent); }
+.cl-btn-tool.active { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+select.cl-btn-tool { padding-right: 30px; }
+
+/* Encabezado de grupo plegable */
+.cl-group-hd { cursor: pointer; user-select: none; }
+.cl-group-hd:focus-visible { outline: none; box-shadow: inset var(--ring); }
+.cl-group-chev { width: 16px; height: 16px; fill: none; stroke: var(--mid-gray); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transform: rotate(90deg); transition: transform .15s; flex: 0 0 auto; }
+.cl-group.is-plegada .cl-group-chev { transform: rotate(0deg); }
+.cl-group.is-plegada .cl-group-hd { border-bottom: 0; }
+.cl-group-eventos .cl-group-hd, .cl-group-ventas .cl-group-hd, .cl-group-urgente .cl-group-hd { cursor: default; }
+.cl-group-sel { font-size: var(--fs-xs); margin-left: 8px; }
+.cl-group.cl-group-persona { --dot: var(--accent); }
+.cl-group.cl-group-sin { --dot: #C89B3C; }
+.cl-group-sin .cl-group-name { color: #8A5A00; }
+.cl-meta-sec { font-weight: 500; }
+.cl-meta-sec::before { content: ''; width: 7px; height: 7px; border-radius: 2px; background: var(--dot, var(--sage)); }
+.cl-meta-sec.cl-sec-a { --dot: var(--cl-sec-a); }
+.cl-meta-sec.cl-sec-b { --dot: var(--cl-sec-b); }
+.cl-meta-sec.cl-sec-c { --dot: var(--cl-sec-c); }
+
+/* En curso / excedida */
+.cl-curso { color: #2E6B47; font-weight: 600; }
+.cl-curso::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: clPulso 1.6s ease-in-out infinite; }
+.cl-curso.is-over { color: var(--red-alert); }
+@keyframes clPulso { 50% { opacity: .3; } }
+.cl-row.is-over { box-shadow: inset 3px 0 0 var(--red-alert); }
+
+/* Selección para asignar en bloque */
+.cl-selbox span { border-radius: 6px; }
+.cl-row.is-sel { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+.cl-selbar {
+  position: sticky; bottom: 12px; z-index: 30; margin-top: 14px;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  background: var(--charcoal); color: var(--cream); border-radius: var(--radius-lg); padding: 10px 14px;
+  box-shadow: var(--shadow-lg);
+}
+.cl-selbar-n { font-size: var(--fs-sm); margin-right: auto; }
+.cl-selbar .cl-select { width: auto; min-height: 36px; padding: 6px 28px 6px 10px; font-size: var(--fs-sm); border-radius: var(--radius-sm); border: 0; background-color: var(--warm-white); color: var(--charcoal); }
+.cl-selbar .cl-select:disabled { opacity: .5; }
+.cl-selbar .cl-btn-quiet { color: var(--cream); }
+.cl-selbar .cl-btn-quiet:hover { background: rgba(255,255,255,.12); color: #fff; }
+[data-theme="dark"] .cl-selbar { background: #F0EDE8; color: #1C1C1A; }
+[data-theme="dark"] .cl-selbar .cl-btn-quiet { color: #1C1C1A; }
+
+/* Urgentes y entregas */
+.cl-group.cl-group-urgente { --dot: var(--red-alert); border-color: #EBC3BC; }
+.cl-group-urgente .cl-group-hd { background: #FCEFEC; }
+.cl-group-urgente .cl-group-name { color: var(--red-alert); }
+.cl-row.is-urgente { box-shadow: inset 3px 0 0 var(--red-alert); }
+.cl-entrega {
+  font-size: var(--fs-xs); font-weight: 600; padding: 3px 9px; border-radius: 999px; margin-left: 8px; white-space: nowrap;
+  background: var(--cream); color: var(--charcoal); border: 1px solid var(--light-gray);
+}
+.cl-entrega.is-urgente { background: var(--red-alert); color: #fff; border-color: var(--red-alert); }
+.cl-cards-sec-hdr.cl-cards-urgente { color: var(--red-alert); margin-top: 4px; }
+#page-checklist .cl-card.cl-card-urgente { border-left-color: var(--red-alert); border-color: #EBC3BC; }
+.cl-card-top .cl-entrega { margin-left: 0; }
+[data-theme="dark"] .cl-group-urgente .cl-group-hd { background: #3A2422; }
+
+/* Chips del aviso: tocar → programar Nuevo */
+button.cl-aviso-chip { appearance: none; font-family: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; transition: border-color .15s, background .15s; }
+.cl-aviso-plus { font-size: 11px; font-weight: 600; color: var(--accent); margin-left: 6px; opacity: 0; transition: opacity .15s; }
+button.cl-aviso-chip:hover { border-color: var(--accent); background: var(--warm-white); }
+button.cl-aviso-chip:hover .cl-aviso-plus, button.cl-aviso-chip:focus-visible .cl-aviso-plus { opacity: 1; }
+@media (hover: none) { .cl-aviso-plus { opacity: 1; } }
+
+@media (max-width: 760px) {
+  .cl-progress-head { flex-wrap: wrap; }
+  .cl-toolbar-dyn { width: 100%; }
+  .cl-toolbar-dyn > .cl-seg:nth-child(2) { flex: 1; }
+  .cl-acciones { width: 100%; }
+  .cl-acciones > * { flex: 1; }
+  .cl-selbar { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+  .cl-selbar-n { flex-basis: 100%; }
+  .cl-selbar .cl-select { flex: 1; min-height: var(--tap); }
+  .cl-group-sel { display: none; }
+  .cl-entrega { margin-left: 0; margin-top: 4px; }
+  .cl-row-link .cl-row-zona { gap: 4px 6px; }
+}

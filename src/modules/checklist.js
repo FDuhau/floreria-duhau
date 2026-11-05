@@ -929,7 +929,8 @@ function renderNuevosAtrasadosBanner(){
   const chips = list.map(z=>{
     const sh = SEC_HEADERS[z.sec];
     const secTxt = sh ? sh.label.charAt(0)+sh.label.slice(1).toLowerCase() : '';
-    return `<span class="cl-aviso-chip" title="${esc(secTxt)} · último Nuevo: ${fmtDate(z.fecha)}">${esc(z.zona)} · <strong>${z.dias} días</strong></span>`;
+    const zEsc = esc(z.zona).replace(/'/g,"\\'");
+    return `<button class="cl-aviso-chip" onclick="clProgramarNuevo('${z.sec}','${zEsc}')" title="${esc(secTxt)} · último Nuevo: ${fmtDate(z.fecha)} · tocá para programar un Nuevo el ${currentDay}">${esc(z.zona)} · <strong>${z.dias} días</strong><span class="cl-aviso-plus">+ Nuevo</span></button>`;
   }).join('');
   // Con muchas zonas, mostrar las más atrasadas y el resto a demanda
   const MAX_CHIPS = 6;
@@ -939,7 +940,7 @@ function renderNuevosAtrasadosBanner(){
     <div class="cl-aviso-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17h.01"/></svg></div>
     <div class="cl-aviso-body">
       <div class="cl-aviso-tit">${list.length} zona${list.length!==1?'s':''} con Nuevo atrasado (${UMBRAL_NUEVO_ATRASADO}+ días)</div>
-      <div class="cl-aviso-sub">Reprogramá un arreglo Nuevo desde <button class="cl-link" onclick="openVistaSemanal()">la vista semanal</button> antes de que se marchiten.</div>
+      <div class="cl-aviso-sub">Tocá una zona para programarle un Nuevo el ${currentDay}, o planificalo desde <button class="cl-link" onclick="openVistaSemanal()">la vista semanal</button>.</div>
       <div class="cl-aviso-chips">${chips}${verMas}</div>
     </div>
   </div>`;
@@ -1094,37 +1095,50 @@ export function renderChecklistTable(){
     progressEl = document.createElement('div');
     progressEl.id = 'cl-progress-bar-wrap';
     progressEl.className = 'cl-progress';
-    // Antes de las tarjetas (floristas) y de la tabla (resto)
-    const wrapper = document.getElementById('cl-cards-wrap') || document.getElementById('checklist-body').closest('.table-wrapper');
+    // Antes de las tarjetas (floristas) y de la lista (resto)
+    const wrapper = document.getElementById('cl-cards-wrap') || document.getElementById('cl-table-wrap');
     wrapper.before(progressEl);
   }
+  // Alertas en vivo del día: tareas en curso, excedidas y sin asignar
+  const alertas = alertasDia();
+  const esFlor = D.userRole === 'florista';
+  const chipsAlerta = esFlor ? '' : [
+    alertas.enCurso ? `<span class="cl-alerta is-run">${alertas.enCurso} en curso</span>` : '',
+    alertas.excedidas ? `<button class="cl-alerta is-over" onclick="clSetFiltro('estado','pend')" title="Superaron su tiempo de referencia">${alertas.excedidas} excedida${alertas.excedidas!==1?'s':''}</button>` : '',
+    alertas.sinAsignar ? `<button class="cl-alerta is-sin" onclick="clSetFiltro('estado','sin')">${alertas.sinAsignar} sin asignar</button>` : '',
+  ].join('');
   const pctOk = total ? pct : 0;
   progressEl.innerHTML = `
     <div class="cl-progress-head">
       <div class="cl-progress-txt"><strong>${done_count}</strong> de ${total} tareas hechas · ${currentDay}</div>
-      <div class="cl-progress-pct${pctOk===100?' is-full':''}">${pctOk===100 ? 'Día completo' : pctOk+'%'}</div>
+      <div class="cl-progress-side">${chipsAlerta}<span class="cl-progress-pct${pctOk===100?' is-full':''}">${pctOk===100 ? 'Día completo' : pctOk+'%'}</span></div>
     </div>
     <div class="cl-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pctOk}"><span style="width:${pctOk}%"></span></div>`;
 
   // Aviso de Nuevos atrasados (gerencia). Se ubica arriba de la barra de progreso.
   renderNuevosAtrasadosBanner();
+  _asegurarRelojChecklist();
 
-  // ── Floristas: vista de tarjetas (mobile-first) en lugar de la tabla ──
+  // ── Floristas: vista de tarjetas (mobile-first) en lugar de la lista ──
   const cardsWrap = document.getElementById('cl-cards-wrap');
   const tableWrap = document.getElementById('cl-table-wrap');
-  if(D.userRole === 'florista'){
+  if(esFlor){
     if(tableWrap) tableWrap.style.display = 'none';
     if(cardsWrap){ cardsWrap.style.display = ''; renderChecklistCards(cardsWrap); }
     const fEl = document.getElementById('cl-filtro-wrap');
     if(fEl) fEl.style.display = 'none';
+    _renderSelBar();
     D.renderProductividadCL();
     return;
   }
   if(tableWrap) tableWrap.style.display = '';
   if(cardsWrap) cardsWrap.style.display = 'none';
 
-  // ── Filtro rápido (gerencia/operario): por zona/responsable y estado ──
-  // Se crea una sola vez para no perder el foco del input al re-renderizar
+  const esGerencia = D.userRole === 'gerencia';
+  if(!esGerencia){ clVista.sel = false; clSel.clear(); if(clVista.agrupar!=='zona' && D.userRole!=='operario') clVista.agrupar='zona'; }
+
+  // ── Barra de herramientas: buscador (se crea una sola vez para no perder el
+  // foco al re-renderizar) + filtros y acciones (se redibujan) ──
   let filtroEl = document.getElementById('cl-filtro-wrap');
   if(!filtroEl){
     filtroEl = document.createElement('div');
@@ -1136,40 +1150,67 @@ export function renderChecklistTable(){
         <input id="cl-filtro-txt" type="search" placeholder="Buscar zona o responsable" autocomplete="off"
           oninput="clSetFiltro('txt',this.value)">
       </label>
-      <div class="cl-seg" role="group" aria-label="Filtrar por estado">
-        <button class="cl-fbtn" data-f="all"    onclick="clSetFiltro('estado','all')">Todas<span class="cl-seg-n"></span></button>
-        <button class="cl-fbtn" data-f="pend"   onclick="clSetFiltro('estado','pend')">Pendientes<span class="cl-seg-n"></span></button>
-        <button class="cl-fbtn" data-f="hechas" onclick="clSetFiltro('estado','hechas')">Hechas<span class="cl-seg-n"></span></button>
-      </div>`;
+      <div id="cl-toolbar-dyn" class="cl-toolbar-dyn"></div>`;
     document.getElementById('cl-table-wrap').before(filtroEl);
   }
   filtroEl.style.display = '';
-  const nPend = CL_TASKS.length - done_count;
-  const nPorFiltro = { all: CL_TASKS.length, pend: nPend, hechas: done_count };
-  filtroEl.querySelectorAll('.cl-fbtn').forEach(b=>{
-    const on = b.dataset.f===clFiltro.estado;
-    b.classList.toggle('active', on);
-    b.setAttribute('aria-pressed', on ? 'true' : 'false');
-    const n = b.querySelector('.cl-seg-n'); if(n) n.textContent = nPorFiltro[b.dataset.f];
-  });
+  const nSin = CL_TASKS.reduce((s,t,i)=> s + (!clState.checked[i] && !(clState.responsable[i]||t.responsable) ? 1 : 0), 0);
+  const nPorFiltro = { all: CL_TASKS.length, pend: CL_TASKS.length - done_count, hechas: done_count, sin: nSin };
+  const segBtn = (f, lbl) => `<button class="cl-fbtn${clFiltro.estado===f?' active':''}" aria-pressed="${clFiltro.estado===f}" onclick="clSetFiltro('estado','${f}')">${lbl}<span class="cl-seg-n">${nPorFiltro[f]}</span></button>`;
+  const diasConDatos = D.DIAS_SEMANA_NAMES.filter(d => d!==currentDay && (D.clStateByDay[d]?.responsable||[]).some(Boolean));
+  const hayPasada = Object.keys(_asignacionesSemanaPasada()).length > 0;
+  document.getElementById('cl-toolbar-dyn').innerHTML = `
+    <div class="cl-seg" role="group" aria-label="Filtrar por estado">
+      ${segBtn('all','Todas')}${segBtn('pend','Pendientes')}${segBtn('hechas','Hechas')}${nSin||clFiltro.estado==='sin' ? segBtn('sin','Sin asignar') : ''}
+    </div>
+    <div class="cl-seg" role="group" aria-label="Agrupar">
+      <button class="cl-fbtn${clVista.agrupar==='zona'?' active':''}" onclick="clSetVista('agrupar','zona')">Por zona</button>
+      <button class="cl-fbtn${clVista.agrupar==='persona'?' active':''}" onclick="clSetVista('agrupar','persona')">Por persona</button>
+    </div>
+    ${esGerencia ? `<div class="cl-acciones">
+      <button class="cl-btn-tool${clVista.sel?' active':''}" onclick="clSetVista('sel',${!clVista.sel})" title="Elegir varias tareas para asignarlas juntas">${clVista.sel?'Terminar selección':'Seleccionar'}</button>
+      ${diasConDatos.length || hayPasada ? `<select class="cl-btn-tool cl-copiar" onchange="clCopiarDe(this.value); this.value=''" aria-label="Copiar asignaciones">
+        <option value="">Copiar de…</option>
+        ${hayPasada ? `<option value="__pasada">${currentDay} pasado</option>` : ''}
+        ${diasConDatos.map(d=>`<option value="${d}">${d}</option>`).join('')}
+      </select>` : ''}
+    </div>` : ''}`;
 
   const list = document.getElementById('checklist-body');
-  const esGerencia = D.userRole === 'gerencia';
   // Contador de días desde el último Nuevo por zona — solo lo ve gerencia
   const ultimoNuevoMap = esGerencia ? mapUltimoNuevoPorZona() : null;
   const txt = clFiltro.txt.trim().toLowerCase();
+  const porPersona = clVista.agrupar === 'persona';
+  const minAhora = _minAhora();
+  const esHoy = currentDay === D.TODAY_DAY;
 
-  // Agrupar las tareas visibles por sección (Alvear / Posadas / Florería …)
-  const grupos = [];
+  // Tareas visibles según el filtro
+  const visibles = [];
   CL_TASKS.forEach((t,i)=>{
     const curResp = clState.responsable[i] || t.responsable || '';
     if(txt && !t.zona.toLowerCase().includes(txt) && !String(curResp).toLowerCase().includes(txt)) return;
     if(clFiltro.estado==='pend' && clState.checked[i]) return;
     if(clFiltro.estado==='hechas' && !clState.checked[i]) return;
-    let g = grupos[grupos.length-1];
-    if(!g || g.sec !== t.sec){ g = { sec:t.sec, idxs:[] }; grupos.push(g); }
-    g.idxs.push(i);
+    if(clFiltro.estado==='sin' && (clState.checked[i] || curResp)) return;
+    visibles.push(i);
   });
+
+  // Agrupar: por zona (sección) o por persona (responsable)
+  const grupos = new Map();
+  visibles.forEach(i=>{
+    const t = CL_TASKS[i];
+    const key = porPersona ? (clState.responsable[i] || t.responsable || '') : t.sec;
+    if(!grupos.has(key)) grupos.set(key, []);
+    grupos.get(key).push(i);
+  });
+  let claves = [...grupos.keys()];
+  if(porPersona){
+    const orden = k => k==='' ? -1 : (CL_RESP_OPTS.indexOf(k) < 0 ? 999 : CL_RESP_OPTS.indexOf(k));
+    claves.sort((a,b)=> orden(a)-orden(b) || a.localeCompare(b));
+  }
+
+  // Estado de una tarea para ordenar: en curso → pendiente → hecha
+  const rango = i => clState.checked[i] ? 2 : (clState.inicio?.[i] && !clState.fin?.[i] ? 0 : 1);
 
   const filaTarea = (i) => {
     const t = CL_TASKS[i];
@@ -1180,14 +1221,30 @@ export function renderChecklistTable(){
     const ref     = getTiempoRef(i, curAct);
     const actLower = String(curAct).toLowerCase();
     const nuevoInfo = ultimoNuevoMap && actLower!=='riego' ? badgeUltimoNuevo(ultimoNuevoMap[_zonaKey(t.sec,t.zona)]) : '';
-    const refTxt = ref ? `<span class="cl-meta-item" title="Tiempo de referencia">${icon('clock')}${ref} min</span>` : '';
-    const meta = [nuevoInfo, refTxt].filter(Boolean).join('');
+    const secInfo = porPersona ? `<span class="cl-meta-item cl-meta-sec ${SEC_HEADERS[t.sec]?.cls||''}">${esc(_secNombre(t.sec))}</span>` : '';
+    // En curso: minutos transcurridos y si ya superó la referencia
+    let curso = '', excedida = false;
+    const ini = clState.inicio?.[i] || '';
+    if(!done && ini && !clState.fin?.[i] && esHoy){
+      const trans = Math.max(0, minAhora - _hmToMin(ini));
+      excedida = !!(ref && trans > ref);
+      curso = `<span class="cl-meta-item cl-curso${excedida?' is-over':''}">${excedida ? `Excedida · ${fmtDur(trans)} de ${fmtDur(ref)}` : `En curso · ${fmtDur(trans)||'0m'}`}</span>`;
+    }
+    const refTxt = ref && !curso ? `<span class="cl-meta-item" title="Tiempo de referencia">${icon('clock')}${ref} min</span>` : '';
+    const meta = [secInfo, curso, nuevoInfo, refTxt].filter(Boolean).join('');
+    const sel = clVista.sel && clSel.has(i);
+    const check = clVista.sel && done
+      ? '<span class="cl-check-sp"></span>'
+      : clVista.sel
+      ? `<label class="cl-check cl-selbox" title="Seleccionar"><input type="checkbox" ${sel?'checked':''} onchange="clToggleSel(${i})"><span></span></label>`
+      : `<label class="cl-check" title="${done?'Desmarcar':'Marcar como hecha'}"><input type="checkbox" class="task-check" ${done?'checked':''} onchange="toggleTask(${i},this)"><span></span></label>`;
+    const clsFila = `cl-row${done?' is-done':''}${excedida?' is-over':''}${sel?' is-sel':''}`;
 
     // Tarea hecha: resumen en texto (sin campos), para que la lista respire
     if(done){
-      const ini = clState.inicio?.[i] || '', fin = clState.fin?.[i] || '';
-      return `<div class="cl-row is-done">
-        <label class="cl-check" title="Desmarcar"><input type="checkbox" class="task-check" checked onchange="toggleTask(${i},this)"><span></span></label>
+      const fin = clState.fin?.[i] || '';
+      return `<div class="${clsFila}">
+        ${check}
         <div class="cl-row-main">
           <div class="cl-row-zona">${esc(t.zona)}${actLower!=='riego'?D._btnGuiaArreglo(t.zona):''}</div>
           ${meta ? `<div class="cl-row-meta">${meta}</div>` : ''}
@@ -1211,8 +1268,8 @@ export function renderChecklistTable(){
           <option value="">Asignar…</option>
           ${CL_RESP_OPTS.map(o=>`<option${o===curResp?' selected':''}>${esc(o)}</option>`).join('')}
         </select>`;
-    return `<div class="cl-row">
-      <label class="cl-check" title="Marcar como hecha"><input type="checkbox" class="task-check" onchange="toggleTask(${i},this)"><span></span></label>
+    return `<div class="${clsFila}">
+      ${check}
       <div class="cl-row-main">
         <div class="cl-row-zona">${esc(t.zona)}${actLower!=='riego'?D._btnGuiaArreglo(t.zona):''}</div>
         ${meta ? `<div class="cl-row-meta">${meta}</div>` : ''}
@@ -1225,22 +1282,57 @@ export function renderChecklistTable(){
     </div>`;
   };
 
-  let html = grupos.map(g=>{
-    const sh = SEC_HEADERS[g.sec] || {label:g.sec, cls:''};
-    const delSec = CL_TASKS.map((t,i)=>t.sec===g.sec?i:-1).filter(i=>i>=0);
-    const hechas = delSec.filter(i=>clState.checked[i]).length;
-    return `<section class="cl-group ${sh.cls}">
-      <header class="cl-group-hd">
+  // Plegado: las zonas completas arrancan plegadas (solo sin filtros activos)
+  const sinFiltros = !txt && clFiltro.estado==='all';
+  let html = '';
+
+  // ── Urgentes: ventas / pedidos con entrega en menos de 2 h (o atrasados) ──
+  const pendVentas = _ventasPendientesHoy();
+  const urgentes = pendVentas.filter(x => x.urgente);
+  if(urgentes.length){
+    html += `<section class="cl-group cl-group-urgente">
+      <header class="cl-group-hd"><span class="cl-group-dot"></span><h3 class="cl-group-name">Urgente · entrega próxima</h3><span class="cl-group-count">${urgentes.length}</span></header>
+      ${urgentes.map(_filaVenta).join('')}
+    </section>`;
+  }
+
+  html += claves.map(key=>{
+    const idxs = grupos.get(key).slice().sort((a,b)=> rango(a)-rango(b) || a-b);
+    let nombre, cls, delGrupo;
+    if(porPersona){
+      nombre = key || 'Sin asignar';
+      cls = key ? 'cl-group-persona' : 'cl-group-sin';
+      delGrupo = CL_TASKS.map((t,i)=>(clState.responsable[i]||t.responsable||'')===key?i:-1).filter(i=>i>=0);
+    } else {
+      const sh = SEC_HEADERS[key] || {label:key, cls:''};
+      nombre = sh.label; cls = sh.cls;
+      delGrupo = CL_TASKS.map((t,i)=>t.sec===key?i:-1).filter(i=>i>=0);
+    }
+    const hechas = delGrupo.filter(i=>clState.checked[i]).length;
+    const completo = hechas===delGrupo.length;
+    const gk = (porPersona?'p:':'z:')+key;
+    const plegada = clPlegadas[gk] ?? (sinFiltros && completo);
+    let resumen = `${hechas} de ${delGrupo.length}`;
+    if(porPersona && key){
+      const minEst = delGrupo.reduce((s,i)=> s + (getTiempoRef(i, clState.actividad[i]||CL_TASKS[i].actividad)||0), 0);
+      const minPend = delGrupo.filter(i=>!clState.checked[i]).reduce((s,i)=> s + (getTiempoRef(i, clState.actividad[i]||CL_TASKS[i].actividad)||0), 0);
+      resumen = `${hechas} de ${delGrupo.length} hechas${minEst?` · ${fmtDur(minEst)} estimado${minPend?` · faltan ${fmtDur(minPend)}`:''}`:''}`;
+    }
+    const selGrupo = clVista.sel ? `<button class="cl-link cl-group-sel" onclick="event.stopPropagation();clSelGrupo('${gk.replace(/'/g,"\\'")}')">Seleccionar pendientes</button>` : '';
+    return `<section class="cl-group ${cls}${plegada?' is-plegada':''}">
+      <header class="cl-group-hd" onclick="clTogglePlegar('${gk.replace(/'/g,"\\'")}', ${!plegada})" role="button" aria-expanded="${!plegada}" tabindex="0">
+        <svg class="cl-group-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
         <span class="cl-group-dot"></span>
-        <h3 class="cl-group-name">${esc(sh.label)}</h3>
-        <span class="cl-group-count${hechas===delSec.length?' is-full':''}">${hechas} de ${delSec.length}</span>
+        <h3 class="cl-group-name">${esc(nombre)}</h3>
+        ${selGrupo}
+        <span class="cl-group-count${completo?' is-full':''}">${resumen}</span>
       </header>
-      ${g.idxs.map(filaTarea).join('')}
+      ${plegada ? '' : idxs.map(filaTarea).join('')}
     </section>`;
   }).join('');
 
-  if(!grupos.length){
-    html = `<div class="cl-vacio">${txt || clFiltro.estado!=='all'
+  if(!claves.length){
+    html += `<div class="cl-vacio">${txt || clFiltro.estado!=='all'
       ? 'Ninguna tarea coincide con el filtro.'
       : 'No hay tareas cargadas para este día.'}</div>`;
   }
@@ -1274,44 +1366,256 @@ export function renderChecklistTable(){
     </section>`;
   }
 
-  // ── Ventas / pedidos asignados pendientes ──
-  const ventasHoy = (ventasData||[]).filter(v => v.asignado && v.estado === 'pendiente' && !v.fin);
-  if(ventasHoy.length > 0){
+  // ── Ventas / pedidos pendientes (no urgentes), ordenados por entrega ──
+  const otrasVentas = pendVentas.filter(x => !x.urgente);
+  if(otrasVentas.length > 0){
     html += `<section class="cl-group cl-group-ventas">
-      <header class="cl-group-hd"><span class="cl-group-dot"></span><h3 class="cl-group-name">Ventas pendientes</h3><span class="cl-group-count">${ventasHoy.length}</span></header>
-      ${ventasHoy.map(v=>{
-        const vIdx = ventasData.indexOf(v);
-        const detalle = [v.cliente, v.desc, v.colores, v.dedicatoria ? '"'+v.dedicatoria+'"' : '', v.dir, v.fecha ? fmtDate(v.fecha) : ''].filter(Boolean).map(esc).join(' · ');
-        return `<div class="cl-row cl-row-link" data-venta="${vIdx}" title="Ver detalle del pedido">
-          <span class="cl-check-sp"></span>
-          <div class="cl-row-main">
-            <div class="cl-row-zona">${esc(v.prod||'')}${D.badgeDiaRelativa(v.fecha)}</div>
-            ${detalle ? `<div class="cl-row-meta"><span class="cl-meta-item">${detalle}</span></div>` : ''}
-          </div>
-          <div class="cl-row-act"></div>
-          <div class="cl-row-obs"></div>
-          <div class="cl-row-horas">${D.renderVentaHoraCell(vIdx,'inicio',v)}${D.renderVentaHoraCell(vIdx,'fin',v)}${v.inicio && v.fin ? durBadge(v.inicio, v.fin) : ''}</div>
-          <div class="cl-row-resp"><span class="cl-persona">${esc(v.asignado||'')}</span></div>
-        </div>`;
-      }).join('')}
+      <header class="cl-group-hd"><span class="cl-group-dot"></span><h3 class="cl-group-name">Ventas pendientes</h3><span class="cl-group-count">${otrasVentas.length}</span></header>
+      ${otrasVentas.map(_filaVenta).join('')}
     </section>`;
   }
 
   list.innerHTML = html;
-  // Tap en un evento/venta → abrir el detalle (excepto al tocar los botones inicio/fin)
+  // Tap en un evento/venta → abrir el detalle (excepto al tocar botones o selectores)
   list.querySelectorAll('.cl-row-link').forEach(row=>{
     row.addEventListener('click', e=>{
-      if(e.target.closest('button')) return;
+      if(e.target.closest('button, select, input, label')) return;
       if(row.dataset.ev !== undefined) openEventoDetail(Number(row.dataset.ev));
       else D.openVentaDetail(Number(row.dataset.venta));
     });
   });
+  _renderSelBar();
   D.renderProductividadCL();
 }
 
-// ── Filtro rápido del checklist (gerencia/operario) ───────────────────────────
-const clFiltro = { txt:'', estado:'all' };
+// ── Estado de la vista (gerencia/operario) ────────────────────────────────────
+const clFiltro = { txt:'', estado:'all' };          // estado: all | pend | hechas | sin
+const clVista  = { agrupar:'zona', sel:false };     // agrupar: zona | persona
+const clSel    = new Set();                          // índices elegidos para asignar en bloque
+const clPlegadas = {};                               // grupo → plegado (true/false)
 export function clSetFiltro(k, v){ clFiltro[k] = v; renderChecklistTable(); }
+export function clSetVista(k, v){
+  clVista[k] = v;
+  if(k==='sel' && !v) clSel.clear();
+  renderChecklistTable();
+}
+export function clTogglePlegar(gk, plegar){ clPlegadas[gk] = plegar; renderChecklistTable(); }
+
+function _secNombre(sec){ const l = SEC_HEADERS[sec]?.label || sec || ''; return l.charAt(0) + l.slice(1).toLowerCase(); }
+function _minAhora(){ const n = new Date(); return n.getHours()*60 + n.getMinutes(); }
+
+// Alertas del día activo: tareas en curso, excedidas (superan la referencia) y sin asignar
+function alertasDia(){
+  const out = { enCurso:0, excedidas:0, sinAsignar:0 };
+  if(!clState) return out;
+  const ahora = _minAhora();
+  const esHoy = currentDay === D.TODAY_DAY;
+  CL_TASKS.forEach((t,i)=>{
+    if(clState.checked[i]) return;
+    if(!(clState.responsable[i] || t.responsable)) out.sinAsignar++;
+    const ini = clState.inicio?.[i];
+    if(esHoy && ini && !clState.fin?.[i]){
+      out.enCurso++;
+      const ref = getTiempoRef(i, clState.actividad[i]||t.actividad);
+      if(ref && ahora - _hmToMin(ini) > ref) out.excedidas++;
+    }
+  });
+  return out;
+}
+
+// Re-dibuja el checklist cada minuto mientras está abierto, para que los
+// contadores (en curso, entrega en X min) estén al día. No interrumpe si
+// alguien está escribiendo o eligiendo en un campo.
+let _relojCL = null;
+function _asegurarRelojChecklist(){
+  if(_relojCL) return;
+  _relojCL = setInterval(()=>{
+    if(!document.getElementById('page-checklist')?.classList.contains('active')) return;
+    const ae = document.activeElement;
+    if(ae && /^(INPUT|SELECT|TEXTAREA)$/.test(ae.tagName) && ae.closest('#page-checklist')) return;
+    renderChecklistTable();
+  }, 60000);
+}
+
+// ── Ventas / pedidos: entrega y urgencia ──────────────────────────────────────
+// Un pedido con hora de entrega en menos de URGENTE_MIN minutos (o ya pasada)
+// sube al principio del checklist como urgente.
+const URGENTE_MIN = 120;
+// Un pedido vencido hace más de 12 h ya no se trata como urgente (quedó olvidado
+// como pendiente); sigue en "Ventas pendientes".
+const URGENTE_VENCIDA_MIN = 12*60;
+export function entregaVenta(v){
+  let fecha = v.fechaEntrega || v.fecha || '';
+  let hora = v.horaEntrega || '';
+  if(!hora){
+    // Pedidos de habitación viejos: la hora quedó en la descripción ("Para: 2026-11-05 15:30")
+    const m = /Para:\s*(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})/.exec(v.desc||'');
+    if(m){ fecha = m[1]; hora = m[2]; }
+  }
+  if(!fecha || !hora) return { fecha, hora, mins:null };
+  const [y,mo,d] = fecha.split('-').map(Number);
+  const [h,mi] = hora.split(':').map(Number);
+  const mins = Math.round((new Date(y, mo-1, d, h, mi) - new Date()) / 60000);
+  return { fecha, hora, mins };
+}
+function _txtFaltan(mins){
+  if(mins < 0) return `atrasada ${fmtDur(-mins)}`;
+  if(mins === 0) return 'ahora';
+  return `en ${fmtDur(mins)}`;
+}
+// Ventas pendientes que corresponde mostrar (asignadas, o para hoy aunque nadie
+// las tenga todavía), con su entrega, ordenadas: urgentes primero y por hora.
+function _ventasPendientesHoy(soloDe){
+  return (ventasData||[]).map((v, vIdx) => ({ v, vIdx }))
+    .filter(({v}) => v && v.estado === 'pendiente' && !v.fin)
+    .map(x => ({ ...x, ent: entregaVenta(x.v) }))
+    .filter(({v, ent}) => soloDe ? _sameName(v.asignado, soloDe) : (v.asignado || (ent.fecha||v.fecha) === D.TODAY_ISO))
+    .map(x => ({ ...x, urgente: x.ent.mins !== null && x.ent.mins <= URGENTE_MIN && x.ent.mins > -URGENTE_VENCIDA_MIN }))
+    .sort((a,b)=>{
+      if(a.urgente !== b.urgente) return a.urgente ? -1 : 1;
+      const ka = a.ent.mins ?? Infinity, kb = b.ent.mins ?? Infinity;
+      return ka - kb;
+    });
+}
+function _chipEntrega(x){
+  if(!x.ent.hora) return '';
+  const hoy = x.ent.fecha === D.TODAY_ISO;
+  const cuando = (hoy ? '' : fmtDate(x.ent.fecha) + ' ') + x.ent.hora;
+  if(x.urgente) return `<span class="cl-entrega is-urgente">Entrega ${cuando} · ${_txtFaltan(x.ent.mins)}</span>`;
+  return `<span class="cl-entrega">Entrega ${cuando}</span>`;
+}
+function _filaVenta(x){
+  const { v, vIdx } = x;
+  const detalle = [v.cliente, v.dir, v.desc && !/^Hab\./.test(v.desc) ? v.desc : '', v.colores, v.dedicatoria ? '"'+v.dedicatoria+'"' : ''].filter(Boolean).map(esc).join(' · ');
+  const resp = D.userRole === 'gerencia'
+    ? `<select class="cl-select${v.asignado?'':' is-empty'}" onchange="clAsignarVenta(${vIdx},this.value)" aria-label="Florista">
+        <option value="">Asignar…</option>
+        ${CL_RESP_OPTS.map(o=>`<option${o===v.asignado?' selected':''}>${esc(o)}</option>`).join('')}
+      </select>`
+    : (v.asignado ? `<span class="cl-persona">${esc(v.asignado)}</span>` : '<span class="cl-muted">Sin asignar</span>');
+  return `<div class="cl-row cl-row-link${x.urgente?' is-urgente':''}" data-venta="${vIdx}" title="Ver detalle del pedido">
+    <span class="cl-check-sp"></span>
+    <div class="cl-row-main">
+      <div class="cl-row-zona">${esc(v.prod||'')}${x.ent.hora ? '' : D.badgeDiaRelativa(v.fecha)}${_chipEntrega(x)}</div>
+      ${detalle ? `<div class="cl-row-meta"><span class="cl-meta-item">${detalle}</span></div>` : ''}
+    </div>
+    <div class="cl-row-act"></div>
+    <div class="cl-row-obs"></div>
+    <div class="cl-row-horas">${D.renderVentaHoraCell(vIdx,'inicio',v)}${D.renderVentaHoraCell(vIdx,'fin',v)}${v.inicio && v.fin ? durBadge(v.inicio, v.fin) : ''}</div>
+    <div class="cl-row-resp">${resp}</div>
+  </div>`;
+}
+export function clAsignarVenta(vIdx, nombre){
+  const v = ventasData[vIdx];
+  if(!v) return;
+  v.asignado = nombre;
+  D.fbSave('ventasData', ventasData);
+  if(nombre) D.notificarAsignacion?.(nombre, `Pedido: ${v.prod||''}`, `${v.dir||v.cliente||''}${v.horaEntrega?' · entrega '+v.horaEntrega:''}. Ya te aparece en tu checklist.`);
+  renderChecklistTable();
+  showToast(nombre ? `${v.prod||'Pedido'} asignado a ${nombre}` : 'Pedido sin asignar');
+}
+
+// ── Asignar en bloque ─────────────────────────────────────────────────────────
+export function clToggleSel(i){ if(clSel.has(i)) clSel.delete(i); else clSel.add(i); renderChecklistTable(); }
+export function clSelGrupo(gk){
+  const [tipo, key] = [gk.slice(0,1), gk.slice(2)];
+  const idxs = CL_TASKS.map((t,i)=>i).filter(i=> !clState.checked[i] &&
+    (tipo==='p' ? (clState.responsable[i]||CL_TASKS[i].responsable||'')===key : CL_TASKS[i].sec===key));
+  const todas = idxs.length && idxs.every(i=>clSel.has(i));
+  idxs.forEach(i=> todas ? clSel.delete(i) : clSel.add(i));
+  renderChecklistTable();
+}
+function _renderSelBar(){
+  let bar = document.getElementById('cl-selbar');
+  if(!clVista.sel || D.userRole !== 'gerencia'){ if(bar) bar.remove(); return; }
+  if(!bar){
+    bar = document.createElement('div');
+    bar.id = 'cl-selbar';
+    bar.className = 'cl-selbar';
+    document.getElementById('page-checklist').appendChild(bar);
+  }
+  const n = clSel.size;
+  bar.innerHTML = `
+    <span class="cl-selbar-n">${n ? `<strong>${n}</strong> tarea${n!==1?'s':''} elegida${n!==1?'s':''}` : 'Tocá las tareas que querés asignar'}</span>
+    <select class="cl-select" ${n?'':'disabled'} onchange="clAsignarSel('responsable',this.value)" aria-label="Asignar a">
+      <option value="">Asignar a…</option>
+      ${CL_RESP_OPTS.map(o=>`<option>${esc(o)}</option>`).join('')}
+      <option value="__nadie">Quitar responsable</option>
+    </select>
+    <select class="cl-select" ${n?'':'disabled'} onchange="clAsignarSel('actividad',this.value)" aria-label="Actividad">
+      <option value="">Actividad…</option>
+      ${CL_ACTIVIDAD_OPTS.map(o=>`<option>${esc(o)}</option>`).join('')}
+    </select>
+    <button class="cl-btn-quiet" onclick="clSetVista('sel',false)">Listo</button>`;
+}
+export function clAsignarSel(campo, val){
+  if(!val || !clSel.size || D.userRole !== 'gerencia') return;
+  const idxs = [...clSel].filter(i => !clState.checked[i]);
+  if(campo === 'responsable'){
+    const nombre = val === '__nadie' ? '' : val;
+    idxs.forEach(i => { clState.responsable[i] = nombre; });
+    saveWeekState(currentDay, 'responsable');
+    showToast(nombre ? `${idxs.length} tarea${idxs.length!==1?'s':''} asignada${idxs.length!==1?'s':''} a ${nombre}` : `Se quitó el responsable de ${idxs.length} tarea${idxs.length!==1?'s':''}`);
+  } else {
+    let cambiados = [];
+    idxs.forEach(i => { cambiados = cambiados.concat(setActividadDia(currentDay, i, val)); });
+    showToast(`${idxs.length} tarea${idxs.length!==1?'s':''} en ${val}${cambiados.length?' · el resto de la semana quedó en Retoque':''}`);
+  }
+  clSel.clear();
+  renderChecklistTable();
+}
+
+// ── Copiar asignaciones de otro día ───────────────────────────────────────────
+// Del mismo día de la semana pasada (sale del historial: quién hizo cada zona y
+// con qué actividad) o de otro día de esta semana (solo responsables, para no
+// repetir un Nuevo que ya se hizo esta semana).
+function _asignacionesSemanaPasada(){
+  const d = new Date(D.TODAY_ISO + 'T12:00:00'); d.setDate(d.getDate() - 7);
+  const wk = getISOWeekKey(d);
+  const map = {};
+  (D.checklistHistory||[]).forEach(h=>{
+    if(h && h.weekKey === wk && h.day === currentDay && h.who) map[_zonaKey(h.sec, h.zona)] = { who:h.who, actividad:h.actividad };
+  });
+  return map;
+}
+export async function clCopiarDe(src){
+  if(!src || D.userRole !== 'gerencia') return;
+  const pend = CL_TASKS.map((_,i)=>i).filter(i => !clState.checked[i]);
+  if(src === '__pasada'){
+    const map = _asignacionesSemanaPasada();
+    const aplicar = pend.filter(i => map[_zonaKey(CL_TASKS[i].sec, CL_TASKS[i].zona)]);
+    if(!aplicar.length){ showToast('No hay registros del '+currentDay+' pasado para estas zonas'); return; }
+    if(!await confirmModal(`¿Copiar responsables y actividad del ${currentDay} pasado en ${aplicar.length} tarea${aplicar.length!==1?'s':''} pendiente${aplicar.length!==1?'s':''}?`)) return;
+    aplicar.forEach(i=>{
+      const r = map[_zonaKey(CL_TASKS[i].sec, CL_TASKS[i].zona)];
+      clState.responsable[i] = r.who;
+      if(r.actividad && CL_ACTIVIDAD_OPTS.some(o=>o.toLowerCase()===String(r.actividad).toLowerCase())) setActividadDia(currentDay, i, r.actividad);
+    });
+    saveWeekState(currentDay, 'responsable');
+    showToast(`Copiado del ${currentDay} pasado · ${aplicar.length} tareas`);
+  } else {
+    const ds = D.clStateByDay[src];
+    if(!ds){ showToast('Ese día no tiene datos'); return; }
+    const aplicar = pend.filter(i => ds.responsable?.[i]);
+    if(!aplicar.length){ showToast(`El ${src} no tiene responsables cargados`); return; }
+    if(!await confirmModal(`¿Copiar los responsables del ${src} en ${aplicar.length} tarea${aplicar.length!==1?'s':''} pendiente${aplicar.length!==1?'s':''} del ${currentDay}?`)) return;
+    aplicar.forEach(i => { clState.responsable[i] = ds.responsable[i]; });
+    saveWeekState(currentDay, 'responsable');
+    showToast(`Responsables copiados del ${src}`);
+  }
+  renderChecklistTable();
+}
+
+// ── Programar Nuevo desde el aviso de atrasados ───────────────────────────────
+export async function clProgramarNuevo(sec, zona){
+  const i = CL_TASKS.findIndex(t => t.sec===sec && t.zona===zona);
+  if(i < 0 || !clState) return;
+  if(clState.checked[i]){ showToast(`${zona} ya está hecha el ${currentDay}`); return; }
+  if(String(clState.actividad[i]||'').toLowerCase()==='nuevo'){ showToast(`${zona} ya figura como Nuevo el ${currentDay}`); return; }
+  if(!await confirmModal(`¿Programar un arreglo Nuevo en ${zona} para el ${currentDay}?`)) return;
+  updActividad(i, 'Nuevo');
+  renderChecklistTable();
+}
 
 // ── Festejo al completar todas las tareas del día (floristas) ─────────────────
 function festejarChecklist(){
@@ -1403,28 +1707,31 @@ function renderChecklistCards(el){
     </div>`;
   }).join('');
 
-  // Ventas / pedidos pendientes asignados
-  const ventasHoy = (ventasData||[]).filter(v => _sameName(v.asignado, D.floristaNombre) && v.estado==='pendiente' && !v.fin);
-  const vtHTML = ventasHoy.map(v=>{
-    const vIdx = ventasData.indexOf(v);
-    const detalle = [v.cliente, v.colores?''+v.colores:'', v.fecha?''+fmtDate(v.fecha):''].filter(Boolean).join(' · ');
-    return `<div class="cl-card cl-card-venta" onclick="if(!event.target.closest('button'))openVentaDetail(${vIdx})">
+  // Ventas / pedidos pendientes asignados: los de entrega próxima van primero, como urgentes
+  const ventasMias = _ventasPendientesHoy(D.floristaNombre);
+  const tarjetaVenta = (x) => {
+    const { v, vIdx } = x;
+    const detalle = [v.cliente, v.dir, v.colores].filter(Boolean).join(' · ');
+    return `<div class="cl-card cl-card-venta${x.urgente?' cl-card-urgente':''}" onclick="if(!event.target.closest('button'))openVentaDetail(${vIdx})">
       <div class="cl-card-top">
         <div>
           <div class="cl-card-zona">${esc(v.prod||'')}</div>
           <div class="cl-card-sec">${esc(detalle)}</div>
         </div>
+        ${_chipEntrega(x) || (v.fecha ? `<span class="cl-entrega">${fmtDate(v.fecha)}</span>` : '')}
       </div>
       <div class="cl-card-horas">
         <div class="cl-card-hora">${D.renderVentaHoraCell(vIdx,'inicio',v)}</div>
         <div class="cl-card-hora">${D.renderVentaHoraCell(vIdx,'fin',v)}</div>
       </div>
     </div>`;
-  }).join('');
+  };
+  const urgHTML = ventasMias.filter(x=>x.urgente).map(tarjetaVenta).join('');
+  const vtHTML = ventasMias.filter(x=>!x.urgente).map(tarjetaVenta).join('');
 
   el.innerHTML = `
+    ${urgHTML ? '<div class="cl-cards-sec-hdr cl-cards-urgente">Urgente · entrega próxima</div>'+urgHTML : ''}
     ${misIdxs.length ? tareasHTML : `<div class="cl-cards-empty">
-      <div style="font-size:30px;margin-bottom:8px"></div>
       No tenés tareas asignadas para hoy, ${esc(D.floristaNombre)}
       <div class="cl-cards-empty-sub">Gerencia asigna las tareas desde la checklist general.</div>
     </div>`}
@@ -1697,6 +2004,7 @@ export function updCL(i, field, val){
     return;
   }
   saveWeekState(currentDay, field, i);
+  if(field === 'responsable') renderChecklistTable();
 }
 
 export function toggleTask(i, el){

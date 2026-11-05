@@ -395,6 +395,7 @@ export function openSaleModal(){
   document.getElementById('sale-modal-title').textContent = 'Nueva Venta';
   document.getElementById('sale-edit-idx').value = '-1';
   document.getElementById('sale-fecha').value=D.TODAY_ISO;
+  { const h = document.getElementById('sale-hora'); if(h) h.value = ''; }
   ['sale-desc','sale-cliente','sale-destinatario','sale-dedicatoria','sale-precio','sale-dir'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('sale-estado').value='pendiente';
   document.getElementById('sale-pago').value='';
@@ -452,6 +453,7 @@ export function openEditSaleModal(i){
   populateSaleSelects(v.prod, v.asignado||'');
   document.getElementById('sale-desc').value = v.desc || '';
   document.getElementById('sale-fecha').value = v.fecha || '';
+  { const h = document.getElementById('sale-hora'); if(h) h.value = v.horaEntrega || ''; }
   document.getElementById('sale-cliente').value = v.cliente || '';
   document.getElementById('sale-destinatario').value = v.destinatario || '';
   document.getElementById('sale-dedicatoria').value = v.dedicatoria || '';
@@ -549,6 +551,7 @@ export function addSale(){
     cliente:document.getElementById('sale-cliente').value,
     destinatario:document.getElementById('sale-destinatario').value,
     fecha:document.getElementById('sale-fecha').value||D.TODAY_ISO,
+    horaEntrega:document.getElementById('sale-hora')?.value||'',
     dedicatoria:document.getElementById('sale-dedicatoria').value,
     precio:document.getElementById('sale-precio').value||'—',
     formaPago:document.getElementById('sale-pago').value,
