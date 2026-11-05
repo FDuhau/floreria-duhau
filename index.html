@@ -282,26 +282,12 @@
       </div>
     </div>
 
-    <div class="day-tabs" id="day-tabs-container"></div>
+    <div class="day-tabs cl-days" id="day-tabs-container" role="tablist" aria-label="Día de la semana"></div>
     <!-- Vista de tarjetas para floristas (mobile-first) -->
     <div id="cl-cards-wrap" style="display:none"></div>
-    <div class="table-wrapper" id="cl-table-wrap">
-      <table class="checklist-table">
-        <thead id="checklist-thead">
-          <tr>
-            <th style="width:32px">✓</th>
-            <th>Zona</th>
-            <th>Actividad</th>
-            <th>Observaciones</th>
-            <th style="width:90px">Inicio</th>
-            <th style="width:90px">Fin</th>
-            <th style="width:75px">Duración</th>
-            <th>Responsable</th>
-            <th style="width:32px"></th>
-          </tr>
-        </thead>
-        <tbody id="checklist-body"></tbody>
-      </table>
+    <!-- Lista por zona (gerencia/operario) -->
+    <div id="cl-table-wrap" class="cl-list">
+      <div id="checklist-body"></div>
     </div>
   </div>
 

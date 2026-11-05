@@ -757,7 +757,7 @@ export function initChecklist(){
   if(!weekBanner){
     weekBanner = document.createElement('div');
     weekBanner.id = 'cl-week-banner';
-    weekBanner.style.cssText = 'display:flex;align-items:center;justify-content:space-between;background:#FDFCFB;border:1px solid #E4E2DC;border-radius:4px;padding:10px 18px;margin-bottom:14px;flex-wrap:wrap;gap:10px';
+    weekBanner.className = 'cl-week';
     document.getElementById('day-tabs-container').before(weekBanner);
   }
   let totalDone = 0;
@@ -767,16 +767,15 @@ export function initChecklist(){
       return s + arr.filter(Boolean).length;
     }, 0);
   } catch(e){ totalDone = 0; }
+  const [anio, sem] = CURRENT_WEEK_KEY.split('-W');
   weekBanner.innerHTML = `
-    <div style="font-size:12px;color:var(--mid-gray)">
-      <strong style="color:var(--charcoal)">${CURRENT_WEEK_KEY.replace('-W',' · Semana ')}</strong>
-      &nbsp;·&nbsp; ${totalDone} tarea${totalDone!==1?'s':''} completada${totalDone!==1?'s':''} esta semana
+    <div class="cl-week-info">
+      <span class="cl-week-tit">Semana ${Number(sem)||sem} <span class="cl-muted">· ${anio}</span></span>
+      <span class="cl-week-sub">${totalDone} tarea${totalDone!==1?'s':''} completada${totalDone!==1?'s':''} esta semana</span>
     </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn-secondary" style="font-size:12px;padding:5px 12px;color:var(--red-alert);border-color:var(--red-alert)"
-        onclick="resetDayState()">Limpiar día</button>
-      <button class="btn-secondary" style="font-size:12px;padding:5px 12px;color:var(--red-alert);border-color:var(--red-alert)"
-        onclick="resetWeekState()">Limpiar semana</button>
+    <div class="cl-week-acc gerencia-only">
+      <button class="cl-btn-quiet" onclick="resetDayState()">Limpiar día</button>
+      <button class="cl-btn-quiet" onclick="resetWeekState()">Limpiar semana</button>
     </div>`;
 
   const tabs = document.getElementById('day-tabs-container');
@@ -884,11 +883,11 @@ function registrarUltimoNuevo(sec, zona, actividad, fecha){
 }
 
 function badgeUltimoNuevo(fecha){
-  if(!fecha) return '<div style="font-size:12px;color:var(--mid-gray);margin-top:2px;font-weight:400">Sin registro de Nuevo</div>';
+  if(!fecha) return '<span class="cl-meta-item">Sin registro de Nuevo</span>';
   const dias = Math.max(0, Math.floor((new Date(D.TODAY_ISO)-new Date(fecha))/86400000));
-  const color = dias>=7 ? 'var(--red-alert)' : dias>=5 ? '#A06A00' : 'var(--sage-dark)';
+  const nivel = dias>=7 ? 'is-late' : dias>=5 ? 'is-warn' : 'is-ok';
   const txt = dias===0 ? 'Nuevo hoy' : dias===1 ? 'Nuevo ayer' : `Nuevo hace ${dias} días`;
-  return `<div style="font-size:12px;font-weight:600;color:${color};margin-top:2px" title="Último Nuevo: ${fmtDate(fecha)}">${txt}</div>`;
+  return `<span class="cl-meta-item cl-nuevo ${nivel}" title="Último Nuevo: ${fmtDate(fecha)}">${txt}</span>`;
 }
 
 // ── Nuevos atrasados (solo gerencia) ─────────────────────────────────────────
@@ -929,12 +928,20 @@ function renderNuevosAtrasadosBanner(){
   if(!list.length){ el.innerHTML = ''; return; }
   const chips = list.map(z=>{
     const sh = SEC_HEADERS[z.sec];
-    return `<span style="display:inline-block;background:#fff;border:1px solid #F0C0C0;border-radius:10px;padding:3px 9px;margin:3px 4px 0 0;font-size:12px;white-space:nowrap" title="Último Nuevo: ${fmtDate(z.fecha)}">${sh?sh.icon:''} ${esc(z.zona)} · <strong>${z.dias} días</strong></span>`;
+    const secTxt = sh ? sh.label.charAt(0)+sh.label.slice(1).toLowerCase() : '';
+    return `<span class="cl-aviso-chip" title="${esc(secTxt)} · último Nuevo: ${fmtDate(z.fecha)}">${esc(z.zona)} · <strong>${z.dias} días</strong></span>`;
   }).join('');
-  el.innerHTML = `<div class="alert-banner" style="margin-bottom:14px">
-    <div style="font-weight:600;margin-bottom:2px">${list.length} zona${list.length!==1?'s':''} con Nuevo atrasado (${UMBRAL_NUEVO_ATRASADO}+ días)</div>
-    <div style="font-size:12px;opacity:.85;margin-bottom:4px">Reprogramá un arreglo Nuevo desde la vista semanal antes de que se marchiten.</div>
-    <div>${chips}</div>
+  // Con muchas zonas, mostrar las más atrasadas y el resto a demanda
+  const MAX_CHIPS = 6;
+  const verMas = list.length > MAX_CHIPS
+    ? `<button class="cl-link cl-aviso-mas" onclick="this.closest('.cl-aviso').classList.add('is-open')">Ver ${list.length-MAX_CHIPS} más</button>` : '';
+  el.innerHTML = `<div class="cl-aviso">
+    <div class="cl-aviso-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17h.01"/></svg></div>
+    <div class="cl-aviso-body">
+      <div class="cl-aviso-tit">${list.length} zona${list.length!==1?'s':''} con Nuevo atrasado (${UMBRAL_NUEVO_ATRASADO}+ días)</div>
+      <div class="cl-aviso-sub">Reprogramá un arreglo Nuevo desde <button class="cl-link" onclick="openVistaSemanal()">la vista semanal</button> antes de que se marchiten.</div>
+      <div class="cl-aviso-chips">${chips}${verMas}</div>
+    </div>
   </div>`;
 }
 
@@ -954,9 +961,9 @@ export function eventoFlorFase(ev, fase){
     : (ev.asignado||'');
 }
 function eventoFaseTag(fase){
-  if(fase === 'retiro') return '<span style="font-size:12px;font-weight:700;background:#7A5CB8;color:#fff;padding:2px 6px;border-radius:5px;margin-left:6px">RETIRO</span>';
-  if(fase === 'colocacion') return '<span style="font-size:12px;font-weight:700;background:#E65100;color:#fff;padding:2px 6px;border-radius:5px;margin-left:6px">COLOCACIÓN</span>';
-  return '<span style="font-size:12px;font-weight:700;background:#5A8C3A;color:#fff;padding:2px 6px;border-radius:5px;margin-left:6px">ARMADO</span>';
+  if(fase === 'retiro') return '<span class="cl-fase-tag is-retiro">Retiro</span>';
+  if(fase === 'colocacion') return '<span class="cl-fase-tag is-coloc">Colocación</span>';
+  return '<span class="cl-fase-tag is-armado">Armado</span>';
 }
 // ¿Ya es momento de que el florista vea esta fase del evento?
 // Armado: siempre (lo ve para prepararlo). Colocación/Retiro: recién el día
@@ -1055,15 +1062,13 @@ export function renderChecklistTable(){
     const done = ds ? (Array.isArray(ds.checked) ? ds.checked : Object.values(ds.checked||{})).filter(Boolean).length : 0;
     const total = CL_TASKS.length;
     const pct = Math.round(done/total*100);
-    let badge = '';
-    if(done>0 && !isActive){
-      const col = pct===100?'var(--green-ok)':pct>50?'var(--sage)':'var(--amber)';
-      badge = `<span style="display:inline-block;margin-left:5px;background:${col};color:white;font-size:12px;font-weight:700;padding:1px 5px;border-radius:8px;vertical-align:middle">${done}/${total}</span>`;
-    } else if(pct===100 && isActive){
-      badge = ` `;
-    }
-    // Reconstruct tab text
-    tabEl.innerHTML = d + badge;
+    const estado = pct===100 ? ' is-full' : done>0 ? '' : ' is-empty';
+    const esHoy = d === D.TODAY_DAY;
+    // Nombre (completo y abreviado para celular) + avance del día
+    tabEl.innerHTML = `<span class="cl-day-name"><span class="cl-day-l">${d}</span><span class="cl-day-s">${d.slice(0,3)}</span>${esHoy?'<i class="cl-day-hoy" title="Hoy"></i>':''}</span>`
+      + `<span class="cl-day-count${estado}">${done ? done+'/'+total : '—'}</span>`;
+    tabEl.setAttribute('role','tab');
+    tabEl.setAttribute('aria-selected', isActive ? 'true' : 'false');
     // Re-bind click since we replaced innerHTML
     tabEl.onclick = (()=>{
       const day = d;
@@ -1088,17 +1093,18 @@ export function renderChecklistTable(){
   if(!progressEl){
     progressEl = document.createElement('div');
     progressEl.id = 'cl-progress-bar-wrap';
+    progressEl.className = 'cl-progress';
     // Antes de las tarjetas (floristas) y de la tabla (resto)
     const wrapper = document.getElementById('cl-cards-wrap') || document.getElementById('checklist-body').closest('.table-wrapper');
     wrapper.before(progressEl);
   }
+  const pctOk = total ? pct : 0;
   progressEl.innerHTML = `
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
-      <div style="flex:1;height:7px;background:var(--light-gray);border-radius:4px;overflow:hidden">
-        <div style="width:${pct}%;height:100%;background:${pct===100?'var(--green-ok)':'var(--sage)'};border-radius:4px;transition:width .3s"></div>
-      </div>
-      <span style="font-size:12px;color:var(--mid-gray);white-space:nowrap">${done_count} / ${total} tareas${pct===100?' ¡Completada!':''}</span>
-    </div>`;
+    <div class="cl-progress-head">
+      <div class="cl-progress-txt"><strong>${done_count}</strong> de ${total} tareas hechas · ${currentDay}</div>
+      <div class="cl-progress-pct${pctOk===100?' is-full':''}">${pctOk===100 ? 'Día completo' : pctOk+'%'}</div>
+    </div>
+    <div class="cl-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pctOk}"><span style="width:${pctOk}%"></span></div>`;
 
   // Aviso de Nuevos atrasados (gerencia). Se ubica arriba de la barra de progreso.
   renderNuevosAtrasadosBanner();
@@ -1123,232 +1129,183 @@ export function renderChecklistTable(){
   if(!filtroEl){
     filtroEl = document.createElement('div');
     filtroEl.id = 'cl-filtro-wrap';
+    filtroEl.className = 'cl-toolbar';
     filtroEl.innerHTML = `
-      <input class="cl-obs-input" id="cl-filtro-txt" placeholder="Filtrar por zona o responsable..." style="flex:1;min-width:160px"
-        oninput="clSetFiltro('txt',this.value)">
-      <button class="filter-btn cl-fbtn" data-f="all"    onclick="clSetFiltro('estado','all')">Todas</button>
-      <button class="filter-btn cl-fbtn" data-f="pend"   onclick="clSetFiltro('estado','pend')">Pendientes</button>
-      <button class="filter-btn cl-fbtn" data-f="hechas" onclick="clSetFiltro('estado','hechas')">Hechas</button>`;
-    filtroEl.style.cssText = 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px';
+      <label class="cl-search">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg>
+        <input id="cl-filtro-txt" type="search" placeholder="Buscar zona o responsable" autocomplete="off"
+          oninput="clSetFiltro('txt',this.value)">
+      </label>
+      <div class="cl-seg" role="group" aria-label="Filtrar por estado">
+        <button class="cl-fbtn" data-f="all"    onclick="clSetFiltro('estado','all')">Todas<span class="cl-seg-n"></span></button>
+        <button class="cl-fbtn" data-f="pend"   onclick="clSetFiltro('estado','pend')">Pendientes<span class="cl-seg-n"></span></button>
+        <button class="cl-fbtn" data-f="hechas" onclick="clSetFiltro('estado','hechas')">Hechas<span class="cl-seg-n"></span></button>
+      </div>`;
     document.getElementById('cl-table-wrap').before(filtroEl);
   }
   filtroEl.style.display = '';
-  filtroEl.querySelectorAll('.cl-fbtn').forEach(b=>b.classList.toggle('active', b.dataset.f===clFiltro.estado));
+  const nPend = CL_TASKS.length - done_count;
+  const nPorFiltro = { all: CL_TASKS.length, pend: nPend, hechas: done_count };
+  filtroEl.querySelectorAll('.cl-fbtn').forEach(b=>{
+    const on = b.dataset.f===clFiltro.estado;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    const n = b.querySelector('.cl-seg-n'); if(n) n.textContent = nPorFiltro[b.dataset.f];
+  });
 
-  const tbody = document.getElementById('checklist-body');
-  tbody.innerHTML = '';
-  let lastSec = '';
-
-  // Header dinámico según rol
-  const thead = document.getElementById('checklist-thead');
-  if(thead){
-    if(D.userRole === 'florista'){
-      thead.innerHTML = '<tr><th>Zona</th><th>Actividad</th><th style="width:60px">Ref.</th><th>Observaciones</th><th style="width:90px">Inicio</th><th style="width:90px">Fin</th></tr>';
-    } else {
-      thead.innerHTML = '<tr><th style="width:32px">✓</th><th>Zona</th><th>Actividad</th><th style="width:60px">Ref.</th><th>Observaciones</th><th style="width:90px">Inicio</th><th style="width:90px">Fin</th><th style="width:75px">Duración</th><th>Responsable</th><th style="width:32px"></th></tr>';
-    }
-  }
-
-  // Para floristas: determinar qué secciones tienen tareas asignadas
-  const isFlorista = D.userRole === 'florista';
+  const list = document.getElementById('checklist-body');
+  const esGerencia = D.userRole === 'gerencia';
   // Contador de días desde el último Nuevo por zona — solo lo ve gerencia
-  const ultimoNuevoMap = D.userRole==='gerencia' ? mapUltimoNuevoPorZona() : null;
+  const ultimoNuevoMap = esGerencia ? mapUltimoNuevoPorZona() : null;
+  const txt = clFiltro.txt.trim().toLowerCase();
+
+  // Agrupar las tareas visibles por sección (Alvear / Posadas / Florería …)
+  const grupos = [];
   CL_TASKS.forEach((t,i)=>{
     const curResp = clState.responsable[i] || t.responsable || '';
+    if(txt && !t.zona.toLowerCase().includes(txt) && !String(curResp).toLowerCase().includes(txt)) return;
+    if(clFiltro.estado==='pend' && clState.checked[i]) return;
+    if(clFiltro.estado==='hechas' && !clState.checked[i]) return;
+    let g = grupos[grupos.length-1];
+    if(!g || g.sec !== t.sec){ g = { sec:t.sec, idxs:[] }; grupos.push(g); }
+    g.idxs.push(i);
+  });
 
-    // Florista individual: solo ver tareas asignadas a ellos
-    if(isFlorista && curResp !== D.floristaNombre) return;
-
-    // Filtro rápido de gerencia: texto (zona/responsable) y estado
-    if(!isFlorista){
-      const txt = clFiltro.txt.trim().toLowerCase();
-      if(txt && !t.zona.toLowerCase().includes(txt) && !String(curResp).toLowerCase().includes(txt)) return;
-      if(clFiltro.estado==='pend' && clState.checked[i]) return;
-      if(clFiltro.estado==='hechas' && !clState.checked[i]) return;
-    }
-
-    // Section header
-    if(t.sec !== lastSec){
-      lastSec = t.sec;
-      const sh = SEC_HEADERS[t.sec];
-      const hr = document.createElement('tr');
-      hr.className = 'cl-section-row ' + sh.cls;
-      hr.innerHTML = `<td colspan="${isFlorista?6:10}">${sh.icon}&nbsp;&nbsp;${sh.label}</td>`;
-      tbody.appendChild(hr);
-    }
-
-    const done    = clState.checked[i];
+  const filaTarea = (i) => {
+    const t = CL_TASKS[i];
+    const done    = !!clState.checked[i];
+    const curResp = clState.responsable[i] || t.responsable || '';
     const curAct  = clState.actividad[i]   || t.actividad;
     const curObs  = (clState.obs[i] && clState.obs[i] !== 'Observaciones') ? clState.obs[i] : (t.obs||'');
-    const sh      = SEC_HEADERS[t.sec];
     const ref     = getTiempoRef(i, curAct);
+    const actLower = String(curAct).toLowerCase();
+    const nuevoInfo = ultimoNuevoMap && actLower!=='riego' ? badgeUltimoNuevo(ultimoNuevoMap[_zonaKey(t.sec,t.zona)]) : '';
+    const refTxt = ref ? `<span class="cl-meta-item" title="Tiempo de referencia">${icon('clock')}${ref} min</span>` : '';
+    const meta = [nuevoInfo, refTxt].filter(Boolean).join('');
+
+    // Tarea hecha: resumen en texto (sin campos), para que la lista respire
+    if(done){
+      const ini = clState.inicio?.[i] || '', fin = clState.fin?.[i] || '';
+      return `<div class="cl-row is-done">
+        <label class="cl-check" title="Desmarcar"><input type="checkbox" class="task-check" checked onchange="toggleTask(${i},this)"><span></span></label>
+        <div class="cl-row-main">
+          <div class="cl-row-zona">${esc(t.zona)}${actLower!=='riego'?D._btnGuiaArreglo(t.zona):''}</div>
+          ${meta ? `<div class="cl-row-meta">${meta}</div>` : ''}
+        </div>
+        <div class="cl-row-act"><span class="badge ${getBadge(curAct)}">${esc(curAct)}</span></div>
+        <div class="cl-row-obs">${curObs ? `<span class="cl-obs-txt">${esc(curObs)}</span>` : ''}</div>
+        <div class="cl-row-horas"><span class="cl-rango">${ini||'—'}<i>–</i>${fin||'—'}</span>${durBadge(ini, fin, ref)}</div>
+        <div class="cl-row-resp">${curResp ? `<span class="cl-persona">${esc(curResp)}</span>` : '<span class="cl-muted">Sin asignar</span>'}</div>
+      </div>`;
+    }
 
     // Actividad: la determina gerencia (default Retoque); el resto la ve como badge
-    const actLower = String(curAct).toLowerCase();
-    const actividadCell = D.userRole==='gerencia'
-      ? `<select class="cl-select" onchange="updActividad(${i},this.value)" ${done?'disabled':''}>
+    const actividadCell = esGerencia
+      ? `<select class="cl-select cl-act-select cl-act-${actLower}" onchange="updActividad(${i},this.value)" aria-label="Actividad">
           ${CL_ACTIVIDAD_OPTS.map(o=>`<option${o.toLowerCase()===actLower?' selected':''}>${esc(o)}</option>`).join('')}
         </select>`
       : `<span class="badge ${getBadge(curAct)}">${esc(curAct)}</span>`;
-    // Tiempo promedio de referencia: gerencia lo edita, floristas lo ven
-    const refCell = D.userRole==='gerencia'
-      ? `<input type="number" min="0" value="${ref||''}" placeholder="min"
-          style="width:52px;padding:4px 5px;font-size:12px;border:1px solid var(--light-gray);border-radius:4px;text-align:center;background:var(--warm-white);color:var(--charcoal)"
-          onchange="updTiempoRef(${i},this.value,'${actLower}')">`
-      : (ref ? `<span style="font-size:12px;font-weight:600;color:var(--mid-gray);white-space:nowrap">${icon('clock')}${ref}m</span>` : '<span style="font-size:12px;color:var(--mid-gray)">—</span>');
+    const respCell = D.userRole==='operario'
+      ? (curResp ? `<span class="cl-persona">${esc(curResp)}</span>` : '<span class="cl-muted">Sin asignar</span>')
+      : `<select class="cl-select${curResp?'':' is-empty'}" onchange="updCL(${i},'responsable',this.value)" aria-label="Responsable">
+          <option value="">Asignar…</option>
+          ${CL_RESP_OPTS.map(o=>`<option${o===curResp?' selected':''}>${esc(o)}</option>`).join('')}
+        </select>`;
+    return `<div class="cl-row">
+      <label class="cl-check" title="Marcar como hecha"><input type="checkbox" class="task-check" onchange="toggleTask(${i},this)"><span></span></label>
+      <div class="cl-row-main">
+        <div class="cl-row-zona">${esc(t.zona)}${actLower!=='riego'?D._btnGuiaArreglo(t.zona):''}</div>
+        ${meta ? `<div class="cl-row-meta">${meta}</div>` : ''}
+      </div>
+      <div class="cl-row-act">${actividadCell}</div>
+      <div class="cl-row-obs"><input class="cl-obs-input cl-nota" value="${esc(curObs)}" placeholder="Agregar nota" aria-label="Observaciones"
+        onchange="updCL(${i},'obs',this.value)"></div>
+      <div class="cl-row-horas">${renderHoraCell(i,'inicio',false)}${renderHoraCell(i,'fin',false)}</div>
+      <div class="cl-row-resp">${respCell}</div>
+    </div>`;
+  };
 
-    const tr = document.createElement('tr');
-    tr.className = sh.rowCls + (done ? ' task-row-done' : '');
+  let html = grupos.map(g=>{
+    const sh = SEC_HEADERS[g.sec] || {label:g.sec, cls:''};
+    const delSec = CL_TASKS.map((t,i)=>t.sec===g.sec?i:-1).filter(i=>i>=0);
+    const hechas = delSec.filter(i=>clState.checked[i]).length;
+    return `<section class="cl-group ${sh.cls}">
+      <header class="cl-group-hd">
+        <span class="cl-group-dot"></span>
+        <h3 class="cl-group-name">${esc(sh.label)}</h3>
+        <span class="cl-group-count${hechas===delSec.length?' is-full':''}">${hechas} de ${delSec.length}</span>
+      </header>
+      ${g.idxs.map(filaTarea).join('')}
+    </section>`;
+  }).join('');
 
-    if(isFlorista){
-      tr.innerHTML = `
-        <td style="font-weight:500;font-size:12.5px;min-width:140px">${esc(t.zona)}${actLower!=='riego'?D._btnGuiaArreglo(t.zona):''}</td>
-        <td style="min-width:100px">${actividadCell}</td>
-        <td style="width:60px;text-align:center">${refCell}</td>
-        <td style="min-width:150px">
-          <input class="cl-obs-input" value="${esc(curObs)}" placeholder="Observaciones..."
-            onchange="updCL(${i},'obs',this.value)" ${done?'disabled':''} style="width:100%">
-        </td>
-        <td style="width:90px;text-align:center;padding:4px 6px">${renderHoraCell(i,'inicio',done)}</td>
-        <td style="width:90px;text-align:center;padding:4px 6px">${renderHoraCell(i,'fin',done)}</td>`;
-    } else {
-      const nuevoInfo = ultimoNuevoMap && actLower!=='riego' ? badgeUltimoNuevo(ultimoNuevoMap[_zonaKey(t.sec,t.zona)]) : '';
-      tr.innerHTML = `
-        <td style="width:32px"><input type="checkbox" class="task-check" ${done?'checked':''} onchange="toggleTask(${i},this)"></td>
-        <td style="font-weight:500;font-size:12.5px;min-width:140px">${esc(t.zona)}${actLower!=='riego'?D._btnGuiaArreglo(t.zona):''}${nuevoInfo}</td>
-        <td style="min-width:100px">${actividadCell}</td>
-        <td style="width:60px;text-align:center">${refCell}</td>
-        <td style="min-width:150px">
-          <input class="cl-obs-input" value="${esc(curObs)}" placeholder="Observaciones..."
-            onchange="updCL(${i},'obs',this.value)" ${done?'disabled':''} style="width:100%">
-        </td>
-        <td style="width:90px;text-align:center;padding:4px 6px">${renderHoraCell(i,'inicio',done)}</td>
-        <td style="width:90px;text-align:center;padding:4px 6px">${renderHoraCell(i,'fin',done)}</td>
-        <td style="width:80px;text-align:center">${durBadge(clState.inicio?.[i], clState.fin?.[i], ref)}</td>
-        <td style="min-width:110px">
-          ${D.userRole==='operario'
-            ? '<span style="font-size:13px;color:var(--charcoal);padding:4px 2px;display:block">' + (curResp || '<em style="color:var(--mid-gray);font-size:12px">Sin asignar</em>') + '</span>'
-            : '<select class="cl-select" onchange="updCL('+i+',\'responsable\',this.value)" '+(done?'disabled':'')+'>'+
-              '<option value="">— Responsable —</option>'+
-              CL_RESP_OPTS.map(o=>'<option'+(o===curResp?' selected':'')+'>'+esc(o)+'</option>').join('')+
-              '</select>'
-          }
-        </td>
-        <td style="width:32px;text-align:center"><span style="font-size:16px">${done?'\u2705':''}</span></td>`;
-    }
-
-    tbody.appendChild(tr);
-  });
+  if(!grupos.length){
+    html = `<div class="cl-vacio">${txt || clFiltro.estado!=='all'
+      ? 'Ninguna tarea coincide con el filtro.'
+      : 'No hay tareas cargadas para este día.'}</div>`;
+  }
 
   // ── Eventos del día (fase armado, colocación o retiro según el estado) ──
-  const eventosHoy = D.eventosData.filter(ev => {
-    if(ev.estado === 'Pedidos Finalizados') return false;
-    if(isFlorista) return florFaseVisible(ev, D.floristaNombre) !== null;
-    // gerencia/operario: ven los activos que tengan alguien asignado en alguna fase
-    return ev.asignado || ev.colocacionAsignado || ev.retiroAsignado;
-  });
+  // gerencia/operario: ven los activos que tengan alguien asignado en alguna fase
+  const eventosHoy = D.eventosData.filter(ev =>
+    ev.estado !== 'Pedidos Finalizados' && (ev.asignado || ev.colocacionAsignado || ev.retiroAsignado));
   if(eventosHoy.length > 0){
-    const evHeader = document.createElement('tr');
-    evHeader.className = 'cl-section-row';
-    evHeader.style.cssText = 'background:#FDF0E8';
-    evHeader.innerHTML = `<td colspan="${isFlorista?6:10}" style="font-weight:600;color:#B8602A">Eventos del día</td>`;
-    tbody.appendChild(evHeader);
-
-    eventosHoy.forEach(ev => {
-      const evIdx = D.eventosData.indexOf(ev);
-      const evTr = document.createElement('tr');
-      evTr.style.cssText = 'background:#FEFAF6';
-      const fase = isFlorista ? florFaseVisible(ev, D.floristaNombre) : eventoFase(ev);
-      const flor = eventoFlorFase(ev, fase);
-      const faseTag = eventoFaseTag(fase);
-      const iniVal = fase === 'retiro' ? ev.retiroInicio : fase === 'colocacion' ? ev.colocacionInicio : ev.inicio;
-      const finVal = fase === 'retiro' ? ev.retiroFin : fase === 'colocacion' ? ev.colocacionFin : ev.fin;
-
-      if(isFlorista){
-        evTr.innerHTML = `
-          <td style="font-weight:600;font-size:12.5px;color:#B8602A">${esc(ev.nombre)}${D.badgeDiaRelativa(ev.fecha)}${faseTag}</td>
-          <td style="font-size:12px">${esc(ev.tipo)} · ${esc(ev.salon||'')}</td>
-          <td></td>
-          <td style="font-size:12px;color:var(--mid-gray)">${ev.pax?ev.pax+' pax':''} ${ev.hora?'· '+ev.hora:''}</td>
-          <td style="width:90px;text-align:center;padding:4px 6px">${D.renderEvHoraCell(evIdx,'inicio',ev,fase)}</td>
-          <td style="width:90px;text-align:center;padding:4px 6px">${D.renderEvHoraCell(evIdx,'fin',ev,fase)}</td>`;
-      } else {
-        evTr.innerHTML = `
-          <td style="width:32px"></td>
-          <td style="font-weight:600;font-size:12.5px;color:#B8602A">${esc(ev.nombre)}${D.badgeDiaRelativa(ev.fecha)}${faseTag}</td>
-          <td style="font-size:12px">${esc(ev.tipo)}</td>
-          <td></td>
-          <td style="font-size:12px;color:var(--mid-gray)">${esc(ev.salon||'')} · ${ev.pax?ev.pax+' pax':''} ${ev.hora?'· '+ev.hora:''}</td>
-          <td style="width:90px;text-align:center;padding:4px 6px">${D.renderEvHoraCell(evIdx,'inicio',ev,fase)}</td>
-          <td style="width:90px;text-align:center;padding:4px 6px">${D.renderEvHoraCell(evIdx,'fin',ev,fase)}</td>
-          <td style="width:80px;text-align:center">${durBadge(iniVal, finVal)}</td>
-          <td style="font-size:12px;color:var(--sage-dark);font-weight:600">${flor ? esc(flor) : '<span style="color:var(--mid-gray)">sin asignar</span>'}</td>
-          <td></td>`;
-      }
-      // Tap en el evento → abrir el detalle (excepto al tocar los botones inicio/fin)
-      evTr.style.cursor = 'pointer';
-      evTr.title = 'Ver detalle del evento';
-      evTr.addEventListener('click', e => { if(e.target.closest('button')) return; openEventoDetail(evIdx); });
-      tbody.appendChild(evTr);
-    });
+    html += `<section class="cl-group cl-group-eventos">
+      <header class="cl-group-hd"><span class="cl-group-dot"></span><h3 class="cl-group-name">Eventos del día</h3><span class="cl-group-count">${eventosHoy.length}</span></header>
+      ${eventosHoy.map(ev=>{
+        const evIdx = D.eventosData.indexOf(ev);
+        const fase = eventoFase(ev);
+        const flor = eventoFlorFase(ev, fase);
+        const iniVal = fase === 'retiro' ? ev.retiroInicio : fase === 'colocacion' ? ev.colocacionInicio : ev.inicio;
+        const finVal = fase === 'retiro' ? ev.retiroFin : fase === 'colocacion' ? ev.colocacionFin : ev.fin;
+        const meta = [ev.tipo, ev.salon, ev.pax ? ev.pax+' pax' : '', ev.hora].filter(Boolean).map(esc).join(' · ');
+        return `<div class="cl-row cl-row-link" data-ev="${evIdx}" title="Ver detalle del evento">
+          <span class="cl-check-sp"></span>
+          <div class="cl-row-main">
+            <div class="cl-row-zona">${esc(ev.nombre)}${D.badgeDiaRelativa(ev.fecha)}${eventoFaseTag(fase)}</div>
+            ${meta ? `<div class="cl-row-meta"><span class="cl-meta-item">${meta}</span></div>` : ''}
+          </div>
+          <div class="cl-row-act"></div>
+          <div class="cl-row-obs"></div>
+          <div class="cl-row-horas">${D.renderEvHoraCell(evIdx,'inicio',ev,fase)}${D.renderEvHoraCell(evIdx,'fin',ev,fase)}${iniVal && finVal ? durBadge(iniVal, finVal) : ''}</div>
+          <div class="cl-row-resp">${flor ? `<span class="cl-persona">${esc(flor)}</span>` : '<span class="cl-muted">Sin asignar</span>'}</div>
+        </div>`;
+      }).join('')}
+    </section>`;
   }
 
-  // ── Ventas / pedidos asignados pendientes (gerencia/operario ven todos; el florista ve los suyos) ──
-  const ventasHoy = (ventasData||[]).filter(v =>
-    v.asignado && v.estado === 'pendiente' && !v.fin &&
-    (!isFlorista || v.asignado === D.floristaNombre)
-  );
+  // ── Ventas / pedidos asignados pendientes ──
+  const ventasHoy = (ventasData||[]).filter(v => v.asignado && v.estado === 'pendiente' && !v.fin);
   if(ventasHoy.length > 0){
-    const vtHeader = document.createElement('tr');
-    vtHeader.className = 'cl-section-row';
-    vtHeader.style.cssText = 'background:#E8EDF8';
-    vtHeader.innerHTML = `<td colspan="${isFlorista?6:10}" style="font-weight:600;color:var(--info)">Ventas pendientes</td>`;
-    tbody.appendChild(vtHeader);
+    html += `<section class="cl-group cl-group-ventas">
+      <header class="cl-group-hd"><span class="cl-group-dot"></span><h3 class="cl-group-name">Ventas pendientes</h3><span class="cl-group-count">${ventasHoy.length}</span></header>
+      ${ventasHoy.map(v=>{
+        const vIdx = ventasData.indexOf(v);
+        const detalle = [v.cliente, v.desc, v.colores, v.dedicatoria ? '"'+v.dedicatoria+'"' : '', v.dir, v.fecha ? fmtDate(v.fecha) : ''].filter(Boolean).map(esc).join(' · ');
+        return `<div class="cl-row cl-row-link" data-venta="${vIdx}" title="Ver detalle del pedido">
+          <span class="cl-check-sp"></span>
+          <div class="cl-row-main">
+            <div class="cl-row-zona">${esc(v.prod||'')}${D.badgeDiaRelativa(v.fecha)}</div>
+            ${detalle ? `<div class="cl-row-meta"><span class="cl-meta-item">${detalle}</span></div>` : ''}
+          </div>
+          <div class="cl-row-act"></div>
+          <div class="cl-row-obs"></div>
+          <div class="cl-row-horas">${D.renderVentaHoraCell(vIdx,'inicio',v)}${D.renderVentaHoraCell(vIdx,'fin',v)}${v.inicio && v.fin ? durBadge(v.inicio, v.fin) : ''}</div>
+          <div class="cl-row-resp"><span class="cl-persona">${esc(v.asignado||'')}</span></div>
+        </div>`;
+      }).join('')}
+    </section>`;
+  }
 
-    ventasHoy.forEach(v => {
-      const vIdx = ventasData.indexOf(v);
-      const vtTr = document.createElement('tr');
-      vtTr.style.cssText = 'background:#F5F7FC';
-
-      const detalle = [v.desc, v.colores ? ''+v.colores : '', v.dedicatoria ? '"'+v.dedicatoria+'"' : '', v.dir ? ''+v.dir : '', v.fecha ? ''+fmtDate(v.fecha) : ''].filter(Boolean).join(' · ');
-
-      if(isFlorista){
-        vtTr.innerHTML = `
-          <td style="font-weight:600;font-size:12.5px;color:var(--info)">${esc(v.prod)}${D.badgeDiaRelativa(v.fecha)}</td>
-          <td style="font-size:12px">${esc(v.cliente||'')}</td>
-          <td></td>
-          <td style="font-size:12px;color:var(--mid-gray);max-width:200px;overflow:hidden;text-overflow:ellipsis">${esc(detalle)}</td>
-          <td style="width:90px;text-align:center;padding:4px 6px">${D.renderVentaHoraCell(vIdx,'inicio',v)}</td>
-          <td style="width:90px;text-align:center;padding:4px 6px">${D.renderVentaHoraCell(vIdx,'fin',v)}</td>`;
-      } else {
-        vtTr.innerHTML = `
-          <td style="width:32px"></td>
-          <td style="font-weight:600;font-size:12.5px;color:var(--info)">${esc(v.prod)}${D.badgeDiaRelativa(v.fecha)}</td>
-          <td style="font-size:12px">${esc(v.cliente||'')}</td>
-          <td></td>
-          <td style="font-size:12px;color:var(--mid-gray);max-width:200px">${esc(detalle)}</td>
-          <td style="width:90px;text-align:center;padding:4px 6px">${D.renderVentaHoraCell(vIdx,'inicio',v)}</td>
-          <td style="width:90px;text-align:center;padding:4px 6px">${D.renderVentaHoraCell(vIdx,'fin',v)}</td>
-          <td style="width:80px;text-align:center">${durBadge(v.inicio, v.fin)}</td>
-          <td style="font-size:12px;color:var(--sage-dark);font-weight:600">${esc(v.asignado||'')}</td>
-          <td></td>`;
-      }
-      // Tap en el pedido/venta → abrir detalle (excepto al tocar los botones inicio/fin)
-      vtTr.style.cursor = 'pointer';
-      vtTr.title = 'Ver detalle del pedido';
-      vtTr.addEventListener('click', e => { if(e.target.closest('button')) return; D.openVentaDetail(vIdx); });
-      tbody.appendChild(vtTr);
+  list.innerHTML = html;
+  // Tap en un evento/venta → abrir el detalle (excepto al tocar los botones inicio/fin)
+  list.querySelectorAll('.cl-row-link').forEach(row=>{
+    row.addEventListener('click', e=>{
+      if(e.target.closest('button')) return;
+      if(row.dataset.ev !== undefined) openEventoDetail(Number(row.dataset.ev));
+      else D.openVentaDetail(Number(row.dataset.venta));
     });
-  }
-
-  // Mensaje si el florista no tiene tareas asignadas
-  if(isFlorista && !tbody.querySelector('tr:not(.cl-section-row)')){
-    tbody.innerHTML = `<tr><td colspan="6" style="padding:32px;text-align:center;color:var(--mid-gray)">
-      <div style="font-size:28px;margin-bottom:8px"></div>
-      <div style="font-size:14px;font-weight:500">No tenés tareas asignadas para hoy, ${D.floristaNombre}</div>
-      <div style="font-size:12px;margin-top:4px">Gerencia asigna las tareas desde la checklist general.</div>
-    </td></tr>`;
-  }
+  });
   D.renderProductividadCL();
 }
 
@@ -1479,15 +1436,12 @@ export function renderHoraCell(i, campo, done){
   const val = clState[campo]?.[i] || '';
   if(D.userRole === 'gerencia'){
     const dis = done ? 'disabled' : '';
-    return `<input type="time" value="${val}" ${dis}
-      style="width:78px;padding:4px 5px;font-size:12px;border:1px solid var(--light-gray);border-radius:4px;text-align:center;background:var(--warm-white);color:var(--charcoal)"
+    return `<input type="time" class="cl-time${val?' has-val':''}" value="${val}" ${dis} aria-label="${campo==='inicio'?'Hora de inicio':'Hora de fin'}"
       onchange="updCL(${i},'${campo}',this.value)">`;
   }
   if(val){
-    const color   = campo==='inicio' ? '#2C4A3E' : '#8B3A3A';
-    const bg      = campo==='inicio' ? '#EBF5E8' : '#FDF0F0';
     const resetFn = done ? '' : `onclick="resetHora(${i},'${campo}')" title="Tocar para borrar"`;
-    return `<span ${resetFn} style="font-size:13px;font-weight:700;color:${color};background:${bg};padding:3px 10px;border-radius:8px;display:inline-block;${done?'':'cursor:pointer'}">${val}</span>`;
+    return `<span ${resetFn} class="cl-hora-val is-${campo}${done?'':' is-editable'}">${val}</span>`;
   }
   // Fin deshabilitado si: tarea completada O si no hay Inicio aún registrado
   const sinInicio = campo === 'fin' && !(clState.inicio?.[i]);
