@@ -113,11 +113,15 @@ test('unificarEnDatos deja un solo nombre y un solo costo en todas las secciones
 test('aplicarAliasANodo corrige lo que se guarda después con una forma vieja', () => {
   const alias = { [claveArticulo('navisa')]: 'Naviza', [claveArticulo('Naviza')]: 'Naviza' };
   const compras = [{ prod: 'NAVISA' }, { prod: 'Rosa' }];
-  aplicarAliasANodo('comprasFlore', compras, alias);
+  assert.equal(aplicarAliasANodo('comprasFlore', compras, alias), 1);
+  assert.equal(aplicarAliasANodo('comprasFlore', compras, alias), 0);
   assert.deepEqual(compras.map(c => c.prod), ['Naviza', 'Rosa']);
   const precios = { 'Naviza': 1000, 'navisa': 1300 };
   aplicarAliasANodo('cotizadorPrecios', precios, alias);
-  assert.deepEqual(precios, { 'Naviza': 1300 });
+  assert.deepEqual(precios, { 'Naviza': 1000 });            // el que quedó conserva su costo
+  const sinCosto = { 'Naviza': 0, 'navisa': 1300 };
+  aplicarAliasANodo('cotizadorPrecios', sinCosto, alias);
+  assert.deepEqual(sinCosto, { 'Naviza': 1300 });           // la forma vieja solo completa
   const comp = [{ zona: 'Lobby', ings: [{ prod: 'navisa', qty: 1 }] }];
   aplicarAliasANodo('arreglosComposicion', comp, alias);
   assert.equal(comp[0].ings[0].prod, 'Naviza');
@@ -132,4 +136,31 @@ test('nombresPorArticulo: un nombre por artículo, con alias y preferidos', asyn
   const r = nombresPorArticulo(['Anémonas', 'anemonas', 'Anemonas', 'Biznagas', 'biznaga', 'biznaga', 'navisa', 'Naviza'], ['Anémonas'],
     { [claveArticulo('navisa')]: 'Naviza', [claveArticulo('Naviza')]: 'Naviza' });
   assert.deepEqual(r.sort(), ['Anémonas', 'Naviza', 'biznaga'].sort());
+});
+
+// Firebase rechaza (y corta el guardado) campos con . # $ [ ] /. Antes los
+// alias se guardaban como { "conejito / nardo / alheli": ... } y la unificación
+// no llegaba a guardarse.
+const claveInvalida = (v) => {
+  if (!v || typeof v !== 'object') return null;
+  for (const [k, x] of Object.entries(v)) {
+    if (/[.#$[\]/]/.test(k)) return k;
+    const r = claveInvalida(x); if (r) return r;
+  }
+  return null;
+};
+
+test('lo que se guarda al unificar no tiene campos inválidos para Firebase', async () => {
+  const { aliasParaGuardar, aliasDesdeBase } = await import('../src/modules/articulos-base.js');
+  const d = datosEjemplo();
+  d.recetasData.push({ nombre: 'X', ings: [{ prod: 'Conejitos / Nardos / Alhelíes', qty: 1 }, { prod: 'Conejitos / Nardos / Alhelies', qty: 1 }] });
+  const { alias } = unificarEnDatos(d, [
+    { maestro: 'Conejitos / Nardos / Alhelíes', variantes: ['Conejitos / Nardos / Alhelíes', 'Conejitos / Nardos / Alhelies'], costo: 500 },
+    { maestro: 'Pino', variantes: ['Pino', 'pino'], costo: 1200 },
+  ]);
+  const guardado = aliasParaGuardar(alias);
+  assert.equal(claveInvalida(guardado), null);
+  assert.equal(claveInvalida(d.cotizadorPrecios), null);
+  assert.deepEqual(aliasDesdeBase(guardado), alias);
+  assert.deepEqual(aliasDesdeBase(JSON.parse(JSON.stringify(Object.assign({}, guardado)))), alias); // como lo devuelve Firebase
 });

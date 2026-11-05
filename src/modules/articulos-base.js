@@ -18,7 +18,23 @@ import { parseMoney } from './utils.js';
 
 // Alias confirmados por gerencia (nodo `articulosAlias`), cargados al abrir.
 export let articulosAlias = {};
-export function setArticulosAlias(v){ articulosAlias = v && typeof v === 'object' && !Array.isArray(v) ? v : {}; }
+// En la base se guarda como LISTA [{c: clave, n: nombre que queda}]: las claves
+// pueden tener "/" ("conejito / nardo / alheli") o ".", que Firebase no acepta
+// como nombre de campo. En memoria es un objeto { clave: nombre }.
+export function setArticulosAlias(v){ articulosAlias = aliasDesdeBase(v); }
+export function aliasDesdeBase(v){
+  const out = {};
+  if(!v || typeof v !== 'object') return out;
+  const items = Array.isArray(v) ? v : Object.values(v);
+  if(items.length && items.every(x => x && typeof x === 'object' && 'c' in x)){
+    items.forEach(x => { if(x.c && x.n) out[String(x.c)] = String(x.n); });
+    return out;
+  }
+  if(!Array.isArray(v)) Object.entries(v).forEach(([k, n]) => { if(typeof n === 'string' && n) out[k] = n; });
+  return out;
+}
+export const aliasParaGuardar = (alias = articulosAlias) =>
+  Object.entries(alias || {}).sort((a, b) => a[0].localeCompare(b[0])).map(([c, n]) => ({ c, n }));
 
 function _singular(w){
   if(w.length > 4 && w.endsWith('ies')) return w.slice(0, -2);                       // alhelíes → alhelí
@@ -313,6 +329,9 @@ export function unificarEnDatos(data, uniones){
         if(!previo) previo = +precios[k] || 0;
         delete precios[k]; resumen.costos++;
       });
+      // Firebase no acepta ". # $ [ ] /" en un nombre de campo: un nombre así
+      // ("Conejitos / Nardos") no lleva costo propio (se toma de cada opción).
+      if(/[.#$[\]/]/.test(m)) return;
       const costo = Math.round(+u.costo || 0);
       if(costo > 0) precios[m] = costo;
       else if(previo > 0) precios[m] = previo;
@@ -321,11 +340,12 @@ export function unificarEnDatos(data, uniones){
   return { alias, resumen };
 }
 
-// Aplica los alias ya confirmados a un nodo antes de guardarlo (lo que se haya
-// escrito con una forma vieja queda con el nombre que quedó). Cambia en el lugar.
+// Aplica los alias ya confirmados a un nodo (antes de guardarlo, o al llegar
+// datos con formas viejas). Cambia en el lugar y devuelve cuántos cambios hizo.
 export function aplicarAliasANodo(key, valor, alias = articulosAlias){
-  if(!alias || !Object.keys(alias).length || !valor) return valor;
-  const ren = o => { if(o && typeof o.prod === 'string'){ const n = aplicarAlias(alias, o.prod); if(n !== o.prod) o.prod = n; } };
+  if(!alias || !Object.keys(alias).length || !valor) return 0;
+  let n = 0;
+  const ren = o => { if(o && typeof o.prod === 'string'){ const m = aplicarAlias(alias, o.prod); if(m !== o.prod){ o.prod = m; n++; } } };
   const lista = v => Array.isArray(v) ? v : (v && typeof v === 'object' ? Object.values(v) : []);
   switch(key){
     case 'comprasFlore': case 'comprasJard': case 'stockData':
@@ -339,7 +359,7 @@ export function aplicarAliasANodo(key, valor, alias = articulosAlias){
     case 'insumosCustom':
       if(Array.isArray(valor)){
         const vistos = new Set(); const out = [];
-        valor.forEach(n => { const m = aplicarAlias(alias, n); const k = claveArticulo(m); if(!vistos.has(k)){ vistos.add(k); out.push(m); } });
+        valor.forEach(x => { const m = aplicarAlias(alias, x); const k = claveArticulo(m); if(m !== x) n++; if(!vistos.has(k)){ vistos.add(k); out.push(m); } else n++; });
         valor.splice(0, valor.length, ...out);
       }
       break;
@@ -347,13 +367,14 @@ export function aplicarAliasANodo(key, valor, alias = articulosAlias){
       Object.keys(valor).forEach(k => {
         const m = nombreAlias(alias, k);
         if(!m || m === k) return;
-        // La forma vieja se acaba de escribir: su valor es el más nuevo.
-        if((+valor[k] || 0) > 0) valor[m] = valor[k];
-        delete valor[k];
+        // El nombre que quedó conserva su costo; la forma vieja solo lo completa
+        // si el que quedó no tiene (puede venir de un dispositivo desactualizado).
+        if(!((+valor[m] || 0) > 0) && (+valor[k] || 0) > 0) valor[m] = valor[k];
+        delete valor[k]; n++;
       });
       break;
   }
-  return valor;
+  return n;
 }
 
 // Lista de nombres para sugerencias (datalist): una sola forma por artículo,
