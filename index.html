@@ -503,14 +503,14 @@
         <div class="form-group"><label>Fecha</label><input class="form-input" id="cf-fecha" type="date"></div>
         <div class="form-group"><label>Pedido realizado por</label><input class="form-input" id="cf-pedidopor" placeholder="Nombre"></div>
         <div class="form-group"><label>Flor / Follaje</label>
-          <input class="form-input" id="cf-producto" list="cf-producto-list" placeholder="Elegí o escribí...">
+          <input class="form-input" id="cf-producto" list="cf-producto-list" placeholder="Elegí o escribí..." oninput="cfCategoriaVaraPreview()">
           <datalist id="cf-producto-list"></datalist>
         </div>
         <div class="form-group"><label>Cantidad</label><input class="form-input" id="cf-cantidad" type="number" placeholder="0"></div>
       </div>
       <div class="form-row" style="grid-template-columns:2fr 1fr 1fr 2fr 2fr auto">
         <div class="form-group"><label>Descripción adicional</label><input class="form-input" id="cf-desc" placeholder="color, variedad, tallo..."></div>
-        <div class="form-group"><label>Precio x paquete</label><input class="form-input" id="cf-costo" data-valida="monto" placeholder="$ por paquete"></div>
+        <div class="form-group"><label>Precio x paquete</label><input class="form-input" id="cf-costo" data-valida="monto" placeholder="$ por paquete" oninput="cfCategoriaVaraPreview()"></div>
         <div class="form-group"><label>Proveedor</label>
         <select class="form-input" id="cf-proveedor">
           <option value="">— Seleccionar —</option>
@@ -527,6 +527,7 @@
         </div>
         <button class="btn-add" onclick="addCompra('floreria')" style="align-self:flex-end">+ Agregar</button>
       </div>
+      <div id="cf-cat-vara" aria-live="polite"></div>
       <div style="margin-top:8px">
         <button class="btn-secondary" type="button" onclick="toggleCfSplit()" id="cf-split-toggle-btn" style="font-size:12px;padding:4px 10px" title="Cuando un mismo artículo se reparte entre varias áreas del hotel">Repartir este artículo entre varias áreas</button>
         <div id="cf-split-wrap" style="display:none;margin-top:10px;background:var(--surface-1);border:1px solid var(--light-gray);border-radius:8px;padding:12px">
@@ -3136,6 +3137,13 @@
       <div id="cv-tabla-out" style="margin-top:14px"></div>
     </div>
     <div id="cv-revisar" style="background:var(--amber-soft);border:1px solid #EBD3A8;border-radius:12px;padding:14px 20px;margin-bottom:18px;display:none"></div>
+    <div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;padding:18px 20px;margin-bottom:18px">
+      <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);font-weight:600;margin-bottom:6px">Cómo entra cada vara hoy</div>
+      <div style="font-size:12px;color:var(--mid-gray);margin-bottom:10px">La categoría sale del costo por vara de la última compra, no de la flor. Si una flor de estación hoy está cara, aparece como importada o premium. Las marcadas «antes …» cambiaron respecto de la compra anterior.</div>
+      <div id="cv-cat-limites" style="margin-bottom:12px"></div>
+      <input class="form-input" placeholder="Buscar flor…" oninput="cvCatBuscar(this.value)" style="max-width:260px;margin-bottom:12px">
+      <div id="cv-cat-lista"></div>
+    </div>
     <details style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;padding:14px 20px;margin-bottom:30px">
       <summary style="cursor:pointer;font-size:13px;font-weight:600">Pegar un listado de una vez</summary>
       <div style="font-size:12px;color:var(--mid-gray);margin:8px 0">Una flor por renglón, con la cantidad adelante o atrás. Ej.: <em>20 rosas</em>, <em>hortensias 10</em>, <em>1/2 fresias</em>.</div>

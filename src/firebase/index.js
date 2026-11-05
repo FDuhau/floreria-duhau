@@ -619,6 +619,7 @@
         window._setCotizadorConfig?.(cfg);
         const cfgInput = document.getElementById('cot-config-margen');
         if(cfgInput) cfgInput.value = cfg.margen ?? 30;
+        if(document.getElementById('page-costo-varas')?.classList.contains('active')) window.renderCostoVaras?.();
         if(document.getElementById('page-cotizador-ops')?.classList.contains('active')) window.renderCotizadorOps?.();
       });
 

@@ -11,6 +11,8 @@ import { showToast } from './tema-toast.js';
 import { getVarasPorPaq } from './compras.js';
 import { ingVaras } from './dinero.js';
 
+import { badgeCategoriaVara, usarConfigCategoriaVara } from './categoria-vara.js';
+
 let D = {};
 export function configurarCotizador(deps){ D = deps; }
 
@@ -50,6 +52,7 @@ export let cotizadorPrecios = {};
 export let cotizadorConfig  = {margen: 30};
 window._setCotizadorPrecios = v => { cotizadorPrecios = v; };
 window._setCotizadorConfig  = v => { cotizadorConfig = v; };
+usarConfigCategoriaVara(() => cotizadorConfig, prod => cotizadorPrecioVara(prod));
 let cotizadorCarrito = [];
 let cotCarritoOps    = [];
 export let cotCurTab = 'cotizar';
@@ -89,6 +92,7 @@ export function renderCotizadorOps(){
         <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
           <span style="font-size:12px;background:var(--ok-soft);color:var(--green-ok);padding:1px 6px;border-radius:8px;font-weight:600">${f.actual} uds</span>
           ${precioTxt}
+          ${badgeCategoriaVara(costo)}
         </div>
       </div>
       <input type="number" id="cotops_${f._si}" value="1" min="1"
@@ -335,6 +339,7 @@ export function renderCotizador(){
         <div style="display:flex;align-items:center;gap:6px;margin-top:2px;flex-wrap:wrap">
           <span style="font-size:12px;background:${badgeBg};color:${badgeColor};padding:1px 6px;border-radius:8px;font-weight:600;white-space:nowrap">${f.c}</span>
           <span style="font-size:12px">${precioTxt}</span>
+          ${badgeCategoriaVara(precio)}
         </div>
       </div>
       <input type="number" id="cot_${idx}" value="1" min="1"
