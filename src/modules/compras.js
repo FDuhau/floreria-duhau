@@ -44,7 +44,7 @@ export function getAreaUsoOpts(current){
 }
 
 export function populateFloreriaFormHelpers(){
-  // Datalist de Flor/Follaje desde la base de insumos (igual que el pedido semanal rápido)
+  // Datalist de Flor/Follaje desde la base de insumos 
   const dl = document.getElementById('cf-producto-list');
   if(dl){
     const all = [...new Set([...D.insumosBDBase, ...(typeof D.insumosCustom!=='undefined'?D.insumosCustom:[])])].sort((a,b)=>a.localeCompare(b,'es'));

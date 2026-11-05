@@ -48,7 +48,7 @@ export const NAV_SECCIONES = [
       ['presupuestos', 'Presupuestos'], ['cotizar-presupuesto', 'Armar cotización', true], ['costo-varas', 'Costo de varas'],
     ] },
     { id: 'catalogo', label: 'Catálogo', icon: 'catalogo', pages: [
-      ['lista-precios', 'Precios'], ['ramos-disponibles', 'Ramos disponibles'], ['recetas-arreglos', 'Composiciones'], ['galeria', 'Galería'],
+      ['lista-precios', 'Precios'], ['ramos-disponibles', 'Ramos disponibles'], ['recetas-arreglos', 'Composiciones'], ['flores-temporada', 'Flores por temporada'], ['galeria', 'Galería'],
     ] },
   ] },
   { titulo: 'Gestión', familias: [
@@ -80,12 +80,12 @@ const ROLE_PAGES = {
   gerencia: TODAS.filter(p => !['stock', 'cotizador-ops', 'cotizador-eventos-hyatt', 'home-hyatt'].includes(p)),
   operario: ['home', 'eventos-maison', 'stock', 'cotizador-ops', 'floreros', 'velas', 'lista-precios'],
   florista: ['home', 'checklist', 'eventos-maison', 'stock', 'floreros', 'velas', 'cotizador-ops', 'recepcion-pedidos',
-    'lista-precios', 'ramos-disponibles', 'galeria', 'recetas-arreglos'],
+    'lista-precios', 'ramos-disponibles', 'galeria', 'recetas-arreglos', 'flores-temporada'],
   comercial: ['home', 'eventos-comercial', 'ventas-externas', 'pedidos-habitacion', 'crm-clientes', 'cotizador', 'presupuestos', 'cotizar-presupuesto',
-    'costo-varas', 'lista-precios', 'ramos-disponibles', 'galeria'],
+    'costo-varas', 'lista-precios', 'ramos-disponibles', 'galeria', 'flores-temporada'],
   ventas: ['home-hyatt', 'cotizador-eventos-hyatt', 'pedidos-habitacion', 'lista-precios', 'ramos-disponibles'],
   compras: ['compras-floreria', 'compras-jardineria', 'recepcion-pedidos', 'proveedores', 'precio-comparacion', 'compra-evento',
-    'stock-admin', 'floreros', 'velas', 'reportes-hotel'],
+    'stock-admin', 'floreros', 'velas', 'reportes-hotel', 'flores-temporada'],
   jardinero: ['jardineria-ops', 'hab-ops', 'recordatorios-jardineria', 'stock-jardineria'],
   housekeeping: ['control-habitaciones'],
 };

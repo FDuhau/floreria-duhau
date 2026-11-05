@@ -20,6 +20,7 @@ export const PAGE_LABELS = {control:'Control','control-jardineria':'Control › 
   'ventas-externas':'Comercial › Ventas', caja:'Contable › Control de Caja',
   galeria:'Comercial › Galería de Trabajos',
   'lista-precios':'Comercial › Lista de Precios',
+  'flores-temporada':'Catálogo › Flores por temporada',
   'ramos-disponibles':'Comercial › Ramos Disponibles',
   'pedidos-ramos':'Comercial › Pedidos de Ramos',
   'pedidos-habitacion':'Comercial › Pedidos de Habitación',

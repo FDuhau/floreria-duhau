@@ -47,6 +47,7 @@ import { checkOnboarding, nextOnboardingStep, finishOnboarding } from './onboard
 import { showToast, toggleDarkMode, initDarkMode, exportPDF } from './tema-toast.js';
 import { _fotosParaGuardar, resolverFoto, migrarFotos, fotosActivo } from './fotos.js';
 import { configurarUnificarArticulos, renderUnificarArticulos, uaAgregarManual, uaDeshacer, uaMarcar, uaSet, uaUnir, uaVolverABuscar } from './unificar-articulos.js';
+import { configurarFloresTemporada, renderFloresTemporada, renderTemporadaCompras, setFloresTemporada, ftBorrar, ftBuscar, ftCerrar, ftColor, ftEditar, ftGuardar, ftMarcarMeses, ftMes, ftPedir, ftTipo, ftVista } from './flores-temporada.js';
 import { aplicarAliasANodo, listaSinRepetidos, mismoArticulo, nombreArticulo, setArticulosAlias, setArticulosConocidos } from './articulos-base.js';
 
 // ════════════════════════════════════════
@@ -243,7 +244,8 @@ function navigate(pageId, navEl){
   if(pageId==='stock')              renderStock();
   if(pageId==='inventario')         renderInventario();
   if(pageId==='eventos-maison')     renderKanban();
-  if(pageId==='compras-floreria')   renderCompras('floreria');
+  if(pageId==='compras-floreria'){  renderCompras('floreria'); renderTemporadaCompras(); }
+  if(pageId==='flores-temporada')   renderFloresTemporada();
   if(pageId==='compras-jardineria') renderCompras('jardineria');
   if(pageId==='compra-evento')      renderCompraEvento();
   if(pageId==='stock-admin')        renderStockAdmin();
@@ -366,6 +368,7 @@ let eventosData = [];
 configurarEventos({ get CL_RESP_OPTS(){ return CL_RESP_OPTS; }, TODAY_ISO, _auditarGuardado, _setEventosData, _stockFilasDe, _stockNombre, _xlsxDownload, arregloEmoji, badgeDiaRelativa, calcCostoComposicion, closeModal, etiquetaDiaRelativa, get eventoPricing(){ return eventoPricing; }, get eventosData(){ return eventosData; }, fbSave, get floristaNombre(){ return floristaNombre; }, fmtMonth, getFloristasActivos, get kanbanData(){ return kanbanData; }, notificarAsignacion, get recetasData(){ return recetasData; }, renderHome, renderKanban, renderStock, syncEventosToKanban, get userRole(){ return userRole; } });
 configurarCotizador({ _fmtCant, arregloEmoji, fbSave, get recetasData(){ return recetasData; }, get stockData(){ return stockData; } });
 configurarUnificarArticulos({ get _arreglosComposicionLoaded(){ return _arreglosComposicionLoaded; }, _saveArreglosComposicion, get arreglosComposicion(){ return arreglosComposicion; }, get comprasFlore(){ return comprasFlore; }, get comprasJard(){ return comprasJard; }, fbSave, fotosParaGuardar: _fotosParaGuardar, get insumosCustom(){ return insumosCustom; }, get recetasData(){ return recetasData; }, saveInsumosCustom, get stockData(){ return stockData; }, get userRole(){ return userRole; } });
+configurarFloresTemporada({ articulosConocidos: () => getAllInsumos(), fbSave, navigate, get userRole(){ return userRole; } });
 
 
 // ── Productividad por operario ────────────────────────────────────────────────
@@ -5548,6 +5551,7 @@ let insumosBDBase = [
 // alias confirmados en "Unificar artículos" (nodo articulosAlias).
 setArticulosConocidos(() => [...Object.keys(cotizadorPrecios||{}), ...(stockData||[]).map(s=>s.prod)]);
 window._setArticulosAlias = v => setArticulosAlias(v);
+window._setFloresTemporada = v => setFloresTemporada(v);
 
 // Insumos personalizados agregados por el usuario (se guardan en localStorage)
 let insumosCustom = JSON.parse(localStorage.getItem('fl_insumos_custom')||'[]');
@@ -5587,110 +5591,6 @@ function addInsumoToBase(nombre){
   }
 }
 
-
-// ── PEDIDO RÁPIDO ────────────────────────────────────────────────────────────
-let insumosGridVisible = false;
-
-function toggleInsumosGrid(){
-  insumosGridVisible = !insumosGridVisible;
-  document.getElementById('insumos-grid-wrap').style.display = insumosGridVisible ? 'block' : 'none';
-  document.getElementById('insumos-toggle-btn').textContent = insumosGridVisible ? '▲ Ocultar listado' : '▼ Ver listado';
-  if(insumosGridVisible) renderInsumosGrid();
-}
-
-function renderInsumosGrid(){
-  const search = (document.getElementById('insumo-search')?.value||'').toLowerCase();
-  const grid = document.getElementById('insumos-grid');
-  if(!grid) return;
-  const all = getAllInsumos();
-  const filtered = search ? all.filter(n=>n.toLowerCase().includes(search)) : all;
-
-  grid.innerHTML = filtered.map(nombre=>{
-    const id = 'chk-'+nombre.replace(/[^a-zA-Z0-9]/g,'_');
-    const isCustom = insumosCustom.includes(nombre);
-    return `<div class="insumo-row" id="row-${id}">
-      <input type="checkbox" class="insumo-check" id="${id}" onchange="updateInsumoRow('${id}')">
-      <label class="insumo-label" for="${id}">${esc(nombre)}${isCustom?' <span style="font-size:12px;color:var(--sage);font-weight:600">NUEVO</span>':''}</label>
-      <input type="number" class="insumo-qty" id="qty-${id}" value="1" min="1" placeholder="Cant." style="display:none">
-    </div>`;
-  }).join('');
-
-  updateInsumoCount();
-
-  // Update custom badge
-  const badge = document.getElementById('insumos-custom-badge');
-  if(badge){
-    if(insumosCustom.length>0){
-      badge.textContent = insumosCustom.length+' insumos propios';
-      badge.style.display='inline';
-    } else {
-      badge.style.display='none';
-    }
-  }
-}
-
-function updateInsumoRow(id){
-  const chk = document.getElementById(id);
-  const qty = document.getElementById('qty-'+id);
-  const row = document.getElementById('row-'+id);
-  if(chk && qty && row){
-    qty.style.display = chk.checked ? 'block' : 'none';
-    row.classList.toggle('selected', chk.checked);
-  }
-  updateInsumoCount();
-}
-
-function updateInsumoCount(){
-  const count = document.querySelectorAll('.insumo-check:checked').length;
-  const el = document.getElementById('insumos-selected-count');
-  if(el) el.textContent = count;
-}
-
-function deselectAllInsumos(){
-  document.querySelectorAll('.insumo-check').forEach(c=>{ c.checked=false; });
-  document.querySelectorAll('.insumo-qty').forEach(q=>{ q.style.display='none'; });
-  document.querySelectorAll('.insumo-row').forEach(r=>r.classList.remove('selected'));
-  updateInsumoCount();
-}
-
-function agregarNuevoInsumo(){
-  const input = document.getElementById('nuevo-insumo-input');
-  const nombre = input?.value.trim();
-  if(!nombre){ showToast('Ingresá el nombre del insumo.','error'); return; }
-  addInsumoToBase(nombre);
-  if(input) input.value='';
-  renderInsumosGrid();
-}
-
-function agregarPedidoRapido(){
-  const checks = document.querySelectorAll('.insumo-check:checked');
-  if(checks.length===0){ showToast('Seleccioná al menos un insumo.','error'); return; }
-  const fecha = document.getElementById('cf-fecha')?.value || TODAY_ISO;
-  const pedidopor = document.getElementById('cf-pedidopor')?.value || '';
-  let added = 0;
-  checks.forEach(chk=>{
-    const id = chk.id;
-    const label = document.querySelector(`label[for="${id}"]`);
-    const nombre = label ? label.textContent.replace(' NUEVO','').trim() : id;
-    const qty = document.getElementById('qty-'+id)?.value || 1;
-    comprasFlore.unshift({
-      fecha, pedidopor: pedidopor||'—',
-      prod: nombre, desc:'', qty: +qty,
-      costo:'', prov:'', sector:'',
-      estado:'pedido'
-    });
-    // Si es un insumo nuevo, registrarlo en la base
-    addInsumoToBase(nombre);
-    added++;
-  });
-  deselectAllInsumos();
-  window._comprasFloreLastSave = Date.now(); fbSave('comprasFlore', comprasFlore);
-  renderCompras('floreria');
-  updateKpiCompras();
-  showToast(''+added+' insumo'+(added>1?'s':'')+' agregado'+(added>1?'s':'')+' al pedido');
-  // Scroll a la tabla
-  document.getElementById('tbody-floreria')?.closest('.compras-list-wrap')?.scrollIntoView({behavior:'smooth',block:'start'});
-}
 
 let recetasData = [];
 
@@ -6919,12 +6819,13 @@ function toggleStockSugerencias(){
 
 
 Object.assign(window, {
+  ftBorrar, ftBuscar, ftCerrar, ftColor, ftEditar, ftGuardar, ftMarcarMeses, ftMes, ftPedir, ftTipo, ftVista,
   abrirFotoRamo, elegirFotoRamo, eliminarFotoRamo, compartirFotoRamo,
   renderInventario, addInvItem, updInv, invAdjust, delInvItem,
   _downloadCSV, addCajaMovimiento, addCompra, addEvArregloRow, addEvArregloRowWithData,
   evSetArreglo, evSetArregloQty, evRemoveArregloRow,
   addInsumoToBase, addLpCat, addProveedor, addRecetaIngRow,
-  addReglaTipo, addSale, addTipoEvento, adjustStock, agregarNuevoInsumo, agregarPedidoRapido,
+  addReglaTipo, addSale, addTipoEvento, adjustStock, 
   agregarUsuarioFlorista, agregarUsuarioJardinero, agregarUsuarioHousekeeping, setHabComentarioHK, aplicarPlantillaAlMes, aplicarPlantillaForce, applyCompraFilter,
   horariosAddPersona, horariosRemovePersona, horariosAddPersonaFromSel,
   applyRole, arregloEmoji, calcCostoComposicion, calcDuracion, calcHorasDia, calcStockImpact,
@@ -6937,7 +6838,7 @@ Object.assign(window, {
   cotAgregarOpsStock, cotGuardarMargen, cotGuardarPrecio, cotRemove, cotRemoveOps, cotUpdateQty,
   cotUpdateQtyOps, ctrlHabFilter, ctrlJardFilter, daysSince, delC, delCaja,
   delPedidoHab, delProveedor, delRamo, delReceta, delReglaTipo, delStock, delTipoEvento,
-  delVenta, deleteEvento, replicarEvento, descontarStockEvento, deselectAllInsumos, doLogin, durBadge,
+  delVenta, deleteEvento, replicarEvento, descontarStockEvento, doLogin, durBadge,
   ventasClearFilters, ventasCierreMes, ventasCierreCopiar,
   eliminarUsuario, ensureKanbanCols, enviarCotizacionEvento, enviarPedidoHab, esc,
   estaEditando, evAgregarComposicion, evAgregarFlor, evZonasLabel, exportCtrlCSV, exportHabCSV,
@@ -6972,7 +6873,7 @@ Object.assign(window, {
   setGaleriaSeccion, openFichaGaleria, imprimirFicha, addGalIngRow, galSectorOnChange,
   renderEvHoraCell, renderEvTipos, renderEventos, renderHabLog, renderHabOps,
   renderHabReporte, renderHistorialCompras, renderHistorialEventos, exportHistorialEventosXLSX, histEventoSetPrecio, histTarifaSet, histTarifaAdd, histTarifaDel, histEventoSetTarifa, renderHistoryPanel, renderHome,
-  renderHomeHyatt, renderHoraCell, renderHorarios, renderInsumosGrid, renderJardLog, renderJardOps,
+  renderHomeHyatt, renderHoraCell, renderHorarios, renderJardLog, renderJardOps,
   renderJardProdEquipo, renderJardTurnoCard, renderJardReporte, renderJordProd, renderKanban,
   jardSetJardinero, jardRegistrarHoraTurno, jardResetHoraTurno, jardProdDiaClick,
   florRegistrarTurno, florResetTurno, renderFlorTurnoCard,
@@ -6998,7 +6899,7 @@ Object.assign(window, {
   saveWeekState, setCotTab, setHabReporteMes, setHopsFilter, setJardReporteMes, setJopsFilter,
   setPlantilla, setStock, setStockMax, setStockMin, vaciarStock, openAddStockModal, guardarStockManual, setUrgenciaPreset, showAlertaHorario,
   showToast, syncEventosToKanban, toggleCtrlSection, toggleEvZona, toggleHistorialCompras, toggleHistPedido,
-  toggleHistory, toggleInsumosGrid, toggleJordProd, togglePlantilla, toggleProductividad,
+  toggleHistory, toggleJordProd, togglePlantilla, toggleProductividad,
   toggleDarkMode, initDarkMode, openGlobalSearch, closeGlobalSearch, handleSearchKey, runGlobalSearch, _gsearchGo, exportPDF,
   cerrarCajaDia, renderCierreCajaHistorial, toggleCierreDetalle,
   renderSucursales, openNuevaSucursalModal, openEditSucursal, guardarSucursal, toggleSucursalActiva, eliminarSucursal,
@@ -7010,7 +6911,7 @@ Object.assign(window, {
   openGestionZonas, clAddZona, clRenameZona, clDeleteZona, clMoveZona, clRenameSeccion, clAddSeccion,
   activarNotificaciones, openGaleriaNuevos, renderGaleriaNuevos, moveKanbanCard, clSetFiltro,
   cerrarBriefing, mostrarResumenSemanal,
-  updPedidoHabEstado, updTipoEvento, updV, updateInsumoCount, updateInsumoRow,
+  updPedidoHabEstado, updTipoEvento, updV, 
   updateKpiCompras, urgenciaPanelHTML, vdAutoPrice, zonaHoraBtn, zonaResetHora, zonaSetHora,
   toggleStockSugerencias,
   renderLegajo, openLegajoModal, guardarLegajo, eliminarLegajo, verDetalleLegajo, legTipoOnChange,

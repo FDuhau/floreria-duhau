@@ -1,6 +1,7 @@
 import './styles/main.css';
 import './styles/profesional.css';
 import './styles/categoria-vara.css';
+import './styles/flores-temporada.css';
 import './modules/estados-carga.js';  // antes de firebase: registra la llegada de cada dato
 import './firebase/index.js';
 import './modules/app.js';

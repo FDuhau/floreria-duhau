@@ -446,35 +446,7 @@
       <div><div class="page-title">Compras · Florería</div><div class="page-subtitle">Pedidos de flores, follaje y materiales</div></div>
     </div>
     <div id="compra-floreria-alert"></div>
-    <!-- ══ PEDIDO SEMANAL RÁPIDO ══ -->
-    <div class="compras-form" style="margin-bottom:20px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
-        <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);font-weight:500">
-          Pedido semanal rápido
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <input type="text" id="insumo-search" placeholder="Buscar insumo..." class="stock-search" style="width:200px" oninput="renderInsumosGrid()">
-          <button class="btn-secondary" onclick="toggleInsumosGrid()" id="insumos-toggle-btn" style="font-size:12px">▼ Ver listado</button>
-          <button class="btn-add" onclick="agregarPedidoRapido()" style="font-size:12px">✓ Agregar seleccionados</button>
-        </div>
-      </div>
-
-      <!-- Agregar insumo nuevo a la base -->
-      <div id="insumos-grid-wrap" style="display:none">
-        <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
-          <input type="text" id="nuevo-insumo-input" class="form-input" placeholder="Nuevo insumo (si no está en la lista)..." style="flex:1;min-width:200px">
-          <button class="btn-secondary" onclick="agregarNuevoInsumo()" style="font-size:12px;white-space:nowrap">+ Agregar a base</button>
-          <button class="btn-secondary" onclick="deselectAllInsumos()" style="font-size:12px">Deseleccionar todo</button>
-        </div>
-        <div class="insumos-grid" id="insumos-grid"></div>
-        <div style="margin-top:10px;font-size:12px;color:var(--mid-gray)">
-          <span id="insumos-selected-count">0</span> insumos seleccionados
-          <span id="insumos-custom-badge" style="display:none;margin-left:10px;background:var(--ok-soft);color:#3A5230;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600"></span>
-        </div>
-      </div>
-    </div>
-
-
+    <div id="cf-temporada"></div>
     <div class="compras-form">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
         <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);font-weight:500">Nueva orden de compra</div>
@@ -3153,6 +3125,15 @@
   </div>
 
   <!-- ══════ UNIFICAR ARTÍCULOS (gerencia) ══════ -->
+  <!-- ══════ FLORES POR TEMPORADA ══════ -->
+  <div id="page-flores-temporada" class="content">
+    <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px">
+      <div><div class="page-title">Flores por temporada</div><div class="page-subtitle">Qué flores y follajes se consiguen cada mes y en qué colores</div></div>
+      <button class="btn-add gerencia-only" onclick="ftEditar()">+ Agregar flor o follaje</button>
+    </div>
+    <div id="ft-contenido"></div>
+  </div>
+
   <div id="page-unificar-articulos" class="content">
     <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
       <div>
