@@ -795,6 +795,8 @@
       fbListenNullable('safeMeta', val => { window._setSafeMeta?.(val); });
       // Fotos fuera de los datos: si ya se migró, las fotos nuevas se guardan aparte
       fbListenNullable('fotosConfig', val => { window._setFotosConfig?.(val); });
+      // Fotos de ramos vigentes: solo id → hora de carga (unos bytes por foto).
+      fbListenNullable('fotosRamoMeta', val => { window._setFotosRamoMeta?.(val); });
 
       fbListen('recetasData', val => {
         if(!val) return;
