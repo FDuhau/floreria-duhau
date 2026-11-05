@@ -757,7 +757,7 @@ export function initChecklist(){
   if(!weekBanner){
     weekBanner = document.createElement('div');
     weekBanner.id = 'cl-week-banner';
-    weekBanner.style.cssText = 'display:flex;align-items:center;justify-content:space-between;background:#FDFCFB;border:1px solid #E4E2DC;border-radius:4px;padding:10px 18px;margin-bottom:14px;flex-wrap:wrap;gap:10px';
+    weekBanner.className = 'cl-week';
     document.getElementById('day-tabs-container').before(weekBanner);
   }
   let totalDone = 0;
@@ -767,16 +767,15 @@ export function initChecklist(){
       return s + arr.filter(Boolean).length;
     }, 0);
   } catch(e){ totalDone = 0; }
+  const [anio, sem] = CURRENT_WEEK_KEY.split('-W');
   weekBanner.innerHTML = `
-    <div style="font-size:12px;color:var(--mid-gray)">
-      <strong style="color:var(--charcoal)">${CURRENT_WEEK_KEY.replace('-W',' · Semana ')}</strong>
-      &nbsp;·&nbsp; ${totalDone} tarea${totalDone!==1?'s':''} completada${totalDone!==1?'s':''} esta semana
+    <div class="cl-week-info">
+      <span class="cl-week-tit">Semana ${Number(sem)||sem} <span class="cl-muted">· ${anio}</span></span>
+      <span class="cl-week-sub">${totalDone} tarea${totalDone!==1?'s':''} completada${totalDone!==1?'s':''} esta semana</span>
     </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn-secondary" style="font-size:12px;padding:5px 12px;color:var(--red-alert);border-color:var(--red-alert)"
-        onclick="resetDayState()">Limpiar día</button>
-      <button class="btn-secondary" style="font-size:12px;padding:5px 12px;color:var(--red-alert);border-color:var(--red-alert)"
-        onclick="resetWeekState()">Limpiar semana</button>
+    <div class="cl-week-acc gerencia-only">
+      <button class="cl-btn-quiet" onclick="resetDayState()">Limpiar día</button>
+      <button class="cl-btn-quiet" onclick="resetWeekState()">Limpiar semana</button>
     </div>`;
 
   const tabs = document.getElementById('day-tabs-container');
@@ -884,11 +883,11 @@ function registrarUltimoNuevo(sec, zona, actividad, fecha){
 }
 
 function badgeUltimoNuevo(fecha){
-  if(!fecha) return '<div style="font-size:12px;color:var(--mid-gray);margin-top:2px;font-weight:400">Sin registro de Nuevo</div>';
+  if(!fecha) return '<span class="cl-meta-item">Sin registro de Nuevo</span>';
   const dias = Math.max(0, Math.floor((new Date(D.TODAY_ISO)-new Date(fecha))/86400000));
-  const color = dias>=7 ? 'var(--red-alert)' : dias>=5 ? '#A06A00' : 'var(--sage-dark)';
+  const nivel = dias>=7 ? 'is-late' : dias>=5 ? 'is-warn' : 'is-ok';
   const txt = dias===0 ? 'Nuevo hoy' : dias===1 ? 'Nuevo ayer' : `Nuevo hace ${dias} días`;
-  return `<div style="font-size:12px;font-weight:600;color:${color};margin-top:2px" title="Último Nuevo: ${fmtDate(fecha)}">${txt}</div>`;
+  return `<span class="cl-meta-item cl-nuevo ${nivel}" title="Último Nuevo: ${fmtDate(fecha)}">${txt}</span>`;
 }
 
 // ── Nuevos atrasados (solo gerencia) ─────────────────────────────────────────
@@ -929,12 +928,21 @@ function renderNuevosAtrasadosBanner(){
   if(!list.length){ el.innerHTML = ''; return; }
   const chips = list.map(z=>{
     const sh = SEC_HEADERS[z.sec];
-    return `<span style="display:inline-block;background:#fff;border:1px solid #F0C0C0;border-radius:10px;padding:3px 9px;margin:3px 4px 0 0;font-size:12px;white-space:nowrap" title="Último Nuevo: ${fmtDate(z.fecha)}">${sh?sh.icon:''} ${esc(z.zona)} · <strong>${z.dias} días</strong></span>`;
+    const secTxt = sh ? sh.label.charAt(0)+sh.label.slice(1).toLowerCase() : '';
+    const zEsc = esc(z.zona).replace(/'/g,"\\'");
+    return `<button class="cl-aviso-chip" onclick="clProgramarNuevo('${z.sec}','${zEsc}')" title="${esc(secTxt)} · último Nuevo: ${fmtDate(z.fecha)} · tocá para programar un Nuevo el ${currentDay}">${esc(z.zona)} · <strong>${z.dias} días</strong><span class="cl-aviso-plus">+ Nuevo</span></button>`;
   }).join('');
-  el.innerHTML = `<div class="alert-banner" style="margin-bottom:14px">
-    <div style="font-weight:600;margin-bottom:2px">${list.length} zona${list.length!==1?'s':''} con Nuevo atrasado (${UMBRAL_NUEVO_ATRASADO}+ días)</div>
-    <div style="font-size:12px;opacity:.85;margin-bottom:4px">Reprogramá un arreglo Nuevo desde la vista semanal antes de que se marchiten.</div>
-    <div>${chips}</div>
+  // Con muchas zonas, mostrar las más atrasadas y el resto a demanda
+  const MAX_CHIPS = 6;
+  const verMas = list.length > MAX_CHIPS
+    ? `<button class="cl-link cl-aviso-mas" onclick="this.closest('.cl-aviso').classList.add('is-open')">Ver ${list.length-MAX_CHIPS} más</button>` : '';
+  el.innerHTML = `<div class="cl-aviso">
+    <div class="cl-aviso-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17h.01"/></svg></div>
+    <div class="cl-aviso-body">
+      <div class="cl-aviso-tit">${list.length} zona${list.length!==1?'s':''} con Nuevo atrasado (${UMBRAL_NUEVO_ATRASADO}+ días)</div>
+      <div class="cl-aviso-sub">Tocá una zona para programarle un Nuevo el ${currentDay}, o planificalo desde <button class="cl-link" onclick="openVistaSemanal()">la vista semanal</button>.</div>
+      <div class="cl-aviso-chips">${chips}${verMas}</div>
+    </div>
   </div>`;
 }
 
@@ -954,9 +962,9 @@ export function eventoFlorFase(ev, fase){
     : (ev.asignado||'');
 }
 function eventoFaseTag(fase){
-  if(fase === 'retiro') return '<span style="font-size:12px;font-weight:700;background:#7A5CB8;color:#fff;padding:2px 6px;border-radius:5px;margin-left:6px">RETIRO</span>';
-  if(fase === 'colocacion') return '<span style="font-size:12px;font-weight:700;background:#E65100;color:#fff;padding:2px 6px;border-radius:5px;margin-left:6px">COLOCACIÓN</span>';
-  return '<span style="font-size:12px;font-weight:700;background:#5A8C3A;color:#fff;padding:2px 6px;border-radius:5px;margin-left:6px">ARMADO</span>';
+  if(fase === 'retiro') return '<span class="cl-fase-tag is-retiro">Retiro</span>';
+  if(fase === 'colocacion') return '<span class="cl-fase-tag is-coloc">Colocación</span>';
+  return '<span class="cl-fase-tag is-armado">Armado</span>';
 }
 // ¿Ya es momento de que el florista vea esta fase del evento?
 // Armado: siempre (lo ve para prepararlo). Colocación/Retiro: recién el día
@@ -1055,15 +1063,13 @@ export function renderChecklistTable(){
     const done = ds ? (Array.isArray(ds.checked) ? ds.checked : Object.values(ds.checked||{})).filter(Boolean).length : 0;
     const total = CL_TASKS.length;
     const pct = Math.round(done/total*100);
-    let badge = '';
-    if(done>0 && !isActive){
-      const col = pct===100?'var(--green-ok)':pct>50?'var(--sage)':'var(--amber)';
-      badge = `<span style="display:inline-block;margin-left:5px;background:${col};color:white;font-size:12px;font-weight:700;padding:1px 5px;border-radius:8px;vertical-align:middle">${done}/${total}</span>`;
-    } else if(pct===100 && isActive){
-      badge = ` `;
-    }
-    // Reconstruct tab text
-    tabEl.innerHTML = d + badge;
+    const estado = pct===100 ? ' is-full' : done>0 ? '' : ' is-empty';
+    const esHoy = d === D.TODAY_DAY;
+    // Nombre (completo y abreviado para celular) + avance del día
+    tabEl.innerHTML = `<span class="cl-day-name"><span class="cl-day-l">${d}</span><span class="cl-day-s">${d.slice(0,3)}</span>${esHoy?'<i class="cl-day-hoy" title="Hoy"></i>':''}</span>`
+      + `<span class="cl-day-count${estado}">${done ? done+'/'+total : '—'}</span>`;
+    tabEl.setAttribute('role','tab');
+    tabEl.setAttribute('aria-selected', isActive ? 'true' : 'false');
     // Re-bind click since we replaced innerHTML
     tabEl.onclick = (()=>{
       const day = d;
@@ -1088,273 +1094,528 @@ export function renderChecklistTable(){
   if(!progressEl){
     progressEl = document.createElement('div');
     progressEl.id = 'cl-progress-bar-wrap';
-    // Antes de las tarjetas (floristas) y de la tabla (resto)
-    const wrapper = document.getElementById('cl-cards-wrap') || document.getElementById('checklist-body').closest('.table-wrapper');
+    progressEl.className = 'cl-progress';
+    // Antes de las tarjetas (floristas) y de la lista (resto)
+    const wrapper = document.getElementById('cl-cards-wrap') || document.getElementById('cl-table-wrap');
     wrapper.before(progressEl);
   }
+  // Alertas en vivo del día: tareas en curso, excedidas y sin asignar
+  const alertas = alertasDia();
+  const esFlor = D.userRole === 'florista';
+  const chipsAlerta = esFlor ? '' : [
+    alertas.enCurso ? `<span class="cl-alerta is-run">${alertas.enCurso} en curso</span>` : '',
+    alertas.excedidas ? `<button class="cl-alerta is-over" onclick="clSetFiltro('estado','pend')" title="Superaron su tiempo de referencia">${alertas.excedidas} excedida${alertas.excedidas!==1?'s':''}</button>` : '',
+    alertas.sinAsignar ? `<button class="cl-alerta is-sin" onclick="clSetFiltro('estado','sin')">${alertas.sinAsignar} sin asignar</button>` : '',
+  ].join('');
+  const pctOk = total ? pct : 0;
   progressEl.innerHTML = `
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
-      <div style="flex:1;height:7px;background:var(--light-gray);border-radius:4px;overflow:hidden">
-        <div style="width:${pct}%;height:100%;background:${pct===100?'var(--green-ok)':'var(--sage)'};border-radius:4px;transition:width .3s"></div>
-      </div>
-      <span style="font-size:12px;color:var(--mid-gray);white-space:nowrap">${done_count} / ${total} tareas${pct===100?' ¡Completada!':''}</span>
-    </div>`;
+    <div class="cl-progress-head">
+      <div class="cl-progress-txt"><strong>${done_count}</strong> de ${total} tareas hechas · ${currentDay}</div>
+      <div class="cl-progress-side">${chipsAlerta}<span class="cl-progress-pct${pctOk===100?' is-full':''}">${pctOk===100 ? 'Día completo' : pctOk+'%'}</span></div>
+    </div>
+    <div class="cl-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pctOk}"><span style="width:${pctOk}%"></span></div>`;
 
   // Aviso de Nuevos atrasados (gerencia). Se ubica arriba de la barra de progreso.
   renderNuevosAtrasadosBanner();
+  _asegurarRelojChecklist();
 
-  // ── Floristas: vista de tarjetas (mobile-first) en lugar de la tabla ──
+  // ── Floristas: vista de tarjetas (mobile-first) en lugar de la lista ──
   const cardsWrap = document.getElementById('cl-cards-wrap');
   const tableWrap = document.getElementById('cl-table-wrap');
-  if(D.userRole === 'florista'){
+  if(esFlor){
     if(tableWrap) tableWrap.style.display = 'none';
     if(cardsWrap){ cardsWrap.style.display = ''; renderChecklistCards(cardsWrap); }
     const fEl = document.getElementById('cl-filtro-wrap');
     if(fEl) fEl.style.display = 'none';
+    _renderSelBar();
     D.renderProductividadCL();
     return;
   }
   if(tableWrap) tableWrap.style.display = '';
   if(cardsWrap) cardsWrap.style.display = 'none';
 
-  // ── Filtro rápido (gerencia/operario): por zona/responsable y estado ──
-  // Se crea una sola vez para no perder el foco del input al re-renderizar
+  const esGerencia = D.userRole === 'gerencia';
+  if(!esGerencia){ clVista.sel = false; clSel.clear(); if(clVista.agrupar!=='zona' && D.userRole!=='operario') clVista.agrupar='zona'; }
+
+  // ── Barra de herramientas: buscador (se crea una sola vez para no perder el
+  // foco al re-renderizar) + filtros y acciones (se redibujan) ──
   let filtroEl = document.getElementById('cl-filtro-wrap');
   if(!filtroEl){
     filtroEl = document.createElement('div');
     filtroEl.id = 'cl-filtro-wrap';
+    filtroEl.className = 'cl-toolbar';
     filtroEl.innerHTML = `
-      <input class="cl-obs-input" id="cl-filtro-txt" placeholder="Filtrar por zona o responsable..." style="flex:1;min-width:160px"
-        oninput="clSetFiltro('txt',this.value)">
-      <button class="filter-btn cl-fbtn" data-f="all"    onclick="clSetFiltro('estado','all')">Todas</button>
-      <button class="filter-btn cl-fbtn" data-f="pend"   onclick="clSetFiltro('estado','pend')">Pendientes</button>
-      <button class="filter-btn cl-fbtn" data-f="hechas" onclick="clSetFiltro('estado','hechas')">Hechas</button>`;
-    filtroEl.style.cssText = 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px';
+      <label class="cl-search">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg>
+        <input id="cl-filtro-txt" type="search" placeholder="Buscar zona o responsable" autocomplete="off"
+          oninput="clSetFiltro('txt',this.value)">
+      </label>
+      <div id="cl-toolbar-dyn" class="cl-toolbar-dyn"></div>`;
     document.getElementById('cl-table-wrap').before(filtroEl);
   }
   filtroEl.style.display = '';
-  filtroEl.querySelectorAll('.cl-fbtn').forEach(b=>b.classList.toggle('active', b.dataset.f===clFiltro.estado));
+  const nSin = CL_TASKS.reduce((s,t,i)=> s + (!clState.checked[i] && !(clState.responsable[i]||t.responsable) ? 1 : 0), 0);
+  const nPorFiltro = { all: CL_TASKS.length, pend: CL_TASKS.length - done_count, hechas: done_count, sin: nSin };
+  const segBtn = (f, lbl) => `<button class="cl-fbtn${clFiltro.estado===f?' active':''}" aria-pressed="${clFiltro.estado===f}" onclick="clSetFiltro('estado','${f}')">${lbl}<span class="cl-seg-n">${nPorFiltro[f]}</span></button>`;
+  const diasConDatos = D.DIAS_SEMANA_NAMES.filter(d => d!==currentDay && (D.clStateByDay[d]?.responsable||[]).some(Boolean));
+  const hayPasada = Object.keys(_asignacionesSemanaPasada()).length > 0;
+  document.getElementById('cl-toolbar-dyn').innerHTML = `
+    <div class="cl-seg" role="group" aria-label="Filtrar por estado">
+      ${segBtn('all','Todas')}${segBtn('pend','Pendientes')}${segBtn('hechas','Hechas')}${nSin||clFiltro.estado==='sin' ? segBtn('sin','Sin asignar') : ''}
+    </div>
+    <div class="cl-seg" role="group" aria-label="Agrupar">
+      <button class="cl-fbtn${clVista.agrupar==='zona'?' active':''}" onclick="clSetVista('agrupar','zona')">Por zona</button>
+      <button class="cl-fbtn${clVista.agrupar==='persona'?' active':''}" onclick="clSetVista('agrupar','persona')">Por persona</button>
+    </div>
+    ${esGerencia ? `<div class="cl-acciones">
+      <button class="cl-btn-tool${clVista.sel?' active':''}" onclick="clSetVista('sel',${!clVista.sel})" title="Elegir varias tareas para asignarlas juntas">${clVista.sel?'Terminar selección':'Seleccionar'}</button>
+      ${diasConDatos.length || hayPasada ? `<select class="cl-btn-tool cl-copiar" onchange="clCopiarDe(this.value); this.value=''" aria-label="Copiar asignaciones">
+        <option value="">Copiar de…</option>
+        ${hayPasada ? `<option value="__pasada">${currentDay} pasado</option>` : ''}
+        ${diasConDatos.map(d=>`<option value="${d}">${d}</option>`).join('')}
+      </select>` : ''}
+    </div>` : ''}`;
 
-  const tbody = document.getElementById('checklist-body');
-  tbody.innerHTML = '';
-  let lastSec = '';
-
-  // Header dinámico según rol
-  const thead = document.getElementById('checklist-thead');
-  if(thead){
-    if(D.userRole === 'florista'){
-      thead.innerHTML = '<tr><th>Zona</th><th>Actividad</th><th style="width:60px">Ref.</th><th>Observaciones</th><th style="width:90px">Inicio</th><th style="width:90px">Fin</th></tr>';
-    } else {
-      thead.innerHTML = '<tr><th style="width:32px">✓</th><th>Zona</th><th>Actividad</th><th style="width:60px">Ref.</th><th>Observaciones</th><th style="width:90px">Inicio</th><th style="width:90px">Fin</th><th style="width:75px">Duración</th><th>Responsable</th><th style="width:32px"></th></tr>';
-    }
-  }
-
-  // Para floristas: determinar qué secciones tienen tareas asignadas
-  const isFlorista = D.userRole === 'florista';
+  const list = document.getElementById('checklist-body');
   // Contador de días desde el último Nuevo por zona — solo lo ve gerencia
-  const ultimoNuevoMap = D.userRole==='gerencia' ? mapUltimoNuevoPorZona() : null;
+  const ultimoNuevoMap = esGerencia ? mapUltimoNuevoPorZona() : null;
+  const txt = clFiltro.txt.trim().toLowerCase();
+  const porPersona = clVista.agrupar === 'persona';
+  const minAhora = _minAhora();
+  const esHoy = currentDay === D.TODAY_DAY;
+
+  // Tareas visibles según el filtro
+  const visibles = [];
   CL_TASKS.forEach((t,i)=>{
     const curResp = clState.responsable[i] || t.responsable || '';
+    if(txt && !t.zona.toLowerCase().includes(txt) && !String(curResp).toLowerCase().includes(txt)) return;
+    if(clFiltro.estado==='pend' && clState.checked[i]) return;
+    if(clFiltro.estado==='hechas' && !clState.checked[i]) return;
+    if(clFiltro.estado==='sin' && (clState.checked[i] || curResp)) return;
+    visibles.push(i);
+  });
 
-    // Florista individual: solo ver tareas asignadas a ellos
-    if(isFlorista && curResp !== D.floristaNombre) return;
+  // Agrupar: por zona (sección) o por persona (responsable)
+  const grupos = new Map();
+  visibles.forEach(i=>{
+    const t = CL_TASKS[i];
+    const key = porPersona ? (clState.responsable[i] || t.responsable || '') : t.sec;
+    if(!grupos.has(key)) grupos.set(key, []);
+    grupos.get(key).push(i);
+  });
+  let claves = [...grupos.keys()];
+  if(porPersona){
+    const orden = k => k==='' ? -1 : (CL_RESP_OPTS.indexOf(k) < 0 ? 999 : CL_RESP_OPTS.indexOf(k));
+    claves.sort((a,b)=> orden(a)-orden(b) || a.localeCompare(b));
+  }
 
-    // Filtro rápido de gerencia: texto (zona/responsable) y estado
-    if(!isFlorista){
-      const txt = clFiltro.txt.trim().toLowerCase();
-      if(txt && !t.zona.toLowerCase().includes(txt) && !String(curResp).toLowerCase().includes(txt)) return;
-      if(clFiltro.estado==='pend' && clState.checked[i]) return;
-      if(clFiltro.estado==='hechas' && !clState.checked[i]) return;
-    }
+  // Estado de una tarea para ordenar: en curso → pendiente → hecha
+  const rango = i => clState.checked[i] ? 2 : (clState.inicio?.[i] && !clState.fin?.[i] ? 0 : 1);
 
-    // Section header
-    if(t.sec !== lastSec){
-      lastSec = t.sec;
-      const sh = SEC_HEADERS[t.sec];
-      const hr = document.createElement('tr');
-      hr.className = 'cl-section-row ' + sh.cls;
-      hr.innerHTML = `<td colspan="${isFlorista?6:10}">${sh.icon}&nbsp;&nbsp;${sh.label}</td>`;
-      tbody.appendChild(hr);
-    }
-
-    const done    = clState.checked[i];
+  const filaTarea = (i) => {
+    const t = CL_TASKS[i];
+    const done    = !!clState.checked[i];
+    const curResp = clState.responsable[i] || t.responsable || '';
     const curAct  = clState.actividad[i]   || t.actividad;
     const curObs  = (clState.obs[i] && clState.obs[i] !== 'Observaciones') ? clState.obs[i] : (t.obs||'');
-    const sh      = SEC_HEADERS[t.sec];
     const ref     = getTiempoRef(i, curAct);
+    const actLower = String(curAct).toLowerCase();
+    const nuevoInfo = ultimoNuevoMap && actLower!=='riego' ? badgeUltimoNuevo(ultimoNuevoMap[_zonaKey(t.sec,t.zona)]) : '';
+    const secInfo = porPersona ? `<span class="cl-meta-item cl-meta-sec ${SEC_HEADERS[t.sec]?.cls||''}">${esc(_secNombre(t.sec))}</span>` : '';
+    // En curso: minutos transcurridos y si ya superó la referencia
+    let curso = '', excedida = false;
+    const ini = clState.inicio?.[i] || '';
+    if(!done && ini && !clState.fin?.[i] && esHoy){
+      const trans = Math.max(0, minAhora - _hmToMin(ini));
+      excedida = !!(ref && trans > ref);
+      curso = `<span class="cl-meta-item cl-curso${excedida?' is-over':''}">${excedida ? `Excedida · ${fmtDur(trans)} de ${fmtDur(ref)}` : `En curso · ${fmtDur(trans)||'0m'}`}</span>`;
+    }
+    const refTxt = ref && !curso ? `<span class="cl-meta-item" title="Tiempo de referencia">${icon('clock')}${ref} min</span>` : '';
+    const meta = [secInfo, curso, nuevoInfo, refTxt].filter(Boolean).join('');
+    const sel = clVista.sel && clSel.has(i);
+    const check = clVista.sel && done
+      ? '<span class="cl-check-sp"></span>'
+      : clVista.sel
+      ? `<label class="cl-check cl-selbox" title="Seleccionar"><input type="checkbox" ${sel?'checked':''} onchange="clToggleSel(${i})"><span></span></label>`
+      : `<label class="cl-check" title="${done?'Desmarcar':'Marcar como hecha'}"><input type="checkbox" class="task-check" ${done?'checked':''} onchange="toggleTask(${i},this)"><span></span></label>`;
+    const clsFila = `cl-row${done?' is-done':''}${excedida?' is-over':''}${sel?' is-sel':''}`;
+
+    // Tarea hecha: resumen en texto (sin campos), para que la lista respire
+    if(done){
+      const fin = clState.fin?.[i] || '';
+      return `<div class="${clsFila}">
+        ${check}
+        <div class="cl-row-main">
+          <div class="cl-row-zona">${esc(t.zona)}${actLower!=='riego'?D._btnGuiaArreglo(t.zona):''}</div>
+          ${meta ? `<div class="cl-row-meta">${meta}</div>` : ''}
+        </div>
+        <div class="cl-row-act"><span class="badge ${getBadge(curAct)}">${esc(curAct)}</span></div>
+        <div class="cl-row-obs">${curObs ? `<span class="cl-obs-txt">${esc(curObs)}</span>` : ''}</div>
+        <div class="cl-row-horas"><span class="cl-rango">${ini||'—'}<i>–</i>${fin||'—'}</span>${durBadge(ini, fin, ref)}</div>
+        <div class="cl-row-resp">${curResp ? `<span class="cl-persona">${esc(curResp)}</span>` : '<span class="cl-muted">Sin asignar</span>'}</div>
+      </div>`;
+    }
 
     // Actividad: la determina gerencia (default Retoque); el resto la ve como badge
-    const actLower = String(curAct).toLowerCase();
-    const actividadCell = D.userRole==='gerencia'
-      ? `<select class="cl-select" onchange="updActividad(${i},this.value)" ${done?'disabled':''}>
+    const actividadCell = esGerencia
+      ? `<select class="cl-select cl-act-select cl-act-${actLower}" onchange="updActividad(${i},this.value)" aria-label="Actividad">
           ${CL_ACTIVIDAD_OPTS.map(o=>`<option${o.toLowerCase()===actLower?' selected':''}>${esc(o)}</option>`).join('')}
         </select>`
       : `<span class="badge ${getBadge(curAct)}">${esc(curAct)}</span>`;
-    // Tiempo promedio de referencia: gerencia lo edita, floristas lo ven
-    const refCell = D.userRole==='gerencia'
-      ? `<input type="number" min="0" value="${ref||''}" placeholder="min"
-          style="width:52px;padding:4px 5px;font-size:12px;border:1px solid var(--light-gray);border-radius:4px;text-align:center;background:var(--warm-white);color:var(--charcoal)"
-          onchange="updTiempoRef(${i},this.value,'${actLower}')">`
-      : (ref ? `<span style="font-size:12px;font-weight:600;color:var(--mid-gray);white-space:nowrap">${icon('clock')}${ref}m</span>` : '<span style="font-size:12px;color:var(--mid-gray)">—</span>');
+    const respCell = D.userRole==='operario'
+      ? (curResp ? `<span class="cl-persona">${esc(curResp)}</span>` : '<span class="cl-muted">Sin asignar</span>')
+      : `<select class="cl-select${curResp?'':' is-empty'}" onchange="updCL(${i},'responsable',this.value)" aria-label="Responsable">
+          <option value="">Asignar…</option>
+          ${CL_RESP_OPTS.map(o=>`<option${o===curResp?' selected':''}>${esc(o)}</option>`).join('')}
+        </select>`;
+    return `<div class="${clsFila}">
+      ${check}
+      <div class="cl-row-main">
+        <div class="cl-row-zona">${esc(t.zona)}${actLower!=='riego'?D._btnGuiaArreglo(t.zona):''}</div>
+        ${meta ? `<div class="cl-row-meta">${meta}</div>` : ''}
+      </div>
+      <div class="cl-row-act">${actividadCell}</div>
+      <div class="cl-row-obs"><input class="cl-obs-input cl-nota" value="${esc(curObs)}" placeholder="Agregar nota" aria-label="Observaciones"
+        onchange="updCL(${i},'obs',this.value)"></div>
+      <div class="cl-row-horas">${renderHoraCell(i,'inicio',false)}${renderHoraCell(i,'fin',false)}</div>
+      <div class="cl-row-resp">${respCell}</div>
+    </div>`;
+  };
 
-    const tr = document.createElement('tr');
-    tr.className = sh.rowCls + (done ? ' task-row-done' : '');
+  // Plegado: las zonas completas arrancan plegadas (solo sin filtros activos)
+  const sinFiltros = !txt && clFiltro.estado==='all';
+  let html = '';
 
-    if(isFlorista){
-      tr.innerHTML = `
-        <td style="font-weight:500;font-size:12.5px;min-width:140px">${esc(t.zona)}${actLower!=='riego'?D._btnGuiaArreglo(t.zona):''}</td>
-        <td style="min-width:100px">${actividadCell}</td>
-        <td style="width:60px;text-align:center">${refCell}</td>
-        <td style="min-width:150px">
-          <input class="cl-obs-input" value="${esc(curObs)}" placeholder="Observaciones..."
-            onchange="updCL(${i},'obs',this.value)" ${done?'disabled':''} style="width:100%">
-        </td>
-        <td style="width:90px;text-align:center;padding:4px 6px">${renderHoraCell(i,'inicio',done)}</td>
-        <td style="width:90px;text-align:center;padding:4px 6px">${renderHoraCell(i,'fin',done)}</td>`;
+  // ── Urgentes: ventas / pedidos con entrega en menos de 2 h (o atrasados) ──
+  const pendVentas = _ventasPendientesHoy();
+  const urgentes = pendVentas.filter(x => x.urgente);
+  if(urgentes.length){
+    html += `<section class="cl-group cl-group-urgente">
+      <header class="cl-group-hd"><span class="cl-group-dot"></span><h3 class="cl-group-name">Urgente · entrega próxima</h3><span class="cl-group-count">${urgentes.length}</span></header>
+      ${urgentes.map(_filaVenta).join('')}
+    </section>`;
+  }
+
+  html += claves.map(key=>{
+    const idxs = grupos.get(key).slice().sort((a,b)=> rango(a)-rango(b) || a-b);
+    let nombre, cls, delGrupo;
+    if(porPersona){
+      nombre = key || 'Sin asignar';
+      cls = key ? 'cl-group-persona' : 'cl-group-sin';
+      delGrupo = CL_TASKS.map((t,i)=>(clState.responsable[i]||t.responsable||'')===key?i:-1).filter(i=>i>=0);
     } else {
-      const nuevoInfo = ultimoNuevoMap && actLower!=='riego' ? badgeUltimoNuevo(ultimoNuevoMap[_zonaKey(t.sec,t.zona)]) : '';
-      tr.innerHTML = `
-        <td style="width:32px"><input type="checkbox" class="task-check" ${done?'checked':''} onchange="toggleTask(${i},this)"></td>
-        <td style="font-weight:500;font-size:12.5px;min-width:140px">${esc(t.zona)}${actLower!=='riego'?D._btnGuiaArreglo(t.zona):''}${nuevoInfo}</td>
-        <td style="min-width:100px">${actividadCell}</td>
-        <td style="width:60px;text-align:center">${refCell}</td>
-        <td style="min-width:150px">
-          <input class="cl-obs-input" value="${esc(curObs)}" placeholder="Observaciones..."
-            onchange="updCL(${i},'obs',this.value)" ${done?'disabled':''} style="width:100%">
-        </td>
-        <td style="width:90px;text-align:center;padding:4px 6px">${renderHoraCell(i,'inicio',done)}</td>
-        <td style="width:90px;text-align:center;padding:4px 6px">${renderHoraCell(i,'fin',done)}</td>
-        <td style="width:80px;text-align:center">${durBadge(clState.inicio?.[i], clState.fin?.[i], ref)}</td>
-        <td style="min-width:110px">
-          ${D.userRole==='operario'
-            ? '<span style="font-size:13px;color:var(--charcoal);padding:4px 2px;display:block">' + (curResp || '<em style="color:var(--mid-gray);font-size:12px">Sin asignar</em>') + '</span>'
-            : '<select class="cl-select" onchange="updCL('+i+',\'responsable\',this.value)" '+(done?'disabled':'')+'>'+
-              '<option value="">— Responsable —</option>'+
-              CL_RESP_OPTS.map(o=>'<option'+(o===curResp?' selected':'')+'>'+esc(o)+'</option>').join('')+
-              '</select>'
-          }
-        </td>
-        <td style="width:32px;text-align:center"><span style="font-size:16px">${done?'\u2705':''}</span></td>`;
+      const sh = SEC_HEADERS[key] || {label:key, cls:''};
+      nombre = sh.label; cls = sh.cls;
+      delGrupo = CL_TASKS.map((t,i)=>t.sec===key?i:-1).filter(i=>i>=0);
     }
+    const hechas = delGrupo.filter(i=>clState.checked[i]).length;
+    const completo = hechas===delGrupo.length;
+    const gk = (porPersona?'p:':'z:')+key;
+    const plegada = clPlegadas[gk] ?? (sinFiltros && completo);
+    let resumen = `${hechas} de ${delGrupo.length}`;
+    if(porPersona && key){
+      const minEst = delGrupo.reduce((s,i)=> s + (getTiempoRef(i, clState.actividad[i]||CL_TASKS[i].actividad)||0), 0);
+      const minPend = delGrupo.filter(i=>!clState.checked[i]).reduce((s,i)=> s + (getTiempoRef(i, clState.actividad[i]||CL_TASKS[i].actividad)||0), 0);
+      resumen = `${hechas} de ${delGrupo.length} hechas${minEst?` · ${fmtDur(minEst)} estimado${minPend?` · faltan ${fmtDur(minPend)}`:''}`:''}`;
+    }
+    const selGrupo = clVista.sel ? `<button class="cl-link cl-group-sel" onclick="event.stopPropagation();clSelGrupo('${gk.replace(/'/g,"\\'")}')">Seleccionar pendientes</button>` : '';
+    return `<section class="cl-group ${cls}${plegada?' is-plegada':''}">
+      <header class="cl-group-hd" onclick="clTogglePlegar('${gk.replace(/'/g,"\\'")}', ${!plegada})" role="button" aria-expanded="${!plegada}" tabindex="0">
+        <svg class="cl-group-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+        <span class="cl-group-dot"></span>
+        <h3 class="cl-group-name">${esc(nombre)}</h3>
+        ${selGrupo}
+        <span class="cl-group-count${completo?' is-full':''}">${resumen}</span>
+      </header>
+      ${plegada ? '' : idxs.map(filaTarea).join('')}
+    </section>`;
+  }).join('');
 
-    tbody.appendChild(tr);
-  });
+  if(!claves.length){
+    html += `<div class="cl-vacio">${txt || clFiltro.estado!=='all'
+      ? 'Ninguna tarea coincide con el filtro.'
+      : 'No hay tareas cargadas para este día.'}</div>`;
+  }
 
   // ── Eventos del día (fase armado, colocación o retiro según el estado) ──
-  const eventosHoy = D.eventosData.filter(ev => {
-    if(ev.estado === 'Pedidos Finalizados') return false;
-    if(isFlorista) return florFaseVisible(ev, D.floristaNombre) !== null;
-    // gerencia/operario: ven los activos que tengan alguien asignado en alguna fase
-    return ev.asignado || ev.colocacionAsignado || ev.retiroAsignado;
-  });
+  // gerencia/operario: ven los activos que tengan alguien asignado en alguna fase
+  const eventosHoy = D.eventosData.filter(ev =>
+    ev.estado !== 'Pedidos Finalizados' && (ev.asignado || ev.colocacionAsignado || ev.retiroAsignado));
   if(eventosHoy.length > 0){
-    const evHeader = document.createElement('tr');
-    evHeader.className = 'cl-section-row';
-    evHeader.style.cssText = 'background:#FDF0E8';
-    evHeader.innerHTML = `<td colspan="${isFlorista?6:10}" style="font-weight:600;color:#B8602A">Eventos del día</td>`;
-    tbody.appendChild(evHeader);
+    html += `<section class="cl-group cl-group-eventos">
+      <header class="cl-group-hd"><span class="cl-group-dot"></span><h3 class="cl-group-name">Eventos del día</h3><span class="cl-group-count">${eventosHoy.length}</span></header>
+      ${eventosHoy.map(ev=>{
+        const evIdx = D.eventosData.indexOf(ev);
+        const fase = eventoFase(ev);
+        const flor = eventoFlorFase(ev, fase);
+        const iniVal = fase === 'retiro' ? ev.retiroInicio : fase === 'colocacion' ? ev.colocacionInicio : ev.inicio;
+        const finVal = fase === 'retiro' ? ev.retiroFin : fase === 'colocacion' ? ev.colocacionFin : ev.fin;
+        const meta = [ev.tipo, ev.salon, ev.pax ? ev.pax+' pax' : '', ev.hora].filter(Boolean).map(esc).join(' · ');
+        return `<div class="cl-row cl-row-link" data-ev="${evIdx}" title="Ver detalle del evento">
+          <span class="cl-check-sp"></span>
+          <div class="cl-row-main">
+            <div class="cl-row-zona">${esc(ev.nombre)}${D.badgeDiaRelativa(ev.fecha)}${eventoFaseTag(fase)}</div>
+            ${meta ? `<div class="cl-row-meta"><span class="cl-meta-item">${meta}</span></div>` : ''}
+          </div>
+          <div class="cl-row-act"></div>
+          <div class="cl-row-obs"></div>
+          <div class="cl-row-horas">${D.renderEvHoraCell(evIdx,'inicio',ev,fase)}${D.renderEvHoraCell(evIdx,'fin',ev,fase)}${iniVal && finVal ? durBadge(iniVal, finVal) : ''}</div>
+          <div class="cl-row-resp">${flor ? `<span class="cl-persona">${esc(flor)}</span>` : '<span class="cl-muted">Sin asignar</span>'}</div>
+        </div>`;
+      }).join('')}
+    </section>`;
+  }
 
-    eventosHoy.forEach(ev => {
-      const evIdx = D.eventosData.indexOf(ev);
-      const evTr = document.createElement('tr');
-      evTr.style.cssText = 'background:#FEFAF6';
-      const fase = isFlorista ? florFaseVisible(ev, D.floristaNombre) : eventoFase(ev);
-      const flor = eventoFlorFase(ev, fase);
-      const faseTag = eventoFaseTag(fase);
-      const iniVal = fase === 'retiro' ? ev.retiroInicio : fase === 'colocacion' ? ev.colocacionInicio : ev.inicio;
-      const finVal = fase === 'retiro' ? ev.retiroFin : fase === 'colocacion' ? ev.colocacionFin : ev.fin;
+  // ── Ventas / pedidos pendientes (no urgentes), ordenados por entrega ──
+  const otrasVentas = pendVentas.filter(x => !x.urgente);
+  if(otrasVentas.length > 0){
+    html += `<section class="cl-group cl-group-ventas">
+      <header class="cl-group-hd"><span class="cl-group-dot"></span><h3 class="cl-group-name">Ventas pendientes</h3><span class="cl-group-count">${otrasVentas.length}</span></header>
+      ${otrasVentas.map(_filaVenta).join('')}
+    </section>`;
+  }
 
-      if(isFlorista){
-        evTr.innerHTML = `
-          <td style="font-weight:600;font-size:12.5px;color:#B8602A">${esc(ev.nombre)}${D.badgeDiaRelativa(ev.fecha)}${faseTag}</td>
-          <td style="font-size:12px">${esc(ev.tipo)} · ${esc(ev.salon||'')}</td>
-          <td></td>
-          <td style="font-size:12px;color:var(--mid-gray)">${ev.pax?ev.pax+' pax':''} ${ev.hora?'· '+ev.hora:''}</td>
-          <td style="width:90px;text-align:center;padding:4px 6px">${D.renderEvHoraCell(evIdx,'inicio',ev,fase)}</td>
-          <td style="width:90px;text-align:center;padding:4px 6px">${D.renderEvHoraCell(evIdx,'fin',ev,fase)}</td>`;
-      } else {
-        evTr.innerHTML = `
-          <td style="width:32px"></td>
-          <td style="font-weight:600;font-size:12.5px;color:#B8602A">${esc(ev.nombre)}${D.badgeDiaRelativa(ev.fecha)}${faseTag}</td>
-          <td style="font-size:12px">${esc(ev.tipo)}</td>
-          <td></td>
-          <td style="font-size:12px;color:var(--mid-gray)">${esc(ev.salon||'')} · ${ev.pax?ev.pax+' pax':''} ${ev.hora?'· '+ev.hora:''}</td>
-          <td style="width:90px;text-align:center;padding:4px 6px">${D.renderEvHoraCell(evIdx,'inicio',ev,fase)}</td>
-          <td style="width:90px;text-align:center;padding:4px 6px">${D.renderEvHoraCell(evIdx,'fin',ev,fase)}</td>
-          <td style="width:80px;text-align:center">${durBadge(iniVal, finVal)}</td>
-          <td style="font-size:12px;color:var(--sage-dark);font-weight:600">${flor ? esc(flor) : '<span style="color:var(--mid-gray)">sin asignar</span>'}</td>
-          <td></td>`;
-      }
-      // Tap en el evento → abrir el detalle (excepto al tocar los botones inicio/fin)
-      evTr.style.cursor = 'pointer';
-      evTr.title = 'Ver detalle del evento';
-      evTr.addEventListener('click', e => { if(e.target.closest('button')) return; openEventoDetail(evIdx); });
-      tbody.appendChild(evTr);
+  list.innerHTML = html;
+  // Tap en un evento/venta → abrir el detalle (excepto al tocar botones o selectores)
+  list.querySelectorAll('.cl-row-link').forEach(row=>{
+    row.addEventListener('click', e=>{
+      if(e.target.closest('button, select, input, label')) return;
+      if(row.dataset.ev !== undefined) openEventoDetail(Number(row.dataset.ev));
+      else D.openVentaDetail(Number(row.dataset.venta));
     });
-  }
-
-  // ── Ventas / pedidos asignados pendientes (gerencia/operario ven todos; el florista ve los suyos) ──
-  const ventasHoy = (ventasData||[]).filter(v =>
-    v.asignado && v.estado === 'pendiente' && !v.fin &&
-    (!isFlorista || v.asignado === D.floristaNombre)
-  );
-  if(ventasHoy.length > 0){
-    const vtHeader = document.createElement('tr');
-    vtHeader.className = 'cl-section-row';
-    vtHeader.style.cssText = 'background:#E8EDF8';
-    vtHeader.innerHTML = `<td colspan="${isFlorista?6:10}" style="font-weight:600;color:var(--info)">Ventas pendientes</td>`;
-    tbody.appendChild(vtHeader);
-
-    ventasHoy.forEach(v => {
-      const vIdx = ventasData.indexOf(v);
-      const vtTr = document.createElement('tr');
-      vtTr.style.cssText = 'background:#F5F7FC';
-
-      const detalle = [v.desc, v.colores ? ''+v.colores : '', v.dedicatoria ? '"'+v.dedicatoria+'"' : '', v.dir ? ''+v.dir : '', v.fecha ? ''+fmtDate(v.fecha) : ''].filter(Boolean).join(' · ');
-
-      if(isFlorista){
-        vtTr.innerHTML = `
-          <td style="font-weight:600;font-size:12.5px;color:var(--info)">${esc(v.prod)}${D.badgeDiaRelativa(v.fecha)}</td>
-          <td style="font-size:12px">${esc(v.cliente||'')}</td>
-          <td></td>
-          <td style="font-size:12px;color:var(--mid-gray);max-width:200px;overflow:hidden;text-overflow:ellipsis">${esc(detalle)}</td>
-          <td style="width:90px;text-align:center;padding:4px 6px">${D.renderVentaHoraCell(vIdx,'inicio',v)}</td>
-          <td style="width:90px;text-align:center;padding:4px 6px">${D.renderVentaHoraCell(vIdx,'fin',v)}</td>`;
-      } else {
-        vtTr.innerHTML = `
-          <td style="width:32px"></td>
-          <td style="font-weight:600;font-size:12.5px;color:var(--info)">${esc(v.prod)}${D.badgeDiaRelativa(v.fecha)}</td>
-          <td style="font-size:12px">${esc(v.cliente||'')}</td>
-          <td></td>
-          <td style="font-size:12px;color:var(--mid-gray);max-width:200px">${esc(detalle)}</td>
-          <td style="width:90px;text-align:center;padding:4px 6px">${D.renderVentaHoraCell(vIdx,'inicio',v)}</td>
-          <td style="width:90px;text-align:center;padding:4px 6px">${D.renderVentaHoraCell(vIdx,'fin',v)}</td>
-          <td style="width:80px;text-align:center">${durBadge(v.inicio, v.fin)}</td>
-          <td style="font-size:12px;color:var(--sage-dark);font-weight:600">${esc(v.asignado||'')}</td>
-          <td></td>`;
-      }
-      // Tap en el pedido/venta → abrir detalle (excepto al tocar los botones inicio/fin)
-      vtTr.style.cursor = 'pointer';
-      vtTr.title = 'Ver detalle del pedido';
-      vtTr.addEventListener('click', e => { if(e.target.closest('button')) return; D.openVentaDetail(vIdx); });
-      tbody.appendChild(vtTr);
-    });
-  }
-
-  // Mensaje si el florista no tiene tareas asignadas
-  if(isFlorista && !tbody.querySelector('tr:not(.cl-section-row)')){
-    tbody.innerHTML = `<tr><td colspan="6" style="padding:32px;text-align:center;color:var(--mid-gray)">
-      <div style="font-size:28px;margin-bottom:8px"></div>
-      <div style="font-size:14px;font-weight:500">No tenés tareas asignadas para hoy, ${D.floristaNombre}</div>
-      <div style="font-size:12px;margin-top:4px">Gerencia asigna las tareas desde la checklist general.</div>
-    </td></tr>`;
-  }
+  });
+  _renderSelBar();
   D.renderProductividadCL();
 }
 
-// ── Filtro rápido del checklist (gerencia/operario) ───────────────────────────
-const clFiltro = { txt:'', estado:'all' };
+// ── Estado de la vista (gerencia/operario) ────────────────────────────────────
+const clFiltro = { txt:'', estado:'all' };          // estado: all | pend | hechas | sin
+const clVista  = { agrupar:'zona', sel:false };     // agrupar: zona | persona
+const clSel    = new Set();                          // índices elegidos para asignar en bloque
+const clPlegadas = {};                               // grupo → plegado (true/false)
 export function clSetFiltro(k, v){ clFiltro[k] = v; renderChecklistTable(); }
+export function clSetVista(k, v){
+  clVista[k] = v;
+  if(k==='sel' && !v) clSel.clear();
+  renderChecklistTable();
+}
+export function clTogglePlegar(gk, plegar){ clPlegadas[gk] = plegar; renderChecklistTable(); }
+
+function _secNombre(sec){ const l = SEC_HEADERS[sec]?.label || sec || ''; return l.charAt(0) + l.slice(1).toLowerCase(); }
+function _minAhora(){ const n = new Date(); return n.getHours()*60 + n.getMinutes(); }
+
+// Alertas del día activo: tareas en curso, excedidas (superan la referencia) y sin asignar
+function alertasDia(){
+  const out = { enCurso:0, excedidas:0, sinAsignar:0 };
+  if(!clState) return out;
+  const ahora = _minAhora();
+  const esHoy = currentDay === D.TODAY_DAY;
+  CL_TASKS.forEach((t,i)=>{
+    if(clState.checked[i]) return;
+    if(!(clState.responsable[i] || t.responsable)) out.sinAsignar++;
+    const ini = clState.inicio?.[i];
+    if(esHoy && ini && !clState.fin?.[i]){
+      out.enCurso++;
+      const ref = getTiempoRef(i, clState.actividad[i]||t.actividad);
+      if(ref && ahora - _hmToMin(ini) > ref) out.excedidas++;
+    }
+  });
+  return out;
+}
+
+// Re-dibuja el checklist cada minuto mientras está abierto, para que los
+// contadores (en curso, entrega en X min) estén al día. No interrumpe si
+// alguien está escribiendo o eligiendo en un campo.
+let _relojCL = null;
+function _asegurarRelojChecklist(){
+  if(_relojCL) return;
+  _relojCL = setInterval(()=>{
+    if(!document.getElementById('page-checklist')?.classList.contains('active')) return;
+    const ae = document.activeElement;
+    if(ae && /^(INPUT|SELECT|TEXTAREA)$/.test(ae.tagName) && ae.closest('#page-checklist')) return;
+    renderChecklistTable();
+  }, 60000);
+}
+
+// ── Ventas / pedidos: entrega y urgencia ──────────────────────────────────────
+// Un pedido con hora de entrega en menos de URGENTE_MIN minutos (o ya pasada)
+// sube al principio del checklist como urgente.
+const URGENTE_MIN = 120;
+// Un pedido vencido hace más de 12 h ya no se trata como urgente (quedó olvidado
+// como pendiente); sigue en "Ventas pendientes".
+const URGENTE_VENCIDA_MIN = 12*60;
+export function entregaVenta(v){
+  let fecha = v.fechaEntrega || v.fecha || '';
+  let hora = v.horaEntrega || '';
+  if(!hora){
+    // Pedidos de habitación viejos: la hora quedó en la descripción ("Para: 2026-11-05 15:30")
+    const m = /Para:\s*(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})/.exec(v.desc||'');
+    if(m){ fecha = m[1]; hora = m[2]; }
+  }
+  if(!fecha || !hora) return { fecha, hora, mins:null };
+  const [y,mo,d] = fecha.split('-').map(Number);
+  const [h,mi] = hora.split(':').map(Number);
+  const mins = Math.round((new Date(y, mo-1, d, h, mi) - new Date()) / 60000);
+  return { fecha, hora, mins };
+}
+function _txtFaltan(mins){
+  if(mins < 0) return `atrasada ${fmtDur(-mins)}`;
+  if(mins === 0) return 'ahora';
+  return `en ${fmtDur(mins)}`;
+}
+// Ventas pendientes que corresponde mostrar (asignadas, o para hoy aunque nadie
+// las tenga todavía), con su entrega, ordenadas: urgentes primero y por hora.
+function _ventasPendientesHoy(soloDe){
+  return (ventasData||[]).map((v, vIdx) => ({ v, vIdx }))
+    .filter(({v}) => v && v.estado === 'pendiente' && !v.fin)
+    .map(x => ({ ...x, ent: entregaVenta(x.v) }))
+    .filter(({v, ent}) => soloDe ? _sameName(v.asignado, soloDe) : (v.asignado || (ent.fecha||v.fecha) === D.TODAY_ISO))
+    .map(x => ({ ...x, urgente: x.ent.mins !== null && x.ent.mins <= URGENTE_MIN && x.ent.mins > -URGENTE_VENCIDA_MIN }))
+    .sort((a,b)=>{
+      if(a.urgente !== b.urgente) return a.urgente ? -1 : 1;
+      const ka = a.ent.mins ?? Infinity, kb = b.ent.mins ?? Infinity;
+      return ka - kb;
+    });
+}
+function _chipEntrega(x){
+  if(!x.ent.hora) return '';
+  const hoy = x.ent.fecha === D.TODAY_ISO;
+  const cuando = (hoy ? '' : fmtDate(x.ent.fecha) + ' ') + x.ent.hora;
+  if(x.urgente) return `<span class="cl-entrega is-urgente">Entrega ${cuando} · ${_txtFaltan(x.ent.mins)}</span>`;
+  return `<span class="cl-entrega">Entrega ${cuando}</span>`;
+}
+function _filaVenta(x){
+  const { v, vIdx } = x;
+  const detalle = [v.cliente, v.dir, v.desc && !/^Hab\./.test(v.desc) ? v.desc : '', v.colores, v.dedicatoria ? '"'+v.dedicatoria+'"' : ''].filter(Boolean).map(esc).join(' · ');
+  const resp = D.userRole === 'gerencia'
+    ? `<select class="cl-select${v.asignado?'':' is-empty'}" onchange="clAsignarVenta(${vIdx},this.value)" aria-label="Florista">
+        <option value="">Asignar…</option>
+        ${CL_RESP_OPTS.map(o=>`<option${o===v.asignado?' selected':''}>${esc(o)}</option>`).join('')}
+      </select>`
+    : (v.asignado ? `<span class="cl-persona">${esc(v.asignado)}</span>` : '<span class="cl-muted">Sin asignar</span>');
+  return `<div class="cl-row cl-row-link${x.urgente?' is-urgente':''}" data-venta="${vIdx}" title="Ver detalle del pedido">
+    <span class="cl-check-sp"></span>
+    <div class="cl-row-main">
+      <div class="cl-row-zona">${esc(v.prod||'')}${x.ent.hora ? '' : D.badgeDiaRelativa(v.fecha)}${_chipEntrega(x)}</div>
+      ${detalle ? `<div class="cl-row-meta"><span class="cl-meta-item">${detalle}</span></div>` : ''}
+    </div>
+    <div class="cl-row-act"></div>
+    <div class="cl-row-obs"></div>
+    <div class="cl-row-horas">${D.renderVentaHoraCell(vIdx,'inicio',v)}${D.renderVentaHoraCell(vIdx,'fin',v)}${v.inicio && v.fin ? durBadge(v.inicio, v.fin) : ''}</div>
+    <div class="cl-row-resp">${resp}</div>
+  </div>`;
+}
+export function clAsignarVenta(vIdx, nombre){
+  const v = ventasData[vIdx];
+  if(!v) return;
+  v.asignado = nombre;
+  D.fbSave('ventasData', ventasData);
+  if(nombre) D.notificarAsignacion?.(nombre, `Pedido: ${v.prod||''}`, `${v.dir||v.cliente||''}${v.horaEntrega?' · entrega '+v.horaEntrega:''}. Ya te aparece en tu checklist.`);
+  renderChecklistTable();
+  showToast(nombre ? `${v.prod||'Pedido'} asignado a ${nombre}` : 'Pedido sin asignar');
+}
+
+// ── Asignar en bloque ─────────────────────────────────────────────────────────
+export function clToggleSel(i){ if(clSel.has(i)) clSel.delete(i); else clSel.add(i); renderChecklistTable(); }
+export function clSelGrupo(gk){
+  const [tipo, key] = [gk.slice(0,1), gk.slice(2)];
+  const idxs = CL_TASKS.map((t,i)=>i).filter(i=> !clState.checked[i] &&
+    (tipo==='p' ? (clState.responsable[i]||CL_TASKS[i].responsable||'')===key : CL_TASKS[i].sec===key));
+  const todas = idxs.length && idxs.every(i=>clSel.has(i));
+  idxs.forEach(i=> todas ? clSel.delete(i) : clSel.add(i));
+  renderChecklistTable();
+}
+function _renderSelBar(){
+  let bar = document.getElementById('cl-selbar');
+  if(!clVista.sel || D.userRole !== 'gerencia'){ if(bar) bar.remove(); return; }
+  if(!bar){
+    bar = document.createElement('div');
+    bar.id = 'cl-selbar';
+    bar.className = 'cl-selbar';
+    document.getElementById('page-checklist').appendChild(bar);
+  }
+  const n = clSel.size;
+  bar.innerHTML = `
+    <span class="cl-selbar-n">${n ? `<strong>${n}</strong> tarea${n!==1?'s':''} elegida${n!==1?'s':''}` : 'Tocá las tareas que querés asignar'}</span>
+    <select class="cl-select" ${n?'':'disabled'} onchange="clAsignarSel('responsable',this.value)" aria-label="Asignar a">
+      <option value="">Asignar a…</option>
+      ${CL_RESP_OPTS.map(o=>`<option>${esc(o)}</option>`).join('')}
+      <option value="__nadie">Quitar responsable</option>
+    </select>
+    <select class="cl-select" ${n?'':'disabled'} onchange="clAsignarSel('actividad',this.value)" aria-label="Actividad">
+      <option value="">Actividad…</option>
+      ${CL_ACTIVIDAD_OPTS.map(o=>`<option>${esc(o)}</option>`).join('')}
+    </select>
+    <button class="cl-btn-quiet" onclick="clSetVista('sel',false)">Listo</button>`;
+}
+export function clAsignarSel(campo, val){
+  if(!val || !clSel.size || D.userRole !== 'gerencia') return;
+  const idxs = [...clSel].filter(i => !clState.checked[i]);
+  if(campo === 'responsable'){
+    const nombre = val === '__nadie' ? '' : val;
+    idxs.forEach(i => { clState.responsable[i] = nombre; });
+    saveWeekState(currentDay, 'responsable');
+    showToast(nombre ? `${idxs.length} tarea${idxs.length!==1?'s':''} asignada${idxs.length!==1?'s':''} a ${nombre}` : `Se quitó el responsable de ${idxs.length} tarea${idxs.length!==1?'s':''}`);
+  } else {
+    let cambiados = [];
+    idxs.forEach(i => { cambiados = cambiados.concat(setActividadDia(currentDay, i, val)); });
+    showToast(`${idxs.length} tarea${idxs.length!==1?'s':''} en ${val}${cambiados.length?' · el resto de la semana quedó en Retoque':''}`);
+  }
+  clSel.clear();
+  renderChecklistTable();
+}
+
+// ── Copiar asignaciones de otro día ───────────────────────────────────────────
+// Del mismo día de la semana pasada (sale del historial: quién hizo cada zona y
+// con qué actividad) o de otro día de esta semana (solo responsables, para no
+// repetir un Nuevo que ya se hizo esta semana).
+function _asignacionesSemanaPasada(){
+  const d = new Date(D.TODAY_ISO + 'T12:00:00'); d.setDate(d.getDate() - 7);
+  const wk = getISOWeekKey(d);
+  const map = {};
+  (D.checklistHistory||[]).forEach(h=>{
+    if(h && h.weekKey === wk && h.day === currentDay && h.who) map[_zonaKey(h.sec, h.zona)] = { who:h.who, actividad:h.actividad };
+  });
+  return map;
+}
+export async function clCopiarDe(src){
+  if(!src || D.userRole !== 'gerencia') return;
+  const pend = CL_TASKS.map((_,i)=>i).filter(i => !clState.checked[i]);
+  if(src === '__pasada'){
+    const map = _asignacionesSemanaPasada();
+    const aplicar = pend.filter(i => map[_zonaKey(CL_TASKS[i].sec, CL_TASKS[i].zona)]);
+    if(!aplicar.length){ showToast('No hay registros del '+currentDay+' pasado para estas zonas'); return; }
+    if(!await confirmModal(`¿Copiar responsables y actividad del ${currentDay} pasado en ${aplicar.length} tarea${aplicar.length!==1?'s':''} pendiente${aplicar.length!==1?'s':''}?`)) return;
+    aplicar.forEach(i=>{
+      const r = map[_zonaKey(CL_TASKS[i].sec, CL_TASKS[i].zona)];
+      clState.responsable[i] = r.who;
+      if(r.actividad && CL_ACTIVIDAD_OPTS.some(o=>o.toLowerCase()===String(r.actividad).toLowerCase())) setActividadDia(currentDay, i, r.actividad);
+    });
+    saveWeekState(currentDay, 'responsable');
+    showToast(`Copiado del ${currentDay} pasado · ${aplicar.length} tareas`);
+  } else {
+    const ds = D.clStateByDay[src];
+    if(!ds){ showToast('Ese día no tiene datos'); return; }
+    const aplicar = pend.filter(i => ds.responsable?.[i]);
+    if(!aplicar.length){ showToast(`El ${src} no tiene responsables cargados`); return; }
+    if(!await confirmModal(`¿Copiar los responsables del ${src} en ${aplicar.length} tarea${aplicar.length!==1?'s':''} pendiente${aplicar.length!==1?'s':''} del ${currentDay}?`)) return;
+    aplicar.forEach(i => { clState.responsable[i] = ds.responsable[i]; });
+    saveWeekState(currentDay, 'responsable');
+    showToast(`Responsables copiados del ${src}`);
+  }
+  renderChecklistTable();
+}
+
+// ── Programar Nuevo desde el aviso de atrasados ───────────────────────────────
+export async function clProgramarNuevo(sec, zona){
+  const i = CL_TASKS.findIndex(t => t.sec===sec && t.zona===zona);
+  if(i < 0 || !clState) return;
+  if(clState.checked[i]){ showToast(`${zona} ya está hecha el ${currentDay}`); return; }
+  if(String(clState.actividad[i]||'').toLowerCase()==='nuevo'){ showToast(`${zona} ya figura como Nuevo el ${currentDay}`); return; }
+  if(!await confirmModal(`¿Programar un arreglo Nuevo en ${zona} para el ${currentDay}?`)) return;
+  updActividad(i, 'Nuevo');
+  renderChecklistTable();
+}
 
 // ── Festejo al completar todas las tareas del día (floristas) ─────────────────
 function festejarChecklist(){
@@ -1446,28 +1707,31 @@ function renderChecklistCards(el){
     </div>`;
   }).join('');
 
-  // Ventas / pedidos pendientes asignados
-  const ventasHoy = (ventasData||[]).filter(v => _sameName(v.asignado, D.floristaNombre) && v.estado==='pendiente' && !v.fin);
-  const vtHTML = ventasHoy.map(v=>{
-    const vIdx = ventasData.indexOf(v);
-    const detalle = [v.cliente, v.colores?''+v.colores:'', v.fecha?''+fmtDate(v.fecha):''].filter(Boolean).join(' · ');
-    return `<div class="cl-card cl-card-venta" onclick="if(!event.target.closest('button'))openVentaDetail(${vIdx})">
+  // Ventas / pedidos pendientes asignados: los de entrega próxima van primero, como urgentes
+  const ventasMias = _ventasPendientesHoy(D.floristaNombre);
+  const tarjetaVenta = (x) => {
+    const { v, vIdx } = x;
+    const detalle = [v.cliente, v.dir, v.colores].filter(Boolean).join(' · ');
+    return `<div class="cl-card cl-card-venta${x.urgente?' cl-card-urgente':''}" onclick="if(!event.target.closest('button'))openVentaDetail(${vIdx})">
       <div class="cl-card-top">
         <div>
           <div class="cl-card-zona">${esc(v.prod||'')}</div>
           <div class="cl-card-sec">${esc(detalle)}</div>
         </div>
+        ${_chipEntrega(x) || (v.fecha ? `<span class="cl-entrega">${fmtDate(v.fecha)}</span>` : '')}
       </div>
       <div class="cl-card-horas">
         <div class="cl-card-hora">${D.renderVentaHoraCell(vIdx,'inicio',v)}</div>
         <div class="cl-card-hora">${D.renderVentaHoraCell(vIdx,'fin',v)}</div>
       </div>
     </div>`;
-  }).join('');
+  };
+  const urgHTML = ventasMias.filter(x=>x.urgente).map(tarjetaVenta).join('');
+  const vtHTML = ventasMias.filter(x=>!x.urgente).map(tarjetaVenta).join('');
 
   el.innerHTML = `
+    ${urgHTML ? '<div class="cl-cards-sec-hdr cl-cards-urgente">Urgente · entrega próxima</div>'+urgHTML : ''}
     ${misIdxs.length ? tareasHTML : `<div class="cl-cards-empty">
-      <div style="font-size:30px;margin-bottom:8px"></div>
       No tenés tareas asignadas para hoy, ${esc(D.floristaNombre)}
       <div class="cl-cards-empty-sub">Gerencia asigna las tareas desde la checklist general.</div>
     </div>`}
@@ -1479,15 +1743,12 @@ export function renderHoraCell(i, campo, done){
   const val = clState[campo]?.[i] || '';
   if(D.userRole === 'gerencia'){
     const dis = done ? 'disabled' : '';
-    return `<input type="time" value="${val}" ${dis}
-      style="width:78px;padding:4px 5px;font-size:12px;border:1px solid var(--light-gray);border-radius:4px;text-align:center;background:var(--warm-white);color:var(--charcoal)"
+    return `<input type="time" class="cl-time${val?' has-val':''}" value="${val}" ${dis} aria-label="${campo==='inicio'?'Hora de inicio':'Hora de fin'}"
       onchange="updCL(${i},'${campo}',this.value)">`;
   }
   if(val){
-    const color   = campo==='inicio' ? '#2C4A3E' : '#8B3A3A';
-    const bg      = campo==='inicio' ? '#EBF5E8' : '#FDF0F0';
     const resetFn = done ? '' : `onclick="resetHora(${i},'${campo}')" title="Tocar para borrar"`;
-    return `<span ${resetFn} style="font-size:13px;font-weight:700;color:${color};background:${bg};padding:3px 10px;border-radius:8px;display:inline-block;${done?'':'cursor:pointer'}">${val}</span>`;
+    return `<span ${resetFn} class="cl-hora-val is-${campo}${done?'':' is-editable'}">${val}</span>`;
   }
   // Fin deshabilitado si: tarea completada O si no hay Inicio aún registrado
   const sinInicio = campo === 'fin' && !(clState.inicio?.[i]);
@@ -1743,6 +2004,7 @@ export function updCL(i, field, val){
     return;
   }
   saveWeekState(currentDay, field, i);
+  if(field === 'responsable') renderChecklistTable();
 }
 
 export function toggleTask(i, el){

@@ -187,11 +187,16 @@ export function enviarPedidoHab(){
   fbSave('kanbanData', D.kanban());
 
   // ── AUTO: Registrar en Ventas Externas (con el precio total del pedido) ──
+  // Fecha y hora de entrega: con hora, el checklist lo prioriza como urgente
+  // cuando falta poco (ver checklist.js → entregaVenta).
+  const [cuandoFecha, cuandoHora] = (pedido.cuando || '').split('T');
   D.ventas().push({
     prod: cardTitle,
     desc: cardDesc,
     cliente: cliente,
     fecha: D.TODAY_ISO,
+    fechaEntrega: cuandoFecha || '',
+    horaEntrega: (cuandoHora || '').slice(0,5),
     dedicatoria: pedido.obs || '',
     precio: precioTotal,
     formaPago: pedido.cobro || '',
