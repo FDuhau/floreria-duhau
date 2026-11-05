@@ -1,0 +1,26 @@
+/* Categoría de vara según su costo actual (estación / importada / premium). */
+.cat-vara {
+  display:inline-block; padding:1px 7px; border-radius:10px;
+  font-size:11.5px; font-weight:700; line-height:1.5; white-space:nowrap;
+  letter-spacing:.2px; vertical-align:1px;
+  border:1px solid transparent;
+}
+.cat-vara-estacion  { background:color-mix(in srgb, var(--green-ok) 12%, transparent);  color:var(--green-ok);  border-color:color-mix(in srgb, var(--green-ok) 30%, transparent); }
+.cat-vara-importada { background:color-mix(in srgb, var(--amber) 14%, transparent);     color:var(--amber);     border-color:color-mix(in srgb, var(--amber) 35%, transparent); }
+.cat-vara-premium   { background:color-mix(in srgb, var(--red-alert) 12%, transparent); color:var(--red-alert); border-color:color-mix(in srgb, var(--red-alert) 35%, transparent); }
+
+.cat-vara-cartel {
+  margin-top:10px; padding:10px 14px; border-radius:10px; font-size:13px;
+  border:1px solid var(--light-gray); border-left-width:4px; background:var(--warm-white);
+  color:var(--charcoal);
+}
+.cat-vara-cartel strong { font-weight:700; }
+.cat-vara-cartel-estacion  { border-left-color:var(--green-ok); }
+.cat-vara-cartel-importada { border-left-color:var(--amber); }
+.cat-vara-cartel-premium   { border-left-color:var(--red-alert); }
+.cat-vara-cartel-estacion strong  { color:var(--green-ok); }
+.cat-vara-cartel-importada strong { color:var(--amber); }
+.cat-vara-cartel-premium strong   { color:var(--red-alert); }
+.cat-vara-cartel-cambio { background:color-mix(in srgb, var(--amber) 8%, var(--warm-white)); }
+.cat-vara-cartel-aviso { margin-top:4px; font-weight:600; color:var(--amber); }
+.cat-vara-cartel-sub { margin-top:2px; font-size:12px; color:var(--mid-gray); }
