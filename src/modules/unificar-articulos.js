@@ -13,10 +13,10 @@
 
 import { esc } from './utils.js';
 import { showToast } from './tema-toast.js';
-import { confirmModal } from './modales.js';
+import { alertModal, confirmModal } from './modales.js';
 import { cotizadorPrecios } from './cotizador.js';
 import { presupuestosData } from './presupuestos.js';
-import { SECCIONES, articulosAlias, claveArticulo, contarUsos, detectarGrupos, setArticulosAlias, ultimoCostoVara, unificarEnDatos } from './articulos-base.js';
+import { SECCIONES, aliasParaGuardar, articulosAlias, claveArticulo, contarUsos, detectarGrupos, setArticulosAlias, ultimoCostoVara, unificarEnDatos } from './articulos-base.js';
 
 let D = {};
 export function configurarUnificarArticulos(deps){ D = deps; }
@@ -200,7 +200,7 @@ function _foto(){
   return {
     comprasFlore: _copia('comprasFlore', D.comprasFlore), comprasJard: _copia('comprasJard', D.comprasJard), stockData: _copia('stockData', D.stockData),
     recetasData: _copia('recetasData', D.recetasData), presupuestosData: _copia('presupuestosData', presupuestosData), insumosCustom: _copia('insumosCustom', D.insumosCustom),
-    cotizadorPrecios: _copia('cotizadorPrecios', cotizadorPrecios), articulosAlias: _copia('articulosAlias', articulosAlias),
+    cotizadorPrecios: _copia('cotizadorPrecios', cotizadorPrecios), articulosAlias: aliasParaGuardar(articulosAlias),
     arreglosComposicion: _copia('arreglosComposicion', Object.entries(D.arreglosComposicion || {}).map(([zona, ings]) => ({ zona, ings: ings || [] }))),
   };
 }
@@ -229,22 +229,25 @@ export async function uaUnir(){
   _trabajando = true; renderUnificarArticulos();
   const ts = Date.now();
   const user = window.currentUserLabel || 'Gerencia';
+  let cambiado = false;
   try{
     showToast('Guardando copia de seguridad…');
     const antes = _foto();
     await window.fbSet(`unificacionesArticulos/${ts}`, { ts, user, uniones, antes });
+    cambiado = true;
     const { alias, resumen } = unificarEnDatos(_datos(), uniones);
     const nuevoAlias = { ...articulosAlias, ...alias };
     setArticulosAlias(nuevoAlias);
-    D.fbSave('articulosAlias', nuevoAlias);
     _guardarTodo();
+    D.fbSave('articulosAlias', aliasParaGuardar(nuevoAlias));
     const meta = { ts, user, cantidad: uniones.length, nombres: uniones.map(u => u.maestro).slice(0, 60), resumen };
     window.fbSet(`unificacionesArticulosMeta/${ts}`, meta);
     _historial = [meta, ...(_historial || [])];
     showToast(`Listo: ${uniones.length} artículo${uniones.length > 1 ? 's' : ''} unificado${uniones.length > 1 ? 's' : ''}`);
   }catch(e){
     console.error('Unificar artículos', e);
-    showToast('No se pudo guardar la copia de seguridad: no se cambió nada. Revisá la conexión y probá de nuevo.', 'error');
+    if(cambiado) await alertModal('No se pudo guardar la unificación completa. Recargá la página (para ver lo que quedó guardado) y volvé a tocar Unir.');
+    else showToast('No se pudo guardar la copia de seguridad: no se cambió nada. Revisá la conexión y probá de nuevo.', 'error');
   }finally{
     _trabajando = false;
     _grupos = null;
@@ -295,9 +298,8 @@ export async function uaDeshacer(ts){
     Object.keys(cotizadorPrecios).forEach(k => delete cotizadorPrecios[k]);
     Object.assign(cotizadorPrecios, a.cotizadorPrecios || {});
     window._setArreglosComposicion?.(a.arreglosComposicion || []);
-    const alias = a.articulosAlias || {};
-    setArticulosAlias(alias);
-    D.fbSave('articulosAlias', alias);
+    setArticulosAlias(a.articulosAlias || []);
+    D.fbSave('articulosAlias', aliasParaGuardar(articulosAlias));
     _guardarTodo();
     window.fbSet(`unificacionesArticulosMeta/${ts}/deshecho`, Date.now());
     const h = (_historial || []).find(x => x.ts === ts); if(h) h.deshecho = Date.now();
