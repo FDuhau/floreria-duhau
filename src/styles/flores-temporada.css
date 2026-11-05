@@ -1,0 +1,78 @@
+/* ── Catálogo › Flores por temporada ─────────────────────────────────────── */
+.ft-barra { display:flex; flex-direction:column; gap:12px; margin-bottom:16px; }
+.ft-meses-sel { display:grid; grid-template-columns:repeat(12, minmax(0, 1fr)); gap:4px; background:var(--warm-white); border:1px solid var(--light-gray); border-radius:var(--radius-md); padding:4px; }
+.ft-mes-btn { border:0; background:transparent; border-radius:var(--radius-sm); padding:8px 0; font:inherit; font-size:13px; color:var(--mid-gray); cursor:pointer; text-transform:capitalize; position:relative; min-height:36px; }
+.ft-mes-btn:hover { background:var(--accent-soft); color:var(--charcoal); }
+.ft-mes-btn.sel { background:var(--accent); color:var(--accent-ink); font-weight:600; }
+.ft-mes-btn.hoy::after { content:''; position:absolute; left:50%; bottom:3px; width:4px; height:4px; margin-left:-2px; border-radius:50%; background:currentColor; }
+.ft-filtros { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.ft-filtros .stock-search { flex:1; min-width:180px; }
+.ft-filtros select.form-input { width:auto; min-width:150px; }
+.ft-vista { display:inline-flex; border:1px solid var(--light-gray); border-radius:var(--radius-sm); overflow:hidden; }
+.ft-vista button { border:0; background:var(--warm-white); padding:8px 12px; font:inherit; font-size:13px; color:var(--mid-gray); cursor:pointer; }
+.ft-vista button.sel { background:var(--accent-soft); color:var(--accent); font-weight:600; }
+.ft-nota { font-size:12px; color:var(--mid-gray); background:var(--surface-1, var(--cream)); border:1px dashed var(--light-gray); border-radius:var(--radius-sm); padding:8px 12px; margin-bottom:14px; }
+.ft-resumen { font-size:14px; color:var(--charcoal); margin-bottom:6px; }
+.ft-sec { font-size:12px; letter-spacing:1px; text-transform:uppercase; color:var(--mid-gray); font-weight:600; margin:22px 0 10px; display:flex; align-items:center; gap:8px; }
+.ft-n { background:var(--light-gray); color:var(--charcoal); border-radius:10px; padding:1px 8px; font-size:12px; letter-spacing:0; }
+.ft-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:12px; }
+.ft-card { background:var(--warm-white); border:1px solid var(--light-gray); border-radius:var(--radius-md); padding:14px; display:flex; flex-direction:column; gap:10px; box-shadow:var(--shadow-sm); }
+.ft-card.fuera { opacity:.7; }
+.ft-card-top { display:flex; justify-content:space-between; gap:8px; align-items:flex-start; }
+.ft-nombre { font-family:'Cormorant Garamond', serif; font-size:21px; font-weight:500; line-height:1.15; color:var(--charcoal); }
+.ft-aclara { font-size:12px; color:var(--mid-gray); margin-top:2px; }
+.ft-tipo { font-size:12px; border-radius:10px; padding:2px 8px; white-space:nowrap; border:1px solid var(--light-gray); color:var(--mid-gray); }
+.ft-tipo-follaje { color:var(--green-ok); border-color:color-mix(in srgb, var(--green-ok) 30%, transparent); }
+.ft-tag { display:inline-block; vertical-align:middle; font-family:'DM Sans', sans-serif; font-size:12px; font-weight:600; border-radius:10px; padding:1px 8px; margin-left:4px; }
+.ft-tag-nuevo { background:color-mix(in srgb, var(--green-ok) 12%, transparent); color:var(--green-ok); }
+.ft-tag-fin { background:color-mix(in srgb, var(--amber) 14%, transparent); color:var(--amber); }
+.ft-tag-llega { background:color-mix(in srgb, var(--accent) 10%, transparent); color:var(--accent); }
+.ft-colores { display:flex; flex-wrap:wrap; gap:6px; }
+.ft-color { display:inline-flex; align-items:center; gap:5px; font-size:12px; color:var(--charcoal); background:var(--cream); border-radius:10px; padding:2px 8px 2px 4px; }
+.ft-swatch { width:12px; height:12px; border-radius:50%; border:1px solid rgba(0,0,0,.18); flex-shrink:0; }
+.ft-tira { display:grid; grid-template-columns:repeat(12, 1fr); gap:2px; }
+.ft-tira-m { font-size:12px; text-align:center; padding:2px 0; border-radius:3px; background:var(--cream); color:var(--mid-gray); }
+.ft-tira-m.on { background:color-mix(in srgb, var(--accent) 22%, transparent); color:var(--accent); font-weight:600; }
+.ft-tira-m.actual { outline:2px solid var(--charcoal); outline-offset:-2px; }
+.ft-meses-txt { font-size:12px; color:var(--mid-gray); }
+.ft-card-pie { display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; border-top:1px solid var(--light-gray); padding-top:10px; margin-top:auto; }
+.ft-costo { font-size:13px; color:var(--charcoal); display:inline-flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.ft-sin { color:var(--mid-gray); font-size:12px; }
+.ft-acciones { display:inline-flex; gap:6px; }
+.ft-btn { font-size:12px; padding:6px 10px; }
+.ft-fuera { margin-top:22px; }
+.ft-fuera > summary { cursor:pointer; font-size:12px; letter-spacing:1px; text-transform:uppercase; color:var(--mid-gray); font-weight:600; margin-bottom:10px; }
+
+/* Calendario del año */
+.ft-anio-wrap { overflow-x:auto; }
+.ft-anio { width:100%; border-collapse:collapse; font-size:13px; }
+.ft-anio th { font-size:12px; font-weight:600; color:var(--mid-gray); text-transform:capitalize; padding:8px 4px; text-align:center; border-bottom:1px solid var(--light-gray); }
+.ft-anio th:first-child { text-align:left; min-width:170px; }
+.ft-anio th.actual { color:var(--accent); }
+.ft-anio td { padding:6px 4px; border-bottom:1px solid var(--light-gray); vertical-align:middle; }
+.ft-celda { width:34px; }
+.ft-celda.on { background:color-mix(in srgb, var(--accent) 24%, transparent); background-clip:content-box; padding:6px 1px !important; }
+.ft-celda.actual { box-shadow:inset 2px 0 0 var(--charcoal), inset -2px 0 0 var(--charcoal); }
+.ft-colores-txt { font-size:12px; color:var(--mid-gray); min-width:160px; }
+
+/* Cartel en Compras › Florería */
+.ft-cartel { background:color-mix(in srgb, var(--green-ok) 7%, var(--warm-white)); border:1px solid color-mix(in srgb, var(--green-ok) 25%, transparent); border-radius:var(--radius-md); padding:12px 16px; margin-bottom:16px; font-size:13px; color:var(--charcoal); display:flex; flex-direction:column; gap:4px; }
+.ft-cartel-tit { font-size:12px; letter-spacing:1px; text-transform:uppercase; color:var(--green-ok); font-weight:600; }
+.ft-cartel-link, .ft-link { align-self:flex-start; border:0; background:none; padding:0; font:inherit; font-size:13px; color:var(--accent); text-decoration:underline; cursor:pointer; }
+.ft-cartel-link { margin-top:4px; }
+
+/* Editor */
+.ft-form { display:grid; grid-template-columns:1fr 1fr; gap:12px 14px; }
+.ft-form-full { grid-column:1 / -1; }
+.ft-ayuda { font-size:12px; color:var(--mid-gray); margin-top:4px; }
+.ft-m-meses { display:grid; grid-template-columns:repeat(6, 1fr); gap:6px; }
+.ft-m-meses label { display:flex; align-items:center; gap:5px; font-size:13px; text-transform:capitalize; border:1px solid var(--light-gray); border-radius:var(--radius-sm); padding:6px 8px; cursor:pointer; }
+.ft-borrar { color:var(--red-alert); }
+
+@media (max-width: 640px){
+  .ft-meses-sel { grid-template-columns:repeat(6, 1fr); }
+  .ft-filtros select.form-input, .ft-vista { flex:1; }
+  .ft-grid { grid-template-columns:1fr; }
+  .ft-form { grid-template-columns:1fr; }
+  .ft-m-meses { grid-template-columns:repeat(4, 1fr); }
+}

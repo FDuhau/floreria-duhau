@@ -16,7 +16,7 @@ const DATOS_DE_PAGINA = {
   'ventas-externas': ['ventasData'], 'pedidos-habitacion': ['pedidosHabData'], 'crm-clientes': ['clientesData'],
   'cotizador': ['cotizadorPrecios'], 'cotizador-ops': ['cotizadorPrecios'], 'presupuestos': ['presupuestosData'],
   'lista-precios': ['listaPreciosData'], 'ramos-disponibles': ['ramosDispData'], 'recetas-arreglos': ['recetasData'],
-  'galeria': ['galeriaData'],
+  'galeria': ['galeriaData'], 'flores-temporada': ['floresTemporada'],
   'stock': ['stockData'], 'stock-admin': ['stockData'], 'inventario': ['inventarioData'], 'floreros': ['florerosData'], 'velas': ['velasData'],
   'compras-floreria': ['comprasFlore'], 'compras-jardineria': ['comprasJard'], 'recepcion-pedidos': ['comprasFlore'],
   'proveedores': ['proveedoresList'],

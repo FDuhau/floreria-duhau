@@ -836,6 +836,9 @@
       // Artículos unificados por gerencia: { clave de la forma vieja: nombre que quedó }
       fbListenNullable('articulosAlias', val => { window._setArticulosAlias?.(val || {}); });
 
+      // Catálogo de flores por temporada (vacío = se usa la base de la planilla)
+      fbListenNullable('floresTemporada', val => { window._setFloresTemporada?.(val); });
+
       fbListen('arreglosHotelConfig', val => {
         if(!val) return;
         if(window._setArreglosHotelConfig) window._setArreglosHotelConfig(val);
