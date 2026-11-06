@@ -1449,3 +1449,21 @@ canvas { max-width:100%; }
 @media (max-width:480px) {
   input, select, textarea { min-width:0; max-width:100%; }
 }
+
+/* ── Inicio más compacto: encabezado finito y bloque "Para atender" ── */
+.home-hero { padding:24px 32px 22px; margin-bottom:20px; }
+.home-hero-title { font-size:32px; margin-bottom:0; }
+.home-hero-date { margin-top:6px; }
+.home-hero-icon { width:90px; right:36px; }
+.home-atencion { padding:16px 20px; }
+.home-atencion .home-dash-card-hdr { margin-bottom:6px; }
+.home-atencion-ok { display:flex; align-items:center; gap:10px; font-size:13px; color:var(--mid-gray); }
+.home-at-row { display:flex; align-items:center; gap:12px; padding:10px 0; border-top:1px solid var(--light-gray); cursor:pointer; }
+.home-at-row:first-of-type { border-top:none; }
+.home-at-row:hover .home-at-go { color:var(--charcoal); }
+.home-at-dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+.home-at-rojo { background:var(--red-alert); } .home-at-ambar { background:#D4A820; } .home-at-verde { background:var(--green-ok); }
+.home-at-txt { flex:1; font-size:14px; color:var(--charcoal); line-height:1.35; }
+.home-at-txt small { display:block; font-size:12px; color:var(--mid-gray); margin-top:2px; }
+.home-at-go { font-size:12px; color:var(--mid-gray); white-space:nowrap; }
+@media (max-width:768px){ .home-hero { padding:18px 20px; } .home-hero-title { font-size:24px; } }
