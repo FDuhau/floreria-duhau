@@ -9,6 +9,7 @@ import { configurarCotizador, _ingVaras, _varasPorPaqResuelto, addReglaTipo, add
 import { configurarStock, _stockFilasDe, _stockIngresar, _stockNombre, addInvItem, adjustStock, aplicarSugerenciaStock, calcStockMinInteligente, delInvItem, delStock, filterByStatus, filterStock, getAlerta, getStockComprometido, getStockEnPedido, guardarStockManual, invAdjust, openAddStockModal, renderInventario, renderStock, renderStockAdmin, renderStockSugerencias, setStock, setStockMax, setStockMin, setStockSort, updInv, vaciarStock } from './stock.js';
 import { configurarPersonal, _faltasDe, _legDetIdx, agregarFalta, eliminarEvaluacion, eliminarFalta, eliminarLegajo, evaluacionesData, exportLiquidacion, guardarEvaluacion, guardarLegajo, legEliminarDoc, legSubirDoc, legTipoOnChange, legVerDoc, legajoData, liquidacionConfig, openEvaluacionModal, openLegajoModal, renderEvaluaciones, renderFaltas, renderLegajo, renderLiquidacion, saveLiquidacionHoras, toggleFaltaJustificada, verDetalleLegajo } from './personal.js';
 import { configurarKanban, KANBAN_DEFAULTS, ensureKanbanCols, guardarTareaGerencia, moveKanbanCard, openTareaGerencia, openTaskModal, removeKanbanCard, renderKanban, renderTareasGerencia, saveKanbanTask, syncEventosToKanban, tareasGerencia, tgDelete, tgMove, tgMoveTo } from './kanban.js';
+import { saldoVenta } from './ventas-base.js';
 import { configurarChecklist, CL_RESP_OPTS, CL_TASKS, _normName, _zonaKey, aplicarPlantillaSemana, calcDuracion, checkRecordatoriosFaseEvento, clAddSeccion, clAddZona, clDeleteZona, clFotoPreview, clMoveZona, clRenameSeccion, clRenameZona, clSetFiltro, clSetVista, clTogglePlegar, clToggleSel, clSelGrupo, clAsignarSel, clAsignarVenta, clCopiarDe, clProgramarNuevo, clPasarPendientesAHoy, clState, clTiemposRef, confirmResetWeek, durBadge, fmtDur, getBadge, getISOWeekKey, getOrCreateDayState, guardarFotoChecklist, initChecklist, loadWeekState, mapUltimoNuevoPorZona, openGaleriaNuevos, openGestionZonas, openPromediosZona, openTiemposEstimados, openVistaSemanal, podarHistorial, registrarHora, renderChecklistTable, renderGaleriaNuevos, renderHistoryPanel, renderHoraCell, resetDayState, resetHora, resetWeekState, saveWeekState, showAlertaHorario, toggleHistory, toggleTask, ultimoNuevoZona, updActividad, updCL, updTiempoRef, verFotoChecklist, vsSetResp, vsToggleActividad } from './checklist.js';
 import { configurarRecepcion, _recepFlagBadge, _recepFlagStyle, _subirCompraAlStock, recepCheckAll, recepConfirmar, recepConfirmarTodo, recepFotoInput, recepQuitarFoto, recepSubirStockTodo, recepToggle, recepToggleMal, recepUncheckAll, recepUpdObs, recepUpdPaq, recepUpdVaras, recepUpdateGlobal, recepVolverAControl, recibirPedidoCompleto, recibirRenglonCompra, renderRecepcionPedidos, toggleRecepAgrupado, verFotoRecep } from './recepcion.js';
 import { configurarPresupuestos, cambiarEstadoPres, cpAddArr, cpAddFree, cpGuardar, cpRemoveArr, cpRemoveFree, cpReset, cpSetArr, cpSetFree, cvAdd, cvCargarListado, cvCopiar, cvFijarVarasPorPaq, cvRemove, cvReset, cvSet, cvTCargar, cvTLimpiar, cvTSetProd, eliminarPresupuesto, enviarPresupuestoWhatsApp, guardarPresupuesto, openPresupuestoModal, presupuestosData, renderCostoVaras, renderCotizarPresupuesto, renderPresupuestos, verPresupuesto } from './presupuestos.js';
@@ -21,7 +22,7 @@ import { configurarReportes, _crearLegajoParaUsuario, _empleadosLegajoOpts, _kpi
 import { configurarJardineria, _diasDesdeTxt, _jardPoblarSecciones, alertaJardFotoPreview, daysSince, deletePlagaJard, deleteRecordatorio, deleteStockJard, gerenciaSetFecha, getDaysBadge, getRecordatoriosNuevos, getSectionEmoji, getSectionPillCls, guardarAlertaJardin, initCtrlJard, jardAddGrupo, jardAddSeccion, jardAddTarea, jardDeleteGrupo, jardDeleteSeccion, jardDeleteTarea, jardRegistrarHoraTurno, jardRenameGrupo, jardRenameSeccion, jardRenameTarea, jardResetHoraTurno, jardSetJardinero, jardTogglePlanHoy, jopsDone, jopsHoraCell, jopsRegistrarHora, jopsResetHora, jopsUpdHora, marcarRecordatorioHecho, marcarRecordatoriosVistos, notificarRecordatoriosNuevos, openAlertaJardinModal, openControlPlaga, openGestionTareasJard, openPlagaJardModal, openRecordatorioModal, openStockJardModal, plagaFiltrar, plagaSugerir, renderAlertasUrgentesJard, renderJardOps, renderJardRecAviso, renderJardTurnoCard, renderPlagasJard, renderStockJard, resolverAlertaJardin, saveControlPlaga, savePlagaJard, saveRecordatorio, saveStockJard, saveUrgenciaConfig, setJopsFilter, setUrgenciaPreset, stockJardFiltrar, urgenciaPanelHTML, verFotoAlerta, verHistorialPlaga, zonaHoraBtn, zonaHorasData, zonaResetHora, zonaSetHora } from './jardineria.js';
 import { configurarSeguimiento, _downloadCSV, ctrlHabFilter, ctrlJardFilter, exportCtrlCSV, exportHabCSV, exportMesHab, exportMesJard, habsHoraCell, habsRegistrarHora, habsResetHora, hopsVisita, initCtrlHab, jardProdDiaClick, markHabDone, markJardDone, renderCtrlHab, renderCtrlJard, renderHabLog, renderHabOps, renderHabReporte, renderJardLog, renderJardProdEquipo, renderJardReporte, setHabComentarioHK, setHabReporteMes, setHopsFilter, setJardReporteMes, toggleCtrlSection } from './seguimiento.js';
 import { configurarResumenes, _checkCierreDia, cdPersonaRango, cerrarBriefing, initCierreDia, mostrarBriefingDia, mostrarResumenSemanal, renderCdPersona, renderCierreDia, resumenesDiarios } from './resumenes.js';
-import { configurarLlamados, eliminarLlamado, florRegistrarTurno, florResetTurno, guardarLlamado, llamadoFotoPreview, llamadoOnZonaChange, llamadosData, openLlamadoModal, renderFlorTurnoCard, renderLlamadosChecklist, renderLlamadosEval, resolverLlamado, verFotoLlamado } from './llamados.js';
+import { configurarLlamados, eliminarLlamado, florRegistrarTurno, florResetTurno, guardarLlamado, llamadoFotoPreview, llamadoOnZonaChange, llamadosData, openLlamadoModal, renderFlorTurnoCard, renderInicioJornada, renderLlamadosChecklist, renderLlamadosEval, resolverLlamado, verFotoLlamado } from './llamados.js';
 import { _evStripAcc, _evParseEvents, _evToEvento } from './daily-import.js';
 import { confirmModal, promptModal } from './modales.js';
 import './lista-precios-css.js';
@@ -502,11 +503,8 @@ function _prodCardHTML(nombre, d, full=true){
 function renderProductividadHome(){
   const el=document.getElementById('home-prod');
   if(!el) return;
-  if(userRole==='florista' && floristaNombre){
-    el.innerHTML=`<div class="home-dash-card" style="margin-bottom:20px">
-      <div class="home-card-title">Mi turno hoy</div>
-      ${_prodCardHTML(floristaNombre, getProdFlorista(floristaNombre), true)}
-    </div>`;
+  if(userRole==='florista'){
+    el.innerHTML='';
   } else if(userRole==='gerencia'){
     const nombres=getEmpleadosActivos();
     if(!nombres.length){ el.innerHTML=''; return; }
@@ -552,16 +550,52 @@ setInterval(()=>{
 
 
 
-// ── Fila visual del home de gerencia: anillo, sparkline y semáforo ────────────
-function _homeVisualHTML(hechas, totalTareas, pct, ventasMes, totalMes){
-  const fmtARS = n => '$' + Math.round(n).toLocaleString('es-AR');
+// ── Home de gerencia: lo que requiere atención y el gráfico chico de ventas ──
+const _fmtARS = n => '$' + Math.round(n).toLocaleString('es-AR');
 
-  // Anillo de progreso del checklist
-  const C = 2*Math.PI*34;
-  const off = (C*(1-Math.min(pct,100)/100)).toFixed(1);
-  const ringColor = pct>=100 ? 'var(--green-ok)' : pct>=50 ? '#D4A820' : 'var(--sage)';
+// Lista corta de cosas que piden acción hoy. Cada ítem lleva a la sección donde se resuelve.
+function _homeAtencion(recAlerts){
+  const items = [];
+  const venc = recAlerts.filter(r=>recEstado(r)==='vencido').length;
+  const prox = recAlerts.length - venc;
+  if(recAlerts.length) items.push({ nivel: venc?'rojo':'ambar', ir:'recordatorios-jardineria',
+    txt: venc ? `${venc} recordatorio${venc!==1?'s':''} de jardín vencido${venc!==1?'s':''}` + (prox?` · ${prox} próximo${prox!==1?'s':''}`:'') : `${prox} recordatorio${prox!==1?'s':''} de jardín próximo${prox!==1?'s':''}` });
 
-  // Sparkline: ventas acumuladas por día del mes
+  // Arreglos nuevos: zonas sin registro o con 7 días o más
+  const map = mapUltimoNuevoPorZona();
+  const zonas = [...new Map(CL_TASKS.filter(t=>String(t.actividad).toLowerCase()!=='riego').map(t=>[_zonaKey(t.sec,t.zona), t])).values()];
+  const atrasadas = [];
+  zonas.forEach(t=>{
+    const f = map[_zonaKey(t.sec,t.zona)];
+    const dias = f ? Math.floor((new Date(TODAY_ISO)-new Date(f))/86400000) : null;
+    if(dias===null || dias>=7) atrasadas.push({ zona:t.zona, dias });
+  });
+  atrasadas.sort((a,b)=>(b.dias??999)-(a.dias??999));
+  if(atrasadas.length) items.push({ nivel:'rojo', ir:'checklist',
+    txt: `${atrasadas.length} zona${atrasadas.length!==1?'s':''} sin arreglo nuevo hace 7 días o más`,
+    det: atrasadas.slice(0,3).map(p=>`${esc(p.zona)} (${p.dias===null?'nunca':p.dias+'d'})`).join(' · ') });
+
+  // Ventas con saldo por cobrar
+  let n=0, monto=0;
+  ventasData.forEach(v=>{ const sd=saldoVenta(v); if(sd>0){ n++; monto+=sd; } });
+  if(n) items.push({ nivel:'ambar', ir:'ventas-externas', txt:`${n} venta${n!==1?'s':''} por cobrar`, det:_fmtARS(monto) });
+  return items;
+}
+
+function _homeAtencionHTML(items){
+  if(!items.length) return `<div class="home-dash-card home-atencion home-atencion-ok">
+    <span class="home-at-dot home-at-verde"></span><span>Todo al día: no hay nada urgente para atender.</span></div>`;
+  return `<div class="home-dash-card home-atencion">
+    <div class="home-dash-card-hdr"><div class="home-dash-title">Para atender</div></div>
+    ${items.map(it=>`<div class="home-at-row" onclick="navigate('${it.ir}')">
+      <span class="home-at-dot home-at-${it.nivel}"></span>
+      <span class="home-at-txt">${it.txt}${it.det?`<small>${it.det}</small>`:''}</span>
+      <span class="home-at-go">Ver →</span></div>`).join('')}
+  </div>`;
+}
+
+// Línea chica de ventas acumuladas del mes (va dentro de la tarjeta de ventas)
+function _homeSparkHTML(ventasMes){
   const diaHoy = Math.max(parseInt(TODAY_ISO.slice(8,10),10), 1);
   const porDia = Array.from({length:diaHoy}, ()=>0);
   ventasMes.forEach(v=>{
@@ -571,74 +605,83 @@ function _homeVisualHTML(hechas, totalTareas, pct, ventasMes, totalMes){
   let acum = 0;
   const serie = porDia.map(x => (acum += x));
   const max = Math.max(...serie, 1);
-  const W = 220, H = 54;
-  const pts = serie.map((v,i)=>`${((i/Math.max(serie.length-1,1))*W).toFixed(1)},${(H-4-(v/max)*(H-12)).toFixed(1)}`).join(' ');
-  const areaPts = `0,${H} ${pts} ${W},${H}`;
+  const W = 220, H = 36;
+  const pts = serie.map((v,i)=>`${((i/Math.max(serie.length-1,1))*W).toFixed(1)},${(H-3-(v/max)*(H-8)).toFixed(1)}`).join(' ');
+  return `<svg viewBox="0 0 ${W} ${H}" class="hv-spark" preserveAspectRatio="none" aria-hidden="true">
+    <polygon points="0,${H} ${pts} ${W},${H}" fill="var(--sage)" opacity="0.14"/>
+    <polyline points="${pts}" fill="none" stroke="var(--sage)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+}
 
-  // Semáforo: días desde el último Nuevo por zona de arreglos
-  const map = mapUltimoNuevoPorZona();
-  const zonas = [...new Map(CL_TASKS.filter(t=>String(t.actividad).toLowerCase()!=='riego').map(t=>[_zonaKey(t.sec,t.zona), t])).values()];
-  let rojo=0, ambar=0, verde=0; const peores=[];
-  zonas.forEach(t=>{
-    const f = map[_zonaKey(t.sec,t.zona)];
-    const dias = f ? Math.floor((new Date(TODAY_ISO)-new Date(f))/86400000) : null;
-    if(dias===null || dias>=7){ rojo++; peores.push({zona:t.zona, dias}); }
-    else if(dias>=5) ambar++;
-    else verde++;
-  });
-  peores.sort((a,b)=>(b.dias??999)-(a.dias??999));
-  const peoresTxt = peores.slice(0,3).map(p=>`${esc(p.zona)} (${p.dias===null?'nunca':p.dias+'d'})`).join(' · ');
+// Inicio de la florista: solo sus tareas de hoy y los eventos que tiene asignados
+function _renderHomeFlorista(activos, checked){
+  const yo = floristaNombre;
+  const resp = Array.isArray(clState?.responsable) ? clState.responsable : [];
+  const mias = CL_TASKS.map((t,i)=>({t,i})).filter(o=>resp[o.i]===yo);
+  const faltan = mias.filter(o=>!checked[o.i]);
+  const hechas = mias.length - faltan.length;
+  const pct = mias.length ? Math.round(hechas/mias.length*100) : 0;
 
-  return `<div class="home-visual-grid">
-    <div class="card hv-card card-clickable" onclick="navigate('checklist')">
-      <div class="card-label">Progreso del checklist</div>
-      <div class="hv-ring-row">
-        <svg viewBox="0 0 80 80" class="hv-ring" aria-hidden="true">
-          <circle cx="40" cy="40" r="34" fill="none" stroke="var(--light-gray)" stroke-width="8"/>
-          <circle cx="40" cy="40" r="34" fill="none" stroke="${ringColor}" stroke-width="8" stroke-linecap="round"
-            stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${off}" transform="rotate(-90 40 40)"/>
-          <text x="40" y="46" text-anchor="middle" class="hv-ring-txt">${pct}%</text>
-        </svg>
-        <div class="hv-sub">${hechas} de ${totalTareas} tareas<br>de hoy completadas</div>
+  const hoy = TODAY_ISO;
+  const misEv = activos.map(ev=>{
+    const roles=[];
+    if(ev.asignado===yo) roles.push('Armar');
+    if(ev.colocacionAsignado===yo) roles.push('Colocar');
+    if(ev.retiroAsignado===yo) roles.push('Retirar');
+    return { ev, roles };
+  }).filter(o=>o.roles.length && (o.ev.fecha||'') >= hoy)
+    .sort((a,b)=>(a.ev.fecha||'').localeCompare(b.ev.fecha||'')).slice(0,8);
+
+  document.getElementById('home-kpis').innerHTML = '';
+  const vis = document.getElementById('home-visual'); if(vis) vis.innerHTML = '';
+  const prod = document.getElementById('home-prod'); if(prod) prod.innerHTML = '';
+  const vc = document.getElementById('home-ventas-col'); if(vc){ vc.style.display='none'; vc.innerHTML=''; }
+
+  document.getElementById('home-checklist-col').innerHTML = '';
+  const grid = document.querySelector('#page-home .home-dash-grid'); if(grid) grid.style.gridTemplateColumns = '1fr';
+  document.getElementById('home-eventos-col').innerHTML = `
+    <div class="home-dash-card" style="margin-bottom:16px">
+      <div class="home-dash-card-hdr">
+        <div class="home-dash-title">Mi checklist de hoy</div>
+        <button class="btn-secondary" style="padding:5px 12px;font-size:12px" onclick="navigate('checklist')">Abrir →</button>
+      </div>
+      ${mias.length ? `<div class="home-cl-bar-wrap"><div class="home-cl-bar"><div class="home-cl-fill" style="width:${pct}%"></div></div><span class="home-cl-pct">${hechas}/${mias.length}</span></div>` : ''}
+      <div class="home-cl-tasks">
+        ${!mias.length ? '<div class="home-empty">No tenés tareas asignadas hoy</div>'
+          : !faltan.length ? '<div style="color:var(--sage-dark);font-weight:600;font-size:13px;padding:8px 0">¡Hiciste todas tus tareas!</div>'
+          : faltan.map(o=>`<div class="home-cl-task" onclick="navigate('checklist')" style="cursor:pointer">· ${esc(o.t.zona)} — ${esc(o.t.actividad||'')}</div>`).join('')}
       </div>
     </div>
-    <div class="card hv-card card-clickable" onclick="navigate('ventas-externas')">
-      <div class="card-label">Ventas acumuladas del mes</div>
-      <svg viewBox="0 0 ${W} ${H}" class="hv-spark" preserveAspectRatio="none" aria-hidden="true">
-        <polygon points="${areaPts}" fill="var(--sage)" opacity="0.14"/>
-        <polyline points="${pts}" fill="none" stroke="var(--sage)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
-      </svg>
-      <div class="hv-sub">${fmtARS(totalMes)} al día ${diaHoy}</div>
-    </div>
-    <div class="card hv-card card-clickable" onclick="navigate('checklist')">
-      <div class="card-label">Arreglos Nuevos por zona</div>
-      <div class="hv-semaforo">
-        <span class="hv-sem hv-sem-rojo">${rojo}<small>+7 días<br>o sin registro</small></span>
-        <span class="hv-sem hv-sem-ambar">${ambar}<small>5-6<br>días</small></span>
-        <span class="hv-sem hv-sem-verde">${verde}<small>al<br>día</small></span>
+    <div class="home-dash-card">
+      <div class="home-dash-card-hdr">
+        <div class="home-dash-title">Mis eventos</div>
+        <button class="btn-secondary" style="padding:5px 12px;font-size:12px" onclick="navigate('eventos-maison')">Ver →</button>
       </div>
-      <div class="hv-sub">${peoresTxt ? '' + peoresTxt : '✓ Todas las zonas al día'}</div>
-    </div>
-  </div>`;
+      ${misEv.length ? misEv.map(({ev,roles})=>`<div class="home-ev-row" onclick="navigate('eventos-maison')" style="cursor:pointer">
+        <div class="home-ev-info">
+          <div class="home-ev-nombre">${esc(ev.nombre)}${ev.fecha===hoy?' <span class="badge-hoy">HOY</span>':''}</div>
+          <div class="home-ev-meta">${fmtDate(ev.fecha)}${ev.hora?' · '+esc(ev.hora):''}</div>
+        </div>
+        <span class="home-ev-estado">${roles.join(' · ')}</span>
+      </div>`).join('') : '<div class="home-empty">No tenés eventos para armar</div>'}
+    </div>`;
 }
 
 function renderHome(){
   if(!document.getElementById('home-kpis')) return;
 
+  const grid0 = document.querySelector('#page-home .home-dash-grid'); if(grid0) grid0.style.gridTemplateColumns = '';
   const hoy = TODAY_ISO;
   const mesActual = hoy.slice(0, 7);
+  const isFlorHome = userRole !== 'gerencia'; // solo gerencia ve ventas y alertas
 
   // ── Datos de eventos ──
   const activos = eventosData.filter(e => e.estado !== 'Pedidos Finalizados');
   const eventosHoy = activos.filter(e => e.fecha === hoy);
-  const proximos = [...activos].sort((a,b) => (a.fecha||'').localeCompare(b.fecha||'')).slice(0, 8);
+  const proximos = [...activos].sort((a,b) => (a.fecha||'').localeCompare(b.fecha||'')).slice(0, 6);
 
   // ── Datos de ventas del mes ──
   const ventasMes = ventasData.filter(v => (v.fecha||'').startsWith(mesActual));
   const totalMes = ventasMes.reduce((s,v) => s + parseMoney(v.precio), 0);
-  const confirmadas = ventasMes.filter(v => v.estado === 'confirmado' || v.estado === 'entregado');
-  const pendientes = ventasMes.filter(v => v.estado === 'pendiente');
-  const recientes = [...ventasMes].sort((a,b) => (b.fecha||'').localeCompare(a.fecha||'')).slice(0, 5);
 
   // ── Datos de checklist ──
   const checked = Array.isArray(clState?.checked) ? clState.checked : [];
@@ -647,50 +690,47 @@ function renderHome(){
   const pct = totalTareas > 0 ? Math.round(hechas / totalTareas * 100) : 0;
   const pendientesCL = CL_TASKS.filter((_,i) => !checked[i]).slice(0, 5);
 
-  const fmtARS = n => '$' + Math.round(n).toLocaleString('es-AR');
-  const recAlerts = jardRecordatorios.filter(r=>recEstado(r)==='vencido'||recEstado(r)==='proximo');
+  // Florista: solo lo suyo (sus tareas y sus eventos), nada más
+  if(userRole==='florista' && floristaNombre){
+    _renderHomeFlorista(activos, checked);
+    return;
+  }
 
-  // ── KPIs ──
-  const isFlorHome = userRole !== 'gerencia'; // solo gerencia ve el panel completo (ventas, recordatorios, etc.)
+  const recAlerts = jardRecordatorios.filter(r=>recEstado(r)==='vencido'||recEstado(r)==='proximo');
+  const atencion = isFlorHome ? [] : _homeAtencion(recAlerts);
+
+  // ── Tarjetas de arriba: una sola vez cada dato ──
   document.getElementById('home-kpis').innerHTML = `
-    <div class="cards-grid cards-grid-4" style="margin-bottom:24px">
+    <div class="cards-grid cards-grid-3" style="margin-bottom:20px">
       <div class="card card-clickable" onclick="navigate('eventos-maison')">
-        <div class="card-label">Eventos Hoy</div>
+        <div class="card-label">Eventos hoy</div>
         <div class="card-value${eventosHoy.length ? '' : ' neutral'}">${eventosHoy.length}</div>
-        <div class="card-sub">${eventosHoy.length === 1 ? '1 evento programado' : eventosHoy.length + ' eventos programados'}</div>
+        <div class="card-sub">${activos.length} activo${activos.length!==1?'s':''} en total</div>
       </div>
-      <div class="card card-clickable" onclick="navigate('eventos-maison')">
-        <div class="card-label">Eventos Activos</div>
-        <div class="card-value">${activos.length}</div>
-        <div class="card-sub">sin finalizar</div>
+      <div class="card card-clickable" onclick="navigate('checklist')">
+        <div class="card-label">Checklist de hoy</div>
+        <div class="card-value${pct===100?' green':''}">${pct}<span style="font-size:16px;font-weight:400;color:var(--mid-gray)">%</span></div>
+        <div class="home-cl-bar" style="margin:6px 0 4px"><div class="home-cl-fill" style="width:${pct}%"></div></div>
+        <div class="card-sub">${hechas} de ${totalTareas} tareas</div>
       </div>
       ${!isFlorHome ? `<div class="card card-clickable" onclick="navigate('ventas-externas')">
-        <div class="card-label">Ventas del Mes</div>
-        <div class="card-value" style="font-size:22px">${fmtARS(totalMes)}</div>
-        <div class="card-sub">${ventasMes.length} transacciones</div>
-      </div>` : ''}
-      <div class="card card-clickable" onclick="navigate('checklist')">
-        <div class="card-label">Checklist Hoy</div>
-        <div class="card-value${pct===100?' green':''}">${hechas}<span style="font-size:16px;font-weight:400;color:var(--mid-gray)">/${totalTareas}</span></div>
-        <div class="card-sub">${pct}% completado</div>
+        <div class="card-label">Ventas del mes</div>
+        <div class="card-value" style="font-size:22px">${_fmtARS(totalMes)}</div>
+        ${_homeSparkHTML(ventasMes)}
+        <div class="card-sub">${ventasMes.length} venta${ventasMes.length!==1?'s':''}</div>
       </div>
-      ${recAlerts.length && !isFlorHome ? `<div class="card card-clickable" onclick="navigate('recordatorios-jardineria')" style="border-left:3px solid var(--red-alert)">
-        <div class="card-label">Recordatorios Jardín</div>
-        <div class="card-value red">${recAlerts.length}</div>
-        <div class="card-sub">${recAlerts.filter(r=>recEstado(r)==='vencido').length} vencido${recAlerts.filter(r=>recEstado(r)==='vencido').length!==1?'s':''} · ${recAlerts.filter(r=>recEstado(r)==='proximo').length} próximo${recAlerts.filter(r=>recEstado(r)==='proximo').length!==1?'s':''}</div>
-      </div>` : ''}
+      `: ''}
     </div>`;
 
-  // ── Fila visual (solo gerencia): anillo, sparkline y semáforo ──
   const visEl = document.getElementById('home-visual');
-  if(visEl) visEl.innerHTML = isFlorHome ? '' : _homeVisualHTML(hechas, totalTareas, pct, ventasMes, totalMes);
+  if(visEl) visEl.innerHTML = isFlorHome ? '' : `<div style="margin-bottom:16px">${_homeAtencionHTML(atencion)}</div>`;
 
   // ── Columna Eventos ──
   document.getElementById('home-eventos-col').innerHTML = `
     <div class="home-dash-card">
       <div class="home-dash-card-hdr">
-        <div class="home-dash-title">Próximos Eventos</div>
-        <button class="btn-secondary" style="padding:5px 12px;font-size:12px" onclick="navigate('eventos-maison')">Ver kanban →</button>
+        <div class="home-dash-title">Próximos eventos</div>
+        <button class="btn-secondary" style="padding:5px 12px;font-size:12px" onclick="navigate('eventos-maison')">Ver todos →</button>
       </div>
       ${proximos.length ? proximos.map(ev => {
         const esHoy = ev.fecha === hoy;
@@ -706,44 +746,16 @@ function renderHome(){
       }).join('') : '<div class="home-empty">No hay eventos activos</div>'}
     </div>`;
 
-  // ── Columna Ventas (oculta para floristas) ──
+  // La columna de ventas ya no existe: está resumida en la tarjeta de arriba
   const ventasColEl = document.getElementById('home-ventas-col');
-  if(ventasColEl){
-    if(isFlorHome){
-      ventasColEl.style.display = 'none';
-      ventasColEl.innerHTML = '';
-    } else {
-      ventasColEl.style.display = '';
-      ventasColEl.innerHTML = `
-    <div class="home-dash-card" style="margin-bottom:16px">
-      <div class="home-dash-card-hdr">
-        <div class="home-dash-title">Ventas · ${mesActual.split('-').reverse().join('/')}</div>
-        <button class="btn-secondary" style="padding:5px 12px;font-size:12px" onclick="navigate('ventas-externas')">Ver →</button>
-      </div>
-      <div class="home-ventas-stats">
-        <div class="home-ventas-stat"><span class="home-ventas-stat-label">Confirmadas</span><span class="home-ventas-stat-val green">${fmtARS(confirmadas.reduce((s,v)=>s+parseMoney(v.precio),0))}</span></div>
-        <div class="home-ventas-stat"><span class="home-ventas-stat-label">Pendientes</span><span class="home-ventas-stat-val amber">${fmtARS(pendientes.reduce((s,v)=>s+parseMoney(v.precio),0))}</span></div>
-      </div>
-      <div class="home-ventas-list">
-        ${recientes.map(v => `<div class="home-venta-row">
-          <span class="home-venta-prod">${esc(v.prod||'—')}</span>
-          <span class="home-venta-precio">${esc(v.precio)}</span>
-        </div>`).join('') || '<div class="home-empty">Sin ventas este mes</div>'}
-      </div>
-    </div>`;
-    }
-  }
+  if(ventasColEl){ ventasColEl.style.display = 'none'; ventasColEl.innerHTML = ''; }
 
-  // ── Columna Checklist ──
+  // ── Columna Checklist: solo lo que falta (el avance ya está arriba) ──
   document.getElementById('home-checklist-col').innerHTML = `
     <div class="home-dash-card">
       <div class="home-dash-card-hdr">
-        <div class="home-dash-title">Checklist de Hoy</div>
+        <div class="home-dash-title">Falta en el checklist</div>
         <button class="btn-secondary" style="padding:5px 12px;font-size:12px" onclick="navigate('checklist')">Ver →</button>
-      </div>
-      <div class="home-cl-bar-wrap">
-        <div class="home-cl-bar"><div class="home-cl-fill" style="width:${pct}%"></div></div>
-        <span class="home-cl-pct">${pct}%</span>
       </div>
       <div class="home-cl-tasks">
         ${pct === 100
@@ -2189,6 +2201,7 @@ function filterBySucursal(arr, campo='sucursal'){
   return arr.filter(r => (r[campo] || 'duhau') === target);
 }
 function applyRole(role){
+  document.getElementById('inicio-jornada-overlay')?.remove();
   userRole = role;
   window.userRole = role; // expuesto para el listener de avisos (targeting por rol)
   // Marcar el body con la clase del rol — el CSS oculta .gerencia-only automáticamente
@@ -2209,7 +2222,7 @@ function applyRole(role){
   renderSidebarNav(role, !!jardineroNombre);
   setUserMenuInfo(window.currentUserLabel || floristaNombre || jardineroNombre || role);
 
-  if(role === 'florista') showToast('Hola ' + floristaNombre + '!');
+  if(role === 'florista'){ showToast('Hola ' + floristaNombre + '!'); setTimeout(()=>renderInicioJornada(true), 2500); }
   if(role === 'comercial') showToast('Hola Euge!');
   if(role === 'ventas'){
     setTimeout(()=> navigate('home-hyatt'), 100);
@@ -4271,7 +4284,7 @@ Object.assign(window, {
   renderHomeHyatt, renderHoraCell, renderHorarios, renderJardLog, renderJardOps,
   renderJardProdEquipo, renderJardTurnoCard, renderJardReporte, renderJordProd, renderKanban,
   jardSetJardinero, jardRegistrarHoraTurno, jardResetHoraTurno, jardProdDiaClick,
-  florRegistrarTurno, florResetTurno, renderFlorTurnoCard,
+  florRegistrarTurno, florResetTurno, renderFlorTurnoCard, renderInicioJornada,
   renderLPenCotizador, renderListaPrecios,
   renderPedidosHab, renderPeriodTabs, renderPlantilla, renderPreciosList, renderProductividad,
   renderProductividadHome, renderProductividadCL, renderProductividadHorarios, renderProvTags, renderRamosDisp, renderRecepcionPedidos,
