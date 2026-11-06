@@ -5,6 +5,7 @@
 import { sendWebPush } from './webpush.js';
 import { handleLogin, handleEstado } from './login.js';
 import { limpiarFotosRamo } from './fotos-ramo.js';
+import { enviarResumenDiario, HORA_ENVIO_UTC } from './resumen-diario.js';
 
 export default {
   async fetch(request, env){
@@ -23,6 +24,10 @@ export default {
   // Cron (ver "triggers" en wrangler.jsonc): borra las fotos de ramos con más de 48 hs.
   async scheduled(event, env, ctx){
     ctx.waitUntil(limpiarFotosRamo(env).catch((e) => console.warn('limpiarFotosRamo:', e)));
+    // Resumen diario por mail: una vez por día, a las 8:00 de Argentina.
+    if(new Date(event.scheduledTime).getUTCHours() === HORA_ENVIO_UTC){
+      ctx.waitUntil(enviarResumenDiario(env, event.scheduledTime).catch((e) => console.warn('resumenDiario:', e)));
+    }
   },
 };
 
