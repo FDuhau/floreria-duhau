@@ -9,6 +9,7 @@ import { _saveEventos, openEventoDetail } from './eventos.js';
 import { icon } from './iconos.js';
 import { ventasData } from './ventas.js';
 import { comprimirImagen } from './imagenes.js';
+import { diaAnterior, pasablesAHoy, pendientesDeAyer } from './checklist-ayer.js';
 
 let D = {};
 export function configurarChecklist(deps){
@@ -946,6 +947,63 @@ function renderNuevosAtrasadosBanner(){
   </div>`;
 }
 
+// ── Lo que quedó sin hacer ayer (gerencia) ────────────────────────────────────
+// Tareas que ayer tenían responsable y no se hicieron. Se muestran arriba del
+// día de hoy y se pueden pasar a hoy de una (solo las que hoy no tienen responsable).
+function _pendientesAyer(){
+  if(!clState || currentDay !== D.TODAY_DAY) return { ayer:null, lista:[] };
+  const ayer = diaAnterior(D.TODAY_DAY);
+  const ds = ayer && D.clStateByDay[ayer];
+  if(!ds) return { ayer, lista:[] };
+  return { ayer, lista: pendientesDeAyer(getOrCreateDayState(ayer), clState, CL_TASKS.length) };
+}
+
+function renderPendientesAyerBanner(){
+  let el = document.getElementById('cl-ayer-banner');
+  if(D.userRole !== 'gerencia'){ if(el) el.innerHTML = ''; return; }
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'cl-ayer-banner';
+    const anchor = document.getElementById('cl-overdue-banner')
+      || document.getElementById('cl-progress-bar-wrap')
+      || document.getElementById('cl-table-wrap');
+    if(anchor) anchor.before(el); else return;
+  }
+  const { ayer, lista } = _pendientesAyer();
+  const abiertas = lista.filter(p => !p.hoyHecha);
+  if(!abiertas.length){ el.innerHTML = ''; return; }
+  const pasables = pasablesAHoy(lista);
+  const chips = abiertas.slice(0, 12).map(p => {
+    const t = CL_TASKS[p.i];
+    const sh = SEC_HEADERS[t.sec];
+    const secTxt = sh ? sh.label.charAt(0)+sh.label.slice(1).toLowerCase() : '';
+    const hoyTxt = p.hoyResp ? (p.hoyResp === p.resp ? 'ya está asignada hoy a la misma persona' : `hoy está asignada a ${p.hoyResp}`) : 'hoy sin responsable';
+    return `<span class="cl-aviso-chip" title="${esc(secTxt)} · ${esc(hoyTxt)}">${esc(t.zona)} · <strong>${esc(p.resp)}</strong></span>`;
+  }).join('');
+  el.innerHTML = `<div class="cl-aviso cl-aviso-ayer">
+    <div class="cl-aviso-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></div>
+    <div class="cl-aviso-body">
+      <div class="cl-aviso-tit">${abiertas.length} tarea${abiertas.length!==1?'s':''} asignada${abiertas.length!==1?'s':''} quedaron sin hacer el ${ayer}</div>
+      <div class="cl-aviso-sub">${pasables.length
+        ? `${pasables.length} no tiene${pasables.length!==1?'n':''} responsable hoy. <button class="cl-link" onclick="clPasarPendientesAHoy()">Pasar a hoy con el mismo responsable</button>`
+        : 'Hoy ya tienen responsable o están hechas.'}</div>
+      <div class="cl-aviso-chips">${chips}${abiertas.length>12?`<span class="cl-aviso-chip">y ${abiertas.length-12} más</span>`:''}</div>
+    </div>
+  </div>`;
+}
+
+export async function clPasarPendientesAHoy(){
+  if(D.userRole !== 'gerencia') return;
+  const { ayer, lista } = _pendientesAyer();
+  const pasables = pasablesAHoy(lista);
+  if(!pasables.length){ showToast('No hay tareas para pasar'); return; }
+  if(!await confirmModal(`¿Asignar hoy ${pasables.length} tarea${pasables.length!==1?'s':''} que quedaron sin hacer el ${ayer} a la misma persona?`)) return;
+  pasables.forEach(p => { clState.responsable[p.i] = p.resp; });
+  saveWeekState(currentDay, 'responsable');
+  showToast(`${pasables.length} tarea${pasables.length!==1?'s':''} pasada${pasables.length!==1?'s':''} a hoy`);
+  renderChecklistTable();
+}
+
 // ── Fases de un evento: armado → colocación → retiro (las 2 últimas opcionales) ──
 export function eventoFase(ev){
   if(ev.estado === 'Pendiente de Colocacion') return 'colocacion';
@@ -1117,6 +1175,7 @@ export function renderChecklistTable(){
 
   // Aviso de Nuevos atrasados (gerencia). Se ubica arriba de la barra de progreso.
   renderNuevosAtrasadosBanner();
+  renderPendientesAyerBanner();
   _asegurarRelojChecklist();
 
   // ── Floristas: vista de tarjetas (mobile-first) en lugar de la lista ──
