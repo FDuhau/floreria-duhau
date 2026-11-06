@@ -32,18 +32,18 @@ function cajaRowHTML(r, i, running){
   const sc = running>=0 ? 'saldo-pos' : 'saldo-neg';
   const rowClass = r.tipo==='ingreso' ? 'ingreso-row' : 'egreso-row';
   return `<tr class="${rowClass}">
-    <td><input class="form-input" type="date" value="${r.fecha||''}" onchange="updCaja(${i},'fecha',this.value)" style="min-width:120px;padding:5px 7px;font-size:12px"></td>
-    <td><input class="form-input" value="${esc(r.desc)}" onchange="updCaja(${i},'desc',this.value)" style="min-width:180px;padding:5px 7px;font-size:12px"></td>
-    <td><input class="form-input" value="${esc(r.ticket||'')}" onchange="updCaja(${i},'ticket',this.value)" placeholder="—" style="width:75px;padding:5px 7px;font-size:12px"></td>
-    <td>
+    <td data-label="Fecha"><input class="form-input" type="date" value="${r.fecha||''}" onchange="updCaja(${i},'fecha',this.value)" style="min-width:120px;padding:5px 7px;font-size:12px"></td>
+    <td data-label="Descripción"><input class="form-input" value="${esc(r.desc)}" onchange="updCaja(${i},'desc',this.value)" style="min-width:180px;padding:5px 7px;font-size:12px"></td>
+    <td data-label="Ticket #"><input class="form-input" value="${esc(r.ticket||'')}" onchange="updCaja(${i},'ticket',this.value)" placeholder="—" style="width:75px;padding:5px 7px;font-size:12px"></td>
+    <td data-label="Tipo">
       <select class="form-select" onchange="updCajaTipo(${i},this.value)" style="font-size:12px;font-weight:600;padding:4px 6px;${r.tipo==='ingreso'?'background:var(--ok-soft);color:var(--green-ok)':'background:#FBE8E8;color:var(--red-alert)'}">
         <option value="ingreso" ${r.tipo==='ingreso'?'selected':''}>Ingreso</option>
         <option value="egreso"  ${r.tipo==='egreso' ?'selected':''}>Egreso</option>
       </select>
     </td>
-    <td><input class="form-input" type="number" value="${r.monto}" min="0" onchange="updCajaMonto(${i},+this.value)" style="width:110px;padding:5px 7px;font-size:13px;font-weight:600;color:${r.tipo==='ingreso'?'var(--green-ok)':'var(--red-alert)'}"></td>
-    <td><span class="${sc}">$${running.toLocaleString('es-AR')}</span></td>
-    <td><button class="btn-icon" style="color:var(--red-alert)" onclick="delCaja(${i})">✕</button></td>
+    <td data-label="Monto"><input class="form-input" type="number" value="${r.monto}" min="0" onchange="updCajaMonto(${i},+this.value)" style="width:110px;padding:5px 7px;font-size:13px;font-weight:600;color:${r.tipo==='ingreso'?'var(--green-ok)':'var(--red-alert)'}"></td>
+    <td data-label="Saldo"><span class="${sc}">$${running.toLocaleString('es-AR')}</span></td>
+    <td class="caja-row-acciones"><button class="btn-icon" style="color:var(--red-alert)" onclick="delCaja(${i})">✕</button></td>
   </tr>`;
 }
 
@@ -290,7 +290,7 @@ export function renderCierreCajaHistorial(){
   if(!el) return;
   const sorted = [...cierresCajaData].sort((a,b) => b.fecha?.localeCompare(a.fecha||''));
   if(!sorted.length){ el.innerHTML = '<div style="color:var(--mid-gray);font-size:13px;padding:16px">Sin cierres registrados aún.</div>'; return; }
-  el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px">
+  el.innerHTML = `<div class="table-wrapper" style="border:none;box-shadow:none"><table class="cierre-dia-table" style="width:100%;border-collapse:collapse;font-size:13px">
     <thead><tr style="background:var(--cream)">
       <th style="padding:8px 12px;text-align:left;font-size:12px;letter-spacing:1px;color:var(--mid-gray);text-transform:uppercase">Fecha</th>
       <th style="padding:8px 12px;text-align:right;font-size:12px;letter-spacing:1px;color:var(--mid-gray);text-transform:uppercase">Ingresos</th>
@@ -307,7 +307,7 @@ export function renderCierreCajaHistorial(){
       <td style="padding:9px 12px;color:var(--mid-gray);font-size:12px">${c.cerradoPor||'—'}</td>
     </tr>`).join('')}
     </tbody>
-  </table>`;
+  </table></div>`;
 }
 
 export function toggleCierreDetalle(ts){

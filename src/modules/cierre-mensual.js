@@ -26,14 +26,14 @@ export function renderCierreMensual(){
   if(!sorted.length){ el.innerHTML = '<div style="color:var(--mid-gray);text-align:center;padding:40px">No hay cierres guardados. Generá el primero con el botón "Generar Cierre".</div>'; return; }
   el.innerHTML = sorted.map((c,i)=>`
     <div class="card" style="margin-bottom:12px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
         <h3 style="margin:0">${D.fmtMonth(c.mes)}</h3>
         <div style="display:flex;gap:8px">
           <button class="btn-secondary" style="font-size:12px" onclick="verCierreMensual(${i})">Ver detalle</button>
           <button class="btn-secondary" style="font-size:12px" onclick="exportCierrePDF(${i})">PDF</button>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">
+      <div class="cierre-kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">
         <div class="kpi-card"><div class="kpi-val">$${parseMoney(c.totalVentas||0).toLocaleString('es-AR',{minimumFractionDigits:0})}</div><div class="kpi-lbl">Ventas totales</div></div>
         <div class="kpi-card"><div class="kpi-val">$${parseMoney(c.totalCompras||0).toLocaleString('es-AR',{minimumFractionDigits:0})}</div><div class="kpi-lbl">Compras totales</div></div>
         <div class="kpi-card"><div class="kpi-val">${c.cantEventos||0}</div><div class="kpi-lbl">Eventos</div></div>
