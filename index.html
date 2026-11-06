@@ -1516,7 +1516,7 @@
   <div id="page-caja" class="content">
     <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px">
       <div><div class="page-title">Control de Caja</div><div class="page-subtitle">Ingresos, egresos y saldo en tiempo real</div></div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <div class="caja-acciones" style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn-secondary gerencia-only" onclick="document.getElementById('restaurar-caja-file').click()" title="Recuperar movimientos desde un backup o archivo de caja (agrega solo los que faltan)">Restaurar movimientos</button>
         <button class="btn-secondary gerencia-only" onclick="restaurarCajaDesdeResguardo()" title="Recuperar movimientos desde la copia automática de la caja (agrega solo los que faltan)">Recuperar del resguardo</button>
         <input type="file" id="restaurar-caja-file" accept=".json,application/json" style="display:none" onchange="restaurarCajaArchivo(this)">
@@ -1539,10 +1539,10 @@
     </div>
 
     <!-- ── CIERRE DE CAJA ── -->
-    <div style="margin-top:32px;background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;padding:20px" class="gerencia-only">
+    <div style="margin-top:32px;background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;padding:20px" class="gerencia-only caja-cierre-box">
       <div style="font-size:13px;font-weight:600;letter-spacing:.5px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
         <span>Cierre de Caja Diario</span>
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <div class="caja-cierre-controles" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
           <input type="date" id="cierre-fecha" class="form-input" style="padding:6px 10px;font-size:13px;width:160px">
           <button class="btn-add" onclick="cerrarCajaDia()" style="font-size:12px;padding:8px 16px">Cerrar Caja del Día</button>
         </div>
@@ -3337,7 +3337,7 @@
         <div class="page-title">Cierre Mensual Automatizado</div>
         <div class="page-subtitle">Consolidado de ventas, compras, caja y eventos por mes</div>
       </div>
-      <div style="display:flex;gap:8px;align-items:center">
+      <div class="cierre-mes-controles" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <input class="form-input" id="cierre-mes-sel" type="month" style="padding:6px 10px;font-size:13px">
         <button class="btn-primary" onclick="generarCierreMensual()">Generar cierre</button>
       </div>
