@@ -1,0 +1,81 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   VENTAS EXTERNAS — mismo lenguaje que la checklist: resumen arriba, buscador
+   y control segmentado, y una tarjeta por día con una fila limpia por venta.
+   Reusa .cl-toolbar / .cl-search / .cl-seg / .cl-group de checklist.css.
+   ══════════════════════════════════════════════════════════════════════════ */
+.ve-filtros-toggle { display: none; }
+.ve-empty { text-align: center; padding: 40px 16px; color: var(--mid-gray); font-size: var(--fs-md); }
+.ve-tag { font-size: var(--fs-xs); padding: 3px 8px; border-radius: 999px; background: var(--cream); border: 1px solid var(--light-gray); color: var(--charcoal); white-space: nowrap; }
+.ve-tag.warn { background: rgba(176,64,46,.08); border-color: transparent; color: var(--red-alert); }
+.ve-tag.ok { background: var(--accent-soft); border-color: transparent; color: var(--accent); }
+
+/* ── Resumen ───────────────────────────────────────────────────────────── */
+.vx-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+.vx-kpi { background: var(--warm-white); border: 1px solid var(--light-gray); border-radius: var(--radius-lg); box-shadow: var(--shadow-xs); padding: 14px 16px; }
+.vx-kpi-l { font-size: var(--fs-xs); letter-spacing: .8px; text-transform: uppercase; color: var(--mid-gray); font-weight: 600; }
+.vx-kpi-v { font-size: var(--fs-2xl); line-height: 1.15; font-weight: 500; color: var(--charcoal); margin-top: 4px; font-variant-numeric: tabular-nums; }
+.vx-kpi-s { font-size: var(--fs-sm); color: var(--mid-gray); margin-top: 2px; }
+.vx-kpi.warn .vx-kpi-v { color: var(--red-alert); }
+
+/* ── Filtros ───────────────────────────────────────────────────────────── */
+.vx-filtros { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
+.vx-select {
+  appearance: none; min-height: 36px; padding: 6px 30px 6px 12px; border-radius: var(--radius-md);
+  border: 1px solid var(--light-gray); background: var(--warm-white) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%238a8a82' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 12px center;
+  font: 400 var(--fs-sm)/1.2 'DM Sans', sans-serif; color: var(--charcoal); cursor: pointer; max-width: 210px;
+}
+.vx-select:focus-visible { outline: none; border-color: var(--accent); box-shadow: var(--ring); }
+.vx-cierre { margin-left: auto; }
+
+/* ── Lista por día ─────────────────────────────────────────────────────── */
+.vx-list { display: flex; flex-direction: column; gap: 14px; }
+.vx-group { --dot: var(--accent); }
+.vx-group .cl-group-name { text-transform: none; letter-spacing: 0; font-size: var(--fs-md); }
+.vx-row {
+  display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.6fr) auto auto; gap: 8px 16px; align-items: center;
+  padding: 12px 16px; border-top: 1px solid var(--light-gray); cursor: pointer; transition: background .12s;
+}
+.vx-group .cl-group-hd + .vx-row { border-top: 0; }
+.vx-row:hover { background: var(--cream); }
+.vx-row:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--accent); }
+.vx-row.is-done .vx-cli, .vx-row.is-done .vx-meta { opacity: .6; }
+.vx-main { min-width: 0; }
+.vx-cli { font-size: var(--fs-lg); font-weight: 600; color: var(--charcoal); overflow: hidden; text-overflow: ellipsis; }
+.vx-hora { margin-left: 8px; font-size: var(--fs-xs); font-weight: 600; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 2px 8px; vertical-align: 2px; }
+.vx-meta { font-size: var(--fs-sm); color: var(--mid-gray); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vx-tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.vx-precio { text-align: right; white-space: nowrap; min-width: 96px; }
+.vx-precio-v { font-size: var(--fs-lg); font-weight: 600; color: var(--charcoal); font-variant-numeric: tabular-nums; }
+.vx-saldo { font-size: var(--fs-xs); font-weight: 600; color: var(--red-alert); }
+.vx-margen { font-size: var(--fs-xs); color: var(--mid-gray); }
+.vx-margen.pos { color: var(--green-ok); } .vx-margen.neg { color: var(--red-alert); }
+.vx-acts { display: flex; gap: 2px; align-items: center; justify-content: flex-end; white-space: nowrap; }
+
+/* Estado y cobro: selectores con forma de etiqueta */
+.vx-pill {
+  appearance: none; border: 1px solid transparent; border-radius: 999px; cursor: pointer;
+  padding: 4px 10px; font: 600 var(--fs-xs)/1.2 'DM Sans', sans-serif; background: var(--cream); color: var(--charcoal);
+  text-align: center; text-align-last: center;
+}
+.vx-pill:focus-visible { outline: none; box-shadow: var(--ring); }
+.vx-st-pendiente { background: rgba(154,106,16,.12); color: var(--amber); }
+.vx-st-confirmado { background: var(--info-soft, rgba(61,110,150,.12)); color: var(--info, #3D6E96); }
+.vx-st-entregado { background: var(--accent-soft); color: var(--accent); }
+.vx-co-sin { background: transparent; border-color: var(--light-gray); color: var(--mid-gray); font-weight: 500; }
+.vx-co-pagado { background: var(--accent-soft); color: var(--accent); }
+.vx-co-sena { background: rgba(154,106,16,.12); color: var(--amber); }
+.vx-co-pendiente { background: rgba(176,64,46,.1); color: var(--red-alert); }
+
+@media (max-width: 960px) {
+  .vx-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .vx-tags { grid-column: 1 / -1; order: 3; }
+  .vx-acts { grid-column: 1 / -1; order: 4; justify-content: flex-start; }
+}
+@media (max-width: 768px) {
+  .vx-kpis { grid-template-columns: 1fr; gap: 8px; }
+  .vx-kpi { display: grid; grid-template-columns: 1fr auto; align-items: baseline; padding: 10px 14px; }
+  .vx-kpi-l { grid-column: 1; } .vx-kpi-v { grid-column: 2; grid-row: 1 / span 2; font-size: var(--fs-xl); margin: 0; } .vx-kpi-s { grid-column: 1; }
+  .vx-select { max-width: none; flex: 1 1 45%; min-height: var(--tap); font-size: var(--fs-lg); }
+  .vx-cierre { margin-left: 0; }
+  .vx-pill { min-height: 32px; }
+}

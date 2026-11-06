@@ -109,24 +109,6 @@
 }
 .tools-more-panel > button:hover, .tools-more-panel > label:hover { background: var(--accent-soft) !important; }
 
-/* ── Ventas externas en tarjetas (celular) ─────────────────────────────── */
-.ve-cards { display: none; }
-.ve-card {
-  background: var(--warm-white); border: 1px solid var(--light-gray); border-radius: var(--radius-lg);
-  padding: 14px 16px; display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; cursor: pointer;
-  box-shadow: var(--shadow-xs);
-}
-.ve-card + .ve-card { margin-top: 10px; }
-.ve-card-cli { font-size: var(--fs-lg); font-weight: 600; color: var(--charcoal); }
-.ve-card-precio { font-size: var(--fs-lg); font-weight: 600; color: var(--charcoal); text-align: right; }
-.ve-card-meta { font-size: var(--fs-sm); color: var(--mid-gray); }
-.ve-card-tags { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-.ve-tag { font-size: var(--fs-xs); padding: 3px 8px; border-radius: 999px; background: var(--blush-light); color: var(--charcoal); }
-.ve-tag.warn { background: rgba(176,64,46,.1); color: var(--red-alert); }
-.ve-tag.ok { background: var(--accent-soft); color: var(--accent); }
-.ve-empty { text-align: center; padding: 40px 16px; color: var(--mid-gray); font-size: var(--fs-md); }
-.ve-filtros-toggle { display: none; }
-
 /* ── CELULAR ───────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
   :root { --topbar-h: 56px; }
@@ -162,9 +144,7 @@
   /* Tarjetas de resumen: 2 por fila en vez de una debajo de otra */
   .ctrl-summary-cards { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; }
 
-  /* Ventas externas: tarjetas en lugar de la planilla */
-  #page-ventas-externas .ve-cards { display: block; }
-  #page-ventas-externas .ve-table-wrap { display: none; }
+  /* Ventas externas: los filtros extra se abren con "Más filtros" */
   #page-ventas-externas .ve-filtros-toggle { display: inline-flex; }
   #page-ventas-externas .ve-filtros:not(.open) { display: none !important; }
 }

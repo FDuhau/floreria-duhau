@@ -1380,49 +1380,42 @@
     <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px">
       <div><div class="page-title">Ventas Externas</div><div class="page-subtitle">Ramos y arreglos vendidos fuera de eventos</div></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn-secondary ve-filtros-toggle" onclick="document.getElementById('ve-filtros').classList.toggle('open')">Filtrar</button>
         <button class="btn-add" onclick="openSaleModal()">+ Nueva venta</button>
       </div>
     </div>
     <div id="ventas-kanban-banner" style="margin-bottom:12px"></div>
-    <div id="ve-filtros" class="ve-filtros" style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:12px;padding:14px 16px;margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      <label style="font-size:12px;color:var(--mid-gray);font-weight:600">Filtrar:</label>
-      <select class="form-input" id="ve-filter-mes" onchange="renderVentas()" style="width:170px;padding:6px 8px;font-size:12.5px"><option value="">Todos los meses</option></select>
-      <select class="form-input" id="ve-filter-pago" onchange="renderVentas()" style="width:210px;padding:6px 8px;font-size:12.5px"><option value="">Todas las formas de pago</option></select>
-      <select class="form-input" id="ve-filter-tipo" onchange="renderVentas()" style="width:200px;padding:6px 8px;font-size:12.5px" title="Tipo de venta = Descripción de ramo"><option value="">Todos los tipos de venta</option></select>
-      <select class="form-input" id="ve-filter-fact" onchange="renderVentas()" style="width:170px;padding:6px 8px;font-size:12.5px" title="Filtrar por estado de facturación">
-        <option value="">Facturado: todas</option>
-        <option value="no">Sin facturar</option>
-        <option value="si">Facturadas</option>
-      </select>
-      <button class="btn-secondary" onclick="ventasClearFilters()" style="font-size:12px;padding:6px 10px">✕ Limpiar</button>
-      <div style="margin-left:auto;display:flex;gap:10px;align-items:center">
-        <span id="ve-filter-summary" style="font-size:12.5px;color:var(--charcoal)"></span>
-        <button class="btn-add" onclick="ventasCierreMes()" style="font-size:12px" title="Resumen de cobranzas del mes por forma de pago">Cierre de mes</button>
+    <div id="ve-kpis" class="vx-kpis"></div>
+    <div class="cl-toolbar">
+      <label class="cl-search">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg>
+        <input id="ve-filter-txt" type="search" placeholder="Buscar cliente, destinatario o ramo" autocomplete="off" oninput="renderVentas()">
+      </label>
+      <div class="cl-seg" id="ve-periodo" role="group" aria-label="Período" data-valor="">
+        <button class="cl-fbtn active" data-per="" aria-pressed="true" onclick="veSetPeriodo('')">Todo</button>
+        <button class="cl-fbtn" data-per="hoy" aria-pressed="false" onclick="veSetPeriodo('hoy')">Hoy</button>
+        <button class="cl-fbtn" data-per="semana" aria-pressed="false" onclick="veSetPeriodo('semana')">Esta semana</button>
+        <button class="cl-fbtn" data-per="mes" aria-pressed="false" onclick="veSetPeriodo('mes')">Este mes</button>
       </div>
+      <button class="btn-secondary ve-filtros-toggle" onclick="document.getElementById('ve-filtros').classList.toggle('open')">Más filtros</button>
     </div>
-    <div id="ve-cards" class="ve-cards"></div>
-    <div class="table-wrapper ve-table-wrap">
-      <table class="ventas-table">
-        <thead><tr>
-          <th>Descripción de ramo</th>
-          <th>Descripción</th>
-          <th>Fecha</th>
-          <th>Cliente</th>
-          <th>Destinatario</th>
-          <th>Dedicatoria</th>
-          <th>Precio</th>
-          <th>Margen</th>
-          <th>Forma de pago</th>
-          <th>Facturado</th>
-          <th>Estado</th>
-          <th>Dirección de envío</th>
-          <th>Taxi / Flete</th>
-          <th></th>
-        </tr></thead>
-        <tbody id="ventas-body"></tbody>
-      </table>
+    <div id="ve-filtros" class="ve-filtros vx-filtros">
+      <select class="vx-select" id="ve-filter-estado" onchange="renderVentas()" aria-label="Estado">
+        <option value="">Todos los estados</option><option value="pendiente">Pendiente</option><option value="confirmado">Confirmado</option><option value="entregado">Entregado</option>
+      </select>
+      <select class="vx-select" id="ve-filter-cobro" onchange="renderVentas()" aria-label="Cobro">
+        <option value="">Cobro: todos</option><option value="deuda">Falta cobrar</option><option value="pagado">Cobrado</option>
+      </select>
+      <select class="vx-select" id="ve-filter-resp" onchange="renderVentas()" aria-label="Florista"><option value="">Todas las floristas</option></select>
+      <select class="vx-select" id="ve-filter-fact" onchange="renderVentas()" aria-label="Facturación">
+        <option value="">Facturado: todas</option><option value="no">Sin facturar</option><option value="si">Facturadas</option>
+      </select>
+      <select class="vx-select" id="ve-filter-mes" onchange="renderVentas()" aria-label="Mes"><option value="">Todos los meses</option></select>
+      <select class="vx-select" id="ve-filter-pago" onchange="renderVentas()" aria-label="Forma de pago"><option value="">Todas las formas de pago</option></select>
+      <select class="vx-select" id="ve-filter-tipo" onchange="renderVentas()" aria-label="Tipo de venta" title="Tipo de venta = Descripción de ramo"><option value="">Todos los tipos</option></select>
+      <button class="btn-secondary" id="ve-limpiar" onclick="ventasClearFilters()" style="display:none">✕ Limpiar</button>
+      <button class="btn-secondary vx-cierre" onclick="ventasCierreMes()" title="Resumen de cobranzas del mes por forma de pago">Cierre de mes</button>
     </div>
+    <div id="ve-cards" class="vx-list"></div>
     <!-- New sale modal -->
     <div class="modal-overlay" id="sale-modal">
       <div class="modal">
@@ -1486,6 +1479,19 @@
               <option value="No">No</option>
             </select>
           </div>
+          <div><label class="form-label">Cobro</label>
+            <select class="form-input-modal" id="sale-cobro" onchange="document.getElementById('sale-sena-wrap').style.display=this.value==='sena'?'':'none'">
+              <option value="">—</option>
+              <option value="pagado">Cobrado</option>
+              <option value="sena">Con seña</option>
+              <option value="pendiente">Por cobrar</option>
+            </select>
+          </div>
+        </div>
+        <div id="sale-sena-wrap" style="display:none"><label class="form-label">Seña (lo que ya pagó)</label><input class="form-input-modal" id="sale-sena" placeholder="$ 0"></div>
+        <label class="form-label">Teléfono del cliente <span style="color:var(--mid-gray);font-weight:400">(para avisarle por WhatsApp · opcional)</span></label>
+        <input class="form-input-modal" id="sale-telefono" type="tel" placeholder="Si ya está en Clientes se usa ese">
+        <div class="modal-row">
           <div><label class="form-label">Taxi / flete</label>
             <select class="form-input-modal" id="sale-taxi">
               <option value="">—</option>
