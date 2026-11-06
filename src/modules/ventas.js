@@ -14,6 +14,8 @@ import { DIA_MADRE_ARREGLOS } from './datos-base.js';
 import { listaPreciosData } from './lista-precios.js';
 import { confirmModal, promptModal } from './modales.js';
 import { marcarObligatorios, validarCampos } from './validacion.js';
+import { COBRO_LABEL, agruparPorDia, enPeriodo, linkWhatsApp, mensajeWhatsApp, montoVenta, resumenVentas, saldoVenta } from './ventas-base.js';
+import { getClientesData } from './crm-clientes.js';
 
 let D = {};
 export function configurarVentas(deps){
@@ -66,13 +68,6 @@ function margenVenta(v){
   if(c==null) return null;
   return margenDeVenta(v, c);
 }
-// Celda <td> de margen para la tabla de ventas. Muestra "—" cuando no hay costo.
-function margenCell(v){
-  const m = margenVenta(v);
-  if(m==null) return '<td style="white-space:nowrap;text-align:center"><span style="color:var(--mid-gray);font-size:12px" title="No hay composición cargada para estimar el costo de este producto">—</span></td>';
-  const col = m>=0 ? 'var(--green-ok)' : 'var(--red-alert)';
-  return `<td style="white-space:nowrap;text-align:right"><span style="color:${col};font-weight:600;font-size:12px" title="Precio − costo estimado − envío">$${Math.round(m).toLocaleString('es-AR')}</span></td>`;
-}
 // Grupo de cobranza para el cierre de mes: Cargo a rooms + Cargo a habitación = Hotel.
 function grupoCobranza(fp){
   const p = normPago(fp);
@@ -80,7 +75,7 @@ function grupoCobranza(fp){
   return p || 'Sin forma de pago';
 }
 // Filtros activos de Ventas Externas (persistidos entre sesiones)
-let ventasFilter={mes:'',pago:'',tipo:''};
+let ventasFilter={mes:'',pago:'',tipo:'',fact:'',txt:'',periodo:'',estado:'',cobro:'',resp:''};
 const _VENTAS_PREFS_KEY='fd-ventas-prefs';
 let _ventasNeedRestore=true;
 function _saveVentasPrefs(){ try{ localStorage.setItem(_VENTAS_PREFS_KEY, JSON.stringify(ventasFilter)); }catch(e){} }
@@ -98,6 +93,74 @@ function _ventasMoreRow(total){
   </td></tr>`;
 }
 
+// ── Pantalla: resumen arriba, filtros y una tarjeta por día con sus ventas ───
+const _IC_BUSCAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg>';
+const _IC_WA = '<svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M20 11.5a8 8 0 01-11.8 7L4 20l1.5-4.1A8 8 0 1120 11.5z"/><path d="M9.2 8.8c.3 2.6 2.4 4.7 5 5l1-1.2-1.7-1-.8.6c-.7-.3-1.4-1-1.7-1.7l.6-.8-1-1.7z" fill="currentColor" stroke="none"/></svg>';
+const _IC_EDIT = '<svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/></svg>';
+const _pesos = n => '$' + Math.round(n || 0).toLocaleString('es-AR');
+const _norm = x => String(x||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+
+export function veSetPeriodo(p){
+  const el = document.getElementById('ve-periodo');
+  if(el) el.dataset.valor = p || '';
+  renderVentas();
+}
+
+function _fechaGrupo(f){
+  if(!f) return 'Sin fecha';
+  if(f === D.TODAY_ISO) return 'Hoy · ' + fmtDate(f);
+  const ayer = new Date(D.TODAY_ISO+'T12:00:00'); ayer.setDate(ayer.getDate()-1);
+  if(f === ayer.toISOString().slice(0,10)) return 'Ayer · ' + fmtDate(f);
+  const t = new Date(f+'T12:00:00').toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'});
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+function _pillEstado(i, v){
+  const est = v.estado || 'pendiente';
+  return `<select class="vx-pill vx-st-${est}" onchange="updV(${i},'estado',this.value)" title="Estado del pedido" aria-label="Estado">
+    ${VENTA_ESTADOS.map(s=>`<option value="${s}"${est===s?' selected':''}>${VENTA_ESTADO_LABEL[s]}</option>`).join('')}</select>`;
+}
+function _pillCobro(i, v){
+  const c = v.cobro || '';
+  const saldo = saldoVenta(v);
+  return `<select class="vx-pill vx-co-${c||'sin'}" onchange="veSetCobro(${i},this.value)" title="${c==='sena'?'Seña de '+_pesos(parseMoney(v.sena))+' · falta '+_pesos(saldo):'Estado de cobro'}" aria-label="Cobro">
+    <option value=""${!c?' selected':''}>Cobro: —</option>
+    <option value="pagado"${c==='pagado'?' selected':''}>${COBRO_LABEL.pagado}</option>
+    <option value="sena"${c==='sena'?' selected':''}>${COBRO_LABEL.sena}</option>
+    <option value="pendiente"${c==='pendiente'?' selected':''}>${COBRO_LABEL.pendiente}</option></select>`;
+}
+
+function _filaVenta(i, v){
+  const precio = montoVenta(v);
+  const m = margenVenta(v);
+  const saldo = saldoVenta(v);
+  const quien = v.cliente || v.destinatario || 'Sin cliente';
+  const para = v.destinatario && v.cliente ? ` · para ${esc(v.destinatario)}` : '';
+  const metaPartes = [esc(v.prod||''), v.desc ? esc(v.desc) : '', v.dir ? esc(v.dir) : ''].filter(Boolean);
+  const tags = [
+    v.facturado==='Sí' ? '<span class="ve-tag ok">Facturada</span>' : (precio>0 ? '<span class="ve-tag warn">Sin facturar</span>' : ''),
+    v.formaPago ? `<span class="ve-tag">${esc(v.formaPago)}</span>` : '',
+    v.asignado ? `<span class="ve-tag">${esc(v.asignado)}</span>` : '',
+  ].join('');
+  return `<div class="vx-row${v.estado==='entregado'?' is-done':''}" role="button" tabindex="0" onclick="openEditSaleModal(${i})" onkeydown="if(event.key==='Enter'&&event.target===this)this.click()">
+    <div class="vx-main">
+      <div class="vx-cli">${esc(quien)}${para}${v.horaEntrega ? `<span class="vx-hora">${esc(v.horaEntrega)}</span>` : ''}</div>
+      <div class="vx-meta">${metaPartes.join(' · ') || '—'}</div>
+    </div>
+    <div class="vx-tags" onclick="event.stopPropagation()">${_pillEstado(i,v)}${_pillCobro(i,v)}${tags}</div>
+    <div class="vx-precio">
+      <div class="vx-precio-v">${precio>0 ? _pesos(precio) : '—'}</div>
+      ${saldo>0 ? `<div class="vx-saldo">Falta ${_pesos(saldo)}</div>` : (m!=null ? `<div class="vx-margen ${m>=0?'pos':'neg'}" title="Precio − costo estimado − envío">Margen ${_pesos(m)}</div>` : '')}
+    </div>
+    <div class="vx-acts" onclick="event.stopPropagation()">
+      ${fotoRamoBtn(i, v)}
+      <button class="btn-icon" onclick="veWhatsApp(${i})" title="Avisarle al cliente por WhatsApp" style="color:var(--sage-dark)">${_IC_WA}</button>
+      <button class="btn-icon" onclick="openEditSaleModal(${i})" title="Editar" style="color:var(--sage-dark)">${_IC_EDIT}</button>
+      <button class="btn-icon" style="color:var(--red-alert)" title="Eliminar" onclick="delVenta(${i})">✕</button>
+    </div>
+  </div>`;
+}
+
 export function renderVentas(){
   // Banner ítems desde Kanban
   const vkb = document.getElementById('ventas-kanban-banner');
@@ -107,10 +170,11 @@ export function renderVentas(){
       ? `<div class="alert-banner" style="background:var(--info-soft);border-color:#B0C8E0;color:var(--info)"><strong>${fromOps.length} ramo${fromOps.length>1?'s':''} cargado${fromOps.length>1?'s':''} desde Operaciones</strong> — completá precio y cliente.</div>`
       : '';
   }
-  // ── Poblar selects de filtro (mes, forma de pago, tipo = descripción de ramo) ──
-  const mesSel = document.getElementById('ve-filter-mes');
-  const pagoSel = document.getElementById('ve-filter-pago');
-  const tipoSel = document.getElementById('ve-filter-tipo');
+  const $ = id => document.getElementById(id);
+  const mesSel=$('ve-filter-mes'), pagoSel=$('ve-filter-pago'), tipoSel=$('ve-filter-tipo'), factSel=$('ve-filter-fact');
+  const estSel=$('ve-filter-estado'), cobSel=$('ve-filter-cobro'), respSel=$('ve-filter-resp'), txtEl=$('ve-filter-txt'), perEl=$('ve-periodo');
+  if(!$('ve-cards')) return;
+  // ── Poblar selects de filtro (mes, forma de pago, tipo, responsable) ──
   if(mesSel){
     const cur = mesSel.value;
     const meses = [...new Set((ventasData||[]).map(v=>(v.fecha||'').slice(0,7)).filter(Boolean))].sort((a,b)=>b.localeCompare(a));
@@ -123,134 +187,119 @@ export function renderVentas(){
   if(tipoSel){
     const cur = tipoSel.value;
     const tipos = [...new Set((ventasData||[]).map(v=>(v.prod||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));
-    tipoSel.innerHTML = '<option value="">Todos los tipos de venta</option>' + tipos.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');
+    tipoSel.innerHTML = '<option value="">Todos los tipos</option>' + tipos.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');
     tipoSel.value = cur;
   }
-  const factSel = document.getElementById('ve-filter-fact');
+  if(respSel){
+    const cur = respSel.value;
+    const resp = [...new Set((ventasData||[]).map(v=>(v.asignado||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));
+    respSel.innerHTML = '<option value="">Todas las floristas</option><option value="__sin">Sin asignar</option>' + resp.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');
+    respSel.value = cur;
+  }
   // Restaurar filtros guardados en la primera carga (tras recargar la app)
   if(_ventasNeedRestore){
     const pr = _loadVentasPrefs();
-    if(mesSel  && !mesSel.value  && pr.mes)  mesSel.value  = pr.mes;
-    if(pagoSel && !pagoSel.value && pr.pago) pagoSel.value = pr.pago;
-    if(tipoSel && !tipoSel.value && pr.tipo) tipoSel.value = pr.tipo;
-    if(factSel && !factSel.value && pr.fact) factSel.value = pr.fact;
+    const put = (el, val) => { if(el && !el.value && val) el.value = val; };
+    put(mesSel, pr.mes); put(pagoSel, pr.pago); put(tipoSel, pr.tipo); put(factSel, pr.fact);
+    put(estSel, pr.estado); put(cobSel, pr.cobro); put(respSel, pr.resp);
+    if(perEl && pr.periodo) perEl.dataset.valor = pr.periodo;
     _ventasNeedRestore = false;
   }
-  const fMes = mesSel?.value||'', fPago = pagoSel?.value||'', fTipo = tipoSel?.value||'', fFact = factSel?.value||'';
-  ventasFilter = {mes:fMes, pago:fPago, tipo:fTipo, fact:fFact};
+  const periodo = perEl?.dataset.valor || '';
+  ventasFilter = {mes:mesSel?.value||'', pago:pagoSel?.value||'', tipo:tipoSel?.value||'', fact:factSel?.value||'',
+    txt:txtEl?.value||'', periodo, estado:estSel?.value||'', cobro:cobSel?.value||'', resp:respSel?.value||''};
   _saveVentasPrefs();
+  const f = ventasFilter;
   // Al cambiar el filtro, volver a la primera página (no en cada re-render por edición)
   const _vkey = JSON.stringify(ventasFilter);
   if(_vkey !== _ventasLastKey){ ventasShown = VENTAS_PAGE; _ventasLastKey = _vkey; }
 
-  const tbody=document.getElementById('ventas-body');
-  let lista = ventasData.map((v,i)=>({v,i})).filter(o=>!(o.v.esPedidoRamo && o.v.estado!=='entregado'));
-  if(fMes)  lista = lista.filter(o=>(o.v.fecha||'').startsWith(fMes));
-  if(fPago) lista = lista.filter(o=>normPago(o.v.formaPago)===fPago);
-  if(fTipo) lista = lista.filter(o=>(o.v.prod||'').trim()===fTipo);
-  // Facturado: 'si' = facturadas; 'no' = sin facturar (incluye las que quedaron vacías).
-  if(fFact==='si') lista = lista.filter(o=>o.v.facturado==='Sí');
-  if(fFact==='no') lista = lista.filter(o=>o.v.facturado!=='Sí');
-  lista.sort((a,b)=>(b.v.fecha||'').localeCompare(a.v.fecha||''));
+  // Botones de período (Todo / Hoy / Esta semana / Este mes)
+  document.querySelectorAll('#ve-periodo [data-per]').forEach(b=>{
+    const on = (b.dataset.per||'') === periodo;
+    b.classList.toggle('active', on); b.setAttribute('aria-pressed', on);
+  });
+  const hayFiltros = !!(f.mes||f.pago||f.tipo||f.fact||f.txt||f.periodo||f.estado||f.cobro||f.resp);
+  const btnLimpiar = $('ve-limpiar'); if(btnLimpiar) btnLimpiar.style.display = hayFiltros ? '' : 'none';
 
-  // Resumen del filtro (cantidad + total)
-  const sumEl = document.getElementById('ve-filter-summary');
-  if(sumEl){
-    // Pendiente de facturar dentro de lo que se está viendo (respeta filtros).
-    const pend = lista.filter(o=>o.v.facturado!=='Sí' && parseMoney(o.v.precio)>0);
-    const totalPend = pend.reduce((s,o)=>s+parseMoney(o.v.precio),0);
-    const pillPend = pend.length
-      ? `<span style="background:var(--alert-soft);color:var(--red-alert);border:1px solid #F0C0C0;border-radius:10px;padding:2px 9px;font-weight:600;font-size:12px;white-space:nowrap">Sin facturar: ${pend.length} · $${totalPend.toLocaleString('es-AR')}</span>`
-      : '';
-    if(fMes||fPago||fTipo||fFact){
-      const total = lista.reduce((s,o)=>s+parseMoney(o.v.precio),0);
-      sumEl.innerHTML = `<span style="margin-right:8px"><strong>${lista.length}</strong> venta${lista.length!==1?'s':''} · <strong>$${total.toLocaleString('es-AR')}</strong></span>${pillPend}`;
-    } else sumEl.innerHTML = pillPend;
+  let lista = ventasData.map((v,i)=>({v,i})).filter(o=>!(o.v.esPedidoRamo && o.v.estado!=='entregado'));
+  if(f.periodo) lista = lista.filter(o=>enPeriodo(o.v.fecha, f.periodo, D.TODAY_ISO));
+  if(f.mes)  lista = lista.filter(o=>(o.v.fecha||'').startsWith(f.mes));
+  if(f.pago) lista = lista.filter(o=>normPago(o.v.formaPago)===f.pago);
+  if(f.tipo) lista = lista.filter(o=>(o.v.prod||'').trim()===f.tipo);
+  if(f.estado) lista = lista.filter(o=>(o.v.estado||'pendiente')===f.estado);
+  if(f.resp) lista = lista.filter(o=> f.resp==='__sin' ? !o.v.asignado : o.v.asignado===f.resp);
+  // Cobro: "por cobrar" = lo que tiene saldo; "pagado" = marcado como cobrado.
+  if(f.cobro==='deuda') lista = lista.filter(o=>saldoVenta(o.v)>0);
+  else if(f.cobro) lista = lista.filter(o=>(o.v.cobro||'')===f.cobro);
+  // Facturado: 'si' = facturadas; 'no' = sin facturar (incluye las que quedaron vacías).
+  if(f.fact==='si') lista = lista.filter(o=>o.v.facturado==='Sí');
+  if(f.fact==='no') lista = lista.filter(o=>o.v.facturado!=='Sí');
+  if(f.txt.trim()){
+    const q = _norm(f.txt.trim());
+    lista = lista.filter(o=>_norm([o.v.cliente,o.v.destinatario,o.v.prod,o.v.desc,o.v.dir,o.v.asignado].join(' ')).includes(q));
+  }
+  lista.sort((a,b)=>(b.v.fecha||'').localeCompare(a.v.fecha||'') || String(b.v.horaEntrega||'').localeCompare(String(a.v.horaEntrega||'')));
+
+  // Resumen de lo que se está viendo
+  const r = resumenVentas(lista.map(o=>o.v));
+  const kpis = $('ve-kpis');
+  if(kpis){
+    const k = (label, valor, sub, cls='') => `<div class="vx-kpi ${cls}"><div class="vx-kpi-l">${label}</div><div class="vx-kpi-v">${valor}</div><div class="vx-kpi-s">${sub}</div></div>`;
+    kpis.innerHTML =
+      k('Ventas', _pesos(r.total), `${r.n} venta${r.n!==1?'s':''}`) +
+      k('Por cobrar', _pesos(r.porCobrar.monto), r.porCobrar.n ? `${r.porCobrar.n} venta${r.porCobrar.n!==1?'s':''}` : 'Todo cobrado', r.porCobrar.n?'warn':'') +
+      k('Sin facturar', _pesos(r.sinFacturar.monto), r.sinFacturar.n ? `${r.sinFacturar.n} venta${r.sinFacturar.n!==1?'s':''}` : 'Todo facturado', r.sinFacturar.n?'warn':'');
   }
 
-  tbody.innerHTML = lista.slice(0, ventasShown).map(({v,i})=>`<tr style="${(v.estado==='confirmado'||v.estado==='entregado')?'background:rgba(74,143,74,.13)':(v.fromKanban?'background:rgba(122,154,184,.07)':'')}">
-
-    <td><input class="form-input" value="${esc(v.prod)}" onchange="updV(${i},'prod',this.value)" style="min-width:140px"></td>
-    <td><input class="form-input" value="${esc(v.desc)}" onchange="updV(${i},'desc',this.value)" style="min-width:150px" placeholder="Flores, colores..."></td>
-    <td><input class="form-input" type="date" value="${esc(v.fecha)}" onchange="updV(${i},'fecha',this.value)" style="min-width:130px"></td>
-    <td><input class="form-input" value="${esc(v.cliente)}" onchange="updV(${i},'cliente',this.value)" style="min-width:110px" placeholder="Quien abona"></td>
-    <td><input class="form-input" value="${esc(v.destinatario||'')}" onchange="updV(${i},'destinatario',this.value)" style="min-width:110px" placeholder="Quien recibe"></td>
-    <td><input class="form-input" value="${esc(v.dedicatoria||'')}" onchange="updV(${i},'dedicatoria',this.value)" style="min-width:130px" placeholder="—"></td>
-    <td><input class="form-input" value="${esc(v.precio)}" onchange="updV(${i},'precio',this.value)" style="width:90px"></td>
-    ${margenCell(v)}
-    <td>
-      <select class="form-select" onchange="updV(${i},'formaPago',this.value)" style="min-width:140px;font-size:12px">
-        <option value="">—</option>
-        <option value="Efectivo" ${v.formaPago==='Efectivo'?'selected':''}>Efectivo</option>
-        <option value="Tarjeta" ${v.formaPago==='Tarjeta'||v.formaPago==='Débito'||v.formaPago==='Crédito'?'selected':''}>Tarjeta</option>
-        <option value="Transferencia" ${v.formaPago==='Transferencia'?'selected':''}>Transferencia</option>
-        <option value="Link de pago" ${v.formaPago==='Link de pago'?'selected':''}>Link de pago</option>
-        <option value="Mercado Pago" ${v.formaPago==='Mercado Pago'?'selected':''}>Mercado Pago</option>
-        <option value="Cargo a rooms" ${v.formaPago==='Cargo a rooms'?'selected':''}>Cargo a rooms (hotel)</option>
-        <option value="Cargo a habitación" ${v.formaPago==='Cargo a habitación'?'selected':''}>Cargo a habitación (huésped)</option>
-        <option value="Cuenta corriente" ${v.formaPago==='Cuenta corriente'?'selected':''}>Cuenta corriente</option>
-        <option value="Cargo cliente / outlet F&amp;B" ${v.formaPago==='Cargo cliente / outlet F&B'?'selected':''}>Cargo cliente / outlet F&amp;B</option>
-      </select>
-    </td>
-    <td>
-      <select class="form-select" onchange="updV(${i},'facturado',this.value)" style="min-width:90px;font-size:12px">
-        <option value="" ${!v.facturado?'selected':''}>—</option>
-        <option value="Sí" ${v.facturado==='Sí'?'selected':''}>Sí</option>
-        <option value="No" ${v.facturado==='No'?'selected':''}>No</option>
-      </select>
-    </td>
-    <td>
-      <select class="form-select" style="${VENTA_ESTADO_COLOR[v.estado]||''};min-width:130px;font-size:12px;font-weight:600" onchange="updV(${i},'estado',this.value)">
-        ${VENTA_ESTADOS.map(s=>`<option value="${s}"${v.estado===s?' selected':''}>${VENTA_ESTADO_LABEL[s]}</option>`).join('')}
-      </select>
-    </td>
-    <td><input class="form-input" value="${esc(v.dir||'')}" onchange="updV(${i},'dir',this.value)" style="min-width:160px" placeholder="Dirección o retira"></td>
-    <td>
-      <select class="form-select" onchange="updV(${i},'taxiFlete',this.value)" style="min-width:100px;font-size:12px">
-        <option value="" ${!v.taxiFlete?'selected':''}>—</option>
-        <option value="Taxi" ${v.taxiFlete==='Taxi'?'selected':''}>Taxi</option>
-        <option value="Flete" ${v.taxiFlete==='Flete'?'selected':''}>Flete</option>
-      </select>
-      <input class="form-input" value="${esc(v.envioCosto||'')}" onchange="updV(${i},'envioCosto',this.value)" placeholder="$ costo envío" style="width:100px;margin-top:4px;font-size:12px" title="Costo del taxi/flete (para el cierre de mes)">
-    </td>
-    <td style="white-space:nowrap">
-      ${fotoRamoBtn(i, v)}
-      <button class="btn-icon" onclick="openEditSaleModal(${i})" title="Editar" style="color:var(--sage-dark)"><svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M13 5l4 4"/></svg></button>
-      <button class="btn-icon" style="color:var(--red-alert)" onclick="delVenta(${i})">✕</button>
-    </td>
-  </tr>`).join('') + _ventasMoreRow(lista.length);
-  _renderVentasCards(lista);
-}
-
-// Vista de tarjetas (celular): solo lectura, se toca para editar en el modal.
-function _renderVentasCards(lista){
-  const cont = document.getElementById('ve-cards');
-  if(!cont) return;
+  const cont = $('ve-cards');
   if(!lista.length){
-    cont.innerHTML = `<div class="ve-empty">No hay ventas con estos filtros.</div>`;
+    cont.innerHTML = `<div class="ve-empty">${hayFiltros ? 'No hay ventas con estos filtros.' : 'Todavía no hay ventas cargadas.'}</div>`;
     return;
   }
-  cont.innerHTML = lista.slice(0, ventasShown).map(({v,i})=>{
-    const precio = parseMoney(v.precio);
-    const tags = [
-      `<span class="ve-tag${v.estado==='pendiente'?' warn':' ok'}">${esc((VENTA_ESTADO_LABEL[v.estado]||v.estado||'').replace(/^\W+\s*/,''))}</span>`,
-      v.facturado==='Sí' ? '<span class="ve-tag ok">Facturada</span>' : (precio>0 ? '<span class="ve-tag warn">Sin facturar</span>' : ''),
-      v.formaPago ? `<span class="ve-tag">${esc(v.formaPago)}</span>` : '',
-      v.asignado ? `<span class="ve-tag">${esc(v.asignado)}</span>` : '',
-    ].join('');
-    return `<div class="ve-card" role="button" tabindex="0" onclick="openEditSaleModal(${i})" onkeydown="if(event.key==='Enter')this.click()">
-      <div class="ve-card-cli">${esc(v.cliente||v.destinatario||'Sin cliente')}</div>
-      <div class="ve-card-precio">${precio>0 ? '$'+precio.toLocaleString('es-AR') : '—'}</div>
-      <div class="ve-card-meta">${esc(v.prod||'')} · ${fmtDate(v.fecha)}${v.destinatario && v.cliente ? ' · para '+esc(v.destinatario) : ''}</div>
-      <div onclick="event.stopPropagation()">${fotoRamoBtn(i, v)}</div>
-      <div class="ve-card-tags">${tags}</div>
+  // Una tarjeta por día; la paginación corta por cantidad de ventas.
+  const visibles = lista.slice(0, ventasShown);
+  cont.innerHTML = agruparPorDia(visibles).map(g=>{
+    const tot = g.items.reduce((s,o)=>s+montoVenta(o.v),0);
+    return `<div class="cl-group vx-group">
+      <div class="cl-group-hd"><span class="cl-group-dot"></span><h3 class="cl-group-name">${esc(_fechaGrupo(g.fecha))}</h3>
+        <span class="cl-group-count">${g.items.length} venta${g.items.length!==1?'s':''}${tot>0?' · '+_pesos(tot):''}</span></div>
+      ${g.items.map(o=>_filaVenta(o.i,o.v)).join('')}
     </div>`;
   }).join('') + (lista.length > ventasShown
-    ? `<div style="text-align:center;padding:14px"><button class="btn-secondary" onclick="ventasShowMore()">Mostrar más · quedan ${lista.length-ventasShown}</button></div>` : '');
+    ? `<div style="text-align:center;padding:14px"><button class="btn-secondary" onclick="ventasShowMore()">Mostrar ${Math.min(VENTAS_PAGE,lista.length-ventasShown)} más · quedan ${lista.length-ventasShown}</button></div>` : '');
+}
+
+// Cambia el estado de cobro. Con "seña" pregunta cuánto dejó.
+export async function veSetCobro(i, val){
+  const v = ventasData[i];
+  if(!v) return;
+  if(val === 'sena'){
+    const r = await promptModal(`¿De cuánto fue la seña? (precio total ${_pesos(montoVenta(v))})`, { title:'Seña', default: v.sena || '' });
+    if(r == null || !(parseMoney(r) > 0)){ renderVentas(); return; }
+    v.sena = String(Math.round(parseMoney(r)));
+  } else {
+    v.sena = '';
+  }
+  v.cobro = val;
+  D.fbSave('ventasData', ventasData);
+  renderVentas();
+}
+
+// Aviso al cliente por WhatsApp (con su teléfono si está en Clientes o en la venta).
+export function veWhatsApp(i){
+  const v = ventasData[i];
+  if(!v) return;
+  const nombre = _norm(v.cliente).trim();
+  const cli = nombre ? (getClientesData()||[]).find(c=>_norm(c.nombre).trim()===nombre) : null;
+  const tel = v.telefono || cli?.telefono || '';
+  if(!tel) showToast('No tengo el teléfono: elegí el contacto en WhatsApp');
+  window.open(linkWhatsApp(tel, mensajeWhatsApp(v)), '_blank');
 }
 
 export function ventasClearFilters(){
-  ['ve-filter-mes','ve-filter-pago','ve-filter-tipo','ve-filter-fact'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  ['ve-filter-mes','ve-filter-pago','ve-filter-tipo','ve-filter-fact','ve-filter-estado','ve-filter-cobro','ve-filter-resp','ve-filter-txt'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  const per = document.getElementById('ve-periodo'); if(per) per.dataset.valor = '';
   renderVentas();
 }
 
@@ -399,7 +448,8 @@ export function openSaleModal(){
   ['sale-desc','sale-cliente','sale-destinatario','sale-dedicatoria','sale-precio','sale-dir'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('sale-estado').value='pendiente';
   document.getElementById('sale-pago').value='';
-  ['sale-facturado','sale-taxi','sale-envio'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  ['sale-facturado','sale-taxi','sale-envio','sale-cobro','sale-sena','sale-telefono'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  { const w = document.getElementById('sale-sena-wrap'); if(w) w.style.display = 'none'; }
   document.getElementById('sale-del-btn').style.display='none';
   document.getElementById('sale-doc-btn').style.display='none';
   document.getElementById('sale-save-btn').textContent='Agregar';
@@ -464,6 +514,10 @@ export function openEditSaleModal(i){
   document.getElementById('sale-facturado').value = v.facturado || '';
   document.getElementById('sale-taxi').value = v.taxiFlete || '';
   document.getElementById('sale-envio').value = v.envioCosto || '';
+  { const c = document.getElementById('sale-cobro'); if(c) c.value = v.cobro || ''; }
+  { const c = document.getElementById('sale-sena'); if(c) c.value = v.sena || ''; }
+  { const w = document.getElementById('sale-sena-wrap'); if(w) w.style.display = v.cobro==='sena' ? '' : 'none'; }
+  { const c = document.getElementById('sale-telefono'); if(c) c.value = v.telefono || ''; }
   document.getElementById('sale-del-btn').style.display = '';
   document.getElementById('sale-doc-btn').style.display = '';
   document.getElementById('sale-save-btn').textContent = 'Guardar';
@@ -560,6 +614,9 @@ export function addSale(){
     facturado:document.getElementById('sale-facturado')?.value||'',
     taxiFlete:document.getElementById('sale-taxi')?.value||'',
     envioCosto:document.getElementById('sale-envio')?.value||'',
+    cobro:document.getElementById('sale-cobro')?.value||'',
+    sena:document.getElementById('sale-cobro')?.value==='sena' ? (document.getElementById('sale-sena')?.value||'') : '',
+    telefono:document.getElementById('sale-telefono')?.value?.trim()||'',
     asignado,
     sucursal: D.getSucursalId(),
   };
