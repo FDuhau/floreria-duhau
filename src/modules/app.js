@@ -51,6 +51,7 @@ import { checkOnboarding, nextOnboardingStep, finishOnboarding } from './onboard
 import { showToast, toggleDarkMode, initDarkMode, exportPDF } from './tema-toast.js';
 import { _fotosParaGuardar, resolverFoto, migrarFotos, fotosActivo } from './fotos.js';
 import { configurarUnificarArticulos, renderUnificarArticulos, uaAgregarManual, uaDeshacer, uaMarcar, uaSet, uaUnir, uaVolverABuscar } from './unificar-articulos.js';
+import { configurarSugerenciaPedido, renderSugerenciaPedido } from './sugerencia-pedido.js';
 import { configurarFloresTemporada, renderFloresTemporada, renderTemporadaCompras, setFloresTemporada, ftBorrar, ftBuscar, ftCerrar, ftColor, ftEditar, ftGuardar, ftMarcarMeses, ftMes, ftPedir, ftTipo, ftVista } from './flores-temporada.js';
 import { aplicarAliasANodo, listaSinRepetidos, mismoArticulo, nombreArticulo, setArticulosAlias, setArticulosConocidos } from './articulos-base.js';
 
@@ -250,6 +251,7 @@ function navigate(pageId, navEl){
   if(pageId==='eventos-maison')     renderKanban();
   if(pageId==='compras-floreria'){  renderCompras('floreria'); renderTemporadaCompras(); }
   if(pageId==='flores-temporada')   renderFloresTemporada();
+  if(pageId==='sugerencia-pedido')  renderSugerenciaPedido();
   if(pageId==='compras-jardineria') renderCompras('jardineria');
   if(pageId==='compra-evento')      renderCompraEvento();
   if(pageId==='stock-admin')        renderStockAdmin();
@@ -376,6 +378,7 @@ let eventosData = [];
 configurarEventos({ get CL_RESP_OPTS(){ return CL_RESP_OPTS; }, TODAY_ISO, _auditarGuardado, _setEventosData, _stockFilasDe, _stockNombre, _xlsxDownload, arregloEmoji, badgeDiaRelativa, calcCostoComposicion, closeModal, etiquetaDiaRelativa, get eventoPricing(){ return eventoPricing; }, get eventosData(){ return eventosData; }, fbSave, get floristaNombre(){ return floristaNombre; }, fmtMonth, getFloristasActivos, get kanbanData(){ return kanbanData; }, notificarAsignacion, get recetasData(){ return recetasData; }, renderHome, renderKanban, renderStock, syncEventosToKanban, get userRole(){ return userRole; } });
 configurarCotizador({ _fmtCant, arregloEmoji, fbSave, get recetasData(){ return recetasData; }, get stockData(){ return stockData; } });
 configurarUnificarArticulos({ get _arreglosComposicionLoaded(){ return _arreglosComposicionLoaded; }, _saveArreglosComposicion, get arreglosComposicion(){ return arreglosComposicion; }, get comprasFlore(){ return comprasFlore; }, get comprasJard(){ return comprasJard; }, fbSave, fotosParaGuardar: _fotosParaGuardar, get insumosCustom(){ return insumosCustom; }, get recetasData(){ return recetasData; }, saveInsumosCustom, get stockData(){ return stockData; }, get userRole(){ return userRole; } });
+configurarSugerenciaPedido({ TODAY_ISO, get comprasFlore(){ return comprasFlore; }, navigate, get stockData(){ return stockData; } });
 configurarFloresTemporada({ articulosConocidos: () => getAllInsumos(), fbSave, navigate, get userRole(){ return userRole; } });
 
 

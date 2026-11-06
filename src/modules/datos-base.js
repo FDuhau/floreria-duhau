@@ -21,6 +21,7 @@ export const PAGE_LABELS = {control:'Control','control-jardineria':'Control › 
   galeria:'Comercial › Galería de Trabajos',
   'lista-precios':'Comercial › Lista de Precios',
   'flores-temporada':'Catálogo › Flores por temporada',
+  'sugerencia-pedido':'Compras › Sugerencia de pedido',
   'ramos-disponibles':'Comercial › Ramos Disponibles',
   'pedidos-ramos':'Comercial › Pedidos de Ramos',
   'pedidos-habitacion':'Comercial › Pedidos de Habitación',

@@ -57,7 +57,7 @@ export const NAV_SECCIONES = [
     ] },
     { id: 'compras', label: 'Compras', icon: 'compras', pages: [
       ['compras-floreria', 'Florería'], ['compras-jardineria', 'Jardinería y general'], ['recepcion-pedidos', 'Recepción de pedidos'],
-      ['proveedores', 'Proveedores'], ['precio-comparacion', 'Comparar precios'], ['unificar-articulos', 'Unificar artículos'],
+      ['sugerencia-pedido', 'Sugerencia de pedido'], ['proveedores', 'Proveedores'], ['precio-comparacion', 'Comparar precios'], ['unificar-articulos', 'Unificar artículos'],
     ] },
     { id: 'equipo', label: 'Equipo', icon: 'equipo', pages: [
       ['legajo', 'Legajos'], ['control-horarios', 'Horarios'], ['evaluaciones', 'Evaluaciones'], ['liquidacion', 'Horas extra'], ['reportes-equipo', 'Reporte del equipo'],
@@ -84,7 +84,7 @@ const ROLE_PAGES = {
   comercial: ['home', 'eventos-comercial', 'ventas-externas', 'pedidos-habitacion', 'crm-clientes', 'cotizador', 'presupuestos', 'cotizar-presupuesto',
     'costo-varas', 'lista-precios', 'ramos-disponibles', 'galeria', 'flores-temporada'],
   ventas: ['home-hyatt', 'cotizador-eventos-hyatt', 'pedidos-habitacion', 'lista-precios', 'ramos-disponibles'],
-  compras: ['compras-floreria', 'compras-jardineria', 'recepcion-pedidos', 'proveedores', 'precio-comparacion', 'compra-evento',
+  compras: ['compras-floreria', 'compras-jardineria', 'recepcion-pedidos', 'sugerencia-pedido', 'proveedores', 'precio-comparacion', 'compra-evento',
     'stock-admin', 'floreros', 'velas', 'reportes-hotel', 'flores-temporada'],
   jardinero: ['jardineria-ops', 'hab-ops', 'recordatorios-jardineria', 'stock-jardineria'],
   housekeeping: ['control-habitaciones'],
