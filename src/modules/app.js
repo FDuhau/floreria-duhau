@@ -22,7 +22,7 @@ import { configurarReportes, _crearLegajoParaUsuario, _empleadosLegajoOpts, _kpi
 import { configurarJardineria, _diasDesdeTxt, _jardPoblarSecciones, alertaJardFotoPreview, daysSince, deletePlagaJard, deleteRecordatorio, deleteStockJard, gerenciaSetFecha, getDaysBadge, getRecordatoriosNuevos, getSectionEmoji, getSectionPillCls, guardarAlertaJardin, initCtrlJard, jardAddGrupo, jardAddSeccion, jardAddTarea, jardDeleteGrupo, jardDeleteSeccion, jardDeleteTarea, jardRegistrarHoraTurno, jardRenameGrupo, jardRenameSeccion, jardRenameTarea, jardResetHoraTurno, jardSetJardinero, jardTogglePlanHoy, jopsDone, jopsHoraCell, jopsRegistrarHora, jopsResetHora, jopsUpdHora, marcarRecordatorioHecho, marcarRecordatoriosVistos, notificarRecordatoriosNuevos, openAlertaJardinModal, openControlPlaga, openGestionTareasJard, openPlagaJardModal, openRecordatorioModal, openStockJardModal, plagaFiltrar, plagaSugerir, renderAlertasUrgentesJard, renderJardOps, renderJardRecAviso, renderJardTurnoCard, renderPlagasJard, renderStockJard, resolverAlertaJardin, saveControlPlaga, savePlagaJard, saveRecordatorio, saveStockJard, saveUrgenciaConfig, setJopsFilter, setUrgenciaPreset, stockJardFiltrar, urgenciaPanelHTML, verFotoAlerta, verHistorialPlaga, zonaHoraBtn, zonaHorasData, zonaResetHora, zonaSetHora } from './jardineria.js';
 import { configurarSeguimiento, _downloadCSV, ctrlHabFilter, ctrlJardFilter, exportCtrlCSV, exportHabCSV, exportMesHab, exportMesJard, habsHoraCell, habsRegistrarHora, habsResetHora, hopsVisita, initCtrlHab, jardProdDiaClick, markHabDone, markJardDone, renderCtrlHab, renderCtrlJard, renderHabLog, renderHabOps, renderHabReporte, renderJardLog, renderJardProdEquipo, renderJardReporte, setHabComentarioHK, setHabReporteMes, setHopsFilter, setJardReporteMes, toggleCtrlSection } from './seguimiento.js';
 import { configurarResumenes, _checkCierreDia, cdPersonaRango, cerrarBriefing, initCierreDia, mostrarBriefingDia, mostrarResumenSemanal, renderCdPersona, renderCierreDia, resumenesDiarios } from './resumenes.js';
-import { configurarLlamados, eliminarLlamado, florRegistrarTurno, florResetTurno, guardarLlamado, llamadoFotoPreview, llamadoOnZonaChange, llamadosData, openLlamadoModal, renderFlorTurnoCard, renderLlamadosChecklist, renderLlamadosEval, resolverLlamado, verFotoLlamado } from './llamados.js';
+import { configurarLlamados, eliminarLlamado, florRegistrarTurno, florResetTurno, guardarLlamado, llamadoFotoPreview, llamadoOnZonaChange, llamadosData, openLlamadoModal, renderFlorTurnoCard, renderInicioJornada, renderLlamadosChecklist, renderLlamadosEval, resolverLlamado, verFotoLlamado } from './llamados.js';
 import { _evStripAcc, _evParseEvents, _evToEvento } from './daily-import.js';
 import { confirmModal, promptModal } from './modales.js';
 import './lista-precios-css.js';
@@ -503,11 +503,8 @@ function _prodCardHTML(nombre, d, full=true){
 function renderProductividadHome(){
   const el=document.getElementById('home-prod');
   if(!el) return;
-  if(userRole==='florista' && floristaNombre){
-    el.innerHTML=`<div class="home-dash-card" style="margin-bottom:20px">
-      <div class="home-card-title">Mi turno hoy</div>
-      ${_prodCardHTML(floristaNombre, getProdFlorista(floristaNombre), true)}
-    </div>`;
+  if(userRole==='florista'){
+    el.innerHTML='';
   } else if(userRole==='gerencia'){
     const nombres=getEmpleadosActivos();
     if(!nombres.length){ el.innerHTML=''; return; }
@@ -615,9 +612,64 @@ function _homeSparkHTML(ventasMes){
     <polyline points="${pts}" fill="none" stroke="var(--sage)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
 }
 
+// Inicio de la florista: solo sus tareas de hoy y los eventos que tiene asignados
+function _renderHomeFlorista(activos, checked){
+  const yo = floristaNombre;
+  const resp = Array.isArray(clState?.responsable) ? clState.responsable : [];
+  const mias = CL_TASKS.map((t,i)=>({t,i})).filter(o=>resp[o.i]===yo);
+  const faltan = mias.filter(o=>!checked[o.i]);
+  const hechas = mias.length - faltan.length;
+  const pct = mias.length ? Math.round(hechas/mias.length*100) : 0;
+
+  const hoy = TODAY_ISO;
+  const misEv = activos.map(ev=>{
+    const roles=[];
+    if(ev.asignado===yo) roles.push('Armar');
+    if(ev.colocacionAsignado===yo) roles.push('Colocar');
+    if(ev.retiroAsignado===yo) roles.push('Retirar');
+    return { ev, roles };
+  }).filter(o=>o.roles.length && (o.ev.fecha||'') >= hoy)
+    .sort((a,b)=>(a.ev.fecha||'').localeCompare(b.ev.fecha||'')).slice(0,8);
+
+  document.getElementById('home-kpis').innerHTML = '';
+  const vis = document.getElementById('home-visual'); if(vis) vis.innerHTML = '';
+  const prod = document.getElementById('home-prod'); if(prod) prod.innerHTML = '';
+  const vc = document.getElementById('home-ventas-col'); if(vc){ vc.style.display='none'; vc.innerHTML=''; }
+
+  document.getElementById('home-checklist-col').innerHTML = '';
+  const grid = document.querySelector('#page-home .home-dash-grid'); if(grid) grid.style.gridTemplateColumns = '1fr';
+  document.getElementById('home-eventos-col').innerHTML = `
+    <div class="home-dash-card" style="margin-bottom:16px">
+      <div class="home-dash-card-hdr">
+        <div class="home-dash-title">Mi checklist de hoy</div>
+        <button class="btn-secondary" style="padding:5px 12px;font-size:12px" onclick="navigate('checklist')">Abrir →</button>
+      </div>
+      ${mias.length ? `<div class="home-cl-bar-wrap"><div class="home-cl-bar"><div class="home-cl-fill" style="width:${pct}%"></div></div><span class="home-cl-pct">${hechas}/${mias.length}</span></div>` : ''}
+      <div class="home-cl-tasks">
+        ${!mias.length ? '<div class="home-empty">No tenés tareas asignadas hoy</div>'
+          : !faltan.length ? '<div style="color:var(--sage-dark);font-weight:600;font-size:13px;padding:8px 0">¡Hiciste todas tus tareas!</div>'
+          : faltan.map(o=>`<div class="home-cl-task" onclick="navigate('checklist')" style="cursor:pointer">· ${esc(o.t.zona)} — ${esc(o.t.actividad||'')}</div>`).join('')}
+      </div>
+    </div>
+    <div class="home-dash-card">
+      <div class="home-dash-card-hdr">
+        <div class="home-dash-title">Mis eventos</div>
+        <button class="btn-secondary" style="padding:5px 12px;font-size:12px" onclick="navigate('eventos-maison')">Ver →</button>
+      </div>
+      ${misEv.length ? misEv.map(({ev,roles})=>`<div class="home-ev-row" onclick="navigate('eventos-maison')" style="cursor:pointer">
+        <div class="home-ev-info">
+          <div class="home-ev-nombre">${esc(ev.nombre)}${ev.fecha===hoy?' <span class="badge-hoy">HOY</span>':''}</div>
+          <div class="home-ev-meta">${fmtDate(ev.fecha)}${ev.hora?' · '+esc(ev.hora):''}</div>
+        </div>
+        <span class="home-ev-estado">${roles.join(' · ')}</span>
+      </div>`).join('') : '<div class="home-empty">No tenés eventos para armar</div>'}
+    </div>`;
+}
+
 function renderHome(){
   if(!document.getElementById('home-kpis')) return;
 
+  const grid0 = document.querySelector('#page-home .home-dash-grid'); if(grid0) grid0.style.gridTemplateColumns = '';
   const hoy = TODAY_ISO;
   const mesActual = hoy.slice(0, 7);
   const isFlorHome = userRole !== 'gerencia'; // solo gerencia ve ventas y alertas
@@ -637,6 +689,12 @@ function renderHome(){
   const hechas = checked.filter(Boolean).length;
   const pct = totalTareas > 0 ? Math.round(hechas / totalTareas * 100) : 0;
   const pendientesCL = CL_TASKS.filter((_,i) => !checked[i]).slice(0, 5);
+
+  // Florista: solo lo suyo (sus tareas y sus eventos), nada más
+  if(userRole==='florista' && floristaNombre){
+    _renderHomeFlorista(activos, checked);
+    return;
+  }
 
   const recAlerts = jardRecordatorios.filter(r=>recEstado(r)==='vencido'||recEstado(r)==='proximo');
   const atencion = isFlorHome ? [] : _homeAtencion(recAlerts);
@@ -2143,6 +2201,7 @@ function filterBySucursal(arr, campo='sucursal'){
   return arr.filter(r => (r[campo] || 'duhau') === target);
 }
 function applyRole(role){
+  document.getElementById('inicio-jornada-overlay')?.remove();
   userRole = role;
   window.userRole = role; // expuesto para el listener de avisos (targeting por rol)
   // Marcar el body con la clase del rol — el CSS oculta .gerencia-only automáticamente
@@ -2163,7 +2222,7 @@ function applyRole(role){
   renderSidebarNav(role, !!jardineroNombre);
   setUserMenuInfo(window.currentUserLabel || floristaNombre || jardineroNombre || role);
 
-  if(role === 'florista') showToast('Hola ' + floristaNombre + '!');
+  if(role === 'florista'){ showToast('Hola ' + floristaNombre + '!'); setTimeout(()=>renderInicioJornada(true), 2500); }
   if(role === 'comercial') showToast('Hola Euge!');
   if(role === 'ventas'){
     setTimeout(()=> navigate('home-hyatt'), 100);
@@ -4225,7 +4284,7 @@ Object.assign(window, {
   renderHomeHyatt, renderHoraCell, renderHorarios, renderJardLog, renderJardOps,
   renderJardProdEquipo, renderJardTurnoCard, renderJardReporte, renderJordProd, renderKanban,
   jardSetJardinero, jardRegistrarHoraTurno, jardResetHoraTurno, jardProdDiaClick,
-  florRegistrarTurno, florResetTurno, renderFlorTurnoCard,
+  florRegistrarTurno, florResetTurno, renderFlorTurnoCard, renderInicioJornada,
   renderLPenCotizador, renderListaPrecios,
   renderPedidosHab, renderPeriodTabs, renderPlantilla, renderPreciosList, renderProductividad,
   renderProductividadHome, renderProductividadCL, renderProductividadHorarios, renderProvTags, renderRamosDisp, renderRecepcionPedidos,

@@ -917,6 +917,8 @@
 
       fbListen('florTurnos', val => {
         window.florTurnos = val && typeof val === 'object' ? val : {};
+        window._florTurnosLlego = true;
+        window.renderInicioJornada?.();
         if(document.getElementById('page-checklist')?.classList.contains('active')) window.renderFlorTurnoCard?.();
         if(document.getElementById('page-home')?.classList.contains('active')) window.renderProductividadHome?.();
         if(document.getElementById('page-control-horarios')?.classList.contains('active')) window.renderHorarios?.();

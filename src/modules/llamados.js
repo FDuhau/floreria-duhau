@@ -216,6 +216,7 @@ export function florRegistrarTurno(campo){
     window.fbSetPath?.('jardHorarios/'+D.floristaNombre+'/'+D.TODAY_ISO+'/'+campo, hh+':'+mm);
   }
   renderFlorTurnoCard();
+  renderInicioJornada();
   showToast(campo==='inicio' ? 'Jornada iniciada: '+hh+':'+mm : 'Jornada finalizada: '+hh+':'+mm);
 }
 
@@ -229,6 +230,7 @@ export function florResetTurno(campo){
     window.fbSetPath?.('jardHorarios/'+D.floristaNombre+'/'+D.TODAY_ISO+'/'+campo, '');
   }
   renderFlorTurnoCard();
+  renderInicioJornada();
 }
 
 export function renderFlorTurnoCard(){
@@ -277,4 +279,42 @@ export function renderFlorTurnoCard(){
         : inicio ? `<button class="btn-hora-fin" onclick="florRegistrarTurno('fin')">${icon('stop')}Fin de jornada</button>` : ''}
     </div>
   </div>`;
+}
+
+// ── Cartel obligatorio de "Inicio de jornada" ────────────────────────────────
+// La florista no puede usar la app hasta registrar su inicio: no tiene cruz,
+// no se cierra con Esc ni tocando afuera. Desaparece solo cuando hay inicio hoy.
+// force=true: mostrarlo aunque todavía no haya llegado el dato de Firebase.
+let _ijTimer = null;
+export function renderInicioJornada(force){
+  let ov = document.getElementById('inicio-jornada-overlay');
+  const debeMostrar = D.userRole === 'florista' && !!D.floristaNombre
+    && !(window.florTurnos?.[D.floristaNombre]?.[D.TODAY_ISO]?.inicio)
+    && (force || window._florTurnosLlego);
+  if(!debeMostrar){
+    if(ov) ov.remove();
+    if(_ijTimer){ clearInterval(_ijTimer); _ijTimer = null; }
+    return;
+  }
+  if(ov) return;
+  ov = document.createElement('div');
+  ov.id = 'inicio-jornada-overlay';
+  ov.className = 'ij-overlay';
+  ov.setAttribute('role', 'alertdialog');
+  ov.setAttribute('aria-modal', 'true');
+  ov.innerHTML = `<div class="ij-box">
+    <div class="ij-hola">Hola ${esc(D.floristaNombre)}</div>
+    <div class="ij-titulo">Inicio de jornada</div>
+    <div class="ij-hora" id="ij-hora"></div>
+    <div class="ij-txt">Registrá tu entrada para empezar el día.</div>
+    <button type="button" class="ij-btn" id="ij-btn" onclick="florRegistrarTurno('inicio')">Iniciar jornada</button>
+  </div>`;
+  document.body.appendChild(ov);
+  const tick = () => {
+    const el = document.getElementById('ij-hora'); if(!el) return;
+    const n = new Date();
+    el.textContent = String(n.getHours()).padStart(2,'0') + ':' + String(n.getMinutes()).padStart(2,'0');
+  };
+  tick(); _ijTimer = setInterval(tick, 15000);
+  document.getElementById('ij-btn')?.focus();
 }

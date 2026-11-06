@@ -1467,3 +1467,14 @@ canvas { max-width:100%; }
 .home-at-txt small { display:block; font-size:12px; color:var(--mid-gray); margin-top:2px; }
 .home-at-go { font-size:12px; color:var(--mid-gray); white-space:nowrap; }
 @media (max-width:768px){ .home-hero { padding:18px 20px; } .home-hero-title { font-size:24px; } }
+
+/* ── Cartel obligatorio de inicio de jornada (florista) ── */
+.ij-overlay { position:fixed; inset:0; z-index:5000; background:rgba(17,17,16,.94); display:flex; align-items:center; justify-content:center; padding:24px; }
+.ij-box { background:#FDFCFB; border-radius:var(--radius-md); padding:40px 36px; max-width:440px; width:100%; text-align:center; box-shadow:var(--shadow-lg); }
+.ij-hola { font-size:14px; color:var(--mid-gray); margin-bottom:6px; }
+.ij-titulo { font-family:'Cormorant Garamond',serif; font-size:38px; font-weight:500; line-height:1.1; color:var(--charcoal); }
+.ij-hora { font-size:44px; font-weight:700; color:var(--charcoal); margin:18px 0 6px; letter-spacing:1px; }
+.ij-txt { font-size:14px; color:var(--mid-gray); margin-bottom:24px; }
+.ij-btn { width:100%; padding:18px; font-size:18px; font-weight:700; letter-spacing:.3px; border:none; border-radius:12px; background:var(--accent); color:#fff; cursor:pointer; font-family:inherit; }
+.ij-btn:active { transform:scale(.98); }
+@media (max-width:480px){ .ij-box { padding:32px 22px; } .ij-titulo { font-size:32px; } }
