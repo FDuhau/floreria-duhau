@@ -1,5 +1,5 @@
 // Separado de app.js. Lo que necesita de app.js llega por configurarResumenes():
-//   TODAY_ISO, checklistHistory, clStateByDay, eventosData, fbSave, floristaNombre, fmtMin, jardRecordatorios, jardineroNombre, recEstado, userRole
+//   TODAY_ISO, checklistHistory, comprasFlore, clStateByDay, eventosData, fbSave, floristaNombre, fmtMin, jardRecordatorios, jardineroNombre, recEstado, userRole
 
 import { getEmpleadosActivos, getFloristasActivos, isJardinero } from './horarios.js';
 import { _metricasEmpleadoPeriodo, _metricasHTML, _mismoNombre, _rangoSemana } from './reportes.js';
@@ -7,6 +7,7 @@ import { CL_TASKS, _zonaKey, calcDuracion, currentDay, eventoFase, eventoFlorFas
 import { ventasData } from './ventas.js';
 import { esc, fmtDate, parseMoney } from './utils.js';
 import { icon } from './iconos.js';
+import { cambiosDePrecio, resumenCambios } from './alertas-precio.js';
 import { mostrarEventosDelDia } from './eventos.js';
 
 let D = {};
@@ -293,11 +294,13 @@ export function mostrarBriefingDia(retry = 0){
     const conTurno = getFloristasActivos().filter(n => (window.horariosData||{})[n]?.[D.TODAY_ISO]?.desde);
     const hechas = (ds.checked||[]).filter(Boolean).length;
     const venc = D.jardRecordatorios.filter(r=>D.recEstado(r)==='vencido').length;
+    const cambiosPrecio = resumenCambios(cambiosDePrecio(D.comprasFlore || [], { hoy: D.TODAY_ISO, dias: 7 }));
     rows = [
       ['', evsHoy.length ? `${evsHoy.length} evento${evsHoy.length!==1?'s':''} hoy: ${esc(evsHoy.map(e=>e.nombre).slice(0,2).join(' · '))}` : 'Sin eventos hoy'],
       ['', conTurno.length ? 'Con turno hoy: ' + esc(conTurno.join(', ')) : 'Nadie con turno asignado hoy'],
       ['', `Checklist: ${hechas} de ${CL_TASKS.length} tareas hechas`],
       venc ? ['', `${venc} recordatorio${venc!==1?'s':''} de jardín vencido${venc!==1?'s':''}`] : null,
+      cambiosPrecio ? ['', esc(cambiosPrecio) + ' (ver Costo de varas)'] : null,
     ];
   } else if(D.userRole==='jardinero'){
     const venc = D.jardRecordatorios.filter(r=>D.recEstado(r)==='vencido').length;
