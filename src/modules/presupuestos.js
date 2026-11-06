@@ -7,7 +7,8 @@ import { validarCampos } from './validacion.js';
 import { showToast } from './tema-toast.js';
 import { confirmModal } from './modales.js';
 import { MARCA, abrirDocumento, fmtPesos } from './documento-marca.js';
-import { calcCostoComposicion, cotizadorPrecios, resolveCotizadorPrecio } from './cotizador.js';
+import { _ingVaras, calcCostoComposicion, cotizadorPrecios, resolveCotizadorPrecio } from './cotizador.js';
+import { cambiosDePrecio, impactoEnComposiciones } from './alertas-precio.js';
 import { getUltimoPrecioCompra, recalcCotizadorPrecio } from './compras.js';
 import { claveArticulo, costoGuardado, mismoArticulo, nombresPorArticulo } from './articulos-base.js';
 
@@ -476,7 +477,39 @@ export function renderCostoVaras(){
   const dl = document.getElementById('cv-prod-list');
   if(dl) dl.innerHTML = cvProductos().map(p=>`<option value="${esc(p)}">`).join('');
   cvRender();
+  cvCambiosRender();
   cvCatRender();
+}
+
+// ── Cambios de precio recientes ──────────────────────────────────────────────
+// Flores que subieron o bajaron en las últimas compras, si cambiaron de
+// categoría y cuánto cambia el costo de cada composición que las usa.
+function cvCambiosRender(){
+  const out = document.getElementById('cv-cambios');
+  if(!out) return;
+  const cambios = cambiosDePrecio(D.comprasFlore, { hoy: D.TODAY_ISO, dias: 21, umbralPct: 10 });
+  if(!cambios.length){
+    out.innerHTML = '<div style="font-size:13px;color:var(--mid-gray)">No hubo cambios de precio importantes en las últimas 3 semanas.</div>';
+    return;
+  }
+  const comps = { recetas: D.recetasData || [], arreglos: D.arreglosComposicion || {}, varasDe: _ingVaras };
+  out.innerHTML = cambios.map(c => {
+    const imp = impactoEnComposiciones(c.prod, c.antes, c.ahora, comps);
+    const color = c.subio ? 'var(--amber)' : 'var(--sage-dark)';
+    const pct = (c.subio ? '+' : '') + Math.round(c.pct) + '%';
+    const cat = c.cambioCategoria
+      ? `<span style="font-size:12px;color:${color};font-weight:600">${c.subio?'subió':'bajó'} de ${esc(c.catAntes.corto.toLowerCase())} a ${esc(c.catAhora.corto.toLowerCase())}</span>` : '';
+    const detalle = imp.length
+      ? `<div style="margin-top:6px;font-size:12.5px;color:var(--mid-gray)">${imp.slice(0,8).map(i => `${esc(i.nombre)}: <strong style="color:${i.dif>0?'var(--amber)':'var(--sage-dark)'}">${i.dif>0?'+':'−'}${_cpMoney(Math.abs(i.dif))}</strong>`).join(' · ')}${imp.length>8?` · y ${imp.length-8} más`:''}</div>`
+      : '<div style="margin-top:6px;font-size:12.5px;color:var(--mid-gray)">Ninguna composición cargada la usa.</div>';
+    return `<div style="border:1px solid ${c.cambioCategoria&&c.subio?'var(--amber)':'var(--light-gray)'};border-radius:10px;padding:10px 12px;margin-bottom:8px;background:var(--warm-white)">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:baseline">
+        <strong style="font-size:14px">${esc(c.prod)}</strong>
+        <span style="font-size:13px">${_cpMoney(c.antes)} → ${_cpMoney(c.ahora)} la vara</span>
+        <span style="font-size:13px;font-weight:600;color:${color}">${pct}</span>${cat}
+        <span style="font-size:11.5px;color:var(--mid-gray);margin-left:auto">compra del ${_ddmm(c.fecha)}</span>
+      </div>${detalle}</div>`;
+  }).join('');
 }
 
 // ── Categoría actual de cada vara (estación / importada / premium) ───────────
