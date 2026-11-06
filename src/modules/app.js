@@ -337,7 +337,7 @@ configurarChecklist({ get DIAS_SEMANA_NAMES(){ return DIAS_SEMANA_NAMES; }, TODA
 
 let stockData = [];
 configurarStock({ closeModal, get comprasFlore(){ return comprasFlore; }, get comprasJard(){ return comprasJard; }, estaEditando, get eventosData(){ return eventosData; }, fbSave, get stockData(){ return stockData; } });
-configurarRecepcion({ get comprasFlore(){ return comprasFlore; }, fbSave, get stockData(){ return stockData; } });
+configurarRecepcion({ TODAY_ISO, get comprasFlore(){ return comprasFlore; }, fbSave, get stockData(){ return stockData; } });
 configurarPresupuestos({ TODAY_ISO, arregloEmoji, closeModal, get comprasFlore(){ return comprasFlore; }, fbSave, navigate, get recetasData(){ return recetasData; }, get stockData(){ return stockData; } });
 configurarComposiciones({ get _arreglosComposicionLoaded(){ return _arreglosComposicionLoaded; }, _marcarArreglosComposicionCargado, _saveArreglosComposicion, get arreglosComposicion(){ return arreglosComposicion; }, calcCostoArreglo, closeModal, fbSave, getAllInsumos, openArregloComposicion, get recetasData(){ return recetasData; }, renderRentabilidadHotel, get userRole(){ return userRole; } });
 configurarPedidosRamos({ TODAY_ISO, closeModal, fbSave, getFloristasActivos, getSucursalId, get recetasData(){ return recetasData; }, renderRamosDisp, get userRole(){ return userRole; } });

@@ -1,5 +1,5 @@
 // Separado de app.js. Lo que necesita de app.js llega por configurarRecepcion():
-//   comprasFlore, fbSave, stockData
+//   TODAY_ISO, comprasFlore, fbSave, stockData
 
 import { esc, fmtDate, parseMoney } from './utils.js';
 import { getVarasPorPaq, renderCompras } from './compras.js';
@@ -11,6 +11,8 @@ import { claveCostoPara } from './articulos-base.js';
 import { icon } from './iconos.js';
 import { comprimirImagen } from './imagenes.js';
 import { cartelCategoriaVara, historialCostoVara } from './categoria-vara.js';
+import { cantidadReclamos, mensajeReclamo, reclamosPendientes } from './reclamos-base.js';
+import { linkWhatsApp } from './ventas-base.js';
 
 let D = {};
 export function configurarRecepcion(deps){ D = deps; }
@@ -50,6 +52,7 @@ export function renderRecepcionPedidos(){
   // La lista de revisión se muestra siempre que haya controlados (aunque no
   // queden pedidos por controlar).
   _renderRevisionRecep(controlados);
+  _renderReclamos();
 
   if(allPending.length === 0){
     listEl.innerHTML = '';
@@ -535,3 +538,54 @@ export function recepConfirmar(globalIdx){
   showToast(`"${order.prod}" controlado — revisalo abajo antes de subir al stock`);
   renderRecepcionPedidos();
 }
+
+// ── Reclamos al proveedor: faltantes y mercadería en mal estado ──────────────
+// Junta lo que llegó de menos o en mal estado de los últimos 30 días, por
+// proveedor, con el mensaje listo para copiar o mandar por WhatsApp.
+function _reclamosGrupos(){ return reclamosPendientes(D.comprasFlore, { hoy: D.TODAY_ISO, dias: 30 }); }
+
+function _renderReclamos(){
+  const el = document.getElementById('recep-reclamos');
+  if(!el) return;
+  const grupos = _reclamosGrupos();
+  if(!grupos.length){ el.style.display = 'none'; el.innerHTML = ''; return; }
+  el.style.display = '';
+  const n = cantidadReclamos(grupos);
+  el.innerHTML = `<div style="background:#FDF3F1;border:1px solid #F0D0CA;border-radius:10px;padding:16px 18px;margin-bottom:20px">
+    <div style="font-weight:700;color:var(--red-alert);margin-bottom:2px">Para reclamar — ${n} ítem${n!==1?'s':''}</div>
+    <div style="font-size:12px;color:var(--mid-gray);margin-bottom:12px">Lo que llegó de menos o en mal estado. Copiá el mensaje o mandalo por WhatsApp, y después marcalo como reclamado.</div>
+    ${grupos.map((g, gi) => `<div style="background:var(--warm-white);border:1px solid var(--light-gray);border-radius:8px;padding:12px 14px;margin-bottom:10px">
+      <div style="font-weight:600;margin-bottom:6px">${esc(g.prov)}</div>
+      ${g.items.map(it => `<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;padding:6px 0;border-top:1px solid var(--light-gray);font-size:13px">
+        <div style="flex:1;min-width:160px"><strong>${esc(it.prod)}</strong>
+          <span style="color:var(--mid-gray)">${it.fecha ? ' · ' + esc(fmtDate(it.fecha)) : ''}</span>
+          <div style="font-size:12px;color:var(--red-alert);font-weight:600">${[it.faltan > 0 ? `Faltaron ${it.faltan} paq (pedidos ${it.pedidos}, llegaron ${it.recibidos})` : '', it.malEstado ? 'Mal estado' + (it.obs ? ': ' + esc(it.obs) : '') : ''].filter(Boolean).join(' · ')}${it.foto ? ` · <a onclick="verFotoRecep(${it.idx})" style="cursor:pointer;text-decoration:underline">ver foto</a>` : ''}</div>
+        </div>
+        <button class="btn-secondary" style="font-size:12px;padding:5px 10px;white-space:nowrap" onclick="recepMarcarReclamado(${it.idx})">Ya reclamé</button>
+      </div>`).join('')}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+        <button class="btn-secondary" onclick="recepCopiarReclamo(${gi})">Copiar mensaje</button>
+        <button class="btn-secondary" onclick="recepWhatsAppReclamo(${gi})">WhatsApp</button>
+      </div>
+    </div>`).join('')}
+  </div>`;
+}
+
+export async function recepCopiarReclamo(gi){
+  const g = _reclamosGrupos()[gi]; if(!g) return;
+  try{ await navigator.clipboard.writeText(mensajeReclamo(g)); showToast('Mensaje copiado'); }
+  catch(e){ showToast('No se pudo copiar. Probá con el botón de WhatsApp'); }
+}
+export function recepWhatsAppReclamo(gi){
+  const g = _reclamosGrupos()[gi]; if(!g) return;
+  window.open(linkWhatsApp('', mensajeReclamo(g)), '_blank', 'noopener');
+}
+export function recepMarcarReclamado(idx){
+  const c = D.comprasFlore[idx]; if(!c) return;
+  c.reclamado = true;
+  c.reclamadoFecha = D.TODAY_ISO;
+  _recepSave();
+  showToast('Marcado como reclamado');
+  renderRecepcionPedidos();
+}
+Object.assign(window, { recepCopiarReclamo, recepWhatsAppReclamo, recepMarcarReclamado });
