@@ -31,7 +31,7 @@ import { renderProveedores, openProveedorModal, guardarProveedor, eliminarProvee
 import { renderClientes, abrirFichaCliente, openNuevoClienteModal, editarCliente, guardarCliente, eliminarCliente, getClientesData } from './crm-clientes.js';
 import { installPWA } from './pwa.js';
 import { toggleSidebar, openSidebar, closeSidebar } from './sidebar.js';
-import { configurarFotosRamo, abrirFotoRamo, elegirFotoRamo, eliminarFotoRamo, compartirFotoRamo, ofrecerFotoRamo, limpiarFotosRamoVencidas } from './fotos-ramo.js';
+import { configurarFotosRamo, abrirFotoRamo, elegirFotoRamo, eliminarFotoRamo, compartirFotoRamo, ofrecerFotoRamo, limpiarFotosRamoVencidas, setFotosRamoMeta, revisarFotoRamoPendiente } from './fotos-ramo.js';
 import { pedidosHabData, configurarPedidosHab, renderHomeHyatt, renderPedidosHab, enviarPedidoHab, updPedidoHabEstado, delPedidoHab, phAddItemRow, phSetItemTipo, phSetItemQty, phRemoveItemRow } from './pedidos-habitacion.js';
 import { alertasAutomaticas } from './alertas-automaticas.js';
 import { configurarCotizadorEventos, initCotizadorEventosHyatt, calcularArreglosEvento, recalcTotalEvento, generarTextoCotEvento, enviarCotizacionEvento, copiarCotizacionEvento } from './cotizador-eventos.js';
@@ -2130,11 +2130,19 @@ configurarFotosRamo({
   getVentas: ()=>ventasData, genId: genEventoId, fbSave: (...a)=>fbSave(...a),
   onCambio: ()=>{ if(document.getElementById('page-ventas-externas')?.classList.contains('active')) renderVentas(); },
 });
+// Qué ventas tienen foto hoy (listener liviano de fotosRamoMeta).
+window._setFotosRamoMeta = val => {
+  setFotosRamoMeta(val);
+  if(document.getElementById('page-ventas-externas')?.classList.contains('active') && !estaEditando('page-ventas-externas')) renderVentas();
+};
 // Borrar fotos de ramos con más de 48 hs (respaldo del cron del Worker).
 (function _limpiezaFotosRamo(){
   const correr = () => { if(window.fbReady) limpiarFotosRamoVencidas(); else setTimeout(correr, 5000); };
   setTimeout(correr, 15000);
   setInterval(correr, 3600*1000);
+  // Foto que quedó a medias porque la app se cerró al abrir la cámara.
+  const pendiente = () => { if(window.fbReady && window.userRole && ventasData.length) revisarFotoRamoPendiente(); else setTimeout(pendiente, 3000); };
+  setTimeout(pendiente, 4000);
 })();
 configurarPedidosHab({
   recetas: ()=>recetasData, ramos: ()=>ramosDispData, cotizador: ()=>cotizadorConfig,
