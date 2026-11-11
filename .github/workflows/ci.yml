@@ -31,8 +31,18 @@ jobs:
       - name: Tests unitarios (lógica de dinero)
         run: npm test
 
+      # Con --with-deps Playwright baja paquetes (incluidas fuentes) de los servidores de
+      # Ubuntu; si la red del runner falla (pasó el 11/11) se cae todo el chequeo. Se
+      # reintenta y, si sigue sin red, se instala solo el navegador (las librerías base
+      # ya vienen en ubuntu-latest; las fuentes extra no hacen falta para el smoke test).
       - name: Install Chromium (Playwright)
-        run: npx playwright install --with-deps chromium
+        run: |
+          for i in 1 2; do
+            timeout 180 npx playwright install --with-deps chromium && exit 0
+            echo "Intento $i falló; reintento en 20 s"; sleep 20
+          done
+          echo "Sin red para apt: instalo solo el navegador"
+          npx playwright install chromium
 
       - name: Smoke test
         run: npm run test:smoke
