@@ -1488,6 +1488,17 @@ function _paResetBaseSel(){
   _paAreasBase().forEach(a => { const d = _paAreaDia(a); _paBaseSel[a] = (d==='ambos' || d===_paDia); });
 }
 
+// Agrupa los arreglos de un evento por paleta de color ('' = sin paleta definida).
+function _paGruposPaleta(ev){
+  const g = new Map();
+  (ev.arreglos||[]).forEach(a => {
+    const k = String(a.paleta||'').trim();
+    if(!g.has(k)) g.set(k, []);
+    g.get(k).push(a);
+  });
+  return [...g.entries()].map(([paleta, arreglos]) => ({ paleta, arreglos }));
+}
+
 // Construye las filas de compra que se van a generar (base + eventos).
 function _paBuildRows(){
   const rows = [];
@@ -1501,13 +1512,17 @@ function _paBuildRows(){
   // Flores de eventos pendientes
   _paEventosPend().forEach(({ev,i}) => {
     if(!_paEvSel[i]) return;
-    const impact = D.calcStockImpact(ev.arreglos||[]);
-    Object.entries(impact).forEach(([prod,varas]) => {
-      const vpp = getVarasPorPaq(prod);
-      let qty = vpp ? Math.ceil(varas/vpp) : Math.ceil(varas);
-      if(qty<=0) qty = 1;
-      const up = getUltimoPrecioCompra(prod);
-      rows.push({ fecha:D.TODAY_ISO, pedidopor:'—', prod, desc:'', qty, costo: up?String(up.precio):'', prov:'', sector:'', eventoId: ev.id||'', evento: ev.nombre||'', estado:'pedido', sucursal:suc });
+    // Una tanda por paleta de color: la paleta va en la descripción del pedido
+    // (así Recepción la usa para cargar el stock por color) y avisa qué flor comprar.
+    _paGruposPaleta(ev).forEach(({paleta, arreglos}) => {
+      const impact = D.calcStockImpact(arreglos);
+      Object.entries(impact).forEach(([prod,varas]) => {
+        const vpp = getVarasPorPaq(prod);
+        let qty = vpp ? Math.ceil(varas/vpp) : Math.ceil(varas);
+        if(qty<=0) qty = 1;
+        const up = getUltimoPrecioCompra(prod);
+        rows.push({ fecha:D.TODAY_ISO, pedidopor:'—', prod, desc:paleta, qty, costo: up?String(up.precio):'', prov:'', sector:'', eventoId: ev.id||'', evento: ev.nombre||'', estado:'pedido', sucursal:suc });
+      });
     });
   });
   return rows;
@@ -1568,14 +1583,19 @@ function renderPedidoAuto(){
     evHTML = `<div style="font-size:12.5px;color:var(--mid-gray);padding:10px;background:var(--surface-1);border-radius:8px">No hay eventos pendientes con arreglos cargados.</div>`;
   } else {
     evHTML = eventos.map(({ev,i})=>{
-      const impact = D.calcStockImpact(ev.arreglos||[]);
-      const resumen = Object.entries(impact).map(([p,v])=>{ const vpp=getVarasPorPaq(p); return `${Math.ceil(v)} varas de ${esc(p)}`+(vpp?` (${Math.ceil(v/vpp)} paq.)`:''); }).join(', ') || 'sin flores';
+      const resumen = _paGruposPaleta(ev).map(({paleta, arreglos})=>{
+        const imp = D.calcStockImpact(arreglos);
+        const txt = Object.entries(imp).map(([p,v])=>{ const vpp=getVarasPorPaq(p); return `${Math.ceil(v)} varas de ${esc(p)}`+(vpp?` (${Math.ceil(v/vpp)} paq.)`:''); }).join(', ');
+        return txt ? (paleta ? `<strong>${esc(paleta)}:</strong> ${txt}` : txt) : '';
+      }).filter(Boolean).join(' · ') || 'sin flores';
+      const sinPaleta = (ev.arreglos||[]).some(a=>!String(a.paleta||'').trim());
       const sel = !!_paEvSel[i];
       return `<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 4px;border-top:1px solid var(--surface-2)">
         <input type="checkbox" ${sel?'checked':''} onchange="paToggleEvento(${i})" style="margin-top:3px;width:16px;height:16px;flex:0 0 auto">
         <div style="flex:1;min-width:0">
           <div style="font-weight:600;font-size:13px">${esc(ev.nombre||'(evento)')} <span style="font-weight:400;color:var(--mid-gray)">${ev.fecha?'· '+fmtDate(ev.fecha):''}</span></div>
           <div style="font-size:12px;color:var(--mid-gray);margin-top:2px">${resumen}</div>
+          ${sinPaleta?'<div style="font-size:12px;color:var(--amber);margin-top:2px">Falta definir la paleta de color en algún arreglo (se carga al editar el evento).</div>':''}
         </div>
       </div>`;
     }).join('');
