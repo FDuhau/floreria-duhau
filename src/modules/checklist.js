@@ -10,6 +10,7 @@ import { icon } from './iconos.js';
 import { ventasData } from './ventas.js';
 import { comprimirImagen } from './imagenes.js';
 import { diaAnterior, pasablesAHoy, pendientesDeAyer } from './checklist-ayer.js';
+import { repartirNuevos, sinPlanificar } from './nuevos-semana-base.js';
 
 let D = {};
 export function configurarChecklist(deps){
@@ -943,6 +944,7 @@ function renderNuevosAtrasadosBanner(){
       <div class="cl-aviso-tit">${list.length} zona${list.length!==1?'s':''} con Nuevo atrasado (${UMBRAL_NUEVO_ATRASADO}+ días)</div>
       <div class="cl-aviso-sub">Tocá una zona para programarle un Nuevo el ${currentDay}, o planificalo desde <button class="cl-link" onclick="openVistaSemanal()">la vista semanal</button>.</div>
       <div class="cl-aviso-chips">${chips}${verMas}</div>
+      ${_planNuevos(list).sinPlan.length > 1 && currentDay === D.TODAY_DAY ? `<div style="margin-top:10px"><button class="btn-secondary" style="font-size:12px" onclick="clRepartirNuevos()">Repartir en la semana</button></div>` : ''}
     </div>
   </div>`;
 }
@@ -1662,6 +1664,33 @@ export async function clCopiarDe(src){
     saveWeekState(currentDay, 'responsable');
     showToast(`Responsables copiados del ${src}`);
   }
+  renderChecklistTable();
+}
+
+// ── Repartir los Nuevo atrasados en lo que queda de la semana (gerencia) ─────
+// Toma las zonas atrasadas que todavía no tienen un Nuevo planificado esta semana
+// y las reparte de hoy al sábado, las más atrasadas primero.
+function _planNuevos(list){
+  const dias = D.DIAS_SEMANA_NAMES.slice(Math.max(D.DIAS_SEMANA_NAMES.indexOf(D.TODAY_DAY), 0));
+  const planificadas = new Set();
+  dias.forEach(d=>{
+    const ds = D.clStateByDay[d]; if(!ds) return;
+    CL_TASKS.forEach((t,i)=>{ if(String(ds.actividad?.[i]||'').toLowerCase()==='nuevo' && !ds.checked?.[i]) planificadas.add(_zonaKey(t.sec,t.zona)); });
+  });
+  const sinPlan = sinPlanificar(list, planificadas, z=>_zonaKey(z.sec,z.zona));
+  return { dias, sinPlan, plan: repartirNuevos(sinPlan, dias) };
+}
+
+export async function clRepartirNuevos(){
+  const { plan, sinPlan } = _planNuevos(nuevosAtrasados());
+  if(!plan.length){ showToast('No hay Nuevos atrasados sin planificar'); return; }
+  const txt = plan.map(p=>`${p.dia}: ${p.zonas.map(z=>z.zona).join(', ')}`).join('\n');
+  if(!await confirmModal(`Se van a programar ${sinPlan.length} arreglos Nuevo, los más atrasados primero:\n\n${txt}\n\nPodés cambiar cualquiera después.`, { title:'Repartir Nuevos en la semana', okText:'Programar' })) return;
+  plan.forEach(p=>p.zonas.forEach(z=>{
+    const i = CL_TASKS.findIndex(t=>t.sec===z.sec && t.zona===z.zona);
+    if(i>=0) setActividadDia(p.dia, i, 'Nuevo');
+  }));
+  showToast(`✓ ${sinPlan.length} Nuevos programados hasta el ${plan[plan.length-1].dia}`);
   renderChecklistTable();
 }
 
