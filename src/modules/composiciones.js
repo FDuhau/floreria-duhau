@@ -5,7 +5,9 @@ import { showToast } from './tema-toast.js';
 import { confirmModal, promptModal } from './modales.js';
 import { esc } from './utils.js';
 import { nombreArticulo } from './articulos-base.js';
-import { _ingVaras, calcCostoComposicion } from './cotizador.js';
+import { _ingVaras, calcCostoComposicion, cotizadorConfig } from './cotizador.js';
+import { _stockFilasDe } from './stock.js';
+import { precioSugerido, unidadesPosibles } from './composicion-base.js';
 import { getAreaUsoZonas } from './compras.js';
 import { leerFotoComprimida } from './imagenes.js';
 import { badgeCategoriaVaraDe } from './categoria-vara.js';
@@ -137,6 +139,26 @@ export async function seedComposicionesHotelBase(){
 }
 
 // ── renderRecetas ─────────────────────────────────────────────────────────────
+// Precio sugerido (con el margen del cotizador) y cuántos arreglos alcanzan con el stock de hoy.
+function _stockVarasDe(prod){ return _stockFilasDe(prod).reduce((s,f)=>s+(parseFloat(f.actual)||0),0); }
+function _filaPrecioYStock(ings, costo){
+  const margen = cotizadorConfig?.margen ?? 30;
+  const precio = precioSugerido(costo, margen);
+  const u = unidadesPosibles(ings, _ingVaras, _stockVarasDe);
+  let stockTxt = '';
+  if(u){
+    const col = u.n === 0 ? 'var(--red-alert)' : u.n <= 2 ? '#A06A00' : 'var(--green-ok)';
+    const detalle = u.n === 0
+      ? (u.sinStock.length ? 'sin stock de ' + u.sinStock.map(esc).join(', ') : 'falta ' + esc(u.limitante))
+      : (u.limitante ? 'limita ' + esc(u.limitante) : '');
+    stockTxt = `<span style="color:${col};font-weight:600">${u.n === 0 ? 'No alcanza' : 'Alcanza para ' + u.n}</span><span style="color:var(--mid-gray)"> · ${detalle}</span>`;
+  }
+  if(!precio && !stockTxt) return '';
+  return `<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-top:6px;font-size:12px">
+    ${precio ? `<span style="color:var(--mid-gray)">Precio sugerido (+${margen}%): <b style="color:var(--charcoal)">$${precio.toLocaleString('es-AR')}</b></span>` : '<span></span>'}
+    <span>${stockTxt}</span></div>`;
+}
+
 export function renderRecetas(){
   const grid = document.getElementById('recetas-grid');
   if(!grid) return;
@@ -159,7 +181,7 @@ export function renderRecetas(){
             <span style="background:var(--surface-2);border-radius:4px;padding:2px 8px;font-size:12px;font-weight:600">${_fmtCant(ing.qty)} vara${(+ing.qty)===1?'':'s'}</span>
           </div>`).join('')}
       </div>
-      ${(()=>{ const c = calcCostoComposicion(r); return `<div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:10px;padding-top:8px;border-top:1px solid var(--light-gray);font-size:12px"><span style="color:var(--mid-gray);letter-spacing:1px;text-transform:uppercase;font-weight:600;font-size:12px">Costo por unidad</span><b style="font-size:14px">${c>0?'$'+Math.round(c).toLocaleString('es-AR'):'sin costo'}</b></div>`; })()}
+      ${(()=>{ const c = calcCostoComposicion(r); return `<div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:10px;padding-top:8px;border-top:1px solid var(--light-gray);font-size:12px"><span style="color:var(--mid-gray);letter-spacing:1px;text-transform:uppercase;font-weight:600;font-size:12px">Costo por unidad</span><b style="font-size:14px">${c>0?'$'+Math.round(c).toLocaleString('es-AR'):'sin costo'}</b></div>` + _filaPrecioYStock(r.ings, c); })()}
     </div>`).join('');
 }
 
@@ -237,6 +259,7 @@ export function renderComposicionesHotel(){
         }).join('')}
       </div>
       <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:10px;padding-top:8px;border-top:1px solid var(--light-gray);font-size:12px"><span style="color:var(--mid-gray);letter-spacing:1px;text-transform:uppercase;font-weight:600;font-size:12px">Costo por unidad</span><b style="font-size:14px">${costo>0?'$'+costo.toLocaleString('es-AR'):'sin costo'}</b></div>
+      ${_filaPrecioYStock(ings, costo)}
     </div>`;
   }).join('');
 }
