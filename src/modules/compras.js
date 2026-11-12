@@ -958,7 +958,7 @@ export function renderCompras(type){
     const activosBloque = items.filter(r => !r.anulado);
     const anuladosBloque = items.length - activosBloque.length;
     const totalBloque = activosBloque.reduce((s,r) => s + _compraImporte(r), 0);
-    const anulables = activosBloque.filter(r => r.estado !== 'recibido').length;
+    const anulables = items.filter(r => r.estado !== 'recibido').length;
     const cantItems = activosBloque.length;
     const cantTotal = activosBloque.reduce((s,r) => s + (+r.qty||0), 0);
     // Ítems de este pedido listos para recibir (controlados, que llegaron) → botón
@@ -976,7 +976,7 @@ export function renderCompras(type){
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
             <span style="font-weight:600;color:var(--charcoal);font-size:13px">${totalBloque ? '$'+totalBloque.toLocaleString('es-AR') : ''}</span>
             ${controladosBloque>0 ? `<button class="btn-primary" style="font-size:12px;padding:4px 12px" onclick="recibirPedidoCompleto('${fecha}')" title="Recibir todos los ítems controlados de este pedido y subirlos al stock de una vez">✓ Recibir todo (${controladosBloque})</button>` : ''}
-            ${anulables>0 ? `<button class="btn-secondary" style="font-size:12px;padding:4px 10px;color:var(--red-alert)" onclick="anularBloquePedido('${type}','${fecha}')" title="Anular todos los ítems de este pedido que todavía no se recibieron">Anular pedido</button>` : (activosBloque.length===0 && anuladosBloque>0 ? `<button class="btn-secondary" style="font-size:12px;padding:4px 10px" onclick="reactivarBloquePedido('${type}','${fecha}')" title="Volver a activar los ítems anulados de este pedido">Reactivar pedido</button>` : '')}
+            ${anulables>0 ? `<button class="btn-secondary" style="font-size:12px;padding:4px 10px;color:var(--red-alert)" onclick="anularBloquePedido('${type}','${fecha}')" title="Borrar todos los ítems de este pedido que todavía no se recibieron">Anular pedido</button>` : ''}
             <button class="btn-secondary" style="font-size:12px;padding:4px 10px" onclick="copiarBloquePedido('${type}','${fecha}')" title="Copiar este pedido con fecha de hoy para modificar">Copiar pedido</button>
           </div>
         </div>
@@ -1347,29 +1347,23 @@ export async function toggleAnularCompra(type, idx){
   renderHistorialCompras(type);
 }
 
-// Anula de una vez todos los ítems de un pedido (fecha) que todavía no se recibieron.
-// Es reversible (Reactivar pedido) y no toca el stock: los recibidos quedan como están.
+// Elimina de una vez todos los ítems de un pedido (fecha) que todavía no se recibieron
+// (incluidos los que ya estaban anulados). Los recibidos no se tocan: ya impactaron en el stock.
 export async function anularBloquePedido(type, fecha){
   const arr = getArr(type);
-  const bloque = arr.filter(r => (r.fecha||'sin-fecha') === fecha && !r.anulado && r.estado !== 'recibido');
-  if(!bloque.length){ showToast('No hay ítems para anular en ese pedido'); return; }
-  const recibidos = arr.filter(r => (r.fecha||'sin-fecha') === fecha && !r.anulado && r.estado === 'recibido').length;
+  const enBloque = r => (r.fecha||'sin-fecha') === fecha;
+  const aBorrar = arr.filter(r => enBloque(r) && r.estado !== 'recibido');
+  if(!aBorrar.length){ showToast('No hay ítems para borrar en ese pedido'); return; }
+  const recibidos = arr.filter(r => enBloque(r) && r.estado === 'recibido').length;
   const nota = recibidos ? `\n\nLos ${recibidos} ítem${recibidos!==1?'s':''} ya recibido${recibidos!==1?'s':''} no se tocan.` : '';
-  if(!await confirmModal(`¿Anular el pedido del ${fecha!=='sin-fecha' ? fmtDate(fecha) : 'sin fecha'}?\n\nSe anulan ${bloque.length} ítem${bloque.length!==1?'s':''}: dejan de contar en costos y métricas. Se puede reactivar después.${nota}`)) return;
+  if(!await confirmModal(`¿Anular y borrar el pedido del ${fecha!=='sin-fecha' ? fmtDate(fecha) : 'sin fecha'}?\n\nSe eliminan ${aBorrar.length} ítem${aBorrar.length!==1?'s':''} de la lista. No se puede deshacer.${nota}`)) return;
   if(type==='floreria' && !window._comprasFloreLoaded){ showToast('Las compras todavía se están cargando — esperá unos segundos e intentá de nuevo.','error'); return; }
-  bloque.forEach(r => { r.anulado = true; });
+  const set = new Set(aBorrar);
+  for(let i = arr.length-1; i >= 0; i--){ if(set.has(arr[i])) arr.splice(i,1); }
   _guardarCompras(type);
-  showToast(`Pedido anulado: ${bloque.length} ítem${bloque.length!==1?'s':''}`);
+  showToast(`Pedido eliminado: ${aBorrar.length} ítem${aBorrar.length!==1?'s':''}`);
   renderCompras(type);
-}
-
-export function reactivarBloquePedido(type, fecha){
-  const bloque = getArr(type).filter(r => (r.fecha||'sin-fecha') === fecha && r.anulado);
-  if(!bloque.length) return;
-  bloque.forEach(r => { r.anulado = false; });
-  _guardarCompras(type);
-  showToast(`Pedido reactivado: ${bloque.length} ítem${bloque.length!==1?'s':''}`);
-  renderCompras(type);
+  updateKpiCompras();
 }
 
 function _guardarCompras(type){
