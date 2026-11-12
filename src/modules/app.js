@@ -3776,6 +3776,8 @@ function _renderCompModal(){
     return `<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
       <input list="comp-flor-list" value="${esc(r.prod)}" placeholder="Flor / follaje (opciones: A / B / C)" onchange="compUpdRow(${i},'prod',this.value)"
         style="flex:1;min-width:0;border:1px solid var(--light-gray);border-radius:6px;padding:5px 8px;font-size:12.5px;background:var(--warm-white);color:var(--charcoal)">
+      <input value="${esc(r.color||'')}" placeholder="color" maxlength="30" title="Color de esta flor (ej: blanco). Va directo al pedido en Compras y a la guía del florista" onchange="compUpdRow(${i},'color',this.value)"
+        style="width:74px;border:1px solid var(--light-gray);border-radius:6px;padding:5px 6px;font-size:12.5px;background:var(--warm-white);color:var(--charcoal)">
       <input type="number" min="0" value="${esc(r.qty)}" placeholder="cant." onchange="compUpdRow(${i},'qty',this.value)"
         style="width:52px;text-align:center;border:1px solid var(--light-gray);border-radius:6px;padding:5px 4px;font-size:12.5px;background:var(--warm-white);color:var(--charcoal)">
       <select onchange="compUpdRow(${i},'unidad',this.value)" title="Unidad" style="width:62px;border:1px solid var(--light-gray);border-radius:6px;padding:5px 2px;font-size:12px;background:var(--warm-white);color:var(--charcoal)">
@@ -3795,7 +3797,7 @@ function _renderCompModal(){
     <div style="font-size:12px;color:var(--mid-gray);margin-bottom:14px">Cargá qué flores lleva y la cantidad. Si un producto va por <strong>paquete</strong> (ej. Monstera, Limonium), elegí «paq» y se convierte a varas con las varas por paquete de <strong>Compras</strong>. El costo por vara también sale de Compras.</div>
     <datalist id="comp-flor-list">${_floresDatalistOpts()}</datalist>
     <div style="display:flex;gap:6px;font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--mid-gray);margin-bottom:5px">
-      <span style="flex:1">Flor / follaje</span><span style="width:52px;text-align:center">Cant.</span><span style="width:62px;text-align:center">Unidad</span><span style="width:58px;text-align:right">$/vara</span><span style="width:82px;text-align:right">Subtotal</span><span style="width:28px"></span>
+      <span style="flex:1">Flor / follaje</span><span style="width:74px;text-align:center">Color</span><span style="width:52px;text-align:center">Cant.</span><span style="width:62px;text-align:center">Unidad</span><span style="width:58px;text-align:right">$/vara</span><span style="width:82px;text-align:right">Subtotal</span><span style="width:28px"></span>
     </div>
     ${rowsHTML}
     <button class="btn-secondary" style="font-size:12px;margin-top:4px" onclick="compAddRow()">+ Agregar flor</button>
@@ -3819,7 +3821,7 @@ function guardarArregloComposicion(){
   }
   const rows = _compEditRows
     .filter(r => r.prod && r.prod.trim() && (+r.qty)>0)
-    .map(r => ({prod:r.prod.trim(), qty:+r.qty, ...(r.unidad==='paq'?{unidad:'paq'}:{})}));
+    .map(r => ({prod:r.prod.trim(), qty:+r.qty, ...(r.unidad==='paq'?{unidad:'paq'}:{}), ...(String(r.color||'').trim()?{color:String(r.color).trim()}:{})}));
   if(rows.length) arreglosComposicion[_compEditZona] = rows;
   else delete arreglosComposicion[_compEditZona];
   _saveArreglosComposicion();
@@ -3869,7 +3871,7 @@ function _renderGuiaArreglo(){
   const listaHTML = ings.length
     ? origen + `<ul style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px">
         ${ings.map(g=>`<li style="display:flex;justify-content:space-between;gap:10px;font-size:13.5px;padding:8px 12px;background:var(--warm-white);border:1px solid var(--light-gray);border-radius:8px">
-          <span style="color:var(--charcoal)">${esc(g.prod)}</span>
+          <span style="color:var(--charcoal)">${esc(g.prod)}${g.color?` <span style="font-size:12px;color:#7A3A2A;background:var(--blush-light);border-radius:10px;padding:1px 8px;margin-left:4px">${esc(g.color)}</span>`:''}</span>
           <span style="color:var(--sage-dark);font-weight:600;white-space:nowrap">${_fmtIngUnidad(g)}</span>
         </li>`).join('')}
        </ul>`

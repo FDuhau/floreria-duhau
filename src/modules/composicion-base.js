@@ -34,8 +34,10 @@ export function sumarBaseHotel(areas, vppDe, factor = 1){
     if(!ing || !ing.prod) return;
     const q = +ing.qty || 0;
     const vpp = +vppDe(ing.prod) || 0;
-    let o = porProd.get(ing.prod);
-    if(!o){ o = { prod:ing.prod, varas:0, paq:0, sinDato:0, areas:[] }; porProd.set(ing.prod, o); }
+    const color = String(ing.color||'').trim();
+    const clave = ing.prod + '||' + color.toLowerCase();   // misma flor en otro color = otro renglón
+    let o = porProd.get(clave);
+    if(!o){ o = { prod:ing.prod, color, varas:0, paq:0, sinDato:0, areas:[] }; porProd.set(clave, o); }
     if(ing.unidad === 'paq'){ o.paq += q; }
     else if(vpp > 0){ o.varas += q; }
     else { o.sinDato += q; }
@@ -47,6 +49,6 @@ export function sumarBaseHotel(areas, vppDe, factor = 1){
     // tolerancia por decimales flotantes (3 × 0,33 + …)
     let qty = Math.ceil(Math.round(total * 1000) / 1000);
     if(qty <= 0) qty = 1;
-    return { prod:o.prod, qty, varas: o.vpp > 0 ? +(o.varas + o.paq * o.vpp).toFixed(2) : null, vpp:o.vpp || 0, areas:o.areas };
+    return { prod:o.prod, color:o.color, qty, varas: o.vpp > 0 ? +(o.varas + o.paq * o.vpp).toFixed(2) : null, vpp:o.vpp || 0, areas:o.areas };
   });
 }

@@ -1540,7 +1540,7 @@ function _paBuildRows(){
   const areasSel = _paAreasBase().filter(a => _paBaseSel[a]).map(a => ({ area:a, ings:D.arreglosComposicion[a]||[] }));
   sumarBaseHotel(areasSel, getVarasPorPaq, _paDia==='vie' ? _paPctVie/100 : 1).forEach(it => {
     const up = getUltimoPrecioCompra(it.prod);
-    rows.push({ fecha:D.TODAY_ISO, pedidopor:'—', prod:it.prod, desc:'', qty:it.qty, costo: up?String(up.precio):'', prov:'', sector:it.areas.join(', '), estado:'pedido', sucursal:suc });
+    rows.push({ fecha:D.TODAY_ISO, pedidopor:'—', prod:it.prod, desc:it.color||'', qty:it.qty, costo: up?String(up.precio):'', prov:'', sector:it.areas.join(', '), estado:'pedido', sucursal:suc });
   });
   // Flores de eventos pendientes
   _paEventosPend().forEach(({ev,i}) => {
@@ -1591,7 +1591,7 @@ function renderPedidoAuto(){
   } else {
     baseHTML = areas.map((area,ai)=>{
       const ings = (D.arreglosComposicion[area]||[]);
-      const resumen = ings.map(g=>`${_fmtN(g.qty)} ${g.unidad==='paq'?'paq.':'vara'+((+g.qty)===1?'':'s')} de ${esc(g.prod)}`).join(', ');
+      const resumen = ings.map(g=>`${_fmtN(g.qty)} ${g.unidad==='paq'?'paq.':'vara'+((+g.qty)===1?'':'s')} de ${esc(g.prod)}${g.color?' <strong>('+esc(g.color)+')</strong>':''}`).join(', ');
       const sel = !!_paBaseSel[area];
       return `<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 4px;border-top:1px solid var(--surface-2)">
         <input type="checkbox" ${sel?'checked':''} onchange="paToggleArea(${ai})" style="margin-top:3px;width:16px;height:16px;flex:0 0 auto">
