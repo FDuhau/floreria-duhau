@@ -282,7 +282,7 @@ export function renderHistorialEventos(){
   tbody.innerHTML = sorted.map((ev,_i)=>{
     const realIdx = D.eventosData.indexOf(ev);
     const arreglosStr = ev.arreglos?.length
-      ? ev.arreglos.map(a=>`${a.qty}× ${esc(a.arreglo)}`).join(' · ')
+      ? ev.arreglos.map(a=>`${a.qty}× ${esc(a.arreglo)}${a.paleta?' ('+esc(a.paleta)+')':''}`).join(' · ')
       : '<span style="color:var(--mid-gray)">—</span>';
     const pr = parseMoney(ev.precio), c = costoEvento(ev);
     const dash = '<span style="color:var(--mid-gray)">—</span>';
@@ -340,7 +340,7 @@ export function renderEventos(){
     const arreglosResumen = (ev.arreglos && ev.arreglos.length)
       ? `<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">
           <span style="font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray)">Arreglos</span>
-          ${ev.arreglos.map(a=>`<span style="background:var(--blush-light);color:#7A3A2A;font-size:12px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap">${a.qty}× ${esc(a.arreglo)}</span>`).join('')}
+          ${ev.arreglos.map(a=>`<span style="background:var(--blush-light);color:#7A3A2A;font-size:12px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap">${a.qty}× ${esc(a.arreglo)}${a.paleta?` · ${esc(a.paleta)}`:''}</span>`).join('')}
         </div>`
       : '';
     return `<div class="event-card"${ev.fromKanban?' style="border-left:3px solid var(--info)"':''}>
@@ -464,10 +464,11 @@ export function toggleEvZona(z){
 // el arreglo elegido nunca se guardaba en el evento.
 export function evSetArreglo(idx, val){ if(evArreglosRows[idx]) evArreglosRows[idx].arreglo = val; previewStockImpact(); }
 export function evSetArregloQty(idx, val){ if(evArreglosRows[idx]) evArreglosRows[idx].qty = +val || 0; previewStockImpact(); }
+export function evSetArregloPaleta(idx, val){ if(evArreglosRows[idx]) evArreglosRows[idx].paleta = String(val||'').trim(); }
 export function evRemoveArregloRow(idx){
   const el = document.getElementById('ev-arr-row-'+idx);
   if(el) el.remove();
-  if(evArreglosRows[idx]) evArreglosRows[idx] = {arreglo:'', qty:0};
+  if(evArreglosRows[idx]) evArreglosRows[idx] = {arreglo:'', qty:0, paleta:''};
   previewStockImpact();
 }
 
@@ -487,6 +488,7 @@ export function addEvArregloRow(){
     </select>
     <span style="font-size:12px;color:var(--mid-gray)">×</span>
     <input type="number" min="1" value="1" placeholder="Cant." onchange="evSetArregloQty(${idx},this.value)" style="width:60px;border:1px solid var(--light-gray);border-radius:4px;padding:5px 6px;font-size:12.5px;text-align:center;outline:none;font-family:'DM Sans',sans-serif">
+    <input type="text" value="" placeholder="Paleta de color (ej: blanco y verde)" maxlength="60" onchange="evSetArregloPaleta(${idx},this.value)" style="flex:1.4;width:auto;min-width:120px;text-align:left" title="Paleta de color de este arreglo: se usa en el pedido a Compras y la ven los floristas">
     <button type="button" class="btn-icon" style="color:var(--red-alert)" onclick="evRemoveArregloRow(${idx})">✕</button>`;
   list.appendChild(div);
 }
@@ -648,7 +650,7 @@ export function openEventoDetail(i){
       return `<div style="padding:10px 0;border-bottom:1px solid var(--light-gray)">
         <div style="display:flex;align-items:center;gap:10px">
           <span style="font-size:16px"></span>
-          <span style="flex:1;font-size:13px;font-weight:600;color:var(--charcoal)">${esc(a.arreglo)}</span>
+          <span style="flex:1;font-size:13px;font-weight:600;color:var(--charcoal)">${esc(a.arreglo)}${a.paleta?` <span style="font-weight:500;color:#7A3A2A;background:var(--blush-light);border-radius:10px;padding:2px 9px;font-size:12px;margin-left:6px">Paleta: ${esc(a.paleta)}</span>`:''}</span>
           <span style="background:var(--cream);border-radius:4px;padding:2px 10px;font-size:12px;font-weight:600">${a.qty} ud${a.qty>1?'s':''}</span>
         </div>
         ${ingsHTML}
@@ -882,8 +884,8 @@ export function openEventModal(i){
   if(preview) preview.innerHTML='';
   if(!isNew && ev.arreglos?.length){
     ev.arreglos.forEach(row=>{
-      evArreglosRows.push({arreglo:row.arreglo, qty:row.qty});
-      addEvArregloRowWithData(row.arreglo, row.qty);
+      evArreglosRows.push({arreglo:row.arreglo, qty:row.qty, paleta:row.paleta||''});
+      addEvArregloRowWithData(row.arreglo, row.qty, row.paleta);
     });
   }
 
@@ -897,7 +899,7 @@ export function openEventModal(i){
   document.getElementById('event-modal').classList.add('open');
 }
 
-export function addEvArregloRowWithData(arreglo, qty){
+export function addEvArregloRowWithData(arreglo, qty, paleta){
   const list = document.getElementById('ev-arreglos-list');
   const idx = evArreglosRows.length-1;
   const arregloOpts = [...new Set(D.recetasData.map(r=>r.nombre))]
@@ -910,6 +912,7 @@ export function addEvArregloRowWithData(arreglo, qty){
     </select>
     <span style="font-size:12px;color:var(--mid-gray)">×</span>
     <input type="number" min="1" value="${qty}" onchange="evSetArregloQty(${idx},this.value)" style="width:60px;border:1px solid var(--light-gray);border-radius:4px;padding:5px 6px;font-size:12.5px;text-align:center;outline:none;font-family:'DM Sans',sans-serif">
+    <input type="text" value="${esc(paleta||'')}" placeholder="Paleta de color (ej: blanco y verde)" maxlength="60" onchange="evSetArregloPaleta(${idx},this.value)" style="flex:1.4;width:auto;min-width:120px;text-align:left" title="Paleta de color de este arreglo: se usa en el pedido a Compras y la ven los floristas">
     <button type="button" class="btn-icon" style="color:var(--red-alert)" onclick="evRemoveArregloRow(${idx})">✕</button>`;
   list.appendChild(div);
 }
