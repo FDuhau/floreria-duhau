@@ -198,6 +198,13 @@ export function renderLlamadosEval(){
 
 export function florRegistrarTurno(campo){
   if(!D.floristaNombre){ showToast('Error de sesión'); return; }
+  // La hora de entrada se registra una sola vez por día: no se pisa si la persona vuelve a entrar
+  // (por ejemplo después de bloquear el teléfono) ni mientras todavía no llegaron los datos.
+  if(campo === 'inicio'){
+    if(!window._florTurnosLlego){ showToast('Un momento, estoy cargando tu jornada…'); return; }
+    const previo = window.florTurnos?.[D.floristaNombre]?.[D.TODAY_ISO]?.inicio;
+    if(previo){ showToast('Tu jornada ya empezó a las '+previo); renderFlorTurnoCard(); renderInicioJornada(); return; }
+  }
   const now = new Date();
   const hh = String(now.getHours()).padStart(2,'0');
   const mm = String(now.getMinutes()).padStart(2,'0');
