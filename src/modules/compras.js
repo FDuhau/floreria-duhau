@@ -1499,6 +1499,7 @@ let comprasBaseDia = {};   // { area: 'mie' | 'vie' | 'ambos' } — en qué pedi
 window._setComprasBaseDia = v => { comprasBaseDia = (v && typeof v==='object' && !Array.isArray(v)) ? v : {}; };
 
 let _paDia = 'mie';        // día elegido en el modal
+let _paPctVie = 30;        // % de la base que se repone el viernes (el miércoles llega el pedido entero)
 let _paBaseSel = {};       // { area: bool } áreas tildadas
 let _paEvSel = {};         // { evIdx: bool } eventos tildados
 
@@ -1509,7 +1510,7 @@ function _paAreasBase(){
     .filter(z => (D.arreglosComposicion[z]||[]).length)
     .sort((a,b)=>a.localeCompare(b,'es'));
 }
-function _paAreaDia(area){ return comprasBaseDia[area] || 'ambos'; }
+
 function _paEventosPend(){
   return (D.eventosData||[]).map((ev,i)=>({ev,i}))
     .filter(o => o.ev.arreglos?.length && o.ev.estado !== 'Pedidos Finalizados')
@@ -1517,7 +1518,7 @@ function _paEventosPend(){
 }
 function _paResetBaseSel(){
   _paBaseSel = {};
-  _paAreasBase().forEach(a => { const d = _paAreaDia(a); _paBaseSel[a] = (d==='ambos' || d===_paDia); });
+  _paAreasBase().forEach(a => { _paBaseSel[a] = true; });
 }
 
 // Agrupa los arreglos de un evento por paleta de color ('' = sin paleta definida).
@@ -1537,7 +1538,7 @@ function _paBuildRows(){
   const suc = D.getSucursalId();
   // Base fija: se suma por flor entre todas las áreas tildadas y recién ahí se pasa a paquetes
   const areasSel = _paAreasBase().filter(a => _paBaseSel[a]).map(a => ({ area:a, ings:D.arreglosComposicion[a]||[] }));
-  sumarBaseHotel(areasSel, getVarasPorPaq).forEach(it => {
+  sumarBaseHotel(areasSel, getVarasPorPaq, _paDia==='vie' ? _paPctVie/100 : 1).forEach(it => {
     const up = getUltimoPrecioCompra(it.prod);
     rows.push({ fecha:D.TODAY_ISO, pedidopor:'—', prod:it.prod, desc:'', qty:it.qty, costo: up?String(up.precio):'', prov:'', sector:it.areas.join(', '), estado:'pedido', sucursal:suc });
   });
@@ -1563,19 +1564,17 @@ function _paBuildRows(){
 export function abrirPedidoAuto(){
   _paDia = (new Date().getDay() >= 4) ? 'vie' : 'mie';  // Jue/Vie/Sáb/Dom → viernes; resto → miércoles
   _paResetBaseSel();
-  _paEvSel = {}; _paEventosPend().forEach(({i}) => { _paEvSel[i] = true; });
+  _paResetEvSel();
   renderPedidoAuto();
   document.getElementById('pedido-auto-modal').classList.add('open');
 }
 
-export function paSetDia(dia){ _paDia = dia; _paResetBaseSel(); renderPedidoAuto(); }
+// El material nuevo llega solo los miércoles: los eventos se piden ese día; el viernes
+// solo se repone la base (los eventos quedan destildados, se pueden tildar a mano).
+function _paResetEvSel(){ _paEvSel = {}; _paEventosPend().forEach(({i}) => { _paEvSel[i] = (_paDia==='mie'); }); }
+export function paSetDia(dia){ _paDia = dia; _paResetBaseSel(); _paResetEvSel(); renderPedidoAuto(); }
+export function paSetPctVie(v){ const n = Math.round(+v); _paPctVie = (n>0 && n<=100) ? n : 30; renderPedidoAuto(); }
 export function paToggleArea(ai){ const a = _paAreasBase()[ai]; if(a){ _paBaseSel[a] = !_paBaseSel[a]; renderPedidoAuto(); } }
-export function paSetAreaDia(ai, dia){
-  const a = _paAreasBase()[ai]; if(!a) return;
-  comprasBaseDia[a] = dia; D.fbSave('comprasBaseDia', comprasBaseDia);
-  _paBaseSel[a] = (dia==='ambos' || dia===_paDia);
-  renderPedidoAuto();
-}
 export function paToggleEvento(i){ _paEvSel[i] = !_paEvSel[i]; renderPedidoAuto(); }
 
 function _fmtN(n){ return String(+(+n||0).toFixed(2)).replace('.',','); }
@@ -1593,7 +1592,6 @@ function renderPedidoAuto(){
     baseHTML = areas.map((area,ai)=>{
       const ings = (D.arreglosComposicion[area]||[]);
       const resumen = ings.map(g=>`${_fmtN(g.qty)} ${g.unidad==='paq'?'paq.':'vara'+((+g.qty)===1?'':'s')} de ${esc(g.prod)}`).join(', ');
-      const dia = _paAreaDia(area);
       const sel = !!_paBaseSel[area];
       return `<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 4px;border-top:1px solid var(--surface-2)">
         <input type="checkbox" ${sel?'checked':''} onchange="paToggleArea(${ai})" style="margin-top:3px;width:16px;height:16px;flex:0 0 auto">
@@ -1601,11 +1599,6 @@ function renderPedidoAuto(){
           <div style="font-weight:600;font-size:13px">${esc(area)} <span style="font-weight:400;color:var(--mid-gray)">· ${ings.length} flor${ings.length!==1?'es':''}</span></div>
           <div style="font-size:12px;color:var(--mid-gray);margin-top:2px">${resumen}</div>
         </div>
-        <select onchange="paSetAreaDia(${ai},this.value)" style="font-size:12px;border:1px solid var(--light-gray);border-radius:6px;padding:4px 6px;flex:0 0 auto" title="En qué pedido entra esta área">
-          <option value="ambos" ${dia==='ambos'?'selected':''}>Mié y Vie</option>
-          <option value="mie" ${dia==='mie'?'selected':''}>Solo Mié</option>
-          <option value="vie" ${dia==='vie'?'selected':''}>Solo Vie</option>
-        </select>
       </div>`;
     }).join('');
   }
@@ -1638,7 +1631,9 @@ function renderPedidoAuto(){
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px">
       <span style="font-size:12px;color:var(--mid-gray)">Pedido de:</span>
       ${diaBtn('mie','Miércoles')} ${diaBtn('vie','Viernes')}
+      ${_paDia==='vie' ? `<span style="font-size:12px;color:var(--mid-gray);margin-left:8px">Reponer</span><input type="number" min="1" max="100" value="${_paPctVie}" onchange="paSetPctVie(this.value)" style="width:58px;border:1px solid var(--light-gray);border-radius:6px;padding:5px 6px;font-size:13px;text-align:center"><span style="font-size:12px;color:var(--mid-gray)">% de cada arreglo</span>` : ''}
     </div>
+    <div style="font-size:12px;color:var(--mid-gray);margin:-6px 0 12px">${_paDia==='mie' ? 'Miércoles: llega el pedido entero (100% de la base) y los eventos.' : `Viernes: solo mantenimiento, el ${_paPctVie}% de la base. Los eventos quedan sin tildar.`}</div>
     <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);font-weight:600;margin-bottom:2px">Base fija del hotel</div>
     <div style="max-height:34vh;overflow:auto;margin-bottom:14px">${baseHTML}</div>
     <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);font-weight:600;margin-bottom:2px">Flores de eventos pendientes</div>

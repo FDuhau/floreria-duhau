@@ -26,8 +26,9 @@ export function unidadesPosibles(ings, varasDe, disponibleDe){
 
 // Suma la base fija del hotel por flor entre todas las áreas elegidas y recién
 // ahí la pasa a paquetes (así 0,33 vara en 10 áreas = 3,3 varas = 1 paquete, no 10).
+// factor: fracción de la base a pedir (1 = toda; 0,3 = reposición del viernes).
 // areas: [{area, ings:[{prod, qty, unidad}]}]; vppDe(prod) → varas por paquete o 0/null.
-export function sumarBaseHotel(areas, vppDe){
+export function sumarBaseHotel(areas, vppDe, factor = 1){
   const porProd = new Map();
   (areas||[]).forEach(({area, ings}) => (ings||[]).forEach(ing => {
     if(!ing || !ing.prod) return;
@@ -42,7 +43,7 @@ export function sumarBaseHotel(areas, vppDe){
     if(area && !o.areas.includes(area)) o.areas.push(area);
   }));
   return [...porProd.values()].map(o => {
-    const total = o.paq + (o.vpp > 0 ? o.varas / o.vpp : 0) + o.sinDato;
+    const total = (o.paq + (o.vpp > 0 ? o.varas / o.vpp : 0) + o.sinDato) * factor;
     // tolerancia por decimales flotantes (3 × 0,33 + …)
     let qty = Math.ceil(Math.round(total * 1000) / 1000);
     if(qty <= 0) qty = 1;
