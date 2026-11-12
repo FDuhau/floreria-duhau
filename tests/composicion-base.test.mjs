@@ -47,3 +47,10 @@ test('sumarBaseHotel redondea para arriba y respeta unidad paq y flor sin dato',
   assert.equal(por.Clavel, 2);
   assert.equal(por.X, 3);
 });
+test('sumarBaseHotel con factor 0,3 (reposición del viernes) pide el 30% de la base', () => {
+  const areas = [{area:'A', ings:[{prod:'Rosa', qty:50}, {prod:'Pino', qty:10}]}];
+  const r = Object.fromEntries(B.sumarBaseHotel(areas, () => 25, 0.3).map(x=>[x.prod,x.qty]));
+  assert.equal(r.Rosa, 1);   // 50 varas = 2 paq → 0,6 → 1 paq
+  const toda = Object.fromEntries(B.sumarBaseHotel(areas, () => 25, 1).map(x=>[x.prod,x.qty]));
+  assert.equal(toda.Rosa, 2);
+});
