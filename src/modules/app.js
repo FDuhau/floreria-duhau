@@ -2222,7 +2222,7 @@ function applyRole(role){
   renderSidebarNav(role, !!jardineroNombre);
   setUserMenuInfo(window.currentUserLabel || floristaNombre || jardineroNombre || role);
 
-  if(role === 'florista'){ showToast('Hola ' + floristaNombre + '!'); setTimeout(()=>renderInicioJornada(true), 2500); }
+  if(role === 'florista'){ showToast('Hola ' + floristaNombre + '!'); setTimeout(()=>renderInicioJornada(), 2500); }
   if(role === 'comercial') showToast('Hola Euge!');
   if(role === 'ventas'){
     setTimeout(()=> navigate('home-hyatt'), 100);
@@ -2405,7 +2405,7 @@ window._setLoginPasswords = (v) => { if(v && typeof v === 'object') loginPasswor
 // (texto plano) como hasta ahora, y gerencia lo migra al entrar.
 let loginAuth = null;         // { [id]: { role, label, ..., salt, hash } }
 let currentAuthId = null;     // id del usuario logueado (para cambiar contraseña)
-window._setLoginAuth = (v) => { loginAuth = (v && typeof v === 'object' && Object.keys(v).length) ? v : null; _syncJardinerosDesdeAuth(); };
+window._setLoginAuth = (v) => { loginAuth = (v && typeof v === 'object' && Object.keys(v).length) ? v : null; _syncJardinerosDesdeAuth(); _intentarRestaurarSesion(); };
 // Los jardineros agregados desde Gestión de Usuarios viven en loginAuth; sumamos
 // sus nombres a JARDINEROS_LIST para que aparezcan en los desplegables de jardinería
 // aunque no estén en la lista base hardcodeada.
@@ -2609,6 +2609,59 @@ async function loginEnServidor(code){
   }
 }
 
+// Recordar la sesión en este dispositivo: así, si el teléfono se bloquea o cambian de app
+// y la página se recarga, no vuelve a pedir la clave. Se guarda solo el id del usuario y
+// una huella corta de su clave (si gerencia le cambia la clave, la sesión deja de valer).
+const SESION_KEY = 'fd-sesion';
+const SESION_DIAS = 30;
+function _huellaClave(id){ const h = loginAuth && loginAuth[id] && loginAuth[id].hash; return h ? String(h).slice(0, 12) : ''; }
+function _guardarSesion(id){
+  try{ localStorage.setItem(SESION_KEY, JSON.stringify({ id, h:_huellaClave(id), t:Date.now() })); }catch(e){ /* sin storage: pedirá la clave como antes */ }
+}
+function _olvidarSesion(){ try{ localStorage.removeItem(SESION_KEY); }catch(e){ /* sin storage */ } }
+function cerrarSesion(){ _olvidarSesion(); location.reload(); }
+
+let _sesionIntentada = false;
+function _intentarRestaurarSesion(){
+  if(_sesionIntentada || !loginAuth) return;
+  const screen = document.getElementById('login-screen');
+  if(!screen) return;                       // ya hay una sesión abierta
+  _sesionIntentada = true;
+  let guardada = null;
+  try{ guardada = JSON.parse(localStorage.getItem(SESION_KEY) || 'null'); }catch(e){ guardada = null; }
+  if(!guardada || !guardada.id) return;
+  const e = loginAuth[guardada.id];
+  const vencida = !guardada.t || (Date.now() - guardada.t) > SESION_DIAS*24*3600*1000;
+  if(!e || !e.hash || vencida || guardada.h !== _huellaClave(guardada.id)){ _olvidarSesion(); return; }
+  // Un instante para que lleguen los primeros datos antes de armar las pantallas (como cuando se tipea la clave)
+  setTimeout(()=>{ if(document.getElementById('login-screen')) _entrarConEntry({ ...e }, guardada.id, true); }, 1200);
+}
+
+function _entrarConEntry(entry, id, restaurada){
+  _aplicarEntry(entry, id);
+  applyRole(entry.role);
+  _guardarSesion(id);   // renueva el plazo cada vez que se usa
+  // Caja, sueldos, legajos y claves solo se descargan para gerencia (las reglas de la base los cierran al resto).
+  if(entry.role === 'gerencia') window.fbStartSensibles?.();
+  renderSucursalIndicador();
+  const screen = document.getElementById('login-screen');
+  if(screen){
+    screen.classList.add('hide');
+    setTimeout(()=>screen.remove(), restaurada ? 50 : 520);
+  }
+  // Activar notificaciones push si el navegador lo soporta
+  setTimeout(()=>initPushForUser?.(), 2000);
+  setTimeout(()=>alertasAutomaticas(TODAY_ISO), 4000);
+  if(!restaurada) setTimeout(()=>checkOnboarding(entry.role), 800);
+  if(!restaurada) setTimeout(()=>irAAtajoInicial(), 100);
+  // Briefing del día (si ya se vio hoy, cae al aviso de eventos de siempre)
+  setTimeout(()=>mostrarBriefingDia(), 2200);
+  // Mantenimiento: poda del historial (gerencia, una vez al día, sin urgencia)
+  if(entry.role === 'gerencia') setTimeout(()=>podarHistorial(), 12000);
+  // Resumen semanal: al entrar gerencia en una semana nueva (una vez por semana)
+  if(entry.role === 'gerencia') setTimeout(()=>mostrarResumenSemanal(), 6000);
+}
+
 async function doLogin(){
   const inp = document.getElementById('login-input');
   const err = document.getElementById('login-error');
@@ -2618,28 +2671,10 @@ async function doLogin(){
   if(found){
     const entry = found.entry;
     if(!loginAuth) currentLoginKey = val.trim().toLowerCase(); // modo viejo: cambio de contraseña propia
-    _aplicarEntry(entry, found.id);
-    applyRole(entry.role);
-    // Caja, sueldos, legajos y claves solo se descargan para gerencia (las reglas de la base los cierran al resto).
-    if(entry.role === 'gerencia') window.fbStartSensibles?.();
-    renderSucursalIndicador();
-    const screen = document.getElementById('login-screen');
-    screen.classList.add('hide');
-    setTimeout(()=>screen.remove(), 520);
+    _entrarConEntry(entry, found.id, false);
     // Migración de seguridad: gerencia convierte las contraseñas a hashes la
     // primera vez que entra (retrocompatible, no rompe el flujo del personal).
     if(entry.role === 'gerencia' && !loginAuth){ setTimeout(()=>migrarSeguridadLogin(val), 3000); }
-    // Activar notificaciones push si el navegador lo soporta
-    setTimeout(()=>initPushForUser?.(), 2000);
-    setTimeout(()=>alertasAutomaticas(TODAY_ISO), 4000);
-    setTimeout(()=>checkOnboarding(entry.role), 800);
-    setTimeout(()=>irAAtajoInicial(), 100);
-    // Briefing del día (si ya se vio hoy, cae al aviso de eventos de siempre)
-    setTimeout(()=>mostrarBriefingDia(), 2200);
-    // Mantenimiento: poda del historial (gerencia, una vez al día, sin urgencia)
-    if(entry.role === 'gerencia') setTimeout(()=>podarHistorial(), 12000);
-    // Resumen semanal: al entrar gerencia en una semana nueva (una vez por semana)
-    if(entry.role === 'gerencia') setTimeout(()=>mostrarResumenSemanal(), 6000);
   } else {
     err.textContent = 'Contraseña incorrecta';
     inp.classList.add('error');
@@ -4286,7 +4321,7 @@ Object.assign(window, {
   renderHomeHyatt, renderHoraCell, renderHorarios, renderJardLog, renderJardOps,
   renderJardProdEquipo, renderJardTurnoCard, renderJardReporte, renderJordProd, renderKanban,
   jardSetJardinero, jardRegistrarHoraTurno, jardResetHoraTurno, jardProdDiaClick,
-  florRegistrarTurno, florResetTurno, renderFlorTurnoCard, renderInicioJornada,
+  florRegistrarTurno, florResetTurno, renderFlorTurnoCard, renderInicioJornada, cerrarSesion,
   renderLPenCotizador, renderListaPrecios,
   renderPedidosHab, renderPeriodTabs, renderPlantilla, renderPreciosList, renderProductividad,
   renderProductividadHome, renderProductividadCL, renderProductividadHorarios, renderProvTags, renderRamosDisp, renderRecepcionPedidos,
