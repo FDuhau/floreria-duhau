@@ -29,3 +29,21 @@ test('precio sugerido con margen', () => {
   assert.equal(B.precioSugerido(10000, 30), 13000);
   assert.equal(B.precioSugerido(0, 30), 0);
 });
+
+test('sumarBaseHotel suma fracciones entre áreas antes de pasar a paquetes', () => {
+  const areas = Array.from({length:10}, (_,i)=>({area:'A'+i, ings:[{prod:'Rosa', qty:1/3}]}));
+  const r = B.sumarBaseHotel(areas, () => 25);
+  assert.equal(r.length, 1);
+  assert.equal(r[0].qty, 1);
+  assert.equal(r[0].areas.length, 10);
+});
+test('sumarBaseHotel redondea para arriba y respeta unidad paq y flor sin dato', () => {
+  const r = B.sumarBaseHotel([
+    {area:'A', ings:[{prod:'Lisianthus', qty:20}, {prod:'Clavel', qty:2, unidad:'paq'}, {prod:'X', qty:3}]},
+    {area:'B', ings:[{prod:'Lisianthus', qty:20}]},
+  ], p => p==='Lisianthus' ? 25 : 0);
+  const por = Object.fromEntries(r.map(x=>[x.prod,x.qty]));
+  assert.equal(por.Lisianthus, 2);
+  assert.equal(por.Clavel, 2);
+  assert.equal(por.X, 3);
+});

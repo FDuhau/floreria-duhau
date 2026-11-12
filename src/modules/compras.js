@@ -14,6 +14,7 @@ import { compraCant, compraImporte, resumenCompras } from './dinero.js';
 import { icon } from './iconos.js';
 import { claveCostoPara, mismoArticulo, nombreArticulo } from './articulos-base.js';
 
+import { sumarBaseHotel } from './composicion-base.js';
 import { badgeCategoriaVara, cartelCategoriaVara, historialCostoVara } from './categoria-vara.js';
 
 let D = {};
@@ -1491,18 +1492,11 @@ function _paResetBaseSel(){
 function _paBuildRows(){
   const rows = [];
   const suc = D.getSucursalId();
-  // Base fija por área (composiciones)
-  _paAreasBase().forEach(area => {
-    if(!_paBaseSel[area]) return;
-    (D.arreglosComposicion[area]||[]).forEach(ing => {
-      if(!ing.prod) return;
-      let qty;
-      if(ing.unidad==='paq'){ qty = +ing.qty||0; }
-      else { const vpp = getVarasPorPaq(ing.prod); qty = vpp ? Math.ceil((+ing.qty||0)/vpp) : (+ing.qty||0); }
-      if(qty<=0) qty = 1;
-      const up = getUltimoPrecioCompra(ing.prod);
-      rows.push({ fecha:D.TODAY_ISO, pedidopor:'—', prod:ing.prod, desc:'', qty, costo: up?String(up.precio):'', prov:'', sector:area, estado:'pedido', sucursal:suc });
-    });
+  // Base fija: se suma por flor entre todas las áreas tildadas y recién ahí se pasa a paquetes
+  const areasSel = _paAreasBase().filter(a => _paBaseSel[a]).map(a => ({ area:a, ings:D.arreglosComposicion[a]||[] }));
+  sumarBaseHotel(areasSel, getVarasPorPaq).forEach(it => {
+    const up = getUltimoPrecioCompra(it.prod);
+    rows.push({ fecha:D.TODAY_ISO, pedidopor:'—', prod:it.prod, desc:'', qty:it.qty, costo: up?String(up.precio):'', prov:'', sector:it.areas.join(', '), estado:'pedido', sucursal:suc });
   });
   // Flores de eventos pendientes
   _paEventosPend().forEach(({ev,i}) => {
@@ -1537,6 +1531,8 @@ export function paSetAreaDia(ai, dia){
 }
 export function paToggleEvento(i){ _paEvSel[i] = !_paEvSel[i]; renderPedidoAuto(); }
 
+function _fmtN(n){ return String(+(+n||0).toFixed(2)).replace('.',','); }
+
 function renderPedidoAuto(){
   const body = document.getElementById('pa-body'); if(!body) return;
   const areas = _paAreasBase();
@@ -1549,7 +1545,7 @@ function renderPedidoAuto(){
   } else {
     baseHTML = areas.map((area,ai)=>{
       const ings = (D.arreglosComposicion[area]||[]);
-      const resumen = ings.map(g=>`${g.qty} ${esc(g.prod)}`).join(', ');
+      const resumen = ings.map(g=>`${_fmtN(g.qty)} ${g.unidad==='paq'?'paq.':'vara'+((+g.qty)===1?'':'s')} de ${esc(g.prod)}`).join(', ');
       const dia = _paAreaDia(area);
       const sel = !!_paBaseSel[area];
       return `<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 4px;border-top:1px solid var(--surface-2)">
@@ -1573,7 +1569,7 @@ function renderPedidoAuto(){
   } else {
     evHTML = eventos.map(({ev,i})=>{
       const impact = D.calcStockImpact(ev.arreglos||[]);
-      const resumen = Object.entries(impact).map(([p,v])=>`${Math.ceil(v)} ${esc(p)}`).join(', ') || 'sin flores';
+      const resumen = Object.entries(impact).map(([p,v])=>{ const vpp=getVarasPorPaq(p); return `${Math.ceil(v)} varas de ${esc(p)}`+(vpp?` (${Math.ceil(v/vpp)} paq.)`:''); }).join(', ') || 'sin flores';
       const sel = !!_paEvSel[i];
       return `<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 4px;border-top:1px solid var(--surface-2)">
         <input type="checkbox" ${sel?'checked':''} onchange="paToggleEvento(${i})" style="margin-top:3px;width:16px;height:16px;flex:0 0 auto">
@@ -1596,7 +1592,7 @@ function renderPedidoAuto(){
     <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);font-weight:600;margin-bottom:2px">Flores de eventos pendientes</div>
     <div style="max-height:24vh;overflow:auto;margin-bottom:14px">${evHTML}</div>
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px solid var(--light-gray);padding-top:12px">
-      <div style="font-size:12.5px;color:var(--mid-gray)">Se van a cargar <strong style="color:var(--charcoal)">${rows.length}</strong> ítem${rows.length!==1?'s':''} como "pedido", con el último precio conocido de cada flor.</div>
+      <div style="font-size:12.5px;color:var(--mid-gray)">Se van a cargar <strong style="color:var(--charcoal)">${rows.length}</strong> ítem${rows.length!==1?'s':''} como "pedido", con el último precio conocido de cada flor. Las cantidades cargadas son <strong>paquetes</strong>: la base del hotel suma las varas de cada flor entre todas las áreas y recién ahí redondea.</div>
       <div style="display:flex;gap:8px">
         <button class="btn-secondary" onclick="closeModal('pedido-auto-modal')">Cancelar</button>
         <button class="btn-add" ${rows.length?'':'disabled'} onclick="generarPedidoAuto()">Generar pedido</button>

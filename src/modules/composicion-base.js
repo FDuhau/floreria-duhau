@@ -23,3 +23,29 @@ export function unidadesPosibles(ings, varasDe, disponibleDe){
   }
   return hay ? { n, limitante, sinStock } : null;
 }
+
+// Suma la base fija del hotel por flor entre todas las áreas elegidas y recién
+// ahí la pasa a paquetes (así 0,33 vara en 10 áreas = 3,3 varas = 1 paquete, no 10).
+// areas: [{area, ings:[{prod, qty, unidad}]}]; vppDe(prod) → varas por paquete o 0/null.
+export function sumarBaseHotel(areas, vppDe){
+  const porProd = new Map();
+  (areas||[]).forEach(({area, ings}) => (ings||[]).forEach(ing => {
+    if(!ing || !ing.prod) return;
+    const q = +ing.qty || 0;
+    const vpp = +vppDe(ing.prod) || 0;
+    let o = porProd.get(ing.prod);
+    if(!o){ o = { prod:ing.prod, varas:0, paq:0, sinDato:0, areas:[] }; porProd.set(ing.prod, o); }
+    if(ing.unidad === 'paq'){ o.paq += q; }
+    else if(vpp > 0){ o.varas += q; }
+    else { o.sinDato += q; }
+    o.vpp = vpp || o.vpp || 0;
+    if(area && !o.areas.includes(area)) o.areas.push(area);
+  }));
+  return [...porProd.values()].map(o => {
+    const total = o.paq + (o.vpp > 0 ? o.varas / o.vpp : 0) + o.sinDato;
+    // tolerancia por decimales flotantes (3 × 0,33 + …)
+    let qty = Math.ceil(Math.round(total * 1000) / 1000);
+    if(qty <= 0) qty = 1;
+    return { prod:o.prod, qty, varas: o.vpp > 0 ? +(o.varas + o.paq * o.vpp).toFixed(2) : null, vpp:o.vpp || 0, areas:o.areas };
+  });
+}
