@@ -1539,8 +1539,8 @@ function _paBuildRows(){
   // Base fija: se suma por flor entre todas las áreas tildadas y recién ahí se pasa a paquetes
   const areasSel = _paAreasBase().filter(a => _paBaseSel[a]).map(a => ({ area:a, ings:D.arreglosComposicion[a]||[] }));
   sumarBaseHotel(areasSel, getVarasPorPaq, _paDia==='vie' ? _paPctVie/100 : 1).forEach(it => {
-    const up = getUltimoPrecioCompra(it.prod);
-    rows.push({ fecha:D.TODAY_ISO, pedidopor:'—', prod:it.prod, desc:it.color||'', qty:it.qty, costo: up?String(up.precio):'', prov:'', sector:it.areas.join(', '), estado:'pedido', sucursal:suc });
+    // Sin costo ni proveedor a propósito: los precios varían y los completa quien hace el pedido
+    rows.push({ fecha:D.TODAY_ISO, pedidopor:'—', prod:it.prod, desc:it.color||'', qty:it.qty, costo:'', prov:'', sector:it.areas.join(', '), estado:'pedido', sucursal:suc });
   });
   // Flores de eventos pendientes
   _paEventosPend().forEach(({ev,i}) => {
@@ -1553,8 +1553,7 @@ function _paBuildRows(){
         const vpp = getVarasPorPaq(prod);
         let qty = vpp ? Math.ceil(varas/vpp) : Math.ceil(varas);
         if(qty<=0) qty = 1;
-        const up = getUltimoPrecioCompra(prod);
-        rows.push({ fecha:D.TODAY_ISO, pedidopor:'—', prod, desc:paleta, qty, costo: up?String(up.precio):'', prov:'', sector:'', eventoId: ev.id||'', evento: ev.nombre||'', estado:'pedido', sucursal:suc });
+        rows.push({ fecha:D.TODAY_ISO, pedidopor:'—', prod, desc:paleta, qty, costo:'', prov:'', sector:'', eventoId: ev.id||'', evento: ev.nombre||'', estado:'pedido', sucursal:suc });
       });
     });
   });
@@ -1639,7 +1638,7 @@ function renderPedidoAuto(){
     <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--mid-gray);font-weight:600;margin-bottom:2px">Flores de eventos pendientes</div>
     <div style="max-height:24vh;overflow:auto;margin-bottom:14px">${evHTML}</div>
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px solid var(--light-gray);padding-top:12px">
-      <div style="font-size:12.5px;color:var(--mid-gray)">Se van a cargar <strong style="color:var(--charcoal)">${rows.length}</strong> ítem${rows.length!==1?'s':''} como "pedido", con el último precio conocido de cada flor. Las cantidades cargadas son <strong>paquetes</strong>: la base del hotel suma las varas de cada flor entre todas las áreas y recién ahí redondea.</div>
+      <div style="font-size:12.5px;color:var(--mid-gray)">Se van a cargar <strong style="color:var(--charcoal)">${rows.length}</strong> ítem${rows.length!==1?'s':''} como "pedido", sin costo ni proveedor (los completa quien hace el pedido). Las cantidades cargadas son <strong>paquetes</strong>: la base del hotel suma las varas de cada flor entre todas las áreas y recién ahí redondea.</div>
       <div style="display:flex;gap:8px">
         <button class="btn-secondary" onclick="closeModal('pedido-auto-modal')">Cancelar</button>
         <button class="btn-add" ${rows.length?'':'disabled'} onclick="generarPedidoAuto()">Generar pedido</button>
@@ -1662,7 +1661,7 @@ export function generarPedidoAuto(){
   renderCompras('floreria');
   if(document.getElementById('page-stock')?.classList.contains('active')) D.renderStock();
   updateKpiCompras();
-  showToast(`Pedido generado: ${rows.length} ítem${rows.length!==1?'s':''} cargados como "pedido" — ajustá precios y proveedor.`);
+  showToast(`Pedido generado: ${rows.length} ítem${rows.length!==1?'s':''} cargados como "pedido" — falta cargar costo y proveedor.`);
 }
 
 export function renderCompraEvento(){
