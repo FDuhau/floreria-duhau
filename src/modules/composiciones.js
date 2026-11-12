@@ -129,7 +129,12 @@ export async function seedComposicionesHotelBase(){
   const n = COMPOSICIONES_HOTEL_BASE.length;
   if(!await confirmModal(`¿Cargar / actualizar las ${n} composiciones base de arreglos del hotel?\n\nSe (re)cargan las zonas del catálogo con las unidades correctas (paquetes o varas). Tus zonas propias no se tocan.`)) return;
   COMPOSICIONES_HOTEL_BASE.forEach(c=>{
-    D.arreglosComposicion[c.zona] = c.ings.map(g=>({ prod:g.prod, qty:g.qty, ...(g.unidad==='paq'?{unidad:'paq'}:{}) }));
+    // Se conserva el color que ya tenía cada flor de la zona
+    const previas = D.arreglosComposicion[c.zona] || [];
+    D.arreglosComposicion[c.zona] = c.ings.map(g=>{
+      const color = (previas.find(x => x.prod===g.prod && x.color) || {}).color;
+      return { prod:g.prod, qty:g.qty, ...(g.unidad==='paq'?{unidad:'paq'}:{}), ...(color?{color}:{}) };
+    });
   });
   D._marcarArreglosComposicionCargado(); // ya hay datos en memoria: habilita edición/guardado
   D._saveArreglosComposicion();
@@ -177,7 +182,7 @@ export function renderRecetas(){
         ${r.ings.map(ing=>`
           <div class="receta-ing-row">
             <span style="font-size:18px;line-height:1"></span>
-            <span style="flex:1;font-weight:500">${esc(ing.prod)} ${badgeCategoriaVaraDe(ing.prod)}</span>
+            <span style="flex:1;font-weight:500">${esc(ing.prod)}${ing.color?` <span style="font-weight:400;font-size:12px;color:#7A3A2A;background:var(--blush-light);border-radius:10px;padding:1px 8px">${esc(ing.color)}</span>`:''} ${badgeCategoriaVaraDe(ing.prod)}</span>
             <span style="background:var(--surface-2);border-radius:4px;padding:2px 8px;font-size:12px;font-weight:600">${_fmtCant(ing.qty)} vara${(+ing.qty)===1?'':'s'}</span>
           </div>`).join('')}
       </div>

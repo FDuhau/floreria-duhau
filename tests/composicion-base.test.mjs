@@ -54,3 +54,13 @@ test('sumarBaseHotel con factor 0,3 (reposición del viernes) pide el 30% de la 
   const toda = Object.fromEntries(B.sumarBaseHotel(areas, () => 25, 1).map(x=>[x.prod,x.qty]));
   assert.equal(toda.Rosa, 2);
 });
+test('sumarBaseHotel separa la misma flor por color y lo devuelve para el pedido', () => {
+  const areas = [
+    {area:'A', ings:[{prod:'Limonium', qty:1, unidad:'paq', color:'blanco'}]},
+    {area:'B', ings:[{prod:'Limonium', qty:2, unidad:'paq', color:'Blanco'}, {prod:'Limonium', qty:1, unidad:'paq', color:'lila'}]},
+  ];
+  const r = B.sumarBaseHotel(areas, () => 25);
+  assert.equal(r.length, 2);
+  assert.equal(r.find(x=>x.color.toLowerCase()==='blanco').qty, 3);
+  assert.equal(r.find(x=>x.color==='lila').qty, 1);
+});
