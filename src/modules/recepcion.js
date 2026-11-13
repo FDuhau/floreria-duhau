@@ -13,7 +13,7 @@ import { comprimirImagen } from './imagenes.js';
 import { cartelCategoriaVara, historialCostoVara } from './categoria-vara.js';
 import { cantidadReclamos, mensajeReclamo, reclamosPendientes } from './reclamos-base.js';
 import { linkWhatsApp } from './ventas-base.js';
-import { areasDeOrdenes, ordenEnArea, repartoDeArea, textoCantReparto } from './reparto-base.js';
+import { areasDeOrdenes, ordenEnArea, repartoDeArea, repartoDesdeComposicion, textoCantReparto } from './reparto-base.js';
 
 let D = {};
 export function configurarRecepcion(deps){ D = deps; }
@@ -24,6 +24,13 @@ export function configurarRecepcion(deps){ D = deps; }
 let recepState = {}; // key: idx → { items: [{checked, cantRecibida}] }
 
 let recepAgrupado = false;
+
+// Si el pedido es viejo y no guardó el reparto, se arma con la composición de cada área.
+function _conReparto(c){
+  if(Array.isArray(c.reparto) && c.reparto.length) return c;
+  const rep = repartoDesdeComposicion(c, D.arreglosComposicion);
+  return rep.length ? { ...c, reparto: rep } : c;
+}
 
 // Qué le toca a cada área de este renglón. Con un área filtrada se resalta la suya.
 function _repartoHTML(order, area){
@@ -46,7 +53,7 @@ export function toggleRecepAgrupado(){
 export function renderRecepcionPedidos(){
   // Fase 1 (por controlar): ni recibidos ni ya controlados.
   const allPending = D.comprasFlore
-    .map((c,i) => ({...c, _idx: i}))
+    .map((c,i) => _conReparto({...c, _idx: i}))
     .filter(c => c.estado !== 'recibido' && c.estado !== 'controlado' && !c.noLlego);
   // Fase 2 (revisión): controlados, todavía SIN subir al stock.
   const controlados = D.comprasFlore
@@ -144,6 +151,7 @@ export function renderRecepcionPedidos(){
 
   listEl.innerHTML = pending.map((order) => {
     const globalIdx = order._idx;
+    const propia = repartoDeArea(order, area);
     if(!recepState[globalIdx]){
       recepState[globalIdx] = { checked: false, paqRecibidos: order.qty, varasPorPaq: getVarasPorPaq(order.prod) || 1 };
     }
@@ -162,8 +170,9 @@ export function renderRecepcionPedidos(){
           <div class="recep-pedido-meta">${esc(order.fecha)} · ${esc(order.prov||'Sin proveedor')} · ${esc(order.sector||'')} ${estadoBadge}</div>
         </div>
         <div style="text-align:right">
-          <div style="font-size:12px;opacity:.6">Pedido</div>
-          <div style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:400">${order.qty} paq</div>
+          <div style="font-size:12px;opacity:.6">${propia ? 'Para ' + esc(area) : 'Pedido'}</div>
+          <div style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:400">${propia ? esc(textoCantReparto(propia)) : order.qty + ' paq'}</div>
+          ${propia ? `<div style="font-size:11px;opacity:.6">pedido total: ${order.qty} paq</div>` : ''}
         </div>
       </div>
       <div class="recep-item-row ${rowClass}" id="recep-row-${globalIdx}" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
@@ -176,9 +185,9 @@ export function renderRecepcionPedidos(){
           ${_repartoHTML(order, area)}
         </div>
         <div style="text-align:center">
-          <div style="font-size:12px;color:var(--mid-gray)">Pedido</div>
-          <strong style="font-size:15px">${order.qty}</strong>
-          <div style="font-size:12px;color:var(--mid-gray)">paquetes</div>
+          <div style="font-size:12px;color:var(--mid-gray)">${propia ? 'Para ' + esc(area) : 'Pedido'}</div>
+          <strong style="font-size:15px">${propia ? esc(textoCantReparto(propia)) : order.qty}</strong>
+          <div style="font-size:12px;color:var(--mid-gray)">${propia ? 'del pedido de ' + order.qty + ' paq' : 'paquetes'}</div>
         </div>
         <div style="text-align:center">
           <div style="font-size:12px;color:var(--mid-gray)">Recibidos</div>
@@ -276,7 +285,7 @@ export function recepCheckAll(){
   const q = (document.getElementById('recep-search')?.value||'').trim().toLowerCase();
   const area = document.getElementById('recep-area')?.value || '';
   const pending = D.comprasFlore
-    .map((c,i) => ({...c, _idx: i}))
+    .map((c,i) => _conReparto({...c, _idx: i}))
     .filter(c => c.estado !== 'recibido' && c.estado !== 'controlado' && !c.noLlego)
     .filter(c => (!q || (c.prod||'').toLowerCase().includes(q)) && ordenEnArea(c, area));
   pending.forEach(o => {

@@ -24,3 +24,10 @@ test('textoCantReparto y repartoDeArea', () => {
   assert.deepEqual(R.repartoDeArea({ reparto:[{area:'A',qty:1,unidad:'vara'}] }, 'A'), {area:'A',qty:1,unidad:'vara'});
   assert.equal(R.repartoDeArea({}, 'A'), null);
 });
+
+import { repartoDesdeComposicion } from '../src/modules/reparto-base.js';
+test('repartoDesdeComposicion arma el reparto de un pedido viejo', () => {
+  const comp = { 'Baños Duhau':[{prod:'Monsteras',qty:2,unidad:'vara'}], 'Spa':[{prod:'Monsteras',qty:1,unidad:'vara'},{prod:'Rosas',qty:5}] };
+  const r = repartoDesdeComposicion({prod:'Monsteras', sector:'Baños Duhau, Spa'}, comp);
+  assert.deepEqual(r, [{area:'Baños Duhau',qty:2,unidad:'vara'},{area:'Spa',qty:1,unidad:'vara'}]);
+});
