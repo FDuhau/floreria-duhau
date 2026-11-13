@@ -6,6 +6,7 @@ import { sendWebPush } from './webpush.js';
 import { handleLogin, handleEstado } from './login.js';
 import { limpiarFotosRamo } from './fotos-ramo.js';
 import { enviarResumenDiario, HORA_ENVIO_UTC } from './resumen-diario.js';
+import { enviarHousekeepingDiario } from './housekeeping-diario.js';
 
 export default {
   async fetch(request, env){
@@ -27,6 +28,8 @@ export default {
     // Resumen diario por mail: una vez por día, a las 8:00 de Argentina.
     if(new Date(event.scheduledTime).getUTCHours() === HORA_ENVIO_UTC){
       ctx.waitUntil(enviarResumenDiario(env, event.scheduledTime).catch((e) => console.warn('resumenDiario:', e)));
+      // Mail a Housekeeping con las habitaciones a ingresar (si hay destinatarios cargados).
+      ctx.waitUntil(enviarHousekeepingDiario(env, event.scheduledTime).catch((e) => console.warn('housekeepingDiario:', e)));
     }
   },
 };
