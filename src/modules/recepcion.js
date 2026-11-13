@@ -13,6 +13,7 @@ import { comprimirImagen } from './imagenes.js';
 import { cartelCategoriaVara, historialCostoVara } from './categoria-vara.js';
 import { cantidadReclamos, mensajeReclamo, reclamosPendientes } from './reclamos-base.js';
 import { linkWhatsApp } from './ventas-base.js';
+import { areasDeOrdenes, ordenEnArea, repartoDeArea, textoCantReparto } from './reparto-base.js';
 
 let D = {};
 export function configurarRecepcion(deps){ D = deps; }
@@ -23,6 +24,17 @@ export function configurarRecepcion(deps){ D = deps; }
 let recepState = {}; // key: idx → { items: [{checked, cantRecibida}] }
 
 let recepAgrupado = false;
+
+// Qué le toca a cada área de este renglón. Con un área filtrada se resalta la suya.
+function _repartoHTML(order, area){
+  const rep = Array.isArray(order.reparto) ? order.reparto : [];
+  if(!rep.length) return '';
+  const propia = repartoDeArea(order, area);
+  if(propia){
+    return `<div style="margin-top:6px;font-size:13px;font-weight:700;color:var(--sage-dark);background:var(--ok-soft);display:inline-block;border-radius:8px;padding:3px 10px">Para ${esc(area)}: ${esc(textoCantReparto(propia))}</div>`;
+  }
+  return `<div style="margin-top:6px;font-size:12px;color:var(--mid-gray)">Reparto: ${rep.map(r => `${esc(r.area)} <strong style="color:var(--charcoal)">${esc(textoCantReparto(r))}</strong>`).join(' · ')}</div>`;
+}
 
 export function toggleRecepAgrupado(){
   recepAgrupado = !recepAgrupado;
@@ -73,7 +85,7 @@ export function renderRecepcionPedidos(){
   // Filtro por área (sector): se combina con el de insumo
   const areaSel = document.getElementById('recep-area');
   if(areaSel){
-    const areas = [...new Set(allPending.map(o => (o.sector||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));
+    const areas = areasDeOrdenes(allPending);   // cada área por separado, aunque un renglón junte varias
     const prevArea = areaSel.value;
     areaSel.innerHTML = '<option value="">Todas las áreas</option>' + areas.map(a => `<option value="${esc(a)}">${esc(a)}</option>`).join('');
     areaSel.value = areas.includes(prevArea) ? prevArea : '';
@@ -81,7 +93,7 @@ export function renderRecepcionPedidos(){
   const area = areaSel?.value || '';
   const pending = allPending.filter(o =>
     (!q || (o.prod||'').toLowerCase().includes(q)) &&
-    (!area || (o.sector||'').trim() === area));
+    ordenEnArea(o, area));
 
   // Sin alertas de urgencia — circuito simple pedido → recibido
   alertEl.innerHTML = '';
@@ -96,7 +108,9 @@ export function renderRecepcionPedidos(){
       if(!groups[key]) groups[key] = { prod:key, qty:0, n:0, sectores:new Set(), provs:new Set() };
       groups[key].qty += parseFloat(o.qty)||0;
       groups[key].n++;
-      if(o.sector) groups[key].sectores.add(o.sector);
+      if(Array.isArray(o.reparto) && o.reparto.length){
+        o.reparto.forEach(r => { if(!area || r.area === area) groups[key].sectores.add(`${r.area} (${textoCantReparto(r)})`); });
+      } else if(o.sector) groups[key].sectores.add(o.sector);
       if(o.prov) groups[key].provs.add(o.prov);
     });
     const rows = Object.values(groups).sort((a,b)=>a.prod.localeCompare(b.prod,'es'));
@@ -159,6 +173,7 @@ export function renderRecepcionPedidos(){
         <div style="flex:1;min-width:120px">
           <div style="font-weight:500">${esc(order.prod)}</div>
           ${order.desc ? `<div style="font-size:12px;color:var(--mid-gray)">${esc(order.desc)}</div>` : ''}
+          ${_repartoHTML(order, area)}
         </div>
         <div style="text-align:center">
           <div style="font-size:12px;color:var(--mid-gray)">Pedido</div>
@@ -263,7 +278,7 @@ export function recepCheckAll(){
   const pending = D.comprasFlore
     .map((c,i) => ({...c, _idx: i}))
     .filter(c => c.estado !== 'recibido' && c.estado !== 'controlado' && !c.noLlego)
-    .filter(c => (!q || (c.prod||'').toLowerCase().includes(q)) && (!area || (c.sector||'').trim() === area));
+    .filter(c => (!q || (c.prod||'').toLowerCase().includes(q)) && ordenEnArea(c, area));
   pending.forEach(o => {
     if(!recepState[o._idx]) recepState[o._idx] = {};
     recepState[o._idx].checked = true;

@@ -64,3 +64,17 @@ test('sumarBaseHotel separa la misma flor por color y lo devuelve para el pedido
   assert.equal(r.find(x=>x.color.toLowerCase()==='blanco').qty, 3);
   assert.equal(r.find(x=>x.color==='lila').qty, 1);
 });
+test('sumarBaseHotel devuelve cuánto le toca a cada área', () => {
+  const areas = [
+    {area:'Lobby de Alvear', ings:[{prod:'Magnolia', qty:2}]},
+    {area:'Biblioteca', ings:[{prod:'Magnolia', qty:1}, {prod:'Magnolia', qty:0.5}]},
+  ];
+  const [m] = B.sumarBaseHotel(areas, () => 25);
+  const lobby = m.porArea.find(x => x.area === 'Lobby de Alvear');
+  const bib = m.porArea.find(x => x.area === 'Biblioteca');
+  assert.equal(lobby.qty, 2);
+  assert.equal(bib.qty, 1.5);
+  assert.equal(lobby.unidad, 'vara');
+  const [v] = B.sumarBaseHotel(areas, () => 25, 0.3);
+  assert.equal(v.porArea.find(x => x.area === 'Lobby de Alvear').qty, 0.6);
+});
