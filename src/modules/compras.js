@@ -1534,7 +1534,7 @@ function _paBuildRows(){
   const areasSel = _paAreasBase().filter(a => _paBaseSel[a]).map(a => ({ area:a, ings:D.arreglosComposicion[a]||[] }));
   sumarBaseHotel(areasSel, getVarasPorPaq, _paDia==='vie' ? _paPctVie/100 : 1).forEach(it => {
     // Sin costo ni proveedor a propósito: los precios varían y los completa quien hace el pedido
-    rows.push({ fecha:D.TODAY_ISO, pedidopor:'—', prod:it.prod, desc:it.color||'', qty:it.qty, costo:'', prov:'', sector:it.areas.join(', '), estado:'pedido', sucursal:suc });
+    rows.push({ fecha:D.TODAY_ISO, pedidopor:'—', prod:it.prod, desc:it.color||'', qty:it.qty, costo:'', prov:'', sector:it.areas.join(', '), reparto:it.porArea, estado:'pedido', sucursal:suc });
   });
   // Flores de eventos pendientes
   _paEventosPend().forEach(({ev,i}) => {

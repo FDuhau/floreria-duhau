@@ -37,7 +37,13 @@ export function sumarBaseHotel(areas, vppDe, factor = 1){
     const color = String(ing.color||'').trim();
     const clave = ing.prod + '||' + color.toLowerCase();   // misma flor en otro color = otro renglón
     let o = porProd.get(clave);
-    if(!o){ o = { prod:ing.prod, color, varas:0, paq:0, sinDato:0, areas:[] }; porProd.set(clave, o); }
+    if(!o){ o = { prod:ing.prod, color, varas:0, paq:0, sinDato:0, areas:[], porArea:[] }; porProd.set(clave, o); }
+    // Cuánto le toca a cada área, en la unidad en que está cargada la composición
+    if(area && q > 0){
+      const unidad = ing.unidad === 'paq' ? 'paq' : 'vara';
+      const prev = o.porArea.find(x => x.area === area && x.unidad === unidad);
+      if(prev) prev.qty += q; else o.porArea.push({ area, qty:q, unidad });
+    }
     if(ing.unidad === 'paq'){ o.paq += q; }
     else if(vpp > 0){ o.varas += q; }
     else { o.sinDato += q; }
@@ -49,6 +55,6 @@ export function sumarBaseHotel(areas, vppDe, factor = 1){
     // tolerancia por decimales flotantes (3 × 0,33 + …)
     let qty = Math.ceil(Math.round(total * 1000) / 1000);
     if(qty <= 0) qty = 1;
-    return { prod:o.prod, color:o.color, qty, varas: o.vpp > 0 ? +(o.varas + o.paq * o.vpp).toFixed(2) : null, vpp:o.vpp || 0, areas:o.areas };
+    return { prod:o.prod, color:o.color, qty, varas: o.vpp > 0 ? +(o.varas + o.paq * o.vpp).toFixed(2) : null, vpp:o.vpp || 0, areas:o.areas, porArea:o.porArea.map(x => ({ area:x.area, unidad:x.unidad, qty:+(x.qty * factor).toFixed(3) })) };
   });
 }
