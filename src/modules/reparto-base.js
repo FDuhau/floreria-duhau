@@ -38,3 +38,24 @@ export function repartoDeArea(o, area){
   if(!area || !o || !Array.isArray(o.reparto)) return null;
   return o.reparto.find(r => r.area === area) || null;
 }
+
+// Pedidos viejos (hechos antes de guardar el reparto): se reconstruye con lo que dice la
+// composición de cada área del sector. `composiciones` = { área: [{prod, qty, unidad, color}] }.
+export function repartoDesdeComposicion(o, composiciones){
+  if(!o || !composiciones) return [];
+  const prod = String(o.prod || '').trim().toLowerCase();
+  const desc = String(o.desc || '').trim().toLowerCase();
+  const out = [];
+  areasDeSector(o.sector).forEach(area => {
+    let paq = 0, vara = 0;
+    (composiciones[area] || []).forEach(ing => {
+      if(!ing || String(ing.prod || '').trim().toLowerCase() !== prod) return;
+      if(desc && String(ing.color || '').trim().toLowerCase() !== desc) return;
+      const q = +ing.qty || 0;
+      if(ing.unidad === 'paq') paq += q; else vara += q;
+    });
+    if(vara > 0) out.push({ area, qty:+vara.toFixed(3), unidad:'vara' });
+    if(paq > 0) out.push({ area, qty:+paq.toFixed(3), unidad:'paq' });
+  });
+  return out;
+}
